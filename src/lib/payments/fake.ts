@@ -15,7 +15,12 @@ export class FakeProvider implements PaymentProvider {
     signature: string | null
   ): Promise<{ userId: string; packId: string; providerId: string } | null> {
     void signature;
-    const parsed = JSON.parse(payload) as { userId?: string; packId?: string };
+    let parsed: { userId?: string; packId?: string };
+    try {
+      parsed = JSON.parse(payload) as { userId?: string; packId?: string };
+    } catch {
+      return null;
+    }
     if (!parsed.userId || !parsed.packId) return null;
     return {
       userId: parsed.userId,

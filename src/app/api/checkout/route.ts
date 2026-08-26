@@ -35,11 +35,13 @@ export async function POST(req: Request) {
 
   if ((process.env.PAYMENT_PROVIDER ?? 'fake') === 'fake') {
     const sep = checkoutUrl.includes('?') ? '&' : '?';
-    return NextResponse.redirect(
-      new URL(`${checkoutUrl}${sep}userId=${session.userId}&packId=${packId}`, req.url),
-      303
-    );
+    return NextResponse.json({
+      checkoutUrl: new URL(
+        `${checkoutUrl}${sep}userId=${session.userId}&packId=${packId}`,
+        req.url
+      ).toString(),
+    });
   }
 
-  return NextResponse.redirect(new URL(checkoutUrl, req.url), 303);
+  return NextResponse.json({ checkoutUrl: new URL(checkoutUrl, req.url).toString() });
 }

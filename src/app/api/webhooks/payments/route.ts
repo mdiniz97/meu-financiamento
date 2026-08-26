@@ -93,23 +93,19 @@ async function processPayment(result: {
     return NextResponse.json({ ok: true });
   }
 
-  if (pack.credits == null) {
-    return NextResponse.json(
-      { error: 'Pack de créditos sem quantidade definida' },
-      { status: 400 }
-    );
+  if (pack.credits && pack.credits > 0) {
+    const description = `Compra créditos (providerId ${result.providerId})`;
+    const alreadyProcessed = await db.query.creditLedger.findFirst({
+      where: and(
+        eq(schema.creditLedger.userId, result.userId),
+        eq(schema.creditLedger.kind, LEDGER_KIND),
+        eq(schema.creditLedger.description, description)
+      ),
+    });
+    if (alreadyProcessed) {
+      return NextResponse.json({ ok: true, idempotent: true });
+    }
+    await addCredits(result.userId, pack.credits, LEDGER_KIND, description);
   }
-  const description = `Compra créditos (providerId ${result.providerId})`;
-  const alreadyProcessed = await db.query.creditLedger.findFirst({
-    where: and(
-      eq(schema.creditLedger.userId, result.userId),
-      eq(schema.creditLedger.kind, LEDGER_KIND),
-      eq(schema.creditLedger.description, description)
-    ),
-  });
-  if (alreadyProcessed) {
-    return NextResponse.json({ ok: true, idempotent: true });
-  }
-  await addCredits(result.userId, pack.credits, LEDGER_KIND, description);
   return NextResponse.json({ ok: true });
 }

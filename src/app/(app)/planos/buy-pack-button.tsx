@@ -17,22 +17,19 @@ export function BuyPackButton({ packId, label }: { packId: string; label: string
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packId }),
-        redirect: 'manual',
       });
-      if (res.type === 'opaqueredirect' || res.redirected) {
-        const url = res.headers.get('location') ?? '/planos';
-        if (url.startsWith('/')) {
-          router.push(url);
-        } else {
-          window.location.assign(url);
-        }
+      const data = (await res.json().catch(() => null)) as {
+        checkoutUrl?: string;
+        error?: string;
+      } | null;
+      if (!res.ok || !data?.checkoutUrl) {
+        setError(data?.error ?? 'Erro ao iniciar compra');
         return;
       }
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        setError(data?.error ?? 'Erro ao iniciar compra');
+      if (data.checkoutUrl.startsWith('/')) {
+        router.push(data.checkoutUrl);
       } else {
-        router.push('/planos');
+        window.location.assign(data.checkoutUrl);
       }
     } catch {
       setError('Erro de rede ao iniciar compra');
