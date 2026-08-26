@@ -4,7 +4,13 @@ import { useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { simulate } from '@/lib/finance/engine';
 import type { LoanInput, Strategies } from '@/lib/finance/types';
-import { DEFAULT_FORM, formToInput, formToStrategies, type FormState } from '@/lib/simulation-context';
+import {
+  DEFAULT_FORM,
+  formToInput,
+  formToStrategies,
+  parseStoredForm,
+  type FormState,
+} from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,19 +35,12 @@ let cached: { form: FormState; strategies: Strategies } | null = null;
 
 function loadSnapshot(): { form: FormState; strategies: Strategies } {
   const raw = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SIM_INPUT_KEY);
-  if (raw !== cachedRaw) {
+  if (raw !== cachedRaw || cached === null) {
     cachedRaw = raw;
-    let loaded: FormState = DEFAULT_FORM;
-    if (raw) {
-      try {
-        loaded = { ...DEFAULT_FORM, ...(JSON.parse(raw) as FormState) };
-      } catch {
-        loaded = DEFAULT_FORM;
-      }
-    }
+    const loaded = parseStoredForm(raw);
     cached = { form: loaded, strategies: formToStrategies(loaded) };
   }
-  return cached!;
+  return cached;
 }
 
 const SERVER_SNAPSHOT = { form: DEFAULT_FORM, strategies: formToStrategies(DEFAULT_FORM) };

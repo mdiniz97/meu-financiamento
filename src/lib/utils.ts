@@ -13,3 +13,7 @@ export function parseBRLToNumber(s: string): number {
   const cleaned = s.replace(/[R$\s.]/g, '').replace(',', '.');
   return Number(cleaned) || 0;
 }
+
+export function parseDecimal(s: string): number {
+  return Number(s.trim().replace(',', '.'));
+}

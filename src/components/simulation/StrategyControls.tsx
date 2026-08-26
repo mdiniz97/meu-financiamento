@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
-import { formatBRL, parseBRLToNumber } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                       onChange={(e) =>
                         setLump(
                           strategies.extraLumpSum.map((x, j) =>
-                            j === i ? { ...x, month: Number(e.target.value) || 0 } : x
+                            j === i ? { ...x, month: Math.max(1, Number(e.target.value) || 0) } : x
                           )
                         )
                       }
@@ -183,15 +183,17 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                     id="portRate"
                     inputMode="decimal"
                     value={String(Math.round(strategies.portability.annualRate * 10000) / 100)}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const v = parseDecimal(e.target.value);
+                      if (!Number.isFinite(v) || v <= 0) return;
                       onChange({
                         ...strategies,
                         portability: {
                           ...strategies.portability!,
-                          annualRate: Number(e.target.value) / 100,
+                          annualRate: v / 100,
                         },
-                      })
-                    }
+                      });
+                    }}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">

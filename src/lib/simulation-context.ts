@@ -1,5 +1,5 @@
 import type { AmortSystem, ExtraPayment, LoanInput, Strategies } from './finance/types';
-import { parseBRLToNumber } from './utils';
+import { parseBRLToNumber, parseDecimal } from './utils';
 
 export type ReduceMode = 'payment' | 'term';
 
@@ -41,30 +41,45 @@ export const DEFAULT_FORM: FormState = {
 };
 
 export function formToInput(f: FormState): LoanInput {
+  const annualRate = parseDecimal(f.annualRate);
+  const trMonthly = parseDecimal(f.trMonthly);
+  const months = Number(f.months);
   return {
     system: f.system,
     principal: parseBRLToNumber(f.principal),
-    annualRate: Number(f.annualRate) / 100,
-    months: Number(f.months),
-    trMonthly: Number(f.trMonthly) / 100,
+    annualRate: Number.isFinite(annualRate) && annualRate > 0 ? annualRate / 100 : 0,
+    months: Number.isFinite(months) && months > 0 ? months : 0,
+    trMonthly: Number.isFinite(trMonthly) && trMonthly >= 0 ? trMonthly / 100 : 0,
     insuranceMonthly: parseBRLToNumber(f.insuranceMonthly),
     insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
     bank: f.bank,
   };
 }
 
+export function parseStoredForm(raw: string | null, fallback: FormState = DEFAULT_FORM): FormState {
+  if (!raw) return fallback;
+  try {
+    return { ...fallback, ...(JSON.parse(raw) as FormState) };
+  } catch {
+    return fallback;
+  }
+}
+
 export function formToStrategies(f: FormState): Strategies {
-  const extraMonthlyPct = Number(f.extraMonthlyPct) / 100;
+  const extraMonthlyPct = parseDecimal(f.extraMonthlyPct);
   const fgtsAnnual = parseBRLToNumber(f.fgtsAnnual);
+  const portAnnualRate = f.portability ? parseDecimal(f.portability.annualRate) : 0;
   return {
     extraLumpSum: f.lumpSum,
-    ...(extraMonthlyPct > 0 ? { extraMonthlyPct } : {}),
+    ...(Number.isFinite(extraMonthlyPct) && extraMonthlyPct > 0
+      ? { extraMonthlyPct: extraMonthlyPct / 100 }
+      : {}),
     ...(fgtsAnnual > 0 ? { fgtsAnnual } : {}),
     reduceMode: f.reduceMode,
-    ...(f.portability
+    ...(f.portability && Number.isFinite(portAnnualRate) && portAnnualRate > 0
       ? {
           portability: {
-            annualRate: Number(f.portability.annualRate) / 100,
+            annualRate: portAnnualRate / 100,
             bank: f.portability.bank,
             insuranceMonthly: parseBRLToNumber(f.insuranceMonthly),
           },

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 import { BANKS, DEFAULT_FORM, type FormState } from '@/lib/simulation-context';
-import { parseBRLToNumber } from '@/lib/utils';
+import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,15 +26,20 @@ export function WizardForm() {
 
   function validate(): string | null {
     const principal = parseBRLToNumber(form.principal);
-    const annualRate = Number(form.annualRate);
+    const annualRate = parseDecimal(form.annualRate);
     const months = Number(form.months);
-    const trMonthly = Number(form.trMonthly);
+    const trMonthly = parseDecimal(form.trMonthly);
     const insuranceMonthly = parseBRLToNumber(form.insuranceMonthly);
     if (!(principal > 0)) return 'Informe o valor financiado (maior que zero).';
     if (!(annualRate > 0)) return 'Informe a taxa anual (maior que zero).';
     if (!(months >= 1 && months <= 600)) return 'Prazo deve estar entre 1 e 600 meses.';
-    if (Number.isNaN(trMonthly) || trMonthly < 0) return 'Informe a TR mensal válida.';
-    if (Number.isNaN(insuranceMonthly) || insuranceMonthly < 0) return 'Informe o seguro mensal válido.';
+    if (!(trMonthly >= 0)) return 'Informe a TR mensal válida.';
+    if (!(insuranceMonthly >= 0)) return 'Informe o seguro mensal válido.';
+    if (
+      form.portability &&
+      !(parseDecimal(form.portability.annualRate) > 0)
+    )
+      return 'Informe a nova taxa da portabilidade (maior que zero).';
     return null;
   }
 
@@ -170,7 +175,7 @@ export function WizardForm() {
                             set(
                               'lumpSum',
                               form.lumpSum.map((x, j) =>
-                                j === i ? { ...x, month: Number(e.target.value) || 0 } : x
+                                j === i ? { ...x, month: Math.max(1, Number(e.target.value) || 0) } : x
                               )
                             )
                           }
