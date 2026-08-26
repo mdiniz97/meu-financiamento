@@ -1,4 +1,6 @@
 import { loadSimulation } from './actions';
+import { auth } from '@/auth';
+import { getCreditBalance } from '@/lib/credits';
 import { SimulationSandbox } from '@/components/simulation/SimulationSandbox';
 
 export default async function SimulacaoPage({
@@ -8,10 +10,14 @@ export default async function SimulacaoPage({
 }) {
   const { id } = await searchParams;
   const saved = typeof id === 'string' && id ? await loadSimulation(id) : null;
+  const session = await auth();
+  const { isUnlimited } = session?.userId
+    ? await getCreditBalance(session.userId)
+    : { isUnlimited: false };
 
   return (
     <div className="flex flex-1 bg-[#F5F5F5] p-6">
-      <SimulationSandbox saved={saved} />
+      <SimulationSandbox saved={saved} isUnlimited={isUnlimited} />
     </div>
   );
 }

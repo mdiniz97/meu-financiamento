@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import Link from 'next/link';
 import { simulate } from '@/lib/finance/engine';
 import { recommend } from '@/lib/finance/recommend';
-import type { LoanInput, Strategies } from '@/lib/finance/types';
+import type { AmortSystem, LoanInput, Strategies } from '@/lib/finance/types';
 import {
   DEFAULT_FORM,
   formToInput,
@@ -17,6 +17,7 @@ import { formatBRL } from '@/lib/utils';
 import { saveSimulation, type SaveResult } from '@/app/(app)/simulacao/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogClose,
@@ -29,6 +30,7 @@ import {
 import { BalanceChart } from './charts/BalanceChart';
 import { CompareChart } from './charts/CompareChart';
 import { InterestAmortChart } from './charts/InterestAmortChart';
+import { ExportPdfButton } from './ExportPdfButton';
 import { InstallmentTable } from './InstallmentTable';
 import { MetricsGrid } from './MetricsGrid';
 import { RecommendationCard } from './RecommendationCard';
@@ -79,7 +81,13 @@ function setCachedStrategies(s: Strategies) {
   cached = { ...cached, strategies: s };
 }
 
-export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null }) {
+export function SimulationSandbox({
+  saved,
+  isUnlimited = false,
+}: {
+  saved?: SavedSimulation | null;
+  isUnlimited?: boolean;
+}) {
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
@@ -87,6 +95,8 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState('');
   const [showCreditsDialog, setShowCreditsDialog] = useState(false);
+  const [compareSystems, setCompareSystems] = useState(false);
+  const [activeSystem, setActiveSystem] = useState<AmortSystem | null>(null);
 
   useEffect(() => {
     if (!saved || savedIdRef.current === saved.id) return;
@@ -119,22 +129,24 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
   );
   const systemCompare = useMemo(
     () =>
-      input
+      compareSystems && input
         ? {
-            PRICE: simulate({ ...input, system: 'PRICE' }, EMPTY),
-            SAC: simulate({ ...input, system: 'SAC' }, EMPTY),
+            PRICE: simulate({ ...input, system: 'PRICE' }, strategies),
+            SAC: simulate({ ...input, system: 'SAC' }, strategies),
           }
         : null,
-    [input]
+    [input, strategies, compareSystems]
   );
+  const primarySystem: AmortSystem = compareSystems ? activeSystem ?? input.system : input.system;
+  const displayed = (compareSystems && systemCompare ? systemCompare[primarySystem] : current) ?? current;
   const balanceData = useMemo(
-    () => current?.installments.map(({ month, saldo }) => ({ month, saldo })) ?? [],
-    [current]
+    () => displayed?.installments.map(({ month, saldo }) => ({ month, saldo })) ?? [],
+    [displayed]
   );
   const baseSaldos = useMemo(() => base?.installments.map((i) => i.saldo) ?? [], [base]);
   const currentSaldos = useMemo(
-    () => current?.installments.map((i) => i.saldo) ?? [],
-    [current]
+    () => displayed?.installments.map((i) => i.saldo) ?? [],
+    [displayed]
   );
 
   async function handleSave() {
@@ -159,7 +171,7 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
     }
   }
 
-  if (!input || !base || !current || !systemCompare) {
+  if (!input || !base || !current || (compareSystems && !systemCompare) || !displayed) {
     return <div className="py-20 text-center text-muted-foreground">Carregando…</div>;
   }
 
@@ -180,6 +192,7 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
             </Link>
           )}
           {saveError && <span className="text-sm text-destructive">{saveError}</span>}
+          <ExportPdfButton result={displayed} isUnlimited={isUnlimited} />
           <Button
             variant="outline"
             size="sm"
@@ -194,45 +207,65 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
+        <span className="text-sm font-medium">Comparar PRICE ↔ SAC</span>
+        {isUnlimited ? (
+          <Switch checked={compareSystems} onCheckedChange={setCompareSystems} />
+        ) : (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              Exclusivo Ilimitado
+            </Badge>
+            <Link href="/planos" className="text-sm font-medium text-[#820AD1]">
+              Ver planos
+            </Link>
+          </div>
+        )}
+      </div>
+
       <RecommendationCard base={base} best={recommendation?.best ?? base} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">PRICE</span>
-            <Badge variant="secondary" className="text-xs">
-              {formatBRL(systemCompare.PRICE.metrics.totalPago)}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Juros {formatBRL(systemCompare.PRICE.metrics.totalJuros)} · Quita em{' '}
-            {systemCompare.PRICE.metrics.saldoZeroAt} meses
-          </p>
+      {compareSystems && systemCompare && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(['PRICE', 'SAC'] as AmortSystem[]).map((system) => {
+            const res = systemCompare[system];
+            const isPrimary = primarySystem === system;
+            return (
+              <button
+                key={system}
+                type="button"
+                onClick={() => setActiveSystem(system)}
+                className={`flex flex-col gap-1 rounded-2xl bg-white p-4 text-left shadow-sm transition-colors ${
+                  isPrimary ? 'ring-2 ring-[#820AD1]' : 'hover:ring-1 hover:ring-[#820AD1]/40'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold ${isPrimary ? 'text-[#820AD1]' : 'text-muted-foreground'}`}>
+                    {system}{isPrimary && ' · principal'}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {formatBRL(res.metrics.totalPago)}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Juros {formatBRL(res.metrics.totalJuros)} · Quita em {res.metrics.saldoZeroAt} meses
+                </p>
+              </button>
+            );
+          })}
         </div>
-        <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">SAC</span>
-            <Badge variant="secondary" className="text-xs">
-              {formatBRL(systemCompare.SAC.metrics.totalPago)}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Juros {formatBRL(systemCompare.SAC.metrics.totalJuros)} · Quita em{' '}
-            {systemCompare.SAC.metrics.saldoZeroAt} meses
-          </p>
-        </div>
-      </div>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Métricas</h2>
-        <MetricsGrid metrics={current.metrics} />
+        <MetricsGrid metrics={displayed.metrics} />
       </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Gráficos</h2>
         <div className="grid gap-3 lg:grid-cols-2">
           <BalanceChart data={balanceData} />
-          <InterestAmortChart installments={current.installments} />
+          <InterestAmortChart installments={displayed.installments} />
           <div className="lg:col-span-2">
             <CompareChart base={baseSaldos} withStrategy={currentSaldos} />
           </div>
@@ -241,7 +274,7 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Tabela de parcelas</h2>
-        <InstallmentTable installments={current.installments} />
+        <InstallmentTable installments={displayed.installments} />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -254,11 +287,11 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
             listeners.forEach((l) => l());
           }}
           base={base}
-          current={current}
+          current={displayed}
         />
       </section>
 
-      <ScenarioCompare input={input} base={base} current={current} />
+      <ScenarioCompare input={input} base={base} current={displayed} />
 
       <Dialog open={showCreditsDialog} onOpenChange={setShowCreditsDialog}>
         <DialogContent>
