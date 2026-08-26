@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { simulate } from '@/lib/finance/engine';
+import { recommend } from '@/lib/finance/recommend';
 import type { LoanInput, Strategies } from '@/lib/finance/types';
 import {
   DEFAULT_FORM,
@@ -12,18 +13,38 @@ import {
   type FormState,
 } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
+import { saveSimulation, type SaveResult } from '@/app/(app)/simulacao/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { BalanceChart } from './charts/BalanceChart';
 import { CompareChart } from './charts/CompareChart';
 import { InterestAmortChart } from './charts/InterestAmortChart';
 import { InstallmentTable } from './InstallmentTable';
 import { MetricsGrid } from './MetricsGrid';
+import { RecommendationCard } from './RecommendationCard';
 import { ScenarioCompare } from './ScenarioCompare';
 import { StrategyControls } from './StrategyControls';
 
 const EMPTY: Strategies = { extraLumpSum: [], reduceMode: 'term' };
 const SIM_INPUT_KEY = 'sim-input';
+
+export interface SavedSimulation {
+  id: string;
+  name: string;
+  payload: unknown;
+  result: unknown;
+  system: string;
+  createdAt: Date;
+}
 
 const listeners = new Set<() => void>();
 function subscribe(cb: () => void) {
@@ -34,29 +55,74 @@ function subscribe(cb: () => void) {
 }
 
 let cachedRaw: string | null = null;
-let cached: { form: FormState; strategies: Strategies } | null = null;
+let cached: { form: FormState; strategies: Strategies; input: LoanInput | null } | null = null;
 
-function loadSnapshot(): { form: FormState; strategies: Strategies } {
+function loadSnapshot(): { form: FormState; strategies: Strategies; input: LoanInput | null } {
   const raw = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SIM_INPUT_KEY);
   if (raw !== cachedRaw || cached === null) {
     cachedRaw = raw;
     const loaded = parseStoredForm(raw);
-    cached = { form: loaded, strategies: formToStrategies(loaded) };
+    cached = { form: loaded, strategies: formToStrategies(loaded), input: null };
   }
   return cached;
 }
 
-const SERVER_SNAPSHOT = { form: DEFAULT_FORM, strategies: formToStrategies(DEFAULT_FORM) };
+const SERVER_SNAPSHOT = {
+  form: DEFAULT_FORM,
+  strategies: formToStrategies(DEFAULT_FORM),
+  input: null,
+};
 
-export function SimulationSandbox() {
+function setCachedStrategies(s: Strategies) {
+  if (!cached) return;
+  cached = { ...cached, strategies: s };
+}
+
+function parseJson<T>(raw: unknown): T | null {
+  if (raw == null) return null;
+  try {
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null }) {
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
-  const form = snapshot.form;
   const strategies = snapshot.strategies;
+  const savedIdRef = useRef<string | null>(null);
 
-  const input: LoanInput | null = useMemo(() => formToInput(form), [form]);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveError, setSaveError] = useState('');
+  const [showCreditsDialog, setShowCreditsDialog] = useState(false);
+
+  useEffect(() => {
+    if (!saved || savedIdRef.current === saved.id) return;
+    savedIdRef.current = saved.id;
+    const payload = parseJson<{
+      input: LoanInput;
+      strategies: Strategies;
+    }>(saved.payload);
+    if (!payload?.input) return;
+    cached = {
+      form: parseStoredForm(null),
+      strategies: payload.strategies,
+      input: payload.input,
+    };
+    listeners.forEach((l) => l());
+  }, [saved]);
+
+  const input: LoanInput | null = useMemo(
+    () => snapshot.input ?? formToInput(snapshot.form),
+    [snapshot]
+  );
   const base = useMemo(() => (input ? simulate(input, EMPTY) : null), [input]);
   const current = useMemo(
     () => (input ? simulate(input, strategies) : null),
+    [input, strategies]
+  );
+  const recommendation = useMemo(
+    () => (input ? recommend(input, [EMPTY, strategies]) : null),
     [input, strategies]
   );
   const systemCompare = useMemo(
@@ -79,6 +145,28 @@ export function SimulationSandbox() {
     [current]
   );
 
+  async function handleSave() {
+    if (!input) return;
+    setSaveState('saving');
+    setSaveError('');
+    try {
+      const result = {
+        price: simulate({ ...input, system: 'PRICE' }, strategies),
+        sac: simulate({ ...input, system: 'SAC' }, strategies),
+      };
+      const res: SaveResult = await saveSimulation(input, strategies, result);
+      if ('error' in res) {
+        setShowCreditsDialog(true);
+        setSaveState('idle');
+        return;
+      }
+      setSaveState('saved');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a simulação.');
+      setSaveState('idle');
+    }
+  }
+
   if (!input || !base || !current || !systemCompare) {
     return <div className="py-20 text-center text-muted-foreground">Carregando…</div>;
   }
@@ -87,16 +175,34 @@ export function SimulationSandbox() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Sandbox de simulação</h1>
+          <h1 className="text-xl font-semibold">{saved?.name ?? 'Sandbox de simulação'}</h1>
           <p className="text-sm text-muted-foreground">
             {input.system === 'PRICE' ? 'Sistema PRICE' : 'Sistema SAC'} · {formatBRL(input.principal)} ·{' '}
             {(input.annualRate * 100).toFixed(2)}% a.a. · {input.months} meses · {input.bank}
           </p>
         </div>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
-          Nova simulação
-        </Button>
+        <div className="flex items-center gap-2">
+          {saveState === 'saved' && (
+            <Link href="/minhas-simulacoes" className="text-sm font-medium text-[#820AD1]">
+              Ver minhas simulações →
+            </Link>
+          )}
+          {saveError && <span className="text-sm text-destructive">{saveError}</span>}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={saveState === 'saving'}
+          >
+            {saveState === 'saving' ? 'Salvando…' : 'Salvar simulação'}
+          </Button>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
+            Nova simulação
+          </Button>
+        </div>
       </div>
+
+      <RecommendationCard base={base} best={recommendation?.best ?? base} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
@@ -161,11 +267,24 @@ export function SimulationSandbox() {
       </section>
 
       <ScenarioCompare input={input} base={base} current={current} />
+
+      <Dialog open={showCreditsDialog} onOpenChange={setShowCreditsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Créditos insuficientes</DialogTitle>
+            <DialogDescription>
+              Salvar uma simulação custa 2 créditos (1 por sistema: PRICE e SAC). Adquira um pacote
+              de créditos ou assine o plano para salvar sem limites.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Fechar</DialogClose>
+            <Button nativeButton={false} render={<Link href="/planos" />}>
+              Ver planos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function setCachedStrategies(s: Strategies) {
-  if (!cached) return;
-  cached = { ...cached, strategies: s };
 }
