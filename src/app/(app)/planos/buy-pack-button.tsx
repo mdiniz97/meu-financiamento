@@ -1,0 +1,52 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+
+export function BuyPackButton({ packId, label }: { packId: string; label: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function buy() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId }),
+        redirect: 'manual',
+      });
+      if (res.type === 'opaqueredirect' || res.redirected) {
+        const url = res.headers.get('location') ?? '/planos';
+        if (url.startsWith('/')) {
+          router.push(url);
+        } else {
+          window.location.assign(url);
+        }
+        return;
+      }
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setError(data?.error ?? 'Erro ao iniciar compra');
+      } else {
+        router.push('/planos');
+      }
+    } catch {
+      setError('Erro de rede ao iniciar compra');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Button onClick={buy} disabled={busy} className="w-full">
+        {busy ? 'Aguarde...' : label}
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
