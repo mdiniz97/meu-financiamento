@@ -14,6 +14,9 @@ import {
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BalanceChart } from './charts/BalanceChart';
+import { CompareChart } from './charts/CompareChart';
+import { InterestAmortChart } from './charts/InterestAmortChart';
 import { InstallmentTable } from './InstallmentTable';
 import { MetricsGrid } from './MetricsGrid';
 import { ScenarioCompare } from './ScenarioCompare';
@@ -66,6 +69,15 @@ export function SimulationSandbox() {
         : null,
     [input]
   );
+  const balanceData = useMemo(
+    () => current?.installments.map(({ month, saldo }) => ({ month, saldo })) ?? [],
+    [current]
+  );
+  const baseSaldos = useMemo(() => base?.installments.map((i) => i.saldo) ?? [], [base]);
+  const currentSaldos = useMemo(
+    () => current?.installments.map((i) => i.saldo) ?? [],
+    [current]
+  );
 
   if (!input || !base || !current || !systemCompare) {
     return <div className="py-20 text-center text-muted-foreground">Carregando…</div>;
@@ -116,6 +128,17 @@ export function SimulationSandbox() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Métricas</h2>
         <MetricsGrid metrics={current.metrics} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Gráficos</h2>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <BalanceChart data={balanceData} />
+          <InterestAmortChart installments={current.installments} />
+          <div className="lg:col-span-2">
+            <CompareChart base={baseSaldos} withStrategy={currentSaldos} />
+          </div>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
