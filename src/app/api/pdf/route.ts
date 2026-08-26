@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
-import { simulate } from '@/lib/finance/engine';
+import { simulate, validateLoanInput } from '@/lib/finance/engine';
 import { ReportDocument } from '@/lib/pdf/report';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 
@@ -28,9 +28,10 @@ export async function GET(req: Request) {
     const raw = JSON.parse(url.searchParams.get('result') ?? '{}') as Partial<SimulationResult> & {
       input: LoanInput;
     };
-    if (!raw?.input || typeof raw.input.principal !== 'number') {
+    if (!raw?.input) {
       return NextResponse.json({ error: 'Parâmetro result inválido' }, { status: 400 });
     }
+    validateLoanInput(raw.input, raw.strategies);
     if (Array.isArray(raw.installments) && raw.installments.length > 0 && raw.metrics) {
       result = raw as SimulationResult;
     } else {
@@ -40,13 +41,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Parâmetro result inválido' }, { status: 400 });
   }
 
-  const buffer = await renderToBuffer(
-    React.createElement(ReportDocument, { result }) as unknown as React.ReactElement<DocumentProps>
-  );
+  let buffer: Awaited<ReturnType<typeof renderToBuffer>>;
+  try {
+    buffer = await renderToBuffer(
+      React.createElement(ReportDocument, { result }) as unknown as React.ReactElement<DocumentProps>
+    );
+  } catch {
+    return NextResponse.json({ error: 'Erro ao gerar o PDF' }, { status: 500 });
+  }
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="raio-x-financiamento.pdf"',
+      'Cache-Control': 'no-store',
     },
   });
 }

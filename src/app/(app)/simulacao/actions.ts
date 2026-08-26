@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
+import { validateLoanInput } from '@/lib/finance/engine';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 
 export type SaveResult = { id: string } | { error: string };
@@ -16,6 +17,11 @@ export async function saveSimulation(
 ): Promise<SaveResult> {
   const session = await auth();
   if (!session?.userId) throw new Error('Não autenticado');
+  try {
+    validateLoanInput(input, strategies);
+  } catch {
+    return { error: 'Dados da simulação inválidos' };
+  }
 
   // Fast-path pre-check (UX): authoritative check happens inside the transaction.
   const { credits, isUnlimited } = await getCreditBalance(session.userId);

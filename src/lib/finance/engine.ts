@@ -26,7 +26,37 @@ export function nper(rate: number, payment: number, pv: number): number {
   return -Math.log(1 - (pv * rate) / payment) / Math.log(1 + rate);
 }
 
+export function validateLoanInput(input: LoanInput, strategies?: Strategies): void {
+  const check = (cond: boolean, msg: string) => {
+    if (!cond) throw new Error(`input inválido: ${msg}`);
+  };
+  check(Number.isFinite(input.principal) && input.principal > 0, 'valor financiado deve ser maior que zero');
+  check(Number.isFinite(input.months) && input.months >= 1 && input.months <= 600, 'prazo deve estar entre 1 e 600 meses');
+  check(Number.isFinite(input.annualRate) && input.annualRate >= 0 && input.annualRate <= 1, 'taxa anual deve estar entre 0 e 100%');
+  check(Number.isFinite(input.trMonthly) && input.trMonthly >= 0 && input.trMonthly <= 0.1, 'TR mensal deve estar entre 0 e 10%');
+  check(Number.isFinite(input.insuranceMonthly) && input.insuranceMonthly >= 0, 'seguro mensal não pode ser negativo');
+  check(input.system === 'PRICE' || input.system === 'SAC', 'sistema deve ser PRICE ou SAC');
+  const s = strategies ?? emptyStrategies();
+  check(Array.isArray(s.extraLumpSum), 'amortizações extras inválidas');
+  for (const e of s.extraLumpSum) {
+    check(Number.isFinite(e.month) && e.month >= 1, 'mês de amortização extra inválido');
+    check(Number.isFinite(e.amount) && e.amount > 0, 'valor de amortização extra inválido');
+  }
+  if (s.extraMonthlyPct !== undefined) {
+    check(Number.isFinite(s.extraMonthlyPct) && s.extraMonthlyPct >= 0 && s.extraMonthlyPct <= 1, 'percentual extra deve estar entre 0 e 100%');
+  }
+  if (s.fgtsAnnual !== undefined) {
+    check(Number.isFinite(s.fgtsAnnual) && s.fgtsAnnual >= 0, 'FGTS anual não pode ser negativo');
+  }
+  if (s.portability !== undefined) {
+    check(Number.isFinite(s.portability.annualRate) && s.portability.annualRate >= 0 && s.portability.annualRate <= 1, 'taxa de portabilidade inválida');
+    check(Number.isFinite(s.portability.insuranceMonthly) && s.portability.insuranceMonthly >= 0, 'seguro de portabilidade inválido');
+  }
+  check(s.reduceMode === 'payment' || s.reduceMode === 'term', 'modo de redução inválido');
+}
+
 export function simulate(input: LoanInput, strategies: Strategies = emptyStrategies()): SimulationResult {
+  validateLoanInput(input, strategies);
   // portabilidade: recontrata do mês 1 com nova taxa e novo seguro
   const m = convertAnnualToMonthly(strategies.portability?.annualRate ?? input.annualRate);
   const seguroMensal = strategies.portability?.insuranceMonthly ?? input.insuranceMonthly;
