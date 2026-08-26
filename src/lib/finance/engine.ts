@@ -27,10 +27,14 @@ export function nper(rate: number, payment: number, pv: number): number {
 }
 
 export function simulate(input: LoanInput, strategies: Strategies = emptyStrategies()): SimulationResult {
-  const m = convertAnnualToMonthly(input.annualRate);
+  // portabilidade: recontrata do mês 1 com nova taxa e novo seguro
+  const m = convertAnnualToMonthly(strategies.portability?.annualRate ?? input.annualRate);
+  const seguroMensal = strategies.portability?.insuranceMonthly ?? input.insuranceMonthly;
   const installments: Installment[] = [];
   let saldo = input.principal;
   let parcelaAnterior = 0;
+  let modoPayment = false;
+  let mesesRestantesFixos = input.months;
 
   for (let month = 1; month <= input.months + 360; month++) {
     if (saldo <= 1e-9) break;
@@ -40,28 +44,45 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     let amortizacao: number;
     let parcela: number;
     if (input.system === 'PRICE') {
-      const pagamentoNper = parcelaAnterior > 0 ? parcelaAnterior - input.insuranceMonthly : 0;
+      const pagamentoNper = parcelaAnterior > 0 ? parcelaAnterior - seguroMensal : 0;
       const pvNper = parcelaAnterior > 0 ? saldo - correcao : 0;
-      const mesesRestantes = pagamentoNper > 0 ? nper(m, pagamentoNper, pvNper) : input.months;
-      parcela = pmt(m, mesesRestantes, saldo) + input.insuranceMonthly;
-      amortizacao = Math.min(Math.max(parcela - juros - input.insuranceMonthly, 0), saldo);
+      let mesesRestantes = pagamentoNper > 0 ? nper(m, pagamentoNper, pvNper) : input.months;
+      if (modoPayment) mesesRestantes = mesesRestantesFixos;
+      parcela = pmt(m, mesesRestantes, saldo) + seguroMensal;
+      amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
     } else {
       amortizacao = month === 1
         ? input.principal / input.months
-        : (saldo + correcao) / (input.months - month + 1);
+        : modoPayment
+          ? saldo / mesesRestantesFixos
+          : (saldo + correcao) / (input.months - month + 1);
       if (month > 1) amortizacao = Math.ceil(amortizacao * 100) / 100;
       amortizacao = Math.min(amortizacao, saldo + correcao);
-      parcela = amortizacao + juros + input.insuranceMonthly;
+      parcela = amortizacao + juros + seguroMensal;
     }
 
-    const seguro = input.insuranceMonthly;
+    let extra = 0;
+    const pctExtra = parcela * (strategies.extraMonthlyPct ?? 0);
+    if (pctExtra > 0) extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
+    const lump = strategies.extraLumpSum.find((e) => e.month === month)?.amount ?? 0;
+    if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));
+    if (strategies.fgtsAnnual && month % 12 === 0)
+      extra += Math.min(strategies.fgtsAnnual, Math.max(saldo - amortizacao - extra, 0));
+
+    parcela += extra;
+    amortizacao += extra;
     saldo = Math.max(0, saldo - amortizacao + correcao);
     if (saldo < 1e-9) saldo = 0;
     parcelaAnterior = parcela;
 
+    if (strategies.reduceMode === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
+      modoPayment = true;
+      mesesRestantesFixos = Math.max(1, Math.round(nper(m, Math.max(parcela - seguroMensal - extra, 1e-9), saldo)));
+    }
+
     const valorUtil = amortizacao - correcao;
     installments.push({
-      month, juros, amortizacao, seguro, correcao, extra: 0,
+      month, juros, amortizacao, seguro: seguroMensal, correcao, extra,
       parcela, saldo, valorUtil,
       pctValorUtil: valorUtil / parcela,
     });
