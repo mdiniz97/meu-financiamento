@@ -5,16 +5,8 @@ import { deleteSimulation, listSimulations } from '../simulacao/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { parseSimulationJson } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
-
-function parseJson<T>(raw: unknown): T | null {
-  if (raw == null) return null;
-  try {
-    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
-  } catch {
-    return null;
-  }
-}
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -51,10 +43,10 @@ export default async function MinhasSimulacoesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sims.map((sim) => {
-            const payload = parseJson<{ input?: { system?: string; principal?: number } }>(
+            const payload = parseSimulationJson<{ input?: { system?: string; principal?: number } }>(
               sim.payload
             );
-            const result = parseJson<{
+            const result = parseSimulationJson<{
               price?: { metrics?: { totalPago?: number } };
               sac?: { metrics?: { totalPago?: number } };
             }>(sim.result);

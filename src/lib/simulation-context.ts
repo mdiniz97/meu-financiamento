@@ -65,6 +65,15 @@ export function parseStoredForm(raw: string | null, fallback: FormState = DEFAUL
   }
 }
 
+export function parseSimulationJson<T>(raw: unknown): T | null {
+  if (raw == null) return null;
+  try {
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export function formToStrategies(f: FormState): Strategies {
   const extraMonthlyPct = parseDecimal(f.extraMonthlyPct);
   const fgtsAnnual = parseBRLToNumber(f.fgtsAnnual);

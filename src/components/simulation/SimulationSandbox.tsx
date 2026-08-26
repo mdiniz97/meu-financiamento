@@ -9,6 +9,7 @@ import {
   DEFAULT_FORM,
   formToInput,
   formToStrategies,
+  parseSimulationJson,
   parseStoredForm,
   type FormState,
 } from '@/lib/simulation-context';
@@ -78,15 +79,6 @@ function setCachedStrategies(s: Strategies) {
   cached = { ...cached, strategies: s };
 }
 
-function parseJson<T>(raw: unknown): T | null {
-  if (raw == null) return null;
-  try {
-    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
-  } catch {
-    return null;
-  }
-}
-
 export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null }) {
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
   const strategies = snapshot.strategies;
@@ -99,7 +91,7 @@ export function SimulationSandbox({ saved }: { saved?: SavedSimulation | null })
   useEffect(() => {
     if (!saved || savedIdRef.current === saved.id) return;
     savedIdRef.current = saved.id;
-    const payload = parseJson<{
+    const payload = parseSimulationJson<{
       input: LoanInput;
       strategies: Strategies;
     }>(saved.payload);
