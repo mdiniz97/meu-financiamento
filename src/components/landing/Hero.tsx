@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { simulate } from "@/lib/finance/engine";
 import type { LoanInput } from "@/lib/finance/types";
-import { AnimatedNumber, Reveal } from "@/components/landing/motion-primitives";
+import { AnimatedNumber } from "@/components/landing/motion-primitives";
 
 const trustPoints = ["Grátis para começar", "Sem cartão de crédito", "2 créditos de boas-vindas"];
 
@@ -26,129 +26,117 @@ export function Hero() {
   return (
     <section className="border-b border-border">
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
-        <Reveal>
-          <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
-            <span className="font-mono">2</span> créditos de boas-vindas
-          </span>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
-            Veja o raio X do seu financiamento{" "}
-            <span className="text-primary">antes de assinar o contrato</span>
-          </h1>
-        </Reveal>
-        <Reveal delay={0.2}>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Compare os sistemas SAC e PRICE, descubra quanto você realmente paga de
-            juros e escolha a estratégia que economiza milhares de reais no seu
-            financiamento imobiliário.
-          </p>
-        </Reveal>
-        <Reveal delay={0.3}>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Link
-              href="/cadastro"
-              className={cn(buttonVariants({ variant: "default" }), "h-12 px-8 text-base")}
-            >
-              Criar conta grátis
-              <ArrowRightIcon className="size-4" />
-            </Link>
-            <Link
-              href="/login"
-              className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
-            >
-              Fazer login
-            </Link>
-          </div>
-        </Reveal>
-        <Reveal delay={0.4}>
-          <ul className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
-            {trustPoints.map((point) => (
-              <li key={point} className="flex items-center gap-1.5">
-                <CheckIcon className="size-4 text-primary" />
-                {point}
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+        <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
+          <span className="font-mono">2</span> créditos de boas-vindas
+        </span>
+        <h1 className="font-heading mt-6 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
+          Veja o raio X do seu financiamento{" "}
+          <span className="text-primary">antes de assinar o contrato</span>
+        </h1>
+        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          Compare os sistemas SAC e PRICE, descubra quanto você realmente paga de
+          juros e escolha a estratégia que economiza milhares de reais no seu
+          financiamento imobiliário.
+        </p>
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+          <Link
+            href="/cadastro"
+            className={cn(buttonVariants({ variant: "default" }), "h-12 px-8 text-base")}
+          >
+            Criar conta grátis
+            <ArrowRightIcon className="size-4" />
+          </Link>
+          <Link
+            href="/login"
+            className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
+          >
+            Fazer login
+          </Link>
+        </div>
+        <ul className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
+          {trustPoints.map((point) => (
+            <li key={point} className="flex items-center gap-1.5">
+              <CheckIcon className="size-4 text-primary" />
+              {point}
+            </li>
+          ))}
+        </ul>
 
-        <Reveal delay={0.5} className="mt-14 w-full max-w-4xl">
-          <div className="w-full border border-border text-left">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-              <div className="flex items-center gap-2">
-                <span className="size-2 bg-emerald-500" />
-                <span className="text-sm font-semibold">
-                  Exemplo real: R$ 1 milhão em 360 meses (10% a.a., TR 0,17%)
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground">calculado pelo nosso motor</span>
+        <div className="mt-14 w-full max-w-4xl border border-border text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
+            <div className="flex items-center gap-2">
+              <span className="size-2 bg-emerald-500" />
+              <span className="text-sm font-semibold">
+                Exemplo real: R$ 1 milhão em 360 meses (10% a.a., TR 0,17%)
+              </span>
             </div>
-            <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-              <div className="flex flex-col gap-1 p-5">
-                <span className="text-xs text-muted-foreground">Parcela inicial</span>
-                <span className="flex items-baseline gap-1">
-                  <AnimatedNumber
-                    value={price.installments[0].parcela}
-                    format={brl}
-                    className="font-mono text-lg font-semibold tabular-nums"
-                  />
-                  <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
-                </span>
-                <span className="flex items-baseline gap-1">
-                  <AnimatedNumber
-                    value={sac.installments[0].parcela}
-                    format={brl}
-                    className="font-mono text-lg font-semibold tabular-nums text-primary"
-                  />
-                  <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-5">
-                <span className="text-xs text-muted-foreground">Amortização na 1ª parcela</span>
-                <span className="flex items-baseline gap-1">
-                  <AnimatedNumber
-                    value={price.installments[0].amortizacao}
-                    format={brl}
-                    className="font-mono text-lg font-semibold tabular-nums"
-                  />
-                  <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
-                </span>
-                <span className="flex items-baseline gap-1">
-                  <AnimatedNumber
-                    value={sac.installments[0].amortizacao}
-                    format={brl}
-                    className="font-mono text-lg font-semibold tabular-nums text-primary"
-                  />
-                  <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-5">
-                <span className="text-xs text-muted-foreground">Juros totais em 30 anos</span>
+            <span className="text-xs text-muted-foreground">calculado pelo nosso motor</span>
+          </div>
+          <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            <div className="flex flex-col gap-1 p-5">
+              <span className="text-xs text-muted-foreground">Parcela inicial</span>
+              <span className="flex items-baseline gap-1">
                 <AnimatedNumber
-                  value={price.metrics.totalJuros}
+                  value={price.installments[0].parcela}
                   format={brl}
                   className="font-mono text-lg font-semibold tabular-nums"
                 />
+                <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
+              </span>
+              <span className="flex items-baseline gap-1">
                 <AnimatedNumber
-                  value={sac.metrics.totalJuros}
+                  value={sac.installments[0].parcela}
                   format={brl}
                   className="font-mono text-lg font-semibold tabular-nums text-primary"
                 />
-              </div>
-              <div className="flex flex-col gap-1 p-5">
-                <span className="text-xs text-muted-foreground">Diferença no total pago</span>
+                <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 p-5">
+              <span className="text-xs text-muted-foreground">Amortização na 1ª parcela</span>
+              <span className="flex items-baseline gap-1">
                 <AnimatedNumber
-                  value={price.metrics.totalJuros - sac.metrics.totalJuros}
+                  value={price.installments[0].amortizacao}
                   format={brl}
-                  className="font-mono text-lg font-semibold tabular-nums text-emerald-600"
+                  className="font-mono text-lg font-semibold tabular-nums"
                 />
-                <span className="text-xs text-muted-foreground">
-                  de economia escolhendo certo
-                </span>
-              </div>
+                <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
+              </span>
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={sac.installments[0].amortizacao}
+                  format={brl}
+                  className="font-mono text-lg font-semibold tabular-nums text-primary"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 p-5">
+              <span className="text-xs text-muted-foreground">Juros totais em 30 anos</span>
+              <AnimatedNumber
+                value={price.metrics.totalJuros}
+                format={brl}
+                className="font-mono text-lg font-semibold tabular-nums"
+              />
+              <AnimatedNumber
+                value={sac.metrics.totalJuros}
+                format={brl}
+                className="font-mono text-lg font-semibold tabular-nums text-primary"
+              />
+            </div>
+            <div className="flex flex-col gap-1 p-5">
+              <span className="text-xs text-muted-foreground">Diferença no total pago</span>
+              <AnimatedNumber
+                value={price.metrics.totalJuros - sac.metrics.totalJuros}
+                format={brl}
+                className="font-mono text-lg font-semibold tabular-nums text-emerald-600"
+              />
+              <span className="text-xs text-muted-foreground">
+                de economia escolhendo certo
+              </span>
             </div>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   );
