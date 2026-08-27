@@ -44,7 +44,7 @@ function ScenarioCard({ title, result, accent }: { title: string; result: Simula
           </div>
         </div>
         <BalanceChart data={result.installments.map((i) => ({ month: i.month, saldo: i.saldo }))} />
-        <InstallmentTable installments={result.installments} height="h-[300px]" />
+        <InstallmentTable installments={result.installments} height="h-[300px]" showAporte={false} />
       </CardContent>
     </Card>
   );

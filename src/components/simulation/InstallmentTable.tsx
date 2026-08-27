@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export function InstallmentTable({ installments, height = 'h-[480px]' }: { installments: Installment[]; height?: string }) {
+export function InstallmentTable({ installments, height = 'h-[480px]', showAporte = true }: { installments: Installment[]; height?: string; showAporte?: boolean }) {
   return (
     <ScrollArea className={`${height} rounded-2xl bg-white shadow-sm`}>
       <Table>
@@ -18,7 +18,7 @@ export function InstallmentTable({ installments, height = 'h-[480px]' }: { insta
           <TableRow>
             <TableHead>Mês</TableHead>
             <TableHead className="text-right">Parcela</TableHead>
-            <TableHead className="text-right">Aporte</TableHead>
+            {showAporte && <TableHead className="text-right">Aporte</TableHead>}
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-right">Juros</TableHead>
             <TableHead className="text-right">Amortização</TableHead>
