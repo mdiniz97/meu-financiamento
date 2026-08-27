@@ -236,7 +236,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       let aporteMensal = 0;
       if (strategies.extraMonthlyPct) aporteMensal += parcelaAtual * strategies.extraMonthlyPct;
       if (strategies.fixedPayment) aporteMensal += Math.max(0, strategies.fixedPayment.amount - parcelaAtual);
-      if (strategies.fgtsAnnual) aporteMensal += strategies.fgtsAnnual / 12;
+      if (strategies.fgtsAnnual) aporteMensal += strategies.fgtsAnnual.amount / 12;
       if (strategies.recurringExtra) aporteMensal += strategies.recurringExtra.amount / strategies.recurringExtra.every;
       if (strategies.paySacParcela && input.system === 'PRICE' && sacParcelas[month - 1] !== undefined) {
         aporteMensal += Math.max(0, sacParcelas[month - 1] - parcelaAtual);
