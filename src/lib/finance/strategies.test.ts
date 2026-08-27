@@ -85,6 +85,20 @@ describe('regressão: modo payment não aumenta a dívida', () => {
   });
 });
 
+describe('regressão: SAC payment mode com aporte recorrente não estica a dívida', () => {
+  const inputSac: LoanInput = { ...input, system: 'SAC', principal: 1000000, months: 360 };
+  const rec = { extraLumpSum: [], recurringExtra: { amount: 1000, every: 12, startMonth: 12 }, reduceMode: 'payment' as const };
+  it('quita dentro do prazo contratual (não estica para 500+ meses)', () => {
+    const r = simulate(inputSac, rec);
+    expect(r.metrics.saldoZeroAt).toBeLessThanOrEqual(365);
+  });
+  it('total pago menor que o base (economia positiva, não custo adicional)', () => {
+    const base = simulate(inputSac, { extraLumpSum: [], reduceMode: 'term' });
+    const r = simulate(inputSac, rec);
+    expect(r.metrics.totalPago).toBeLessThan(base.metrics.totalPago);
+  });
+});
+
 describe('aporte recorrente', () => {
   it('aplica aporte a cada X meses começando no mês Y', () => {
     const r = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 12, startMonth: 6 } });

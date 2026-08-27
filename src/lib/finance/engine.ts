@@ -129,13 +129,15 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
 
     if (strategies.reduceMode === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
       modoPayment = true;
-      // "reduzir parcela" mantém o prazo contratual restante: a parcela nova
-      // é fixada para amortizar saldo + correção (TR) nesses meses
+      // "reduzir parcela" mantém o prazo contratual restante
       mesesRestantesFixos = Math.max(1, input.months - month);
       if (input.system === 'PRICE') {
+        // parcela que amortiza saldo + correção (TR) no prazo restante
         parcelaFixada = pmt(mEff, mesesRestantesFixos, saldo) + seguroMensal;
       } else {
-        amortizacaoFixada = saldo / mesesRestantesFixos;
+        // SAC paga juros à parte; a amortização fixa precisa cobrir apenas o
+        // crescimento do saldo pela TR: pmt(TR, N, saldo) — senão o prazo estica
+        amortizacaoFixada = pmt(input.trMonthly, mesesRestantesFixos, saldo);
       }
     }
 
