@@ -32,20 +32,6 @@ const minimoQueAbate = (input: LoanInput) => {
     : pmt(input.trMonthly, input.months, input.principal) + input.principal * m + input.insuranceMonthly;
 };
 
-const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: number) => void; id: string; label: string }) => (
-  <div className="flex w-24 flex-col gap-1.5">
-    <Label className="text-xs text-muted-foreground" htmlFor={id}>
-      {label}
-    </Label>
-    <NumericInput
-      id={id}
-      maxLength={4}
-      value={value}
-      parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
-      onValid={onValid}
-    />
-  </div>
-);
 
 type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual';
 
