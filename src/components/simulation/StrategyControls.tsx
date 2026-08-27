@@ -423,7 +423,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         <CardTitle className="text-lg">Resultado</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <section className="grid grid-cols-2 gap-3">
+        <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela atual</span>
             <span className="text-lg font-semibold">{formatBRL(parcelaBase)}</span>
