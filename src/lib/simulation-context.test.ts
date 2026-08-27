@@ -65,4 +65,9 @@ describe('simulation-context', () => {
     const f = parseStoredForm(JSON.stringify({ principal: '300000' }));
     expect(f.recurringExtra).toBeNull();
   });
+  it('formToStrategies ativa paySacParcela', () => {
+    const s = formToStrategies({ ...DEFAULT_FORM, paySacParcela: true });
+    expect(s.paySacParcela).toBe(true);
+    expect(formToStrategies(DEFAULT_FORM).paySacParcela).toBeUndefined();
+  });
 });

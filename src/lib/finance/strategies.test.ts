@@ -127,3 +127,25 @@ describe('aporte recorrente', () => {
     expect(comAporte.metrics.totalPago).toBeLessThan(simulate(input, base).metrics.totalPago);
   });
 });
+
+describe('pagar parcela do SAC no PRICE (paySacParcela)', () => {
+  const input1M: LoanInput = { ...input, principal: 1000000, months: 360 };
+  const sac = simulate({ ...input1M, system: 'SAC' }, base);
+  it('mês 1 paga a diferença entre as parcelas (SAC − PRICE)', () => {
+    const r = simulate(input1M, { ...base, paySacParcela: true });
+    const price1 = simulate(input1M, base).installments[0].parcela;
+    expect(r.installments[0].extra).toBeCloseTo(sac.installments[0].parcela - price1, 2);
+    expect(r.installments[0].parcela).toBeCloseTo(sac.installments[0].parcela, 2);
+  });
+  it('quita antes do PRICE base e paga menos no total', () => {
+    const r = simulate(input1M, { ...base, paySacParcela: true });
+    const price = simulate(input1M, base);
+    expect(r.metrics.saldoZeroAt).toBeLessThan(price.metrics.saldoZeroAt);
+    expect(r.metrics.totalPago).toBeLessThan(price.metrics.totalPago);
+  });
+  it('no SAC a opção não muda nada', () => {
+    const sacCom = simulate({ ...input1M, system: 'SAC' }, { ...base, paySacParcela: true });
+    const sacSem = simulate({ ...input1M, system: 'SAC' }, base);
+    expect(sacCom.metrics.totalPago).toBe(sacSem.metrics.totalPago);
+  });
+});

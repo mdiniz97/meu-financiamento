@@ -26,6 +26,7 @@ export interface FormState {
   extraMonthlyPct: string;
   fgtsAnnual: string;
   recurringExtra: RecurringExtraForm | null;
+  paySacParcela: boolean;
   reduceMode: ReduceMode;
   portability: PortabilityForm | null;
 }
@@ -44,6 +45,7 @@ export const DEFAULT_FORM: FormState = {
   extraMonthlyPct: '0',
   fgtsAnnual: '0',
   recurringExtra: null,
+  paySacParcela: false,
   reduceMode: 'term',
   portability: null,
 };
@@ -102,6 +104,7 @@ export function formToStrategies(f: FormState): Strategies {
     ...(recurring && Number.isFinite(recurring.amount) && recurring.amount > 0 && Number.isInteger(recurring.every) && recurring.every >= 1 && Number.isInteger(recurring.startMonth) && recurring.startMonth >= 1
       ? { recurringExtra: recurring }
       : {}),
+    ...(f.paySacParcela ? { paySacParcela: true } : {}),
     reduceMode: f.reduceMode,
     ...(f.portability && Number.isFinite(portAnnualRate) && portAnnualRate > 0
       ? {

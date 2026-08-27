@@ -62,6 +62,9 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     check(Number.isFinite(s.portability.insuranceMonthly) && s.portability.insuranceMonthly >= 0, 'seguro de portabilidade inválido');
   }
   check(s.reduceMode === 'payment' || s.reduceMode === 'term', 'modo de redução inválido');
+  if (s.paySacParcela !== undefined) {
+    check(typeof s.paySacParcela === 'boolean', 'opção pagar parcela do SAC inválida');
+  }
 }
 
 export function simulate(input: LoanInput, strategies: Strategies = emptyStrategies()): SimulationResult {
@@ -90,6 +93,21 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       let a = t === 1 ? input.principal / input.months : (bs + corr) / (input.months - t + 1);
       if (t > 1) a = Math.ceil(a * 100) / 100;
       baseSacAmort.push(Math.min(a, bs + corr));
+      bs = Math.max(0, bs - a + corr);
+    }
+  }
+  // cronograma de parcelas do SAC base (mesmo contrato) — para a opção
+  // "pagar parcela do SAC" no PRICE: a diferença vira amortização extra
+  const sacParcelas: number[] = [];
+  if (input.system === 'PRICE' && strategies.paySacParcela) {
+    let bs = input.principal;
+    for (let t = 1; t <= input.months; t++) {
+      const corr = bs * input.trMonthly;
+      const juros = bs * m;
+      let a = t === 1 ? input.principal / input.months : (bs + corr) / (input.months - t + 1);
+      if (t > 1) a = Math.ceil(a * 100) / 100;
+      a = Math.min(a, bs + corr);
+      sacParcelas.push(a + juros + seguroMensal);
       bs = Math.max(0, bs - a + corr);
     }
   }
@@ -136,6 +154,11 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     const rec = strategies.recurringExtra;
     if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0)
       extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
+    if (strategies.paySacParcela && input.system === 'PRICE' && sacParcelas[month - 1] !== undefined) {
+      // paga o que pagaria no SAC: a diferença (SAC − PRICE) vira amortização
+      const extraSac = Math.max(0, sacParcelas[month - 1] - parcela);
+      if (extraSac > 0) extra += Math.min(extraSac, Math.max(saldo - amortizacao - extra, 0));
+    }
 
     parcelaBase = parcela; // ancora da recorrência NPER: parcela CONTRATUAL, sem extra
     parcela += extra;

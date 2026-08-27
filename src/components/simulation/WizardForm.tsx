@@ -244,6 +244,22 @@ export function WizardForm() {
                 </div>
               </div>
 
+              {form.system === 'PRICE' && (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-2">
+                    <Switch
+                      checked={form.paySacParcela}
+                      onCheckedChange={(checked) => set('paySacParcela', checked)}
+                    />
+                    Pagar parcela do SAC
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Paga no PRICE o mesmo valor que pagaria no SAC — a diferença vira amortização
+                    extra, acelerando a quitação.
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-col gap-3">
                 <Label className="flex items-center gap-2">
                   <Switch
