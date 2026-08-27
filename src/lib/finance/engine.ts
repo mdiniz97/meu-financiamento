@@ -215,14 +215,27 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
         const novaAmort = pmt(input.trMonthly, mesesRestantesFixos, saldo);
         novaParcela = novaAmort + juros + seguroMensal;
       }
-      if (novaParcela < parcelaAtual) {
-        // só reduz a parcela se o mínimo que abate for menor que a atual;
-        // senão mantém o comportamento normal (aporte só ajuda aos poucos)
+      // aportes recorrentes mensais (não pontuais) ajudam a reduzir a parcela
+      let aporteMensal = 0;
+      if (strategies.extraMonthlyPct) aporteMensal += parcelaAtual * strategies.extraMonthlyPct;
+      if (strategies.fixedPayment) aporteMensal += Math.max(0, strategies.fixedPayment.amount - parcelaAtual);
+      if (strategies.fgtsAnnual) aporteMensal += strategies.fgtsAnnual / 12;
+      if (strategies.recurringExtra) aporteMensal += strategies.recurringExtra.amount / strategies.recurringExtra.every;
+      if (strategies.paySacParcela && input.system === 'PRICE' && sacParcelas[month - 1] !== undefined) {
+        aporteMensal += Math.max(0, sacParcelas[month - 1] - parcelaAtual);
+      }
+      // a menor parcela que ainda abate no prazo restante, já descontando o
+      // aporte mensal; % extra não pode colapsar (paga menos que o mínimo)
+      let parcelaReduzida = Math.max(0, novaParcela - aporteMensal);
+      if (strategies.extraMonthlyPct) {
+        parcelaReduzida = Math.max(parcelaReduzida, novaParcela / (1 + strategies.extraMonthlyPct));
+      }
+      if (parcelaReduzida < parcelaAtual) {
         modoPayment = true;
         if (input.system === 'PRICE') {
-          parcelaFixada = novaParcela;
+          parcelaFixada = parcelaReduzida;
         } else {
-          amortizacaoFixada = pmt(input.trMonthly, mesesRestantesFixos, saldo);
+          amortizacaoFixada = Math.max(0, parcelaReduzida - juros - seguroMensal);
         }
       }
     }
