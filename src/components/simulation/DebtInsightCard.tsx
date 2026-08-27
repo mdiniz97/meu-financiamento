@@ -98,12 +98,24 @@ export function DebtInsightCard({ input, result, isUnlimited }: Props) {
                 : `seu prazo é ${input.months} meses (${(input.months / 12).toFixed(1)} anos)`}
             </span>
           </div>
+          {be.idealPayment !== null && (
+            <div className="flex flex-col gap-1 rounded-xl bg-primary/5 p-3">
+              <span className="text-xs text-muted-foreground">Parcela se financiar já no prazo ideal</span>
+              <span className="text-lg font-semibold text-primary">{formatBRL(be.idealPayment)}</span>
+              <span className="text-xs text-muted-foreground">
+                {prazoOk
+                  ? 'mesma parcela, dívida caindo desde o início'
+                  : `com ${be.maxMonths} meses (${(be.maxMonths / 12).toFixed(1)} anos)`}
+              </span>
+            </div>
+          )}
         </div>
         {!abateDesdeInicio && (
           <p className="rounded-xl bg-amber-50 p-3 text-amber-800">
             Sua parcela de <strong>{formatBRL(parcelaAtual)}</strong> não abate a dívida no começo —
-            por {formatBRL(be.minPayment - parcelaAtual)} de parcela a mais (ou um prazo até{' '}
-            {be.maxMonths} meses), a dívida cai desde a 1ª parcela e os juros totais despencam.
+            por {formatBRL(be.minPayment - parcelaAtual)} de parcela a mais, ou financiando em até{' '}
+            {be.maxMonths} meses com parcela de <strong>{formatBRL(be.idealPayment ?? parcelaAtual)}</strong>,
+            a dívida cai desde a 1ª parcela e os juros totais despencam.
           </p>
         )}
       </CardContent>

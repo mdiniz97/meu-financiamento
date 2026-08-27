@@ -36,4 +36,15 @@ describe('priceBreakEven', () => {
     const b = priceBreakEven(base, r);
     expect(r.installments[0].parcela).toBeLessThan(b.minPayment);
   });
+  it('parcela se financiar já no prazo ideal (213 meses): ~R$ 10.165,84', () => {
+    const r = simulate(base, noStrategy);
+    const b = priceBreakEven(base, r);
+    expect(b.idealPayment).toBeCloseTo(10165.84, 2);
+    expect(b.idealPayment!).toBeGreaterThan(b.minPayment);
+  });
+  it('sem TR não há parcela ideal (prazo ilimitado)', () => {
+    const semTr = { ...base, trMonthly: 0 };
+    const b = priceBreakEven(semTr);
+    expect(b.idealPayment).toBeNull();
+  });
 });
