@@ -7,7 +7,7 @@ import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -65,47 +65,47 @@ export function WizardForm() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="principal">Valor financiado (R$)</Label>
-                  <Input
+                  <NumericInput
                     id="principal"
-                    inputMode="numeric"
-                    value={form.principal}
-                    onChange={(e) => set('principal', e.target.value)}
+                    value={parseBRLToNumber(form.principal)}
+                    parse={parseBRLToNumber}
+                    onValid={(v) => set('principal', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="annualRate">Taxa a.a. (%)</Label>
-                  <Input
+                  <NumericInput
                     id="annualRate"
-                    inputMode="decimal"
-                    value={form.annualRate}
-                    onChange={(e) => set('annualRate', e.target.value)}
+                    value={parseDecimal(form.annualRate)}
+                    parse={parseDecimal}
+                    onValid={(v) => set('annualRate', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="months">Prazo (meses)</Label>
-                  <Input
+                  <NumericInput
                     id="months"
-                    inputMode="numeric"
-                    value={form.months}
-                    onChange={(e) => set('months', e.target.value)}
+                    value={Number(form.months)}
+                    parse={parseIntStrict}
+                    onValid={(v) => set('months', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="trMonthly">TR mensal (%)</Label>
-                  <Input
+                  <NumericInput
                     id="trMonthly"
-                    inputMode="decimal"
-                    value={form.trMonthly}
-                    onChange={(e) => set('trMonthly', e.target.value)}
+                    value={parseDecimal(form.trMonthly)}
+                    parse={parseDecimal}
+                    onValid={(v) => set('trMonthly', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="insuranceMonthly">Seguro (R$/mês)</Label>
-                  <Input
+                  <NumericInput
                     id="insuranceMonthly"
-                    inputMode="numeric"
-                    value={form.insuranceMonthly}
-                    onChange={(e) => set('insuranceMonthly', e.target.value)}
+                    value={parseBRLToNumber(form.insuranceMonthly)}
+                    parse={parseBRLToNumber}
+                    onValid={(v) => set('insuranceMonthly', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">

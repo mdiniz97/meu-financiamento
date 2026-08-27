@@ -1,19 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
-import { comparePortability, type PortabilityResult } from '@/lib/finance/portability';
+import { ArrowLeftRight, Sparkles } from 'lucide-react';
+import { comparePortability, portabilityBreakEven, type PortabilityResult } from '@/lib/finance/portability';
 import type { AmortSystem } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
+
+type SmartBreakEven = { maxWorthwhileRate: number; maxRateForTargetParcela: number | null };
 
 const DEFAULTS = {
   principal: '800000',
@@ -28,6 +31,9 @@ const DEFAULTS = {
   newInsuranceMonthly: '100',
   newBank: 'Itaú',
   costs: '0',
+  smartMode: false,
+  targetParcela: '',
+  smartResult: null as SmartBreakEven | null,
 };
 
 export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean }) {
@@ -37,6 +43,44 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
 
   const set = <K extends keyof typeof DEFAULTS>(k: K, v: (typeof DEFAULTS)[K]) =>
     setF((p) => ({ ...p, [k]: v }));
+
+  function buscarTaxaIdeal() {
+    setError('');
+    const principal = parseBRLToNumber(f.principal);
+    const currentAnnualRate = parseDecimal(f.currentAnnualRate);
+    const trMonthly = parseDecimal(f.trMonthly);
+    const insuranceMonthly = parseBRLToNumber(f.insuranceMonthly);
+    const months = Number(f.months);
+    const newInsuranceMonthly = parseBRLToNumber(f.newInsuranceMonthly);
+    const targetParcela = f.targetParcela ? parseBRLToNumber(f.targetParcela) : undefined;
+    if (!(principal > 0)) return setError('Informe o saldo devedor atual (maior que zero).');
+    if (!(currentAnnualRate > 0)) return setError('Informe a taxa atual (maior que zero).');
+    if (!(months >= 1 && months <= 600)) return setError('Parcelas restantes entre 1 e 600.');
+    const be = portabilityBreakEven(
+      {
+        principal,
+        currentSystem: f.currentSystem,
+        currentAnnualRate: currentAnnualRate / 100,
+        trMonthly: trMonthly / 100,
+        insuranceMonthly,
+        months,
+        bank: f.bank,
+        newSystem: f.newSystem,
+        newAnnualRate: currentAnnualRate / 100,
+        newInsuranceMonthly,
+        newBank: f.newBank,
+        costs: parseBRLToNumber(f.costs),
+      },
+      targetParcela
+    );
+    set('smartResult', be);
+  }
+
+  function aplicarTaxa(rate: number) {
+    set('newAnnualRate', String((rate * 100).toFixed(2)));
+    set('smartResult', null);
+    setResult(null);
+  }
 
   function calcular() {
     setError('');
@@ -106,23 +150,23 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portPrincipal">Saldo devedor atual (R$)</Label>
-                <Input id="portPrincipal" inputMode="numeric" value={f.principal} onChange={(e) => set('principal', e.target.value)} />
+                <NumericInput id="portPrincipal" value={parseBRLToNumber(f.principal)} parse={parseBRLToNumber} onValid={(v) => set("principal", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portMonths">Parcelas restantes</Label>
-                <Input id="portMonths" inputMode="numeric" value={f.months} onChange={(e) => set('months', e.target.value)} />
+                <NumericInput id="portMonths" value={Number(f.months)} parse={parseIntStrict} onValid={(v) => set("months", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portCurrentRate">Taxa atual a.a. (%)</Label>
-                <Input id="portCurrentRate" inputMode="decimal" value={f.currentAnnualRate} onChange={(e) => set('currentAnnualRate', e.target.value)} />
+                <NumericInput id="portCurrentRate" value={parseDecimal(f.currentAnnualRate)} parse={parseDecimal} onValid={(v) => set("currentAnnualRate", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portTr">TR mensal (%)</Label>
-                <Input id="portTr" inputMode="decimal" value={f.trMonthly} onChange={(e) => set('trMonthly', e.target.value)} />
+                <NumericInput id="portTr" value={parseDecimal(f.trMonthly)} parse={parseDecimal} onValid={(v) => set("trMonthly", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portSeguro">Seguro atual (R$/mês)</Label>
-                <Input id="portSeguro" inputMode="numeric" value={f.insuranceMonthly} onChange={(e) => set('insuranceMonthly', e.target.value)} />
+                <NumericInput id="portSeguro" value={parseBRLToNumber(f.insuranceMonthly)} parse={parseBRLToNumber} onValid={(v) => set("insuranceMonthly", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Banco atual</Label>
@@ -156,11 +200,11 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portNewRate">Nova taxa a.a. (%)</Label>
-                <Input id="portNewRate" inputMode="decimal" value={f.newAnnualRate} onChange={(e) => set('newAnnualRate', e.target.value)} />
+                <NumericInput id="portNewRate" value={parseDecimal(f.newAnnualRate)} parse={parseDecimal} onValid={(v) => set("newAnnualRate", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portNewSeguro">Novo seguro (R$/mês)</Label>
-                <Input id="portNewSeguro" inputMode="numeric" value={f.newInsuranceMonthly} onChange={(e) => set('newInsuranceMonthly', e.target.value)} />
+                <NumericInput id="portNewSeguro" value={parseBRLToNumber(f.newInsuranceMonthly)} parse={parseBRLToNumber} onValid={(v) => set("newInsuranceMonthly", String(v))} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Novo banco</Label>
@@ -194,11 +238,80 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="portCosts">Custos da portabilidade (R$)</Label>
-                <Input id="portCosts" inputMode="numeric" value={f.costs} onChange={(e) => set('costs', e.target.value)} />
+                <NumericInput id="portCosts" value={parseBRLToNumber(f.costs)} parse={parseBRLToNumber} onValid={(v) => set("costs", String(v))} />
               </div>
             </div>
 
-            <div>
+            <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-4">
+              <Label className="flex items-center gap-2">
+                <Switch
+                  checked={f.smartMode}
+                  onCheckedChange={(v) => set('smartMode', v)}
+                />
+                Busca inteligente
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Descubra a maior taxa que ainda compensa portar — e a taxa máxima para atingir a
+                parcela que você quer.
+              </p>
+              {f.smartMode && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5 sm:max-w-60">
+                    <Label htmlFor="portTarget">Parcela desejada (R$, opcional)</Label>
+                    <NumericInput
+                      id="portTarget"
+                      value={f.targetParcela ? parseBRLToNumber(f.targetParcela) : undefined}
+                      parse={parseBRLToNumber}
+                      onValid={(v) => set('targetParcela', String(v))}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" variant="outline" size="sm" onClick={buscarTaxaIdeal}>
+                      <Sparkles className="size-3.5" /> Buscar taxa ideal
+                    </Button>
+                  </div>
+                  {f.smartResult && (
+                    <div className="flex flex-col gap-2 rounded-xl bg-white p-3 text-xs">
+                      <p>
+                        <strong>Taxa máxima que compensa portar:</strong>{' '}
+                        {(f.smartResult.maxWorthwhileRate * 100).toFixed(2)}% a.a.{' '}
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs text-[#820AD1]"
+                          onClick={() => aplicarTaxa(f.smartResult!.maxWorthwhileRate)}
+                        >
+                          Aplicar
+                        </Button>
+                      </p>
+                      {f.smartResult.maxRateForTargetParcela !== null ? (
+                        <p>
+                          <strong>Taxa máxima para a parcela desejada:</strong>{' '}
+                          {(f.smartResult.maxRateForTargetParcela * 100).toFixed(2)}% a.a.{' '}
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-[#820AD1]"
+                            onClick={() => aplicarTaxa(f.smartResult!.maxRateForTargetParcela!)}
+                          >
+                            Aplicar
+                          </Button>
+                        </p>
+                      ) : (
+                        <p className="text-amber-700">
+                          <strong>Parcela desejada impossível:</strong> nem com taxa 0% dá para
+                          chegar nesse valor.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
               <Button type="button" onClick={calcular}>
                 <ArrowLeftRight className="size-4" /> Calcular portabilidade
               </Button>

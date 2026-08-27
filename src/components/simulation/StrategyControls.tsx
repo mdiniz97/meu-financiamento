@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, type ComponentProps } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
@@ -8,60 +7,13 @@ import { recurringParcela } from '@/lib/finance/insights';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-type InputProps = ComponentProps<typeof Input>;
-
-/**
- * Input numérico que aceita vírgula PT-BR, permite apagar tudo e nunca propaga
- * texto inválido (letras etc.) — só emite valores numéricos válidos.
- */
-function NumericInput({
-  value,
-  onValid,
-  parse,
-  className,
-  ...props
-}: {
-  value: number | undefined;
-  onValid: (v: number) => void;
-  parse: (s: string) => number;
-} & Omit<InputProps, 'value' | 'onChange'>) {
-  const [text, setText] = useState('');
-  const [focused, setFocused] = useState(false);
-
-  const displayed = focused ? text : value != null ? String(value) : '';
-
-  return (
-    <Input
-      {...props}
-      inputMode="decimal"
-      className={className}
-      value={displayed}
-      onFocus={(e) => {
-        setText(e.target.value);
-        setFocused(true);
-      }}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => {
-        setText(e.target.value);
-        const v = parse(e.target.value);
-        if (Number.isFinite(v)) onValid(v);
-      }}
-    />
-  );
-}
-
-const parseIntStrict = (s: string) => {
-  const digits = s.replace(/[^\d]/g, '');
-  return digits === '' ? NaN : Number(digits);
-};
 
 interface Props {
   input: LoanInput;

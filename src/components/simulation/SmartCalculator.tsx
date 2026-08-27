@@ -139,7 +139,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
               </div>
             </div>
 
-            <div>
+            <div className="flex justify-end">
               <Button type="button" onClick={calcular}>
                 <Sparkles className="size-4" /> Calcular melhor modelo
               </Button>

@@ -5,7 +5,6 @@ import type { SmartRecommendation } from '@/lib/finance/smart';
 import { WizardForm } from '@/components/simulation/WizardForm';
 import { SmartCalculator, type SmartCalcFields } from '@/components/simulation/SmartCalculator';
 import { SmartResultCard } from '@/components/simulation/SmartResultCard';
-import { PortabilityCalculator } from '@/components/simulation/PortabilityCalculator';
 
 export function NovaSimulacaoClient({ isUnlimited }: { isUnlimited: boolean }) {
   const [rec, setRec] = useState<{ recommendation: SmartRecommendation; fields: SmartCalcFields } | null>(null);
@@ -25,10 +24,6 @@ export function NovaSimulacaoClient({ isUnlimited }: { isUnlimited: boolean }) {
           <SmartResultCard rec={rec.recommendation} fields={rec.fields} />
         </div>
       )}
-
-      <div className="w-full max-w-5xl">
-        <PortabilityCalculator isUnlimited={isUnlimited} />
-      </div>
     </div>
   );
 }

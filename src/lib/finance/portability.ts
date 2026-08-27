@@ -78,3 +78,52 @@ export function comparePortability(i: PortabilityInput): PortabilityResult {
     paybackMonth,
   };
 }
+
+export interface PortabilityBreakEven {
+  /** maior taxa (a.a.) em que portar ainda compensa (economia >= 0) */
+  maxWorthwhileRate: number;
+  /** maior taxa (a.a.) para atingir a parcela desejada; null se impossível nem a taxa 0 */
+  maxRateForTargetParcela: number | null;
+}
+
+/**
+ * Busca inteligente da portabilidade: acha a maior taxa do novo banco em que
+ * portar ainda vale a pena, e a maior taxa que atinge a parcela desejada.
+ */
+export function portabilityBreakEven(i: PortabilityInput, targetParcela?: number): PortabilityBreakEven {
+  const economiaNa = (rate: number) => comparePortability({ ...i, newAnnualRate: rate }).economia;
+
+  let hi = Math.max(0.5, i.currentAnnualRate * 2);
+  let lo = 0;
+  if (economiaNa(hi) >= 0) {
+    // até 2× a taxa atual ainda compensa — retorna o teto do intervalo
+    lo = hi;
+  } else {
+    for (let k = 0; k < 60; k++) {
+      const mid = (lo + hi) / 2;
+      if (economiaNa(mid) >= 0) lo = mid;
+      else hi = mid;
+    }
+  }
+
+  let maxRateForTargetParcela: number | null = null;
+  if (targetParcela !== undefined && targetParcela > 0) {
+    const parcelaNa = (rate: number) =>
+      comparePortability({ ...i, newAnnualRate: rate }).ported.installments[0]?.parcela ?? Infinity;
+    if (parcelaNa(0) > targetParcela) {
+      maxRateForTargetParcela = null;
+    } else {
+      let pLo = 0, pHi = hi > 0 ? hi : 0.5;
+      if (parcelaNa(pHi) > targetParcela) {
+        for (let k = 0; k < 60; k++) {
+          const mid = (pLo + pHi) / 2;
+          if (parcelaNa(mid) <= targetParcela) pLo = mid;
+          else pHi = mid;
+        }
+      }
+      maxRateForTargetParcela = pLo;
+    }
+  }
+
+  return { maxWorthwhileRate: lo, maxRateForTargetParcela };
+}

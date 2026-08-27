@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comparePortability, type PortabilityInput } from './portability';
+import { comparePortability, portabilityBreakEven, type PortabilityInput } from './portability';
 
 const base: PortabilityInput = {
   principal: 800000, currentSystem: 'PRICE', currentAnnualRate: 0.115,
@@ -40,5 +40,28 @@ describe('comparePortability', () => {
     const r = comparePortability({ ...base, newSystem: 'SAC' });
     expect(r.ported.system).toBe('SAC');
     expect(Number.isFinite(r.economia)).toBe(true);
+  });
+});
+
+describe('portabilityBreakEven', () => {
+  it('com seguro igual, a taxa limite é a própria taxa atual', () => {
+    const b = portabilityBreakEven(base);
+    expect(b.maxWorthwhileRate).toBeCloseTo(base.currentAnnualRate, 3);
+  });
+  it('com seguro maior, a taxa que compensa cai abaixo da atual', () => {
+    const b = portabilityBreakEven({ ...base, newInsuranceMonthly: 250 });
+    expect(b.maxWorthwhileRate).toBeLessThan(base.currentAnnualRate);
+    expect(b.maxWorthwhileRate).toBeGreaterThan(0);
+  });
+  it('parcela alvo: taxa máxima para atingi-la', () => {
+    const atual = comparePortability(base).keep.installments[0].parcela;
+    const b = portabilityBreakEven(base, atual - 200);
+    expect(b.maxRateForTargetParcela).not.toBeNull();
+    const r = comparePortability({ ...base, newAnnualRate: b.maxRateForTargetParcela! });
+    expect(r.ported.installments[0].parcela).toBeLessThanOrEqual(atual - 200 + 1);
+  });
+  it('parcela alvo impossível (menor que a de taxa 0) → null', () => {
+    const b = portabilityBreakEven(base, 1);
+    expect(b.maxRateForTargetParcela).toBeNull();
   });
 });

@@ -16,6 +16,12 @@ export function AppHeader({ signedIn }: { signedIn: boolean }) {
         </Link>
         <nav className="flex items-center gap-4">
           <Link
+            href="/portabilidade"
+            className="text-sm font-medium text-foreground transition-colors hover:text-[#820AD1]"
+          >
+            Portabilidade
+          </Link>
+          <Link
             href="/planos"
             className="text-sm font-medium text-foreground transition-colors hover:text-[#820AD1]"
           >

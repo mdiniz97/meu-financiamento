@@ -9,6 +9,45 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SmartCalcFields } from './SmartCalculator';
 
+function ComparativoTable({ rec }: { rec: SmartRecommendation }) {
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="text-left text-muted-foreground">
+          <th>Modelo</th>
+          <th className="text-right">Prazo</th>
+          <th className="text-right">Parcela</th>
+          <th className="text-right">Quitação</th>
+          <th className="text-right">Total pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rec.comparison.map((c) => (
+          <tr key={c.system} className={c.candidate === rec.best ? 'font-semibold' : ''}>
+            <td>
+              {c.system}
+              {c.candidate === rec.best && ' ✓'}
+              {!c.feasible && (
+                <span className="ml-1 text-muted-foreground">(não cabe no orçamento)</span>
+              )}
+            </td>
+            <td className="text-right">{c.candidate ? `${c.candidate.months} m` : '—'}</td>
+            <td className="text-right">
+              {c.candidate ? formatBRL(c.candidate.parcela) : `mín. ${formatBRL(c.minParcela)}`}
+            </td>
+            <td className="text-right">
+              {c.candidate ? `${c.candidate.result.metrics.saldoZeroAt} m` : '—'}
+            </td>
+            <td className="text-right">
+              {c.candidate ? formatBRL(c.candidate.result.metrics.totalPago) : '—'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 interface Props {
   rec: SmartRecommendation;
   fields: SmartCalcFields;
@@ -43,10 +82,13 @@ export function SmartResultCard({ rec, fields }: Props) {
   if (rec.infeasible) {
     return (
       <Card className="rounded-2xl bg-amber-50">
-        <CardContent className="pt-6 text-sm text-amber-800">
-          Com {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês não dá para amortizar esse
-          financiamento nem no prazo máximo ({fields.maxMonths} meses). O orçamento mínimo é de{' '}
-          <strong>{formatBRL(rec.minBudget)}/mês</strong> — ou aumente o prazo máximo.
+        <CardContent className="flex flex-col gap-3 pt-6 text-sm text-amber-800">
+          <p>
+            Com {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês não dá para amortizar esse
+            financiamento nem no prazo máximo ({fields.maxMonths} meses). O orçamento mínimo é de{' '}
+            <strong>{formatBRL(rec.minBudget)}/mês</strong> — ou aumente o prazo máximo.
+          </p>
+          <ComparativoTable rec={rec} />
         </CardContent>
       </Card>
     );
@@ -104,44 +146,7 @@ export function SmartResultCard({ rec, fields }: Props) {
           </div>
         </div>
 
-        {rec.comparison.length > 0 && (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th>Modelo</th>
-                <th className="text-right">Prazo</th>
-                <th className="text-right">Parcela</th>
-                <th className="text-right">Quitação</th>
-                <th className="text-right">Total pago</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rec.comparison.map((c) => (
-                <tr key={c.system} className={c.candidate === b ? 'font-semibold' : ''}>
-                  <td>
-                    {c.system}
-                    {c.candidate === b && ' ✓'}
-                    {!c.feasible && (
-                      <span className="ml-1 text-muted-foreground">(não cabe no orçamento)</span>
-                    )}
-                  </td>
-                  <td className="text-right">{c.candidate ? `${c.candidate.months} m` : '—'}</td>
-                  <td className="text-right">
-                    {c.candidate
-                      ? formatBRL(c.candidate.parcela)
-                      : `mín. ${formatBRL(c.minParcela)}`}
-                  </td>
-                  <td className="text-right">
-                    {c.candidate ? `${c.candidate.result.metrics.saldoZeroAt} m` : '—'}
-                  </td>
-                  <td className="text-right">
-                    {c.candidate ? formatBRL(c.candidate.result.metrics.totalPago) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <ComparativoTable rec={rec} />
 
         <div>
           <Button type="button" onClick={abrirNoSandbox}>
