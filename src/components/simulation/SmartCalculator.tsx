@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import type { FormState } from '@/lib/simulation-context';
 import { maxFinancing, recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
@@ -50,6 +57,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
   const [inverse, setInverse] = useState<{ PRICE: number; SAC: number } | null>(null);
+  const [inverseOpen, setInverseOpen] = useState(false);
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -80,6 +88,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
         months: maxMonths,
       });
       setInverse(mf);
+      setInverseOpen(true);
       return;
     }
     const rec = recommendSmart({
@@ -248,40 +257,58 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
               </Button>
             </div>
 
-            {inverse && (
-              <div className="flex flex-col gap-2 rounded-xl bg-primary/5 p-3 text-xs">
-                <p className="text-sm font-semibold text-primary">
-                  Com {formatBRL(parseBRLToNumber(f.maxPayment))}/mês você pode financiar até:
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(['PRICE', 'SAC'] as const).map((s) => (
-                    <div key={s} className="flex flex-col gap-1 rounded-xl bg-white p-3">
-                      <span className="text-muted-foreground">No {s}</span>
-                      <span className="text-lg font-semibold">{formatBRL(inverse[s])}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-1 w-fit"
-                        onClick={() => abrirInverseNoSandbox(s, inverse[s])}
-                      >
-                        Ver no sandbox
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-muted-foreground">
-                  Em {f.maxMonths} meses, com taxa de {parseDecimal(f.annualRate).toFixed(2)}% a.a. e TR{' '}
-                  {parseDecimal(f.trMonthly).toFixed(2)}%. A parcela 1 fica no seu teto; no PRICE ela
-                  cresce com a TR — no SAC ela cai.
-                </p>
-              </div>
-            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         )}
       </CardContent>
+
+      <Dialog open={inverseOpen} onOpenChange={setInverseOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quanto você pode financiar</DialogTitle>
+            <DialogDescription>
+              Com {inverse ? formatBRL(parseBRLToNumber(f.maxPayment)) : ''}/mês, em {f.maxMonths}{' '}
+              meses, a {parseDecimal(f.annualRate).toFixed(2)}% a.a. e TR{' '}
+              {parseDecimal(f.trMonthly).toFixed(2)}%:
+            </DialogDescription>
+          </DialogHeader>
+          {inverse && (
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(['PRICE', 'SAC'] as const).map((s) => (
+                  <div key={s} className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                    <span className="text-xs text-muted-foreground">No {s} você financia até</span>
+                    <span className="text-lg font-semibold text-primary">{formatBRL(inverse[s])}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {s === 'PRICE'
+                        ? 'Parcela constante — cresce com a TR'
+                        : 'Parcela começa maior e cai'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A primeira parcela fica no seu teto mensal. Abra no sandbox para ver o detalhamento
+                completo e ajustar estratégias.
+              </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                {(['PRICE', 'SAC'] as const).map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => abrirInverseNoSandbox(s, inverse[s])}
+                  >
+                    Ver no sandbox ({s})
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

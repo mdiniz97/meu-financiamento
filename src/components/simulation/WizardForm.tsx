@@ -127,15 +127,35 @@ export function WizardForm() {
                   <RadioGroup
                     value={form.system}
                     onValueChange={(system) => set('system', system as FormState['system'])}
-                    className="flex flex-row gap-4"
+                    className="flex flex-col gap-2"
                   >
-                    <Label className="flex items-center gap-2 font-normal">
-                      <RadioGroupItem value="PRICE" />
-                      PRICE
+                    <Label
+                      className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 font-normal transition-colors ${
+                        form.system === 'PRICE' ? 'border-[#820AD1] bg-primary/5' : 'border-border'
+                      }`}
+                    >
+                      <RadioGroupItem value="PRICE" className="mt-0.5" />
+                      <span className="flex flex-col">
+                        <span className="font-medium">PRICE</span>
+                        <span className="text-xs text-muted-foreground">
+                          Parcela constante do início ao fim — no começo paga mais juros e quase não
+                          abate a dívida.
+                        </span>
+                      </span>
                     </Label>
-                    <Label className="flex items-center gap-2 font-normal">
-                      <RadioGroupItem value="SAC" />
-                      SAC
+                    <Label
+                      className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 font-normal transition-colors ${
+                        form.system === 'SAC' ? 'border-[#820AD1] bg-primary/5' : 'border-border'
+                      }`}
+                    >
+                      <RadioGroupItem value="SAC" className="mt-0.5" />
+                      <span className="flex flex-col">
+                        <span className="font-medium">SAC</span>
+                        <span className="text-xs text-muted-foreground">
+                          Amortização fixa — a parcela começa maior e cai todo mês; a dívida abate
+                          desde a 1ª parcela.
+                        </span>
+                      </span>
                     </Label>
                   </RadioGroup>
                 </div>
