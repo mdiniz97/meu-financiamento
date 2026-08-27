@@ -358,7 +358,12 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
           </div>
           <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
             <span className="text-xs text-muted-foreground">Quitação</span>
-            <span className="text-lg font-semibold">{current.metrics.saldoZeroAt} meses</span>
+            <span className="text-lg font-semibold">
+              {current.metrics.saldoZeroAt} meses
+              <span className="text-xs font-normal text-muted-foreground">
+                {' '}({(current.metrics.saldoZeroAt / 12).toFixed(1)} anos)
+              </span>
+            </span>
           </div>
         </div>
         <div

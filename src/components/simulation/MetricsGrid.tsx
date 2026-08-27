@@ -7,6 +7,7 @@ interface Item {
   label: string;
   value: string;
   highlight?: boolean;
+  years?: string;
 }
 
 export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
@@ -18,7 +19,7 @@ export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
     { label: 'Dívida cai em 12 meses', value: formatBRL(metrics.dividaCai12m) },
     { label: 'Dívida cai em 3 anos', value: formatBRL(metrics.dividaCai3a) },
     { label: 'Parcela paga da dívida', value: pct(metrics.parcelaPagaDividaPct, 1) },
-    { label: 'Quita em', value: `${metrics.saldoZeroAt} meses`, highlight: true },
+    { label: 'Quita em', value: `${metrics.saldoZeroAt} meses`, years: (metrics.saldoZeroAt / 12).toFixed(1), highlight: true },
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -34,6 +35,7 @@ export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
             }
           >
             {it.value}
+            {it.years && <span className="text-xs font-normal text-muted-foreground"> ({it.years} anos)</span>}
           </span>
         </div>
       ))}
