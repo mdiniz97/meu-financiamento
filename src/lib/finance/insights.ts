@@ -26,9 +26,13 @@ export function priceBreakEven(input: LoanInput, result?: SimulationResult): Pri
   const idealPayment = Number.isFinite(maxMonths)
     ? pmt(m, maxMonths, input.principal) + input.insuranceMonthly
     : null;
-  const parcelaContratual = pmt(m, input.months, input.principal) + input.insuranceMonthly;
-  const requiredExtraMonthly = Math.max(0, minPayment - parcelaContratual);
-  const requiredExtraPct = requiredExtraMonthly / parcelaContratual;
+  // o que o usuário já paga por mês (reflete as estratégias atuais, sem aportes pontuais)
+  const pagamentoAtual = result && result.installments.length > 0 ? recurringParcela(result) : 0;
+  const parcelaReferencia = pagamentoAtual > 0
+    ? pagamentoAtual
+    : pmt(m, input.months, input.principal) + input.insuranceMonthly;
+  const requiredExtraMonthly = Math.max(0, minPayment - parcelaReferencia);
+  const requiredExtraPct = requiredExtraMonthly / parcelaReferencia;
   const monthsUntilAmortize =
     (result?.installments ?? []).find((i) => i.amortizacao > i.correcao)?.month ?? null;
   return { minPayment, maxMonths, idealPayment, requiredExtraMonthly, requiredExtraPct, monthsUntilAmortize };

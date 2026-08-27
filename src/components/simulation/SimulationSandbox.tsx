@@ -268,7 +268,16 @@ export function SimulationSandbox({
         <MetricsGrid metrics={displayed.metrics} />
       </section>
 
-      <DebtInsightCard input={input} result={displayed} isUnlimited={isUnlimited} />
+      <DebtInsightCard
+        input={input}
+        result={displayed}
+        strategies={strategies}
+        isUnlimited={isUnlimited}
+        onChange={(s) => {
+          setCachedStrategies(s);
+          listeners.forEach((l) => l());
+        }}
+      />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Gráficos</h2>

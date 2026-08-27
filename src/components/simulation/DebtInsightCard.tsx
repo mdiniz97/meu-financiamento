@@ -1,19 +1,22 @@
 'use client';
 
-import { Link } from 'lucide-react';
-import type { LoanInput, SimulationResult } from '@/lib/finance/types';
+import { Link, Plus } from 'lucide-react';
+import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { priceBreakEven, recurringParcela } from '@/lib/finance/insights';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
   input: LoanInput;
   result: SimulationResult;
+  strategies: Strategies;
   isUnlimited: boolean;
+  onChange: (s: Strategies) => void;
 }
 
-export function DebtInsightCard({ input, result, isUnlimited }: Props) {
+export function DebtInsightCard({ input, result, strategies, isUnlimited, onChange }: Props) {
   if (!isUnlimited) {
     return (
       <Card className="rounded-2xl bg-white shadow-sm">
@@ -121,6 +124,21 @@ export function DebtInsightCard({ input, result, isUnlimited }: Props) {
               <span className="text-xs text-muted-foreground">
                 amortize por fora todo mês e a dívida cai desde a 1ª parcela
               </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-1 w-fit"
+                onClick={() => {
+                  const pctAtual = strategies.extraMonthlyPct ?? 0;
+                  onChange({
+                    ...strategies,
+                    extraMonthlyPct: Math.min(1, pctAtual + be.requiredExtraPct),
+                  });
+                }}
+              >
+                <Plus className="size-3.5" /> Aplicar aporte
+              </Button>
             </div>
           )}
         </div>

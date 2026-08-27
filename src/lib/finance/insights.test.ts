@@ -53,6 +53,12 @@ describe('priceBreakEven', () => {
     expect(b.requiredExtraMonthly).toBeCloseTo(1260.08, 2);
     expect(b.requiredExtraPct).toBeCloseTo(0.1417, 3);
   });
+  it('aporte necessário reflete estratégia atual (5% extra já pago reduz o que falta)', () => {
+    const r = simulate(base, { ...noStrategy, extraMonthlyPct: 0.05 });
+    const b = priceBreakEven(base, r);
+    expect(b.requiredExtraMonthly).toBeCloseTo(815.33, 2);
+    expect(b.requiredExtraPct).toBeCloseTo(0.0873, 3);
+  });
   it('prazo curto que já abate não exige aporte extra', () => {
     const curto = { ...base, months: 100 };
     const r = simulate(curto, noStrategy);
