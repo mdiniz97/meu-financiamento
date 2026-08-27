@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/landing/motion-primitives";
 
@@ -35,6 +35,7 @@ const faqs = [
 
 export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
+  const reduceMotion = useReducedMotion();
 
   return (
     <section className="mx-auto w-full max-w-3xl border-b border-border px-4 py-20 sm:px-6">
@@ -72,7 +73,7 @@ export function FAQ() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
                   <p className="px-2 pb-5 text-sm leading-relaxed text-muted-foreground">
