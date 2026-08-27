@@ -249,7 +249,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardContent>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Quanto você pode financiar</DialogTitle>
             <DialogDescription>
@@ -344,7 +344,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(['PRICE', 'SAC'] as const).map((s) => (
-                    <div key={s} className="flex flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm">
+                    <div key={s} className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm">
                       <span className="text-xs text-muted-foreground">No {s}</span>
                       <span className="text-lg font-semibold text-primary break-all">
                         {formatBRL(modalResult[s])}
