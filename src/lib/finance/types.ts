@@ -10,10 +10,12 @@ export interface LoanInput {
   bank: string;
 }
 export interface ExtraPayment { month: number; amount: number } // month 1-based
+export interface RecurringExtra { amount: number; every: number; startMonth: number } // aporte de `amount` a cada `every` meses, começando em `startMonth`
 export interface Strategies {
   extraLumpSum: ExtraPayment[];      // amortizações pontuais
   extraMonthlyPct?: number;          // 0.05 = 5% a mais na parcela
   fgtsAnnual?: number;               // R$ amortizados todo mês 12, 24, 36...
+  recurringExtra?: RecurringExtra;   // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)
   reduceMode: 'payment' | 'term';    // default 'term'
   portability?: { annualRate: number; bank: string; insuranceMonthly: number };
 }

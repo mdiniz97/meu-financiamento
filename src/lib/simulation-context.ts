@@ -1,4 +1,4 @@
-import type { AmortSystem, ExtraPayment, LoanInput, Strategies } from './finance/types';
+import type { AmortSystem, ExtraPayment, LoanInput, RecurringExtra, Strategies } from './finance/types';
 import { parseBRLToNumber, parseDecimal } from './utils';
 
 export type ReduceMode = 'payment' | 'term';
@@ -6,6 +6,12 @@ export type ReduceMode = 'payment' | 'term';
 export interface PortabilityForm {
   annualRate: string;
   bank: string;
+}
+
+export interface RecurringExtraForm {
+  amount: string;
+  every: string;
+  startMonth: string;
 }
 
 export interface FormState {
@@ -19,6 +25,7 @@ export interface FormState {
   lumpSum: ExtraPayment[];
   extraMonthlyPct: string;
   fgtsAnnual: string;
+  recurringExtra: RecurringExtraForm | null;
   reduceMode: ReduceMode;
   portability: PortabilityForm | null;
 }
@@ -36,6 +43,7 @@ export const DEFAULT_FORM: FormState = {
   lumpSum: [],
   extraMonthlyPct: '0',
   fgtsAnnual: '0',
+  recurringExtra: null,
   reduceMode: 'term',
   portability: null,
 };
@@ -78,12 +86,22 @@ export function formToStrategies(f: FormState): Strategies {
   const extraMonthlyPct = parseDecimal(f.extraMonthlyPct);
   const fgtsAnnual = parseBRLToNumber(f.fgtsAnnual);
   const portAnnualRate = f.portability ? parseDecimal(f.portability.annualRate) : 0;
+  const recurring: RecurringExtra | null = f.recurringExtra
+    ? {
+        amount: parseBRLToNumber(f.recurringExtra.amount),
+        every: Number(f.recurringExtra.every),
+        startMonth: Number(f.recurringExtra.startMonth),
+      }
+    : null;
   return {
     extraLumpSum: f.lumpSum,
     ...(Number.isFinite(extraMonthlyPct) && extraMonthlyPct > 0
       ? { extraMonthlyPct: extraMonthlyPct / 100 }
       : {}),
     ...(fgtsAnnual > 0 ? { fgtsAnnual } : {}),
+    ...(recurring && Number.isFinite(recurring.amount) && recurring.amount > 0 && Number.isInteger(recurring.every) && recurring.every >= 1 && Number.isInteger(recurring.startMonth) && recurring.startMonth >= 1
+      ? { recurringExtra: recurring }
+      : {}),
     reduceMode: f.reduceMode,
     ...(f.portability && Number.isFinite(portAnnualRate) && portAnnualRate > 0
       ? {

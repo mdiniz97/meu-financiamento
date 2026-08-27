@@ -52,6 +52,11 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   if (s.fgtsAnnual !== undefined) {
     check(Number.isFinite(s.fgtsAnnual) && s.fgtsAnnual >= 0, 'FGTS anual não pode ser negativo');
   }
+  if (s.recurringExtra !== undefined) {
+    check(Number.isFinite(s.recurringExtra.amount) && s.recurringExtra.amount > 0, 'valor de aporte recorrente inválido');
+    check(Number.isInteger(s.recurringExtra.every) && s.recurringExtra.every >= 1, 'intervalo do aporte recorrente inválido');
+    check(Number.isInteger(s.recurringExtra.startMonth) && s.recurringExtra.startMonth >= 1, 'mês inicial do aporte recorrente inválido');
+  }
   if (s.portability !== undefined) {
     check(Number.isFinite(s.portability.annualRate) && s.portability.annualRate >= 0 && s.portability.annualRate <= 1, 'taxa de portabilidade inválida');
     check(Number.isFinite(s.portability.insuranceMonthly) && s.portability.insuranceMonthly >= 0, 'seguro de portabilidade inválido');
@@ -66,9 +71,14 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   const seguroMensal = strategies.portability?.insuranceMonthly ?? input.insuranceMonthly;
   const installments: Installment[] = [];
   let saldo = input.principal;
-  let parcelaAnterior = 0;
+  let parcelaBase = 0;
   let modoPayment = false;
   let mesesRestantesFixos = input.months;
+  let parcelaFixada = 0; // PRICE: nova parcela (fixa) no modo "reduzir parcela"
+  let amortizacaoFixada = 0; // SAC: nova amortização (fixa) no modo "reduzir parcela"
+  // taxa efetiva que cobre juros + correção monetária (TR) — usada no modo
+  // "reduzir parcela" para que a parcela reduzida continue amortizando o saldo
+  const mEff = (1 + m) * (1 + input.trMonthly) - 1;
 
   for (let month = 1; month <= input.months + 360; month++) {
     if (saldo <= 1e-9) break;
@@ -78,17 +88,20 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     let amortizacao: number;
     let parcela: number;
     if (input.system === 'PRICE') {
-      const pagamentoNper = parcelaAnterior > 0 ? parcelaAnterior - seguroMensal : 0;
-      const pvNper = parcelaAnterior > 0 ? saldo - correcao : 0;
-      let mesesRestantes = pagamentoNper > 0 ? nper(m, pagamentoNper, pvNper) : input.months;
-      if (modoPayment) mesesRestantes = mesesRestantesFixos;
-      parcela = pmt(m, mesesRestantes, saldo) + seguroMensal;
+      if (modoPayment) {
+        parcela = parcelaFixada;
+      } else {
+        const pagamentoNper = parcelaBase > 0 ? parcelaBase - seguroMensal : 0;
+        const pvNper = parcelaBase > 0 ? saldo - correcao : 0;
+        const mesesRestantes = pagamentoNper > 0 ? nper(m, pagamentoNper, pvNper) : input.months;
+        parcela = pmt(m, mesesRestantes, saldo) + seguroMensal;
+      }
       amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
     } else {
       amortizacao = month === 1
         ? input.principal / input.months
         : modoPayment
-          ? saldo / mesesRestantesFixos
+          ? amortizacaoFixada
           : (saldo + correcao) / (input.months - month + 1);
       // Arredondamento que espelha a planilha de referência: no SAC, a
       // amortização é arredondada para cima (2 casas) a partir do mês 2.
@@ -104,16 +117,26 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));
     if (strategies.fgtsAnnual && month % 12 === 0)
       extra += Math.min(strategies.fgtsAnnual, Math.max(saldo - amortizacao - extra, 0));
+    const rec = strategies.recurringExtra;
+    if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0)
+      extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
 
+    parcelaBase = parcela; // ancora da recorrência NPER: parcela CONTRATUAL, sem extra
     parcela += extra;
     amortizacao += extra;
     saldo = Math.max(0, saldo - amortizacao + correcao);
     if (saldo < 1e-9) saldo = 0;
-    parcelaAnterior = parcela;
 
     if (strategies.reduceMode === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
       modoPayment = true;
-      mesesRestantesFixos = Math.max(1, Math.round(nper(m, Math.max(parcela - seguroMensal - extra, 1e-9), saldo)));
+      // "reduzir parcela" mantém o prazo contratual restante: a parcela nova
+      // é fixada para amortizar saldo + correção (TR) nesses meses
+      mesesRestantesFixos = Math.max(1, input.months - month);
+      if (input.system === 'PRICE') {
+        parcelaFixada = pmt(mEff, mesesRestantesFixos, saldo) + seguroMensal;
+      } else {
+        amortizacaoFixada = saldo / mesesRestantesFixos;
+      }
     }
 
     const valorUtil = amortizacao - correcao;

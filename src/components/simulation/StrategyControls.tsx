@@ -138,6 +138,70 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             />
           </div>
 
+          <div className="flex flex-col gap-3">
+            <Label className="flex items-center gap-2">
+              <Switch
+                checked={strategies.recurringExtra !== undefined}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...strategies,
+                    recurringExtra: checked ? { amount: 10000, every: 12, startMonth: 12 } : undefined,
+                  })
+                }
+              />
+              Aporte recorrente
+            </Label>
+            {strategies.recurringExtra && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="recAmount">Valor (R$)</Label>
+                  <Input
+                    id="recAmount"
+                    inputMode="numeric"
+                    value={String(strategies.recurringExtra.amount)}
+                    onChange={(e) => {
+                      const v = parseBRLToNumber(e.target.value);
+                      onChange({
+                        ...strategies,
+                        recurringExtra: { ...strategies.recurringExtra!, amount: v > 0 ? v : 0 },
+                      });
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="recEvery">A cada (meses)</Label>
+                  <Input
+                    id="recEvery"
+                    inputMode="numeric"
+                    value={String(strategies.recurringExtra.every)}
+                    onChange={(e) => {
+                      const v = Math.max(1, Math.round(Number(e.target.value) || 0));
+                      onChange({
+                        ...strategies,
+                        recurringExtra: { ...strategies.recurringExtra!, every: v },
+                      });
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="recStart">Começando no mês</Label>
+                  <Input
+                    id="recStart"
+                    inputMode="numeric"
+                    value={String(strategies.recurringExtra.startMonth)}
+                    onChange={(e) => {
+                      const v = Math.max(1, Math.round(Number(e.target.value) || 0));
+                      onChange({
+                        ...strategies,
+                        recurringExtra: { ...strategies.recurringExtra!, startMonth: v },
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <Label>Com a estratégia, prefere</Label>
             <RadioGroup

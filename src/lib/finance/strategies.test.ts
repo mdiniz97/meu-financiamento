@@ -55,3 +55,45 @@ describe('portabilidade', () => {
     expect(r.installments[0].juros).toBeLessThan(simulate(input, base).installments[0].juros);
   });
 });
+
+describe('regressão: % extra NÃO compõe a parcela base (TERM)', () => {
+  const r = simulate(input, { ...base, extraMonthlyPct: 0.05 });
+  it('parcela base (sem extra) fica estável, sem crescer 5% ao mês', () => {
+    const base1 = r.installments[0].parcela - r.installments[0].extra;
+    const base12 = r.installments[11].parcela - r.installments[11].extra;
+    expect(base12).toBeLessThan(base1 * 1.03);
+  });
+  it('5% extra não quita em poucas dezenas de meses', () => {
+    expect(r.metrics.saldoZeroAt).toBeGreaterThan(70);
+  });
+});
+
+describe('regressão: modo payment não aumenta a dívida', () => {
+  const input360: LoanInput = { ...input, principal: 1000000, months: 360 };
+  it('saldo decresce após reduzir a parcela', () => {
+    const r = simulate(input360, { extraLumpSum: [{ month: 12, amount: 50000 }], reduceMode: 'payment' });
+    const s12 = r.installments[11].saldo;
+    const s24 = r.installments[23].saldo;
+    expect(s24).toBeLessThan(s12);
+  });
+  it('payment + % extra: dívida para de crescer após o 1º mês e quita', () => {
+    const r = simulate(input360, { extraLumpSum: [], extraMonthlyPct: 0.05, reduceMode: 'payment' });
+    expect(r.metrics.saldoZeroAt).toBeLessThan(400);
+    for (let k = 2; k < r.installments.length; k++) {
+      expect(r.installments[k].saldo).toBeLessThan(r.installments[k - 1].saldo);
+    }
+  });
+});
+
+describe('aporte recorrente', () => {
+  it('aplica aporte a cada X meses começando no mês Y', () => {
+    const r = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 12, startMonth: 6 } });
+    expect(r.installments[5].extra).toBeCloseTo(10000, 2);
+    expect(r.installments[17].extra).toBeCloseTo(10000, 2);
+    expect(r.installments[11].extra).toBe(0);
+  });
+  it('aporte recorrente reduz o total pago', () => {
+    const comAporte = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 12, startMonth: 6 } });
+    expect(comAporte.metrics.totalPago).toBeLessThan(simulate(input, base).metrics.totalPago);
+  });
+});

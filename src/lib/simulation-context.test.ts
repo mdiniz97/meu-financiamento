@@ -47,4 +47,22 @@ describe('simulation-context', () => {
     const s = formToStrategies({ ...DEFAULT_FORM, portability: { annualRate: 'abc', bank: 'Itaú' } });
     expect(s.portability).toBeUndefined();
   });
+  it('formToStrategies converte aporte recorrente (10 mil a cada 12 meses no mês 6)', () => {
+    const s = formToStrategies({
+      ...DEFAULT_FORM,
+      recurringExtra: { amount: '10000', every: '12', startMonth: '6' },
+    });
+    expect(s.recurringExtra).toEqual({ amount: 10000, every: 12, startMonth: 6 });
+  });
+  it('formToStrategies omite aporte recorrente inválido', () => {
+    const s = formToStrategies({
+      ...DEFAULT_FORM,
+      recurringExtra: { amount: '0', every: '0', startMonth: '0' },
+    });
+    expect(s.recurringExtra).toBeUndefined();
+  });
+  it('parseStoredForm antigo sem recurringExtra não quebra', () => {
+    const f = parseStoredForm(JSON.stringify({ principal: '300000' }));
+    expect(f.recurringExtra).toBeNull();
+  });
 });

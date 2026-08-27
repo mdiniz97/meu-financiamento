@@ -243,6 +243,58 @@ export function WizardForm() {
                 </div>
               </div>
 
+              <div className="flex flex-col gap-3">
+                <Label className="flex items-center gap-2">
+                  <Switch
+                    checked={form.recurringExtra !== null}
+                    onCheckedChange={(checked) =>
+                      set(
+                        'recurringExtra',
+                        checked ? { amount: '10000', every: '12', startMonth: '12' } : null
+                      )
+                    }
+                  />
+                  Aporte recorrente
+                </Label>
+                {form.recurringExtra && (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="recAmount">Valor (R$)</Label>
+                      <Input
+                        id="recAmount"
+                        inputMode="numeric"
+                        value={form.recurringExtra.amount}
+                        onChange={(e) =>
+                          set('recurringExtra', { ...form.recurringExtra!, amount: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="recEvery">A cada (meses)</Label>
+                      <Input
+                        id="recEvery"
+                        inputMode="numeric"
+                        value={form.recurringExtra.every}
+                        onChange={(e) =>
+                          set('recurringExtra', { ...form.recurringExtra!, every: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="recStart">Começando no mês</Label>
+                      <Input
+                        id="recStart"
+                        inputMode="numeric"
+                        value={form.recurringExtra.startMonth}
+                        onChange={(e) =>
+                          set('recurringExtra', { ...form.recurringExtra!, startMonth: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <Label>Com a estratégia, prefere</Label>
                 <RadioGroup
