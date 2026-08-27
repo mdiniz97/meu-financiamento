@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import {
   Dialog,
@@ -61,32 +61,33 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   });
   const [modalError, setModalError] = useState('');
   const [modalCalculado, setModalCalculado] = useState(false);
-  const lastValidRef = useRef<{ PRICE: number; SAC: number } | null>(null);
+  const [modalResult, setModalResult] = useState<{ PRICE: number; SAC: number } | null>(null);
 
-  // resultado derivado: após o primeiro cálculo, atualiza ao vivo quando os
-  // campos mudam; se ficar inválido, mantém o último resultado válido
-  const modalResultLive = useMemo(() => {
-    if (!modalCalculado) return null;
-    const parcela = parseBRLToNumber(modalFields.parcela);
-    const rate = parseDecimal(modalFields.annualRate);
-    const tr = parseDecimal(modalFields.trMonthly);
-    const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
-    const months = Number(modalFields.months);
+  // recalcula ao vivo após o primeiro cálculo; valor inválido mantém o
+  // último resultado válido
+  function updateModal(k: keyof typeof modalFields, v: string) {
+    const next = { ...modalFields, [k]: v };
+    setModalFields(next);
+    if (!modalCalculado) return;
+    const parcela = parseBRLToNumber(next.parcela);
+    const rate = parseDecimal(next.annualRate);
+    const tr = parseDecimal(next.trMonthly);
+    const seguro = parseBRLToNumber(next.insuranceMonthly);
+    const months = Number(next.months);
     if (!(parcela > 0) || !(rate > 0) || !(tr >= 0) || !(seguro >= 0) || !(months >= 1 && months <= 600)) {
-      return null;
+      return;
     }
-    return maxFinancing({
-      maxPayment: parcela,
-      annualRate: rate / 100,
-      trMonthly: tr / 100,
-      insuranceMonthly: seguro,
-      bank: f.bank,
-      months,
-    });
-  }, [modalFields, modalCalculado, f.bank]);
-
-  if (modalResultLive) lastValidRef.current = modalResultLive;
-  const modalResult = modalResultLive ?? lastValidRef.current;
+    setModalResult(
+      maxFinancing({
+        maxPayment: parcela,
+        annualRate: rate / 100,
+        trMonthly: tr / 100,
+        insuranceMonthly: seguro,
+        bank: f.bank,
+        months,
+      })
+    );
+  }
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -170,7 +171,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     insuranceMonthly: f.insuranceMonthly,
                     months: f.maxMonths,
                   });
-                  lastValidRef.current = null;
+                  setModalResult(null);
                   setModalCalculado(false);
                   setModalOpen(true);
                 }}
@@ -291,7 +292,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 <MoneyInput
                   id="mfParcela"
                   value={parseBRLToNumber(modalFields.parcela)}
-                  onValid={(v) => setModalFields((p) => ({ ...p, parcela: String(v) }))}
+                  onValid={(v) => updateModal('parcela', String(v))}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -301,7 +302,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     id="mfMonths"
                     value={Number(modalFields.months)}
                     parse={parseIntStrict}
-                    onValid={(v) => setModalFields((p) => ({ ...p, months: String(v) }))}
+                    onValid={(v) => updateModal('months', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -310,7 +311,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     id="mfRate"
                     value={parseDecimal(modalFields.annualRate)}
                     parse={parseDecimal}
-                    onValid={(v) => setModalFields((p) => ({ ...p, annualRate: String(v) }))}
+                    onValid={(v) => updateModal('annualRate', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -319,7 +320,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     id="mfTr"
                     value={parseDecimal(modalFields.trMonthly)}
                     parse={parseDecimal}
-                    onValid={(v) => setModalFields((p) => ({ ...p, trMonthly: String(v) }))}
+                    onValid={(v) => updateModal('trMonthly', String(v))}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -327,7 +328,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   <MoneyInput
                     id="mfSeguro"
                     value={parseBRLToNumber(modalFields.insuranceMonthly)}
-                    onValid={(v) => setModalFields((p) => ({ ...p, insuranceMonthly: String(v) }))}
+                    onValid={(v) => updateModal('insuranceMonthly', String(v))}
                   />
                 </div>
               </div>
@@ -347,6 +348,16 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     if (!(seguro >= 0)) return setModalError('Informe o seguro.');
                     if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
                     setModalCalculado(true);
+                    setModalResult(
+                      maxFinancing({
+                        maxPayment: parcela,
+                        annualRate: rate / 100,
+                        trMonthly: tr / 100,
+                        insuranceMonthly: seguro,
+                        bank: f.bank,
+                        months,
+                      })
+                    );
                   }}
                 >
                   <Search className="size-4" /> Calcular
