@@ -33,6 +33,7 @@ import { InterestAmortChart } from './charts/InterestAmortChart';
 import { ExportPdfButton } from './ExportPdfButton';
 import { InstallmentTable } from './InstallmentTable';
 import { MetricsGrid } from './MetricsGrid';
+import { DebtInsightCard } from './DebtInsightCard';
 import { RecommendationCard } from './RecommendationCard';
 import { ScenarioCompare } from './ScenarioCompare';
 import { StrategyControls } from './StrategyControls';
@@ -266,6 +267,8 @@ export function SimulationSandbox({
         <h2 className="text-lg font-semibold">Métricas</h2>
         <MetricsGrid metrics={displayed.metrics} />
       </section>
+
+      <DebtInsightCard input={input} result={displayed} isUnlimited={isUnlimited} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Gráficos</h2>
