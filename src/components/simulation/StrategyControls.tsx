@@ -26,7 +26,7 @@ interface Props {
 }
 
 
-type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual';
+type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual' | 'sac';
 
 const TIPO_LABELS: Record<AporteTipo, string> = {
   pontual: 'Pontual',
@@ -34,6 +34,7 @@ const TIPO_LABELS: Record<AporteTipo, string> = {
   pct: '% extra mensal',
   recorrente: 'Recorrente',
   anual: 'Anual (FGTS)',
+  sac: 'Pagar como no SAC',
 };
 
 const MODO_LABELS = { auto: 'Automático', term: 'Reduzir prazo', payment: 'Reduzir parcela' };
@@ -92,6 +93,9 @@ function deriveRows(strategies: Strategies): AporteRow[] {
       mode: strategies.recurringExtra.reduceMode,
     });
   }
+  if (strategies.paySacParcela) {
+    rows.push({ id: ++aporteSeq, tipo: 'sac', amount: 0, month: 1, every: 12 });
+  }
   if (strategies.fgtsAnnual) {
     rows.push({
       id: ++aporteSeq,
@@ -139,6 +143,9 @@ function rowPick(r: AporteRow): Partial<Strategies> {
       },
     };
   }
+  if (r.tipo === 'sac') {
+    return { paySacParcela: true };
+  }
   if (r.tipo === 'anual' && r.amount > 0) {
     return {
       fgtsAnnual: {
@@ -152,7 +159,7 @@ function rowPick(r: AporteRow): Partial<Strategies> {
   return {};
 }
 
-function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'extraMonthlyPct' | 'extraMonthlyPctStartMonth' | 'extraMonthlyPctUntilMonth' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual'> {
+function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'extraMonthlyPct' | 'extraMonthlyPctStartMonth' | 'extraMonthlyPctUntilMonth' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual' | 'paySacParcela'> {
   const pctRow = rows.find((r) => r.tipo === 'pct' && r.amount > 0);
   return {
     extraLumpSum: rows
@@ -183,6 +190,7 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
         ...(r.mode ? { reduceMode: r.mode } : {}),
       };
     })(),
+    paySacParcela: rows.some((x) => x.tipo === 'sac'),
     fgtsAnnual: (() => {
       const r = rows.find((x) => x.tipo === 'anual' && x.amount > 0);
       if (!r) return undefined;
@@ -273,9 +281,19 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                     <SelectItem value="pct">% extra mensal</SelectItem>
                     <SelectItem value="recorrente">Recorrente</SelectItem>
                     <SelectItem value="anual">Anual (FGTS)</SelectItem>
+                    {input.system === 'PRICE' && (
+                      <SelectItem value="sac">Pagar como no SAC</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
+              {r.tipo === 'sac' ? (
+                <div className="flex flex-1 flex-col gap-1">
+                  <p className="text-xs text-muted-foreground">
+                    Paga no PRICE o valor que pagaria no SAC: a diferença vira amortização extra.
+                  </p>
+                </div>
+              ) : (
               <div className="flex w-28 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">
                   {r.tipo === 'pct' ? 'Percentual (%)' : 'Valor (R$)'}
@@ -289,6 +307,8 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   }
                 />
               </div>
+              )}
+              {r.tipo !== 'sac' && (
               <div className="flex w-24 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground" htmlFor={`apMonth${r.id}`}>
                   {r.tipo === 'anual'
@@ -307,6 +327,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   }
                 />
               </div>
+              )}
               {r.tipo === 'recorrente' && (
                 <div className="flex w-20 flex-col gap-1.5">
                   <Label className="text-xs text-muted-foreground" htmlFor={`apEvery${r.id}`}>
@@ -323,6 +344,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   />
                 </div>
               )}
+              {r.tipo !== 'sac' && (
               <div className="flex w-24 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground" htmlFor={`apUntil${r.id}`}>
                   até o mês (opcional)
@@ -339,7 +361,8 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   }
                 />
               </div>
-              {rowsInfo[ri]?.differs && (
+              )}
+              {r.tipo !== 'sac' && rowsInfo[ri]?.differs && (
                 <div className="flex w-32 flex-col gap-1.5">
                   <Label className="flex items-center gap-1 text-xs text-muted-foreground">
                     Modo
