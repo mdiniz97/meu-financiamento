@@ -35,7 +35,7 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-20 sm:px-6">
+    <section className="mx-auto w-full max-w-3xl border-b border-border px-4 py-20 sm:px-6">
       <div className="text-center">
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Perguntas frequentes
@@ -44,16 +44,13 @@ export function FAQ() {
           Tudo o que você precisa saber antes de começar.
         </p>
       </div>
-      <div className="mt-10 flex flex-col gap-3">
+      <div className="mt-10 divide-y divide-border border-y border-border">
         {faqs.map((item, i) => (
-          <div
-            key={item.q}
-            className="overflow-hidden rounded-2xl bg-white shadow-sm"
-          >
+          <div key={item.q}>
             <button
               type="button"
               onClick={() => setOpen(open === i ? null : i)}
-              className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left"
+              className="flex w-full items-center justify-between gap-4 px-2 py-4 text-left"
               aria-expanded={open === i}
             >
               <span className="font-semibold">{item.q}</span>
@@ -65,7 +62,7 @@ export function FAQ() {
               />
             </button>
             {open === i && (
-              <p className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">
+              <p className="px-2 pb-5 text-sm leading-relaxed text-muted-foreground">
                 {item.a}
               </p>
             )}
