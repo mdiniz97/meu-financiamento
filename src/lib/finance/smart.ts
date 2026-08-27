@@ -73,6 +73,8 @@ export interface SmartRecommendation {
   comparison: SystemComparison[];
   /** melhor de cada modo de redução (prazo x parcela) */
   modes: { term: SmartCandidate | null; payment: SmartCandidate | null };
+  /** parcela mínima que abate a dívida no prazo máximo (para o modo payment); null se viável */
+  paymentMinParcela: number | null;
   /** PRICE e SAC entrando já no prazo máximo (viáveis), para comparar com o recomendado */
   maxTerms: SmartCandidate[];
   infeasible: boolean;
@@ -214,6 +216,13 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     term: candidates.find((c) => c.result.strategies.reduceMode === 'term') ?? null,
     payment: candidates.find((c) => c.result.strategies.reduceMode === 'payment') ?? null,
   };
+  // quando o modo payment é inviável, mostra a parcela mínima que abate
+  const paymentMinParcela =
+    modes.payment === null && best
+      ? best.system === 'PRICE'
+        ? pmt((1 + m) * (1 + i.trMonthly) - 1, maxMonths, i.principal) + i.insuranceMonthly
+        : pmt(i.trMonthly, maxMonths, i.principal) + i.principal * m + i.insuranceMonthly
+      : null;
   const maxTerms: SmartCandidate[] = (['PRICE', 'SAC'] as AmortSystem[])
     .filter((system) => minN[system] !== null)
     .map((system) => simulateCandidate(system, maxMonths, i, m, bestMode));
@@ -223,6 +232,7 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     alternatives: candidates,
     comparison,
     modes,
+    paymentMinParcela,
     maxTerms,
     infeasible: candidates.length === 0,
     minBudget,

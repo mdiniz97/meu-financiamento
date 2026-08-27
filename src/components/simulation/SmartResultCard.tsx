@@ -226,7 +226,26 @@ export function SmartResultCard({ rec, fields }: Props) {
               ] as const
             ).map(([mode, titulo, subtitulo]) => {
               const c = rec.modes[mode];
-              if (!c) return null;
+              if (!c) {
+                if (mode === 'payment' && rec.paymentMinParcela !== null) {
+                  return (
+                    <div
+                      key={mode}
+                      className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
+                    >
+                      <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
+                        <Lock className="size-3" /> Reduzir a parcela
+                      </div>
+                      <span className="text-muted-foreground">Mantém o prazo com valor mensal menor</span>
+                      <span className="mt-1 text-sm text-amber-700">
+                        Não cabe no seu orçamento: a parcela mínima que abate a dívida é de{' '}
+                        {formatBRL(rec.paymentMinParcela)}/mês.
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              }
               const melhor = rec.best && c.result.metrics.totalPago === rec.best.result.metrics.totalPago;
               return (
                 <ScenarioMiniCard
