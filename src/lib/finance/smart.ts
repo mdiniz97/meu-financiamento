@@ -40,6 +40,8 @@ export interface SmartInput {
   fixedPayment?: boolean;
   /** pagamento fixo só até o mês X (depois paga só a parcela) */
   fixedUntilMonth?: number;
+  /** o que fazer com o aporte: encurtar o prazo (term) ou reduzir a parcela (payment) */
+  reduceMode?: 'term' | 'payment';
   minMonths?: number;
   maxMonths?: number;
 }
@@ -100,7 +102,7 @@ function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m
     insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
     bank: i.bank,
   };
-  const strategies: Strategies = { extraLumpSum: [], reduceMode: 'term' };
+  const strategies: Strategies = { extraLumpSum: [], reduceMode: i.reduceMode ?? 'term' };
   if (i.fixedPayment !== false) {
     const until = i.fixedUntilMonth;
     strategies.fixedPayment = {

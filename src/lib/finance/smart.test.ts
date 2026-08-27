@@ -96,6 +96,15 @@ describe('recommendSmart', () => {
     expect(b.result.installments[0].parcela).toBeCloseTo(12000, 1);
     expect(b.result.installments[12].parcela).toBeLessThan(12000);
   });
+  it('reduceMode payment recalcula com parcela reduzida (modo payment)', () => {
+    const rTerm = recommendSmart(base);
+    const rPay = recommendSmart({ ...base, reduceMode: 'payment' });
+    expect(rPay.best).not.toBeNull();
+    expect(rPay.best!.result.strategies.reduceMode).toBe('payment');
+    expect(rTerm.best!.result.strategies.reduceMode).toBe('term');
+    expect(rPay.best!.result.metrics.totalPago).toBeGreaterThan(0);
+    expect(rTerm.best!.result.metrics.totalPago).toBeGreaterThan(0);
+  });
   it('fixedPayment=false usa percentual extra (aporte cresce com a parcela)', () => {
     const r = recommendSmart({ ...base, maxPayment: 12000, fixedPayment: false });
     const b = r.best!;
