@@ -226,6 +226,45 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               }
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="flex items-center gap-1.5">
+              Com o aporte mensal, prefere
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-64 text-xs">
+                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
+                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <RadioGroup
+              value={strategies.reduceMode}
+              onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
+              className="flex flex-row gap-4"
+            >
+              <Label className="flex items-center gap-2 font-normal">
+                <RadioGroupItem value="payment" />
+                Reduzir parcela
+              </Label>
+              <Label className="flex items-center gap-2 font-normal">
+                <RadioGroupItem value="term" />
+                Reduzir prazo
+              </Label>
+            </RadioGroup>
+            {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
+              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda abate a
+                dívida no seu prazo é de <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima
+                da sua parcela atual ({formatBRL(parcelaAtual)}/mês). Por isso os dois modos dão o
+                mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um aporte{' '}
+                <strong>mensal</strong> (pagamento fixo, % extra ou FGTS).
+              </p>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             O % extra paga um percentual a mais na parcela; o pagamento fixo completa até o valor
             total escolhido. Use um ou outro (ou os dois).
@@ -402,53 +441,15 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
           </>
         )}
 
-        <Separator />
-
-        <section className="flex flex-col gap-2">
-          <h3 className="flex items-center gap-1.5 text-sm font-medium">
-            Modo do aporte
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-64 text-xs">
-                  <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
-                  <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </h3>
-          <RadioGroup
-            value={strategies.reduceMode}
-            onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
-            className="flex flex-row gap-4"
-          >
-            <Label className="flex items-center gap-2 font-normal">
-              <RadioGroupItem value="payment" />
-              Reduzir parcela
-            </Label>
-            <Label className="flex items-center gap-2 font-normal">
-              <RadioGroupItem value="term" />
-              Reduzir prazo
-            </Label>
-          </RadioGroup>
-          {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
-            <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-              Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda abate a
-              dívida no seu prazo é de <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima
-              da sua parcela atual ({formatBRL(parcelaAtual)}/mês). Por isso os dois modos dão o
-              mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um aporte{' '}
-              <strong>mensal</strong> (pagamento fixo, % extra ou FGTS).
-            </p>
-          )}
-        </section>
-
       </CardContent>
     </Card>
-        <Separator />
 
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <Card className="rounded-2xl bg-white shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-lg">Resultado</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <section className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela atual</span>
             <span className="text-lg font-semibold">{formatBRL(parcelaBase)}</span>
@@ -485,6 +486,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             {economia >= 0 ? formatBRL(economia) : `-${formatBRL(-economia)}`}
           </span>
         </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }
