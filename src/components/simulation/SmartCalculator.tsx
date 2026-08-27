@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import {
   Dialog,
@@ -59,58 +59,34 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     insuranceMonthly: '100',
     months: '360',
   });
-  const [modalResult, setModalResult] = useState<{ PRICE: number; SAC: number } | null>(null);
   const [modalError, setModalError] = useState('');
   const [modalCalculado, setModalCalculado] = useState(false);
+  const lastValidRef = useRef<{ PRICE: number; SAC: number } | null>(null);
 
-  function calcularModal() {
-    setModalError('');
-    const parcela = parseBRLToNumber(modalFields.parcela);
-    const rate = parseDecimal(modalFields.annualRate);
-    const tr = parseDecimal(modalFields.trMonthly);
-    const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
-    const months = Number(modalFields.months);
-    if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
-    if (!(rate > 0)) return setModalError('Informe a taxa anual.');
-    if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
-    if (!(seguro >= 0)) return setModalError('Informe o seguro.');
-    if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
-    setModalResult(
-      maxFinancing({
-        maxPayment: parcela,
-        annualRate: rate / 100,
-        trMonthly: tr / 100,
-        insuranceMonthly: seguro,
-        bank: f.bank,
-        months,
-      })
-    );
-  }
-
-  // depois do primeiro cálculo, atualiza ao vivo quando os campos mudam
-  useEffect(() => {
-    if (!modalCalculado) return;
+  // resultado derivado: após o primeiro cálculo, atualiza ao vivo quando os
+  // campos mudam; se ficar inválido, mantém o último resultado válido
+  const modalResultLive = useMemo(() => {
+    if (!modalCalculado) return null;
     const parcela = parseBRLToNumber(modalFields.parcela);
     const rate = parseDecimal(modalFields.annualRate);
     const tr = parseDecimal(modalFields.trMonthly);
     const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
     const months = Number(modalFields.months);
     if (!(parcela > 0) || !(rate > 0) || !(tr >= 0) || !(seguro >= 0) || !(months >= 1 && months <= 600)) {
-      return; // mantém o último resultado válido
+      return null;
     }
-    setModalError('');
-    setModalResult(
-      maxFinancing({
-        maxPayment: parcela,
-        annualRate: rate / 100,
-        trMonthly: tr / 100,
-        insuranceMonthly: seguro,
-        bank: f.bank,
-        months,
-      })
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalFields]);
+    return maxFinancing({
+      maxPayment: parcela,
+      annualRate: rate / 100,
+      trMonthly: tr / 100,
+      insuranceMonthly: seguro,
+      bank: f.bank,
+      months,
+    });
+  }, [modalFields, modalCalculado, f.bank]);
+
+  if (modalResultLive) lastValidRef.current = modalResultLive;
+  const modalResult = modalResultLive ?? lastValidRef.current;
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -194,7 +170,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     insuranceMonthly: f.insuranceMonthly,
                     months: f.maxMonths,
                   });
-                  setModalResult(null);
+                  lastValidRef.current = null;
                   setModalCalculado(false);
                   setModalOpen(true);
                 }}
@@ -359,8 +335,18 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 <Button
                   type="button"
                   onClick={() => {
+                    setModalError('');
+                    const parcela = parseBRLToNumber(modalFields.parcela);
+                    const rate = parseDecimal(modalFields.annualRate);
+                    const tr = parseDecimal(modalFields.trMonthly);
+                    const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
+                    const months = Number(modalFields.months);
+                    if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
+                    if (!(rate > 0)) return setModalError('Informe a taxa anual.');
+                    if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
+                    if (!(seguro >= 0)) return setModalError('Informe o seguro.');
+                    if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
                     setModalCalculado(true);
-                    calcularModal();
                   }}
                 >
                   <Search className="size-4" /> Calcular
