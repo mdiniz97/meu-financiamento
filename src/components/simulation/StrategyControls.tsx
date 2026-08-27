@@ -72,11 +72,9 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                       parse={parseBRLToNumber}
                       onValid={(v) =>
                         setLump(
-                          v > 0
-                            ? strategies.extraLumpSum.map((x, j) =>
-                                j === i ? { ...x, amount: v } : x
-                              )
-                            : strategies.extraLumpSum.filter((_, j) => j !== i)
+                          strategies.extraLumpSum.map((x, j) =>
+                            j === i ? { ...x, amount: Math.max(0, v) } : x
+                          )
                         )
                       }
                     />

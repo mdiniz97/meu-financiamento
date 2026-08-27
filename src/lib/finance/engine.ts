@@ -44,7 +44,8 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   check(Array.isArray(s.extraLumpSum), 'amortizações extras inválidas');
   for (const e of s.extraLumpSum) {
     check(Number.isFinite(e.month) && e.month >= 1, 'mês de amortização extra inválido');
-    check(Number.isFinite(e.amount) && e.amount > 0, 'valor de amortização extra inválido');
+    // valor 0 é permitido (aporte inerte, ex: campo apagado pelo usuário)
+    check(Number.isFinite(e.amount) && e.amount >= 0, 'valor de amortização extra inválido');
   }
   if (s.extraMonthlyPct !== undefined) {
     check(Number.isFinite(s.extraMonthlyPct) && s.extraMonthlyPct >= 0 && s.extraMonthlyPct <= 1, 'percentual extra deve estar entre 0 e 100%');
@@ -53,7 +54,7 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     check(Number.isFinite(s.fgtsAnnual) && s.fgtsAnnual >= 0, 'FGTS anual não pode ser negativo');
   }
   if (s.recurringExtra !== undefined) {
-    check(Number.isFinite(s.recurringExtra.amount) && s.recurringExtra.amount > 0, 'valor de aporte recorrente inválido');
+    check(Number.isFinite(s.recurringExtra.amount) && s.recurringExtra.amount >= 0, 'valor de aporte recorrente inválido');
     check(Number.isInteger(s.recurringExtra.every) && s.recurringExtra.every >= 1, 'intervalo do aporte recorrente inválido');
     check(Number.isInteger(s.recurringExtra.startMonth) && s.recurringExtra.startMonth >= 1, 'mês inicial do aporte recorrente inválido');
   }
