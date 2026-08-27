@@ -18,18 +18,23 @@ export function Reveal({
 }) {
   const reduceMotion = useReducedMotion();
 
-  if (reduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
+  // Always render the same `motion.div` element (never branch to a plain <div>).
+  // The server can't know the client's reduced-motion preference, so SSR always
+  // renders the animated variant's initial inline style; if we swapped element
+  // types based on `reduceMotion`, hydration would mismatch and React would
+  // leave the stale `opacity: 0` style stuck in the DOM forever (it doesn't
+  // patch mismatched attributes). Keeping the element type stable and only
+  // varying the animation props avoids that, since Motion applies the final
+  // props itself once mounted, regardless of what SSR guessed.
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      whileHover={hover ? { y: -4 } : undefined}
+      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+      animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
+      whileHover={hover && !reduceMotion ? { y: -4 } : undefined}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.5, delay, ease: "easeOut" }}
+      transition={{ duration: reduceMotion ? 0 : 0.5, delay: reduceMotion ? 0 : delay, ease: "easeOut" }}
     >
       {children}
     </motion.div>
@@ -84,15 +89,14 @@ export function HoverScale({
 }) {
   const reduceMotion = useReducedMotion();
 
-  if (reduceMotion) {
-    return <span className={className}>{children}</span>;
-  }
-
+  // Same rationale as Reveal above: keep the element type stable (always
+  // `motion.span`) so SSR/hydration never disagree on structure, and only
+  // vary the hover/tap animation props based on `reduceMotion`.
   return (
     <motion.span
       className={cn("inline-block", className)}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={reduceMotion ? undefined : { scale: 1.02 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
     >
       {children}
     </motion.span>
