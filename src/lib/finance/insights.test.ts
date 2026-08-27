@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceBreakEven } from './insights';
+import { priceBreakEven, recurringParcela } from './insights';
 import { simulate } from './engine';
 import type { LoanInput } from './types';
 
@@ -46,5 +46,26 @@ describe('priceBreakEven', () => {
     const semTr = { ...base, trMonthly: 0 };
     const b = priceBreakEven(semTr);
     expect(b.idealPayment).toBeNull();
+  });
+  it('aporte mensal necessário para abater no prazo atual: ~R$ 1.260,08 (14,17%)', () => {
+    const r = simulate(base, noStrategy);
+    const b = priceBreakEven(base, r);
+    expect(b.requiredExtraMonthly).toBeCloseTo(1260.08, 2);
+    expect(b.requiredExtraPct).toBeCloseTo(0.1417, 3);
+  });
+  it('prazo curto que já abate não exige aporte extra', () => {
+    const curto = { ...base, months: 100 };
+    const r = simulate(curto, noStrategy);
+    const b = priceBreakEven(curto, r);
+    expect(b.requiredExtraMonthly).toBe(0);
+  });
+  it('recurringParcela ignora aporte pontual no mês 1', () => {
+    const lump1 = simulate(base, { ...noStrategy, extraLumpSum: [{ month: 1, amount: 100000 }] });
+    expect(lump1.installments[0].parcela).toBeCloseTo(108895.07, 2);
+    expect(recurringParcela(lump1)).toBeCloseTo(8895.07, 2);
+  });
+  it('recurringParcela mantém aporte percentual recorrente', () => {
+    const pct5 = simulate(base, { ...noStrategy, extraMonthlyPct: 0.05 });
+    expect(recurringParcela(pct5)).toBeCloseTo(9339.83, 2);
   });
 });

@@ -2,7 +2,7 @@
 
 import { Link } from 'lucide-react';
 import type { LoanInput, SimulationResult } from '@/lib/finance/types';
-import { priceBreakEven } from '@/lib/finance/insights';
+import { priceBreakEven, recurringParcela } from '@/lib/finance/insights';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +52,7 @@ export function DebtInsightCard({ input, result, isUnlimited }: Props) {
   }
 
   const be = priceBreakEven(input, result);
-  const parcelaAtual = result.installments[0]?.parcela ?? 0;
+  const parcelaAtual = recurringParcela(result);
   const abateDesdeInicio = (be.monthsUntilAmortize ?? 1) <= 1;
   const parcelaCobre = parcelaAtual >= be.minPayment;
   const prazoOk = input.months <= be.maxMonths;
@@ -109,13 +109,28 @@ export function DebtInsightCard({ input, result, isUnlimited }: Props) {
               </span>
             </div>
           )}
+          {be.requiredExtraMonthly > 0 && (
+            <div className="flex flex-col gap-1 rounded-xl bg-primary/5 p-3">
+              <span className="text-xs text-muted-foreground">Aporte mensal p/ abater no seu prazo</span>
+              <span className="text-lg font-semibold text-primary">
+                {formatBRL(be.requiredExtraMonthly)}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  (+{(be.requiredExtraPct * 100).toFixed(1)}% da parcela)
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                amortize por fora todo mês e a dívida cai desde a 1ª parcela
+              </span>
+            </div>
+          )}
         </div>
         {!abateDesdeInicio && (
           <p className="rounded-xl bg-amber-50 p-3 text-amber-800">
             Sua parcela de <strong>{formatBRL(parcelaAtual)}</strong> não abate a dívida no começo —
-            por {formatBRL(be.minPayment - parcelaAtual)} de parcela a mais, ou financiando em até{' '}
-            {be.maxMonths} meses com parcela de <strong>{formatBRL(be.idealPayment ?? parcelaAtual)}</strong>,
-            a dívida cai desde a 1ª parcela e os juros totais despencam.
+            por <strong>{formatBRL(be.requiredExtraMonthly)}/mês</strong> de aporte por fora, ou
+            financiando em até {be.maxMonths} meses com parcela de{' '}
+            <strong>{formatBRL(be.idealPayment ?? parcelaAtual)}</strong>, a dívida cai desde a 1ª
+            parcela e os juros totais despencam.
           </p>
         )}
       </CardContent>

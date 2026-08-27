@@ -20,6 +20,7 @@ export function InstallmentTable({ installments }: { installments: Installment[]
             <TableHead className="text-right">Parcela</TableHead>
             <TableHead className="text-right">Juros</TableHead>
             <TableHead className="text-right">Amortização</TableHead>
+            <TableHead className="text-right">Aportes</TableHead>
             <TableHead className="text-right">Seguro</TableHead>
             <TableHead className="text-right">Correção</TableHead>
             <TableHead className="text-right">Saldo</TableHead>
@@ -32,6 +33,9 @@ export function InstallmentTable({ installments }: { installments: Installment[]
               <TableCell className="text-right">{formatBRL(i.parcela)}</TableCell>
               <TableCell className="text-right">{formatBRL(i.juros)}</TableCell>
               <TableCell className="text-right">{formatBRL(i.amortizacao)}</TableCell>
+              <TableCell className="text-right">
+                {i.extra > 0 ? <span className="font-medium text-primary">{formatBRL(i.extra)}</span> : '—'}
+              </TableCell>
               <TableCell className="text-right">{formatBRL(i.seguro)}</TableCell>
               <TableCell className="text-right">{formatBRL(i.correcao)}</TableCell>
               <TableCell className="text-right">{formatBRL(i.saldo)}</TableCell>

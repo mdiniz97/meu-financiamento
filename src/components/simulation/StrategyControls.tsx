@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
+import { recurringParcela } from '@/lib/finance/insights';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,8 +28,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
   const setLump = (list: Strategies['extraLumpSum']) => onChange({ ...strategies, extraLumpSum: list });
 
   const economia = base.metrics.totalPago - current.metrics.totalPago;
-  const parcelaBase = base.installments[0]?.parcela ?? 0;
-  const parcelaAtual = current.installments[0]?.parcela ?? 0;
+  const parcelaBase = recurringParcela(base);
+  const parcelaAtual = recurringParcela(current);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
