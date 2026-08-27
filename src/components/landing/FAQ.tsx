@@ -4,7 +4,6 @@ import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { Reveal } from "@/components/landing/motion-primitives";
 
 const faqs = [
   {
@@ -39,19 +38,17 @@ export function FAQ() {
 
   return (
     <section className="mx-auto w-full max-w-3xl border-b border-border px-4 py-20 sm:px-6">
-      <Reveal>
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Perguntas frequentes
-          </h2>
-          <p className="mt-3 text-lg text-muted-foreground">
-            Tudo o que você precisa saber antes de começar.
-          </p>
-        </div>
-      </Reveal>
+      <div className="text-center">
+        <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+          Perguntas frequentes
+        </h2>
+        <p className="mt-3 text-lg text-muted-foreground">
+          Tudo o que você precisa saber antes de começar.
+        </p>
+      </div>
       <div className="mt-10 divide-y divide-border border-y border-border">
         {faqs.map((item, i) => (
-          <Reveal key={item.q} delay={i * 0.05}>
+          <div key={item.q}>
             <button
               type="button"
               onClick={() => setOpen(open === i ? null : i)}
@@ -82,7 +79,7 @@ export function FAQ() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </Reveal>
+          </div>
         ))}
       </div>
     </section>
