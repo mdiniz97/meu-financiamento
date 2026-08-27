@@ -5,8 +5,8 @@ import { Sparkles } from 'lucide-react';
 import type { SmartRecommendation } from '@/lib/finance/smart';
 import type { FormState } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber } from '@/lib/utils';
-import { Badge } from '/components/ui/badge';
-import { Button } from '/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SmartCalcFields } from './SmartCalculator';
 
