@@ -13,7 +13,6 @@ import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -48,7 +47,7 @@ const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: 
   </div>
 );
 
-type AporteTipo = 'pontual' | 'mensal' | 'recorrente' | 'anual';
+type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual';
 
 interface AporteRow {
   id: number;
@@ -69,6 +68,16 @@ function deriveRows(strategies: Strategies): AporteRow[] {
     month: l.month,
     every: 12,
   }));
+  if (strategies.extraMonthlyPct && strategies.extraMonthlyPct > 0) {
+    rows.push({
+      id: ++aporteSeq,
+      tipo: 'pct',
+      amount: Math.round(strategies.extraMonthlyPct * 100),
+      month: strategies.extraMonthlyPctStartMonth ?? 1,
+      every: 12,
+      untilMonth: strategies.extraMonthlyPctUntilMonth,
+    });
+  }
   if (strategies.fixedPayment) {
     rows.push({
       id: ++aporteSeq,
@@ -102,11 +111,15 @@ function deriveRows(strategies: Strategies): AporteRow[] {
   return rows;
 }
 
-function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual'> {
+function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'extraMonthlyPct' | 'extraMonthlyPctStartMonth' | 'extraMonthlyPctUntilMonth' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual'> {
+  const pctRow = rows.find((r) => r.tipo === 'pct' && r.amount > 0);
   return {
     extraLumpSum: rows
       .filter((r) => r.tipo === 'pontual' && r.amount > 0 && r.month >= 1)
       .map((r) => ({ month: r.month, amount: r.amount })),
+    extraMonthlyPct: pctRow ? pctRow.amount / 100 : undefined,
+    ...(pctRow && pctRow.month >= 1 ? { extraMonthlyPctStartMonth: pctRow.month } : {}),
+    ...(pctRow && pctRow.untilMonth ? { extraMonthlyPctUntilMonth: pctRow.untilMonth } : {}),
     fixedPayment: (() => {
       const r = rows.find((x) => x.tipo === 'mensal' && x.amount > 0);
       if (!r) return undefined;
@@ -139,7 +152,6 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
 }
 
 export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
-  const pctExtra = Math.round((strategies.extraMonthlyPct ?? 0) * 100);
   const [rows, setRows] = useState<AporteRow[]>(() => deriveRows(strategies));
 
   const updateRows = (next: AporteRow[]) => {
@@ -161,87 +173,6 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-medium">Aporte mensal</h3>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="extraMonthlyPct">% extra mensal ({pctExtra}%)</Label>
-            <div className="flex items-end gap-3">
-              <Slider
-                className="flex-1"
-                min={0}
-                max={100}
-                step={1}
-                value={pctExtra}
-                onValueChange={(v) => onChange({ ...strategies, extraMonthlyPct: Number(v) / 100 })}
-              />
-              <NumericInput
-                id="extraMonthlyPct"
-                className="w-14"
-                maxLength={3}
-                value={pctExtra}
-                parse={parseDecimal}
-                onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-              <MesCampo
-                id="pctStart"
-                label="do mês"
-                value={strategies.extraMonthlyPctStartMonth}
-                onValid={(v) =>
-                  onChange({ ...strategies, extraMonthlyPctStartMonth: v > 0 ? v : undefined })
-                }
-              />
-              <MesCampo
-                id="pctUntil"
-                label="até o mês (opcional)"
-                value={strategies.extraMonthlyPctUntilMonth}
-                onValid={(v) =>
-                  onChange({ ...strategies, extraMonthlyPctUntilMonth: v > 0 ? v : undefined })
-                }
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="flex items-center gap-1.5">
-              Com o aporte mensal, prefere
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-64 text-xs">
-                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
-                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </Label>
-            <RadioGroup
-              value={strategies.reduceMode}
-              onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
-              className="flex flex-row gap-4"
-            >
-              <Label className="flex items-center gap-2 font-normal">
-                <RadioGroupItem value="payment" />
-                Reduzir parcela
-              </Label>
-              <Label className="flex items-center gap-2 font-normal">
-                <RadioGroupItem value="term" />
-                Reduzir prazo
-              </Label>
-            </RadioGroup>
-            {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
-              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda abate a
-                dívida no seu prazo é de <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima
-                da sua parcela atual ({formatBRL(parcelaAtual)}/mês). Por isso os dois modos dão o
-                mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um aporte{' '}
-                <strong>mensal</strong> (pagamento fixo, % extra ou FGTS).
-              </p>
-            )}
-          </div>
-        </section>
-
         <Separator />
 
         <section className="flex flex-col gap-2">
@@ -269,17 +200,20 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   <SelectContent>
                     <SelectItem value="pontual">Pontual</SelectItem>
                     <SelectItem value="mensal">Mensal (total fixo)</SelectItem>
+                    <SelectItem value="pct">% extra mensal</SelectItem>
                     <SelectItem value="recorrente">Recorrente</SelectItem>
                     <SelectItem value="anual">Anual (FGTS)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex w-28 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
+                <Label className="text-xs text-muted-foreground">
+                  {r.tipo === 'pct' ? 'Percentual (%)' : 'Valor (R$)'}
+                </Label>
                 <NumericInput
-                  maxLength={10}
+                  maxLength={r.tipo === 'pct' ? 3 : 10}
                   value={r.amount > 0 ? r.amount : undefined}
-                  parse={parseBRLToNumber}
+                  parse={r.tipo === 'pct' ? parseDecimal : parseBRLToNumber}
                   onValid={(v) =>
                     updateRows(rows.map((x) => (x.id === r.id ? { ...x, amount: Math.max(0, v) } : x)))
                   }
@@ -289,7 +223,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 <Label className="text-xs text-muted-foreground" htmlFor={`apMonth${r.id}`}>
                   {r.tipo === 'anual'
                     ? 'no mês'
-                    : r.tipo === 'recorrente' || r.tipo === 'mensal'
+                    : r.tipo === 'recorrente' || r.tipo === 'mensal' || r.tipo === 'pct'
                       ? 'do mês'
                       : 'mês'}
                 </Label>
@@ -356,6 +290,45 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             >
               <Plus className="size-4" /> Adicionar amortização
             </Button>
+          </div>
+          <div className="flex flex-col gap-1.5 pt-1">
+            <Label className="flex items-center gap-1.5">
+              Com os aportes, prefere
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-64 text-xs">
+                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
+                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <RadioGroup
+              value={strategies.reduceMode}
+              onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
+              className="flex flex-row gap-4"
+            >
+              <Label className="flex items-center gap-2 font-normal">
+                <RadioGroupItem value="payment" />
+                Reduzir parcela
+              </Label>
+              <Label className="flex items-center gap-2 font-normal">
+                <RadioGroupItem value="term" />
+                Reduzir prazo
+              </Label>
+            </RadioGroup>
+            {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
+              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda abate a
+                dívida no seu prazo é de <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima
+                da sua parcela atual ({formatBRL(parcelaAtual)}/mês). Por isso os dois modos dão o
+                mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um aporte{' '}
+                <strong>mensal</strong> (% extra ou pagamento fixo).
+              </p>
+            )}
           </div>
         </section>
 
