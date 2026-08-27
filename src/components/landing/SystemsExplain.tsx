@@ -40,7 +40,7 @@ const exampleRows = [
 
 export function SystemsExplain() {
   return (
-    <section className="bg-white">
+    <section className="border-b border-border">
       <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -53,10 +53,10 @@ export function SystemsExplain() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 lg:grid-cols-2">
-          <div className="flex flex-col gap-4 rounded-2xl bg-[#F5F5F5] p-6 sm:p-8">
+        <div className="mt-12 grid border border-border lg:grid-cols-2 lg:divide-x lg:divide-border">
+          <div className="flex flex-col gap-4 border-b border-border p-6 sm:p-8 lg:border-b-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[#820AD1] px-3 py-1 text-xs font-semibold text-white">
+              <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 Amortiza desde o início
               </span>
               <span className="text-xs font-medium text-muted-foreground">
@@ -71,16 +71,16 @@ export function SystemsExplain() {
             <ul className="mt-2 flex flex-col gap-3">
               {sacPoints.map((point) => (
                 <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-[#820AD1]" />
+                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
                   {point}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="flex flex-col gap-4 rounded-2xl bg-[#F5F5F5] p-6 sm:p-8">
+          <div className="flex flex-col gap-4 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[#FFA000] px-3 py-1 text-xs font-semibold text-white">
+              <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E]">
                 Atenção nos primeiros anos
               </span>
               <span className="text-xs font-medium text-muted-foreground">
@@ -95,7 +95,7 @@ export function SystemsExplain() {
             <ul className="mt-2 flex flex-col gap-3">
               {pricePoints.map((point) => (
                 <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#FFA000]" />
+                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E]" />
                   {point}
                 </li>
               ))}
@@ -103,14 +103,14 @@ export function SystemsExplain() {
           </div>
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-2xl bg-[#F5F5F5]">
-          <div className="flex items-center gap-2 border-b border-black/5 bg-white px-6 py-4">
+        <div className="mt-8 border border-border">
+          <div className="border-b border-border px-6 py-4">
             <span className="text-sm font-semibold">
               Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
             </span>
           </div>
           <div className="px-6 py-2">
-            <div className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-black/5 px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <span>Comparativo</span>
               <span className="text-right">PRICE</span>
               <span className="text-right">SAC</span>
@@ -118,11 +118,11 @@ export function SystemsExplain() {
             {exampleRows.map((row) => (
               <div
                 key={row.label}
-                className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-black/5 px-2 py-3.5 text-sm last:border-0"
+                className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
               >
                 <span className="pr-2 text-muted-foreground">{row.label}</span>
-                <span className="text-right font-medium tabular-nums">{row.price}</span>
-                <span className="text-right font-semibold tabular-nums text-[#820AD1]">
+                <span className="text-right font-mono font-medium tabular-nums">{row.price}</span>
+                <span className="text-right font-mono font-semibold tabular-nums text-primary">
                   {row.sac}
                 </span>
               </div>
