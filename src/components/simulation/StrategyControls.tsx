@@ -209,7 +209,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               Com a estratégia, prefere
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-64 text-xs">
