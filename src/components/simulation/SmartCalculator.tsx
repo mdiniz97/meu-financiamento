@@ -248,16 +248,16 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardContent>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Quanto você pode financiar</DialogTitle>
             <DialogDescription>
-              Informe quanto quer pagar por mês e os dados do financiamento — o sistema calcula o
-              valor máximo do imóvel em cada modelo.
+              Informe quanto quer pagar por mês — calculamos o valor máximo do imóvel em cada
+              modelo.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mfParcela">Quanto quer pagar por mês (R$)</Label>
                 <MoneyInput
@@ -266,88 +266,86 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   onValid={(v) => setModalFields((p) => ({ ...p, parcela: String(v) }))}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mfMonths">Prazo (meses)</Label>
-                <NumericInput
-                  id="mfMonths"
-                  value={Number(modalFields.months)}
-                  parse={parseIntStrict}
-                  onValid={(v) => setModalFields((p) => ({ ...p, months: String(v) }))}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mfMonths">Prazo (meses)</Label>
+                  <NumericInput
+                    id="mfMonths"
+                    value={Number(modalFields.months)}
+                    parse={parseIntStrict}
+                    onValid={(v) => setModalFields((p) => ({ ...p, months: String(v) }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mfRate">Taxa a.a. (%)</Label>
+                  <NumericInput
+                    id="mfRate"
+                    value={parseDecimal(modalFields.annualRate)}
+                    parse={parseDecimal}
+                    onValid={(v) => setModalFields((p) => ({ ...p, annualRate: String(v) }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mfTr">TR mensal (%)</Label>
+                  <NumericInput
+                    id="mfTr"
+                    value={parseDecimal(modalFields.trMonthly)}
+                    parse={parseDecimal}
+                    onValid={(v) => setModalFields((p) => ({ ...p, trMonthly: String(v) }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mfSeguro">Seguro (R$/mês)</Label>
+                  <MoneyInput
+                    id="mfSeguro"
+                    value={parseBRLToNumber(modalFields.insuranceMonthly)}
+                    onValid={(v) => setModalFields((p) => ({ ...p, insuranceMonthly: String(v) }))}
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mfRate">Taxa a.a. (%)</Label>
-                <NumericInput
-                  id="mfRate"
-                  value={parseDecimal(modalFields.annualRate)}
-                  parse={parseDecimal}
-                  onValid={(v) => setModalFields((p) => ({ ...p, annualRate: String(v) }))}
-                />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setModalError('');
+                    const parcela = parseBRLToNumber(modalFields.parcela);
+                    const rate = parseDecimal(modalFields.annualRate);
+                    const tr = parseDecimal(modalFields.trMonthly);
+                    const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
+                    const months = Number(modalFields.months);
+                    if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
+                    if (!(rate > 0)) return setModalError('Informe a taxa anual.');
+                    if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
+                    if (!(seguro >= 0)) return setModalError('Informe o seguro.');
+                    if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
+                    setModalResult(
+                      maxFinancing({
+                        maxPayment: parcela,
+                        annualRate: rate / 100,
+                        trMonthly: tr / 100,
+                        insuranceMonthly: seguro,
+                        bank: f.bank,
+                        months,
+                      })
+                    );
+                  }}
+                >
+                  <Search className="size-4" /> Calcular
+                </Button>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mfTr">TR mensal (%)</Label>
-                <NumericInput
-                  id="mfTr"
-                  value={parseDecimal(modalFields.trMonthly)}
-                  parse={parseDecimal}
-                  onValid={(v) => setModalFields((p) => ({ ...p, trMonthly: String(v) }))}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <Label htmlFor="mfSeguro">Seguro (R$/mês)</Label>
-                <MoneyInput
-                  id="mfSeguro"
-                  value={parseBRLToNumber(modalFields.insuranceMonthly)}
-                  onValid={(v) => setModalFields((p) => ({ ...p, insuranceMonthly: String(v) }))}
-                />
-              </div>
+              {modalError && <p className="text-sm text-destructive">{modalError}</p>}
             </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setModalError('');
-                  const parcela = parseBRLToNumber(modalFields.parcela);
-                  const rate = parseDecimal(modalFields.annualRate);
-                  const tr = parseDecimal(modalFields.trMonthly);
-                  const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
-                  const months = Number(modalFields.months);
-                  if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
-                  if (!(rate > 0)) return setModalError('Informe a taxa anual.');
-                  if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
-                  if (!(seguro >= 0)) return setModalError('Informe o seguro.');
-                  if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
-                  setModalResult(
-                    maxFinancing({
-                      maxPayment: parcela,
-                      annualRate: rate / 100,
-                      trMonthly: tr / 100,
-                      insuranceMonthly: seguro,
-                      bank: f.bank,
-                      months,
-                    })
-                  );
-                }}
-              >
-                <Search className="size-3.5" /> Calcular
-              </Button>
-            </div>
-
-            {modalError && <p className="text-sm text-destructive">{modalError}</p>}
 
             {modalResult && (
               <div className="flex flex-col gap-3">
                 <p className="text-sm font-semibold text-primary">
-                  Com {formatBRL(parseBRLToNumber(modalFields.parcela))}/mês você pode financiar até:
+                  Com {formatBRL(parseBRLToNumber(modalFields.parcela))}/mês, você pode financiar até:
                 </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {(['PRICE', 'SAC'] as const).map((s) => (
-                    <div key={s} className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                    <div key={s} className="flex flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm">
                       <span className="text-xs text-muted-foreground">No {s}</span>
-                      <span className="text-lg font-semibold text-primary">
+                      <span className="text-xl font-semibold text-primary">
                         {formatBRL(modalResult[s])}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -355,21 +353,25 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                           ? 'Parcela constante — cresce com a TR'
                           : 'Parcela começa maior e cai'}
                       </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-1 w-fit"
-                        onClick={() => usarNoInteligente(s, modalResult[s])}
-                      >
-                        Usar no cálculo inteligente
-                      </Button>
                     </div>
                   ))}
                 </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {(['PRICE', 'SAC'] as const).map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => usarNoInteligente(s, modalResult[s])}
+                    >
+                      Usar no cálculo inteligente ({s})
+                    </Button>
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  O valor vai para o cálculo inteligente — dali você descobre o melhor modelo, prazo
-                  e estratégia para esse financiamento.
+                  O valor escolhido vai para o cálculo inteligente — dali você descobre o melhor
+                  modelo, prazo e estratégia.
                 </p>
               </div>
             )}
