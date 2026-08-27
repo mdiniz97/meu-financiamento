@@ -4,7 +4,7 @@ import { CheckIcon, InfoIcon } from "lucide-react";
 import { simulate } from "@/lib/finance/engine";
 import { priceBreakEven } from "@/lib/finance/insights";
 import type { LoanInput } from "@/lib/finance/types";
-import { AnimatedNumber, Reveal } from "@/components/landing/motion-primitives";
+import { AnimatedNumber } from "@/components/landing/motion-primitives";
 
 const input: LoanInput = {
   system: "PRICE", principal: 1000000, annualRate: 0.10, months: 360,
@@ -67,111 +67,103 @@ export function SystemsExplain() {
   return (
     <section className="border-b border-border">
       <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
-        <Reveal>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              SAC vs PRICE: a diferença custa caro
-            </h2>
-            <p className="mt-3 text-lg text-muted-foreground">
-              Os dois sistemas pagam o mesmo empréstimo, mas a forma de amortizar
-              muda tudo: no total, a diferença passa de centenas de milhares de
-              reais.
-            </p>
-          </div>
-        </Reveal>
-
-        <div className="mt-12 grid border border-border lg:grid-cols-2 lg:divide-x lg:divide-border">
-          <Reveal delay={0.1} className="border-b border-border p-6 sm:p-8 lg:border-b-0">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                  Amortiza desde o início
-                </span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  Sistema de Amortização Constante
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold tracking-tight">SAC</h3>
-              <p className="-mt-2 text-sm text-muted-foreground">
-                A parcela começa maior e cai a cada mês, porque a amortização é
-                fixa desde a primeira parcela.
-              </p>
-              <ul className="mt-2 flex flex-col gap-3">
-                {sacPoints.map((point) => (
-                  <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.2} className="p-6 sm:p-8">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E] dark:border-amber-400 dark:text-amber-400">
-                  Atenção nos primeiros anos
-                </span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  Sistema de Parcelas Constantes
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold tracking-tight">PRICE</h3>
-              <p className="-mt-2 text-sm text-muted-foreground">
-                A parcela é fixa, mas no começo você paga muito mais juro do que
-                amortização.
-              </p>
-              <ul className="mt-2 flex flex-col gap-3">
-                {pricePoints.map((point) => (
-                  <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                    <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+            SAC vs PRICE: a diferença custa caro
+          </h2>
+          <p className="mt-3 text-lg text-muted-foreground">
+            Os dois sistemas pagam o mesmo empréstimo, mas a forma de amortizar
+            muda tudo: no total, a diferença passa de centenas de milhares de
+            reais.
+          </p>
         </div>
 
-        <Reveal delay={0.3} className="mt-8">
-          <div className="border border-border">
-            <div className="border-b border-border px-6 py-4">
-              <span className="text-sm font-semibold">
-                Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
+        <div className="mt-12 grid border border-border lg:grid-cols-2 lg:divide-x lg:divide-border">
+          <div className="flex flex-col gap-4 border-b border-border p-6 sm:p-8 lg:border-b-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                Amortiza desde o início
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Sistema de Amortização Constante
               </span>
             </div>
-            <div className="px-6 py-2">
-              <div className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>Comparativo</span>
-                <span className="text-right">PRICE</span>
-                <span className="text-right">SAC</span>
-              </div>
-              {exampleRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
-                >
-                  <span className="pr-2 text-muted-foreground">{row.label}</span>
-                  <AnimatedNumber
-                    value={row.priceValue}
-                    format={row.format}
-                    className="text-right font-mono font-medium tabular-nums"
-                  />
-                  <AnimatedNumber
-                    value={row.sacValue}
-                    format={row.format}
-                    className="text-right font-mono font-semibold tabular-nums text-primary"
-                  />
-                </div>
-              ))}
-            </div>
-            <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
-              Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
-              0,17% a.m. O resultado exato depende das taxas do seu contrato: simule o seu caso.
+            <h3 className="font-heading text-2xl font-bold tracking-tight">SAC</h3>
+            <p className="-mt-2 text-sm text-muted-foreground">
+              A parcela começa maior e cai a cada mês, porque a amortização é
+              fixa desde a primeira parcela.
             </p>
+            <ul className="mt-2 flex flex-col gap-3">
+              {sacPoints.map((point) => (
+                <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
+                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
+                  {point}
+                </li>
+              ))}
+            </ul>
           </div>
-        </Reveal>
+
+          <div className="flex flex-col gap-4 p-6 sm:p-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E] dark:border-amber-400 dark:text-amber-400">
+                Atenção nos primeiros anos
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Sistema de Parcelas Constantes
+              </span>
+            </div>
+            <h3 className="font-heading text-2xl font-bold tracking-tight">PRICE</h3>
+            <p className="-mt-2 text-sm text-muted-foreground">
+              A parcela é fixa, mas no começo você paga muito mais juro do que
+              amortização.
+            </p>
+            <ul className="mt-2 flex flex-col gap-3">
+              {pricePoints.map((point) => (
+                <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
+                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-8 border border-border">
+          <div className="border-b border-border px-6 py-4">
+            <span className="text-sm font-semibold">
+              Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
+            </span>
+          </div>
+          <div className="px-6 py-2">
+            <div className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Comparativo</span>
+              <span className="text-right">PRICE</span>
+              <span className="text-right">SAC</span>
+            </div>
+            {exampleRows.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
+              >
+                <span className="pr-2 text-muted-foreground">{row.label}</span>
+                <AnimatedNumber
+                  value={row.priceValue}
+                  format={row.format}
+                  className="text-right font-mono font-medium tabular-nums"
+                />
+                <AnimatedNumber
+                  value={row.sacValue}
+                  format={row.format}
+                  className="text-right font-mono font-semibold tabular-nums text-primary"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
+            Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
+            0,17% a.m. O resultado exato depende das taxas do seu contrato: simule o seu caso.
+          </p>
+        </div>
       </div>
     </section>
   );
