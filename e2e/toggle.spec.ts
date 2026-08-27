@@ -1,8 +1,8 @@
+import { execSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 
 const hasPsql = (() => {
   try {
-    const { execSync } = require('node:child_process');
     execSync('which psql', { stdio: 'ignore' });
     return true;
   } catch {
@@ -20,7 +20,6 @@ test('botão ver lado a lado liga a comparação e rola até ela', async ({ page
   await page.getByRole('button', { name: /criar conta/i }).click();
   await page.waitForURL(/nova-simulacao/);
 
-  const { execSync } = await import('node:child_process');
   const uid = execSync(`psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`).toString().trim();
   const res = await page.request.get(`http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(res.ok()).toBeTruthy();
