@@ -10,7 +10,7 @@ const hasPsql = (() => {
   }
 })();
 
-test('botão ver lado a lado liga a comparação e rola até ela', async ({ page }) => {
+test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local (conceder plano via webhook fake com userId real)');
   const email = `t${Date.now()}@teste.com`;
   await page.goto('/cadastro');
@@ -25,18 +25,11 @@ test('botão ver lado a lado liga a comparação e rola até ela', async ({ page
   expect(res.ok()).toBeTruthy();
 
   await page.goto('/nova-simulacao');
-  await page.getByText('SAC', { exact: true }).click();
   await page.getByRole('button', { name: /simular/i }).click();
   await page.waitForURL(/simulacao/);
-  await page.getByText('Raio X da dívida').first().waitFor();
 
-  const btn = page.getByRole('button', { name: /ver lado a lado/i });
-  await btn.scrollIntoViewIfNeeded();
-  await btn.click();
-  await page.waitForTimeout(700);
-
-  expect(await page.getByRole('switch').first().isChecked()).toBe(true);
-  const section = page.locator('#comparacao-sistemas');
-  await expect(section).toBeVisible();
-  await expect(section).toBeInViewport();
+  await page.getByRole('switch').first().click();
+  await expect(page.locator('#comparacao-sistemas')).toBeVisible();
+  await expect(page.locator('#comparacao-sistemas').getByText(/PRICE/).first()).toBeVisible();
+  await expect(page.locator('#comparacao-sistemas').getByText(/SAC/).first()).toBeVisible();
 });

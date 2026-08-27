@@ -305,7 +305,7 @@ export function WizardForm() {
                         <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
                       </TooltipTrigger>
                       <TooltipContent side="right" className="max-w-64 text-xs">
-                        <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — você paga menos por mês até o fim.</p>
+                        <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
                         <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma — o financiamento termina antes e você paga menos juros.</p>
                       </TooltipContent>
                     </Tooltip>

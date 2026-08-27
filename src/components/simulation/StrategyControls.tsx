@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, type ComponentProps } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
@@ -14,6 +15,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+type InputProps = ComponentProps<typeof Input>;
+
+/**
+ * Input numérico que aceita vírgula PT-BR, permite apagar tudo e nunca propaga
+ * texto inválido (letras etc.) — só emite valores numéricos válidos.
+ */
+function NumericInput({
+  value,
+  onValid,
+  parse,
+  className,
+  ...props
+}: {
+  value: number | undefined;
+  onValid: (v: number) => void;
+  parse: (s: string) => number;
+} & Omit<InputProps, 'value' | 'onChange'>) {
+  const [text, setText] = useState('');
+  const [focused, setFocused] = useState(false);
+
+  const displayed = focused ? text : value != null ? String(value) : '';
+
+  return (
+    <Input
+      {...props}
+      inputMode="decimal"
+      className={className}
+      value={displayed}
+      onFocus={(e) => {
+        setText(e.target.value);
+        setFocused(true);
+      }}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        setText(e.target.value);
+        const v = parse(e.target.value);
+        if (Number.isFinite(v)) onValid(v);
+      }}
+    />
+  );
+}
+
+const parseIntStrict = (s: string) => {
+  const digits = s.replace(/[^\d]/g, '');
+  return digits === '' ? NaN : Number(digits);
+};
 
 interface Props {
   input: LoanInput;
@@ -52,13 +100,13 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 <div key={i} className="flex items-end gap-2">
                   <div className="flex w-28 flex-col gap-1.5">
                     <Label className="text-xs text-muted-foreground">Mês</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={String(l.month)}
-                      onChange={(e) =>
+                    <NumericInput
+                      value={l.month}
+                      parse={parseIntStrict}
+                      onValid={(v) =>
                         setLump(
                           strategies.extraLumpSum.map((x, j) =>
-                            j === i ? { ...x, month: Math.max(1, Number(e.target.value) || 0) } : x
+                            j === i ? { ...x, month: Math.max(1, v) } : x
                           )
                         )
                       }
@@ -66,13 +114,13 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   </div>
                   <div className="flex flex-1 flex-col gap-1.5">
                     <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={String(l.amount)}
-                      onChange={(e) =>
+                    <NumericInput
+                      value={l.amount}
+                      parse={parseBRLToNumber}
+                      onValid={(v) =>
                         setLump(
                           strategies.extraLumpSum.map((x, j) =>
-                            j === i ? { ...x, amount: parseBRLToNumber(e.target.value) } : x
+                            j === i ? { ...x, amount: Math.max(0, v) } : x
                           )
                         )
                       }
@@ -114,29 +162,23 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 value={pctExtra}
                 onValueChange={(v) => onChange({ ...strategies, extraMonthlyPct: Number(v) / 100 })}
               />
-              <Input
+              <NumericInput
                 id="extraMonthlyPct"
                 className="w-20"
-                inputMode="numeric"
-                value={String(pctExtra)}
-                onChange={(e) => {
-                  const v = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                  onChange({ ...strategies, extraMonthlyPct: v / 100 });
-                }}
+                value={pctExtra}
+                parse={parseDecimal}
+                onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fgtsAnnual">FGTS anual (R$)</Label>
-            <Input
+            <NumericInput
               id="fgtsAnnual"
-              inputMode="numeric"
-              value={strategies.fgtsAnnual ? String(strategies.fgtsAnnual) : ''}
-              onChange={(e) => {
-                const v = parseBRLToNumber(e.target.value);
-                onChange({ ...strategies, fgtsAnnual: v > 0 ? v : undefined });
-              }}
+              value={strategies.fgtsAnnual}
+              parse={parseBRLToNumber}
+              onValid={(v) => onChange({ ...strategies, fgtsAnnual: v > 0 ? v : undefined })}
             />
           </div>
 
@@ -157,47 +199,44 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="recAmount">Valor (R$)</Label>
-                  <Input
+                  <NumericInput
                     id="recAmount"
-                    inputMode="numeric"
-                    value={String(strategies.recurringExtra.amount)}
-                    onChange={(e) => {
-                      const v = parseBRLToNumber(e.target.value);
+                    value={strategies.recurringExtra.amount}
+                    parse={parseBRLToNumber}
+                    onValid={(v) =>
                       onChange({
                         ...strategies,
-                        recurringExtra: { ...strategies.recurringExtra!, amount: v > 0 ? v : 0 },
-                      });
-                    }}
+                        recurringExtra: { ...strategies.recurringExtra!, amount: Math.max(0, v) },
+                      })
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="recEvery">A cada (meses)</Label>
-                  <Input
+                  <NumericInput
                     id="recEvery"
-                    inputMode="numeric"
-                    value={String(strategies.recurringExtra.every)}
-                    onChange={(e) => {
-                      const v = Math.max(1, Math.round(Number(e.target.value) || 0));
+                    value={strategies.recurringExtra.every}
+                    parse={parseIntStrict}
+                    onValid={(v) =>
                       onChange({
                         ...strategies,
-                        recurringExtra: { ...strategies.recurringExtra!, every: v },
-                      });
-                    }}
+                        recurringExtra: { ...strategies.recurringExtra!, every: Math.max(1, v) },
+                      })
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="recStart">Começando no mês</Label>
-                  <Input
+                  <NumericInput
                     id="recStart"
-                    inputMode="numeric"
-                    value={String(strategies.recurringExtra.startMonth)}
-                    onChange={(e) => {
-                      const v = Math.max(1, Math.round(Number(e.target.value) || 0));
+                    value={strategies.recurringExtra.startMonth}
+                    parse={parseIntStrict}
+                    onValid={(v) =>
                       onChange({
                         ...strategies,
-                        recurringExtra: { ...strategies.recurringExtra!, startMonth: v },
-                      });
-                    }}
+                        recurringExtra: { ...strategies.recurringExtra!, startMonth: Math.max(1, v) },
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -213,7 +252,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                     <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-64 text-xs">
-                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — você paga menos por mês até o fim.</p>
+                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
                     <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma — o financiamento termina antes e você paga menos juros.</p>
                   </TooltipContent>
                 </Tooltip>
@@ -258,12 +297,11 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="portRate">Nova taxa a.a. (%)</Label>
-                  <Input
+                  <NumericInput
                     id="portRate"
-                    inputMode="decimal"
-                    value={String(Math.round(strategies.portability.annualRate * 10000) / 100)}
-                    onChange={(e) => {
-                      const v = parseDecimal(e.target.value);
+                    value={Math.round(strategies.portability.annualRate * 10000) / 100}
+                    parse={parseDecimal}
+                    onValid={(v) => {
                       if (!Number.isFinite(v) || v <= 0) return;
                       onChange({
                         ...strategies,

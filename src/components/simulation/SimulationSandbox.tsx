@@ -277,15 +277,6 @@ export function SimulationSandbox({
           setCachedStrategies(s);
           listeners.forEach((l) => l());
         }}
-        onCompareWithPrice={() => {
-          setCompareSystems(true);
-          setActiveSystem('SAC');
-          // a comparação aparece no topo da página — rola até ela pra o clique
-          // ter feedback visual
-          setTimeout(() => {
-            document.getElementById('comparacao-sistemas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 50);
-        }}
       />
 
       <section className="flex flex-col gap-3">

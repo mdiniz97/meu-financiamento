@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Link, Plus } from 'lucide-react';
+import { Link, Plus } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { priceBreakEven, recurringParcela, sacVsPrice } from '@/lib/finance/insights';
 import { formatBRL } from '@/lib/utils';
@@ -14,10 +14,9 @@ interface Props {
   strategies: Strategies;
   isUnlimited: boolean;
   onChange: (s: Strategies) => void;
-  onCompareWithPrice?: () => void;
 }
 
-export function DebtInsightCard({ input, result, strategies, isUnlimited, onChange, onCompareWithPrice }: Props) {
+export function DebtInsightCard({ input, result, strategies, isUnlimited, onChange }: Props) {
   if (!isUnlimited) {
     return (
       <Card className="rounded-2xl bg-white shadow-sm">
@@ -89,15 +88,9 @@ export function DebtInsightCard({ input, result, strategies, isUnlimited, onChan
             No SAC sua dívida <strong>cai desde o mês 1</strong> — diferentemente do PRICE, onde pode
             crescer no início. O preço é a parcela inicial mais alta
             {sacMaisCara ? ` (${formatBRL(c.parcela1Sac - c.parcela1Price)} a mais)` : ''}; depois do mês{' '}
-            {c.crossingMonth ?? '—'} ela fica menor que a PRICE para sempre.
+            {c.crossingMonth ?? '—'} ela fica menor que a PRICE para sempre. Use o seletor
+            &quot;Comparar PRICE ↔ SAC&quot; no topo para ver lado a lado.
           </p>
-          {onCompareWithPrice && (
-            <div>
-              <Button type="button" variant="outline" size="sm" onClick={onCompareWithPrice}>
-                Ver lado a lado com PRICE <ArrowRight className="size-3.5" />
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     );
