@@ -1,12 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Lock, Sparkles } from 'lucide-react';
+import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 import type { SmartRecommendation } from '@/lib/finance/smart';
 import type { FormState } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SmartCalcFields } from './SmartCalculator';
 
@@ -58,6 +57,7 @@ function ScenarioMiniCard({
   total,
   diff,
   highlight,
+  onOpen,
 }: {
   title: string;
   subtitle: string;
@@ -67,6 +67,7 @@ function ScenarioMiniCard({
   total: number;
   diff?: number;
   highlight?: boolean;
+  onOpen?: () => void;
 }) {
   return (
     <div
@@ -97,6 +98,15 @@ function ScenarioMiniCard({
       </span>
       {diff !== undefined && diff > 0 && (
         <span className="text-destructive">R$ {formatBRL(diff)} a mais que o recomendado</span>
+      )}
+      {onOpen && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-1 flex items-center gap-1 self-end text-xs font-medium text-[#820AD1] hover:underline"
+        >
+          Abrir no sandbox <ArrowRight className="size-3" />
+        </button>
       )}
     </div>
   );
@@ -218,6 +228,7 @@ export function SmartResultCard({ rec, fields }: Props) {
               quita={b.result.metrics.saldoZeroAt}
               total={b.result.metrics.totalPago}
               highlight
+              onOpen={() => abrirCenario(b)}
             />
             {rec.comparison.map((c) => {
               const t = rec.maxTerms.find((mt) => mt.system === c.system);
@@ -253,23 +264,6 @@ export function SmartResultCard({ rec, fields }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="text-xs text-muted-foreground">Abrir no sandbox:</span>
-          <Button type="button" size="sm" onClick={() => abrirCenario(b)}>
-            Melhor modelo
-          </Button>
-          {rec.maxTerms.map((t) => (
-            <Button
-              key={t.system}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => abrirCenario(t)}
-            >
-              {t.system} · {t.months} meses
-            </Button>
-          ))}
-        </div>
       </CardContent>
     </Card>
   );
