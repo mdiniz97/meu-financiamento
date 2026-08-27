@@ -1,7 +1,7 @@
 'use client';
 
 import { Link, Plus } from 'lucide-react';
-import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
+import type { LoanInput, SimulationResult } from '@/lib/finance/types';
 import { priceBreakEven, recurringParcela, sacVsPrice } from '@/lib/finance/insights';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -11,12 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface Props {
   input: LoanInput;
   result: SimulationResult;
-  strategies: Strategies;
   isUnlimited: boolean;
-  onChange: (s: Strategies) => void;
+  /** aplica o aporte necessário adicionando uma linha de amortização (visível e removível) */
+  onApplyAporte?: (pct: number) => void;
 }
 
-export function DebtInsightCard({ input, result, strategies, isUnlimited, onChange }: Props) {
+export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: Props) {
   if (!isUnlimited) {
     return (
       <Card className="rounded-2xl bg-white shadow-sm">
@@ -171,13 +171,7 @@ export function DebtInsightCard({ input, result, strategies, isUnlimited, onChan
                 variant="outline"
                 size="sm"
                 className="mt-1 w-fit"
-                onClick={() => {
-                  const pctAtual = strategies.extraMonthlyPct ?? 0;
-                  onChange({
-                    ...strategies,
-                    extraMonthlyPct: Math.min(1, pctAtual + be.requiredExtraPct),
-                  });
-                }}
+                onClick={() => onApplyAporte?.(be.requiredExtraPct)}
               >
                 <Plus className="size-3.5" /> Aplicar aporte
               </Button>

@@ -92,6 +92,7 @@ export function SimulationSandbox({
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
+  const applyAporteRef = useRef<((pct: number) => void) | null>(null);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState('');
@@ -271,12 +272,8 @@ export function SimulationSandbox({
       <DebtInsightCard
         input={input}
         result={displayed}
-        strategies={strategies}
         isUnlimited={isUnlimited}
-        onChange={(s) => {
-          setCachedStrategies(s);
-          listeners.forEach((l) => l());
-        }}
+        onApplyAporte={(pct) => applyAporteRef.current?.(pct)}
       />
 
       <section className="flex flex-col gap-3">
@@ -305,6 +302,9 @@ export function SimulationSandbox({
           }}
           base={base}
           current={displayed}
+          onApplyAporteReady={(fn) => {
+            applyAporteRef.current = fn;
+          }}
         />
       </section>
 

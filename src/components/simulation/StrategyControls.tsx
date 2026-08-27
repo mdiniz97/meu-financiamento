@@ -21,6 +21,8 @@ interface Props {
   onChange: (s: Strategies) => void;
   base: SimulationResult;
   current: SimulationResult;
+  /** registra função que adiciona um aporte % extra (usado pelo 'Aplicar aporte' do Raio X) */
+  onApplyAporteReady?: (fn: (pct: number) => void) => void;
 }
 
 
@@ -184,7 +186,7 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
   };
 }
 
-export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
+export function StrategyControls({ input, strategies, onChange, base, current, onApplyAporteReady }: Props) {
   const [rows, setRows] = useState<AporteRow[]>(() => deriveRows(strategies));
 
   // diferença real entre os modos para cada linha (só mostra o seletor quando há)
@@ -209,6 +211,13 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
     setRows(next);
     onChange({ ...strategies, ...rowsToStrategies(next) });
   };
+
+  if (onApplyAporteReady) {
+    onApplyAporteReady((pct: number) => {
+      const pctArredondado = Math.round(pct * 100) / 100;
+      updateRows([...rows, { id: ++aporteSeq, tipo: 'pct', amount: pctArredondado, month: 1, every: 12 }]);
+    });
+  }
 
   const economia = base.metrics.totalPago - current.metrics.totalPago;
   const parcelaBase = recurringParcela(base);
