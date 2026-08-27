@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,6 +32,20 @@ const minimoQueAbate = (input: LoanInput) => {
     : pmt(input.trMonthly, input.months, input.principal) + input.principal * m + input.insuranceMonthly;
 };
 
+const MesAte = ({ value, onValid, id, label }: { value?: number; onValid: (v: number) => void; id: string; label: string }) => (
+  <div className="flex w-32 flex-col gap-1.5">
+    <Label className="text-xs text-muted-foreground" htmlFor={id}>
+      {label}
+    </Label>
+    <NumericInput
+      id={id}
+      value={value}
+      parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+      onValid={onValid}
+    />
+  </div>
+);
+
 export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
   const pctExtra = Math.round((strategies.extraMonthlyPct ?? 0) * 100);
 
@@ -41,15 +56,18 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
   const parcelaAtual = recurringParcela(current);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Amortização pontual</CardTitle>
-          <CardDescription>Abate um valor em um mês específico.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+    <Card className="rounded-2xl bg-white shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-lg">Estratégias</CardTitle>
+        <CardDescription>
+          Combine aportes pontuais e mensais, com período opcional, e veja os resultados ao vivo.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">Amortização pontual</h3>
           {strategies.extraLumpSum.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhuma amortização pontual definida.</p>
+            <p className="text-xs text-muted-foreground">Nenhuma amortização pontual definida.</p>
           )}
           {strategies.extraLumpSum.map((l, i) => (
             <div key={i} className="flex items-end gap-2">
@@ -101,18 +119,15 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               <Plus className="size-4" /> Adicionar
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </section>
 
-            <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Aporte mensal</CardTitle>
-          <CardDescription>Percentual extra e pagamento fixo (com período opcional).</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <Label>% extra mensal ({pctExtra}%)</Label>
-            <div className="flex items-center gap-3">
+        <Separator />
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Aporte mensal</h3>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="extraMonthlyPct">% extra mensal ({pctExtra}%)</Label>
+            <div className="flex items-end gap-3">
               <Slider
                 className="flex-1"
                 min={0}
@@ -129,32 +144,19 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
               />
               <span className="text-sm text-muted-foreground">%</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <div className="flex w-36 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground" htmlFor="pctUntil">até o mês (opcional)</Label>
-                <NumericInput
-                  id="pctUntil"
-                  value={strategies.extraMonthlyPctUntilMonth}
-                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      extraMonthlyPctUntilMonth: v > 0 ? v : undefined,
-                    })
-                  }
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {pctExtra > 0
-                  ? `Você paga ${formatBRL(parcelaBase * (pctExtra / 100))} a mais por mês${strategies.extraMonthlyPctUntilMonth ? ` até o mês ${strategies.extraMonthlyPctUntilMonth}` : ''}.`
-                  : 'Arraste para definir o percentual.'}
-              </p>
+              <MesAte
+                id="pctUntil"
+                label="até o mês (opcional)"
+                value={strategies.extraMonthlyPctUntilMonth}
+                onValid={(v) =>
+                  onChange({ ...strategies, extraMonthlyPctUntilMonth: v > 0 ? v : undefined })
+                }
+              />
             </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fixedPayment">Ou pague sempre o mesmo total por mês (R$)</Label>
-            <div className="flex items-end gap-2">
+          <div className="flex items-end gap-2">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="fixedPayment">Pagamento fixo: total por mês (R$)</Label>
               <MoneyInput
                 id="fixedPayment"
                 value={strategies.fixedPayment?.amount ?? 0}
@@ -173,105 +175,123 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   })
                 }
               />
-              <div className="flex w-36 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground" htmlFor="fixedPaymentUntil">
-                  só até o mês (opcional)
-                </Label>
-                <NumericInput
-                  id="fixedPaymentUntil"
-                  value={strategies.fixedPayment?.untilMonth}
-                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      fixedPayment: {
-                        amount: strategies.fixedPayment?.amount ?? 0,
-                        ...(v > 0 ? { untilMonth: v } : {}),
-                      },
-                    })
-                  }
-                />
-              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between gap-2 text-base">
-            Aporte recorrente
-            <Switch
-              checked={strategies.recurringExtra !== undefined}
-              onCheckedChange={(checked) =>
+            <MesAte
+              id="fixedPaymentUntil"
+              label="só até o mês (opcional)"
+              value={strategies.fixedPayment?.untilMonth}
+              onValid={(v) =>
                 onChange({
                   ...strategies,
-                  recurringExtra: checked ? { amount: 10000, every: 12, startMonth: 12 } : undefined,
+                  fixedPayment: {
+                    amount: strategies.fixedPayment?.amount ?? 0,
+                    ...(v > 0 ? { untilMonth: v } : {}),
+                  },
                 })
               }
             />
-          </CardTitle>
-          <CardDescription>Amortiza um valor a cada X meses.</CardDescription>
-        </CardHeader>
-        {strategies.recurringExtra && (
-          <CardContent className="flex flex-col gap-2">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="recAmount">Valor (R$)</Label>
-                <NumericInput
-                  id="recAmount"
-                  value={strategies.recurringExtra.amount}
-                  parse={parseBRLToNumber}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      recurringExtra: { ...strategies.recurringExtra!, amount: Math.max(0, v) },
-                    })
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="recEvery">A cada (meses)</Label>
-                <NumericInput
-                  id="recEvery"
-                  value={strategies.recurringExtra.every}
-                  parse={parseIntStrict}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      recurringExtra: { ...strategies.recurringExtra!, every: Math.max(1, v) },
-                    })
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="recStart">Começando no mês</Label>
-                <NumericInput
-                  id="recStart"
-                  value={strategies.recurringExtra.startMonth}
-                  parse={parseIntStrict}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      recurringExtra: { ...strategies.recurringExtra!, startMonth: Math.max(1, v) },
-                    })
-                  }
-                />
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O % extra paga um percentual a mais na parcela; o pagamento fixo completa até o valor
+            total escolhido. Use um ou outro (ou os dois).
+          </p>
+        </section>
 
-            <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">FGTS anual</CardTitle>
-          <CardDescription>Amortiza todo ano, começando no mês 12 (ou no mês que você escolher).</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <Separator />
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Aportes periódicos</h3>
           <div className="flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="fgtsAnnual">Valor (R$)</Label>
+            <div className="flex w-40 flex-col gap-1.5">
+              <Label htmlFor="recAmount">Recorrente (R$)</Label>
+              <NumericInput
+                id="recAmount"
+                value={strategies.recurringExtra?.amount}
+                parse={parseBRLToNumber}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    recurringExtra:
+                      v > 0
+                        ? {
+                            amount: v,
+                            every: strategies.recurringExtra?.every ?? 12,
+                            startMonth: strategies.recurringExtra?.startMonth ?? 12,
+                            ...(strategies.recurringExtra?.untilMonth
+                              ? { untilMonth: strategies.recurringExtra.untilMonth }
+                              : {}),
+                          }
+                        : undefined,
+                  })
+                }
+              />
+            </div>
+            <div className="flex w-28 flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground" htmlFor="recEvery">
+                a cada (meses)
+              </Label>
+              <NumericInput
+                id="recEvery"
+                value={strategies.recurringExtra?.every}
+                parse={parseIntStrict}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    recurringExtra: {
+                      amount: strategies.recurringExtra?.amount ?? 0,
+                      every: Math.max(1, v),
+                      startMonth: strategies.recurringExtra?.startMonth ?? 12,
+                      ...(strategies.recurringExtra?.untilMonth
+                        ? { untilMonth: strategies.recurringExtra.untilMonth }
+                        : {}),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="flex w-28 flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground" htmlFor="recStart">
+                começando no mês
+              </Label>
+              <NumericInput
+                id="recStart"
+                value={strategies.recurringExtra?.startMonth}
+                parse={parseIntStrict}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    recurringExtra: {
+                      amount: strategies.recurringExtra?.amount ?? 0,
+                      every: strategies.recurringExtra?.every ?? 12,
+                      startMonth: Math.max(1, v),
+                      ...(strategies.recurringExtra?.untilMonth
+                        ? { untilMonth: strategies.recurringExtra.untilMonth }
+                        : {}),
+                    },
+                  })
+                }
+              />
+            </div>
+            <MesAte
+              id="recUntil"
+              label="até o mês (opcional)"
+              value={strategies.recurringExtra?.untilMonth}
+              onValid={(v) =>
+                onChange({
+                  ...strategies,
+                  recurringExtra: {
+                    amount: strategies.recurringExtra?.amount ?? 0,
+                    every: strategies.recurringExtra?.every ?? 12,
+                    startMonth: strategies.recurringExtra?.startMonth ?? 12,
+                    ...(v > 0 ? { untilMonth: v } : {}),
+                  },
+                })
+              }
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <div className="flex w-40 flex-col gap-1.5">
+              <Label htmlFor="fgtsAnnual">FGTS anual (R$)</Label>
               <NumericInput
                 id="fgtsAnnual"
                 value={strategies.fgtsAnnual?.amount}
@@ -295,68 +315,63 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 }
               />
             </div>
-            <div className="flex w-32 flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground" htmlFor="fgtsStart">começando no mês</Label>
-              <NumericInput
-                id="fgtsStart"
-                value={strategies.fgtsAnnual?.startMonth}
-                parse={parseIntStrict}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    fgtsAnnual: {
-                      amount: strategies.fgtsAnnual?.amount ?? 0,
-                      startMonth: Math.max(1, v),
-                      ...(strategies.fgtsAnnual?.untilMonth
-                        ? { untilMonth: strategies.fgtsAnnual.untilMonth }
-                        : {}),
-                    },
-                  })
-                }
-              />
-            </div>
-            <div className="flex w-32 flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground" htmlFor="fgtsUntil">até o mês (opcional)</Label>
-              <NumericInput
-                id="fgtsUntil"
-                value={strategies.fgtsAnnual?.untilMonth}
-                parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    fgtsAnnual: {
-                      amount: strategies.fgtsAnnual?.amount ?? 0,
-                      startMonth: strategies.fgtsAnnual?.startMonth ?? 12,
-                      ...(v > 0 ? { untilMonth: v } : {}),
-                    },
-                  })
-                }
-              />
-            </div>
+            <MesAte
+              id="fgtsStart"
+              label="começando no mês"
+              value={strategies.fgtsAnnual?.startMonth}
+              onValid={(v) =>
+                onChange({
+                  ...strategies,
+                  fgtsAnnual: {
+                    amount: strategies.fgtsAnnual?.amount ?? 0,
+                    startMonth: Math.max(1, v),
+                    ...(strategies.fgtsAnnual?.untilMonth
+                      ? { untilMonth: strategies.fgtsAnnual.untilMonth }
+                      : {}),
+                  },
+                })
+              }
+            />
+            <MesAte
+              id="fgtsUntil"
+              label="até o mês (opcional)"
+              value={strategies.fgtsAnnual?.untilMonth}
+              onValid={(v) =>
+                onChange({
+                  ...strategies,
+                  fgtsAnnual: {
+                    amount: strategies.fgtsAnnual?.amount ?? 0,
+                    startMonth: strategies.fgtsAnnual?.startMonth ?? 12,
+                    ...(v > 0 ? { untilMonth: v } : {}),
+                  },
+                })
+              }
+            />
           </div>
-        </CardContent>
-      </Card>
+        </section>
 
-      {input.system === 'PRICE' && (
-        <Card className="rounded-2xl bg-white shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-base">
-              Pagar como no SAC
-              <Switch
-                checked={strategies.paySacParcela === true}
-                onCheckedChange={(checked) => onChange({ ...strategies, paySacParcela: checked })}
-              />
-            </CardTitle>
-            <CardDescription>
-              Paga no PRICE o valor que pagaria no SAC: a diferença vira amortização.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+        {input.system === 'PRICE' && (
+          <>
+            <Separator />
+            <section className="flex flex-col gap-1.5">
+              <Label className="flex items-center gap-2">
+                <Switch
+                  checked={strategies.paySacParcela === true}
+                  onCheckedChange={(checked) => onChange({ ...strategies, paySacParcela: checked })}
+                />
+                Pagar como no SAC
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Paga no PRICE o valor que pagaria no SAC: a diferença vira amortização extra.
+              </p>
+            </section>
+          </>
+        )}
 
-      <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-1.5 text-base">
+        <Separator />
+
+        <section className="flex flex-col gap-2">
+          <h3 className="flex items-center gap-1.5 text-sm font-medium">
             Modo do aporte
             <TooltipProvider>
               <Tooltip>
@@ -369,10 +384,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </CardTitle>
-          <CardDescription>O que o aporte deve fazer com a dívida.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+          </h3>
           <RadioGroup
             value={strategies.reduceMode}
             onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
@@ -396,24 +408,24 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               <strong>mensal</strong> (pagamento fixo, % extra ou FGTS).
             </p>
           )}
-        </CardContent>
-      </Card>
+        </section>
 
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
+        <Separator />
+
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela atual</span>
             <span className="text-lg font-semibold">{formatBRL(parcelaBase)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela nova</span>
             <span className="text-lg font-semibold text-primary">{formatBRL(parcelaAtual)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Juros totais</span>
             <span className="text-lg font-semibold">{formatBRL(current.metrics.totalJuros)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {current.metrics.saldoZeroAt} meses
@@ -422,10 +434,10 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               </span>
             </span>
           </div>
-        </div>
+        </section>
         <div
           className={`flex flex-col gap-1 rounded-2xl p-4 shadow-sm ${
-            economia >= 0 ? 'bg-white' : 'bg-destructive/10'
+            economia >= 0 ? 'bg-emerald-50' : 'bg-destructive/10'
           }`}
         >
           <span className="text-xs text-muted-foreground">
@@ -437,7 +449,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             {economia >= 0 ? formatBRL(economia) : `-${formatBRL(-economia)}`}
           </span>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
