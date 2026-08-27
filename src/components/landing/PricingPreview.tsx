@@ -6,14 +6,14 @@ import { buttonVariants } from "@/components/ui/button";
 const starterFeatures = [
   "10 simulações completas",
   "Comparação SAC × PRICE",
-  "Simulação de estratégias de amortização",
+  "Simulação de amortizações extras e FGTS",
 ];
 
 const unlimitedFeatures = [
   "Simulações ilimitadas",
-  "Comparação SAC × PRICE ao vivo",
+  "Cálculo inteligente: melhor modelo pelo seu orçamento",
+  "Comparação SAC × PRICE ao vivo e portabilidade",
   "Exportação do Raio X em PDF",
-  "Estratégias com FGTS, amortização extra e portabilidade",
 ];
 
 export function PricingPreview() {

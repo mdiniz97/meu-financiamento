@@ -1,4 +1,21 @@
 import { CheckIcon, InfoIcon } from "lucide-react";
+import { simulate } from "@/lib/finance/engine";
+import { priceBreakEven } from "@/lib/finance/insights";
+import type { LoanInput } from "@/lib/finance/types";
+
+const input: LoanInput = {
+  system: "PRICE", principal: 1000000, annualRate: 0.10, months: 360,
+  trMonthly: 0.0017, insuranceMonthly: 0,
+  insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 }, bank: "Caixa",
+};
+const none = { extraLumpSum: [], reduceMode: "term" as const };
+const price = simulate({ ...input, system: "PRICE" }, none);
+const sac = simulate({ ...input, system: "SAC" }, none);
+const be = priceBreakEven(input, price);
+
+const brl = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+const brlMilhao = (v: number) => (v / 1_000_000).toFixed(v > 1_000_000 ? 2 : 3).replace(".", ",") + " mi";
 
 const sacPoints = [
   "Amortiza o saldo devedor desde a primeira parcela",
@@ -10,15 +27,15 @@ const sacPoints = [
 const pricePoints = [
   "Parcela igual do início ao fim",
   "No começo, quase tudo é juro e a amortização é mínima",
-  "Exemplo: R$ 1 milhão em 360 meses quase não reduz a dívida nos primeiros anos",
-  "Só passa a amortizar de verdade a partir da ~218ª parcela (mais de 18 anos)",
+  `No exemplo abaixo, a dívida até cresce nos primeiros anos (por causa da TR)`,
+  `Só passa a amortizar de verdade a partir da ~${be.maxMonths}ª parcela (mais de 18 anos)`,
 ];
 
 const exampleRows = [
-  { label: "Parcela inicial", price: "~R$ 8.775", sac: "~R$ 11.111" },
-  { label: "Amortização na 1ª parcela", price: "~R$ 440", sac: "~R$ 2.780" },
-  { label: "Saldo devedor após 5 anos", price: "~R$ 966 mil", sac: "~R$ 833 mil" },
-  { label: "Juros totais em 30 anos", price: "~R$ 2,16 milhões", sac: "~R$ 1,50 milhão" },
+  { label: "Parcela inicial", price: `~${brl(price.installments[0].parcela)}`, sac: `~${brl(sac.installments[0].parcela)}` },
+  { label: "Amortização na 1ª parcela", price: `~${brl(price.installments[0].amortizacao)}`, sac: `~${brl(sac.installments[0].amortizacao)}` },
+  { label: "Saldo devedor após 5 anos", price: `~${brlMilhao(price.installments[59].saldo)}`, sac: `~${brlMilhao(sac.installments[59].saldo)}` },
+  { label: "Juros totais em 30 anos", price: `~${brlMilhao(price.metrics.totalJuros)}`, sac: `~${brlMilhao(sac.metrics.totalJuros)}` },
 ];
 
 export function SystemsExplain() {
@@ -31,8 +48,8 @@ export function SystemsExplain() {
           </h2>
           <p className="mt-3 text-lg text-muted-foreground">
             Os dois sistemas pagam o mesmo empréstimo, mas a forma de amortizar
-            muda tudo: no total, a diferença pode passar de centenas de milhares
-            de reais.
+            muda tudo: no total, a diferença passa de centenas de milhares de
+            reais.
           </p>
         </div>
 
@@ -89,7 +106,7 @@ export function SystemsExplain() {
         <div className="mt-8 overflow-hidden rounded-2xl bg-[#F5F5F5]">
           <div className="flex items-center gap-2 border-b border-black/5 bg-white px-6 py-4">
             <span className="text-sm font-semibold">
-              Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a.)
+              Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
             </span>
           </div>
           <div className="px-6 py-2">
@@ -112,8 +129,8 @@ export function SystemsExplain() {
             ))}
           </div>
           <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
-            Valores aproximados calculados com taxa de 10% a.a. O resultado exato
-            depende das taxas do seu contrato: simule o seu caso.
+            Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
+            0,17% a.m. O resultado exato depende das taxas do seu contrato: simule o seu caso.
           </p>
         </div>
       </div>

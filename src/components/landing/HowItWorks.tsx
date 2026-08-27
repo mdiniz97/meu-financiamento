@@ -1,4 +1,4 @@
-import { CalculatorIcon, LineChartIcon, TargetIcon } from "lucide-react";
+import { CalculatorIcon, LightbulbIcon, SparklesIcon, TargetIcon } from "lucide-react";
 
 const steps = [
   {
@@ -6,21 +6,28 @@ const steps = [
     step: "1",
     title: "Informe seus dados",
     description:
-      "Valor do imóvel, entrada, taxa de juros e prazo. Leva menos de 2 minutos e você não precisa criar conta para simular.",
+      "Valor do imóvel, taxa de juros, prazo e seguro. Leva menos de 2 minutos.",
   },
   {
-    icon: LineChartIcon,
+    icon: LightbulbIcon,
     step: "2",
     title: "Veja o Raio X",
     description:
-      "Parcelas, juros totais, amortização e a comparação completa entre SAC e PRICE em um só lugar, com gráficos claros.",
+      "Parcelas, juros totais, amortização e a comparação completa entre SAC e PRICE, com o mês em que a dívida começa a cair de verdade.",
   },
   {
     icon: TargetIcon,
     step: "3",
     title: "Escolha a melhor estratégia",
     description:
-      "Simule amortizações extras, uso do FGTS e portabilidade para pagar menos juros e quitar o imóvel mais rápido.",
+      "Simule amortizações extras, FGTS, pagamento fixo e portabilidade para pagar menos juros e quitar o imóvel mais rápido.",
+  },
+  {
+    icon: SparklesIcon,
+    step: "4",
+    title: "Ou deixe o cálculo inteligente decidir",
+    description:
+      "Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e aporte para o seu orçamento.",
   },
 ];
 
@@ -36,7 +43,7 @@ export function HowItWorks() {
           simples.
         </p>
       </div>
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
+      <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         {steps.map(({ icon: Icon, step, title, description }) => (
           <div
             key={step}

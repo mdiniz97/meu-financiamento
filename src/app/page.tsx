@@ -4,6 +4,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { SystemsExplain } from "@/components/landing/SystemsExplain";
 import { PricingPreview } from "@/components/landing/PricingPreview";
 import { CTA } from "@/components/landing/CTA";
+import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
         <HowItWorks />
         <SystemsExplain />
         <PricingPreview />
+        <FAQ />
         <CTA />
       </main>
       <Footer />
