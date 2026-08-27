@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { recurringParcela } from '@/lib/finance/insights';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -47,10 +49,85 @@ const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: 
   </div>
 );
 
+type AporteTipo = 'pontual' | 'recorrente' | 'anual';
+
+interface AporteRow {
+  id: number;
+  tipo: AporteTipo;
+  amount: number;
+  month: number;
+  every: number;
+  untilMonth?: number;
+}
+
+let aporteSeq = 0;
+
+function deriveRows(strategies: Strategies): AporteRow[] {
+  const rows: AporteRow[] = strategies.extraLumpSum.map((l) => ({
+    id: ++aporteSeq,
+    tipo: 'pontual' as const,
+    amount: l.amount,
+    month: l.month,
+    every: 12,
+  }));
+  if (strategies.recurringExtra) {
+    rows.push({
+      id: ++aporteSeq,
+      tipo: 'recorrente',
+      amount: strategies.recurringExtra.amount,
+      month: strategies.recurringExtra.startMonth,
+      every: strategies.recurringExtra.every,
+      untilMonth: strategies.recurringExtra.untilMonth,
+    });
+  }
+  if (strategies.fgtsAnnual) {
+    rows.push({
+      id: ++aporteSeq,
+      tipo: 'anual',
+      amount: strategies.fgtsAnnual.amount,
+      month: strategies.fgtsAnnual.startMonth ?? 12,
+      every: 12,
+      untilMonth: strategies.fgtsAnnual.untilMonth,
+    });
+  }
+  return rows;
+}
+
+function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'recurringExtra' | 'fgtsAnnual'> {
+  return {
+    extraLumpSum: rows
+      .filter((r) => r.tipo === 'pontual' && r.amount > 0 && r.month >= 1)
+      .map((r) => ({ month: r.month, amount: r.amount })),
+    recurringExtra: (() => {
+      const r = rows.find((x) => x.tipo === 'recorrente' && x.amount > 0);
+      if (!r) return undefined;
+      return {
+        amount: r.amount,
+        every: Math.max(1, r.every),
+        startMonth: Math.max(1, r.month),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+      };
+    })(),
+    fgtsAnnual: (() => {
+      const r = rows.find((x) => x.tipo === 'anual' && x.amount > 0);
+      if (!r) return undefined;
+      return {
+        amount: r.amount,
+        ...(r.month >= 1 ? { startMonth: r.month } : {}),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+      };
+    })(),
+  };
+}
+
 export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
   const pctExtra = Math.round((strategies.extraMonthlyPct ?? 0) * 100);
+  const [rows, setRows] = useState<AporteRow[]>(() => deriveRows(strategies));
 
-  const setLump = (list: Strategies['extraLumpSum']) => onChange({ ...strategies, extraLumpSum: list });
+  const updateRows = (next: AporteRow[]) => {
+    setRows(next);
+    onChange({ ...strategies, ...rowsToStrategies(next) });
+  };
 
   const economia = base.metrics.totalPago - current.metrics.totalPago;
   const parcelaBase = recurringParcela(base);
@@ -66,66 +143,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Amortização pontual</h3>
-          {strategies.extraLumpSum.length === 0 && (
-            <p className="text-xs text-muted-foreground">Nenhuma amortização pontual definida.</p>
-          )}
-          {strategies.extraLumpSum.map((l, i) => (
-            <div key={i} className="flex items-end gap-2">
-              <div className="flex w-28 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Mês</Label>
-                <NumericInput
-                  value={l.month}
-                  parse={parseIntStrict}
-                  onValid={(v) =>
-                    setLump(
-                      strategies.extraLumpSum.map((x, j) =>
-                        j === i ? { ...x, month: Math.max(1, v) } : x
-                      )
-                    )
-                  }
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
-                <NumericInput
-                  value={l.amount > 0 ? l.amount : undefined}
-                  parse={parseBRLToNumber}
-                  onValid={(v) =>
-                    setLump(
-                      strategies.extraLumpSum.map((x, j) =>
-                        j === i ? { ...x, amount: Math.max(0, v) } : x
-                      )
-                    )
-                  }
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Remover"
-                onClick={() => setLump(strategies.extraLumpSum.filter((_, j) => j !== i))}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          ))}
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setLump([...strategies.extraLumpSum, { month: 12, amount: 5000 }])}
-            >
-              <Plus className="size-4" /> Adicionar
-            </Button>
-          </div>
-        </section>
-
-        <Separator />
-
-                <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3">
           <h3 className="text-sm font-medium">Aporte mensal</h3>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="extraMonthlyPct">% extra mensal ({pctExtra}%)</Label>
@@ -265,161 +283,117 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               </p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            O % extra paga um percentual a mais na parcela; o pagamento fixo completa até o valor
-            total escolhido. Use um ou outro (ou os dois).
-          </p>
         </section>
+
         <Separator />
 
-        <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-medium">Aportes periódicos</h3>
-          <div className="flex items-end gap-2">
-            <div className="flex w-40 flex-col gap-1.5">
-              <Label htmlFor="recAmount">Recorrente (R$)</Label>
-              <NumericInput
-                id="recAmount"
-                value={strategies.recurringExtra?.amount}
-                parse={parseBRLToNumber}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    recurringExtra:
-                      v > 0
-                        ? {
-                            amount: v,
-                            every: strategies.recurringExtra?.every ?? 12,
-                            startMonth: strategies.recurringExtra?.startMonth ?? 12,
-                            ...(strategies.recurringExtra?.untilMonth
-                              ? { untilMonth: strategies.recurringExtra.untilMonth }
-                              : {}),
-                          }
-                        : undefined,
-                  })
-                }
-              />
+        <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">Amortizações</h3>
+          <p className="text-xs text-muted-foreground">
+            Pontuais (uma vez no mês X), periódicas (a cada X meses) ou anuais (FGTS). Cada uma com
+            início e fim opcionais.
+          </p>
+          {rows.length === 0 && (
+            <p className="text-xs text-muted-foreground">Nenhuma amortização definida.</p>
+          )}
+          {rows.map((r) => (
+            <div key={r.id} className="flex flex-wrap items-end gap-2">
+              <div className="flex w-32 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Tipo</Label>
+                <Select
+                  value={r.tipo}
+                  onValueChange={(v) =>
+                    updateRows(rows.map((x) => (x.id === r.id ? { ...x, tipo: v as AporteTipo } : x)))
+                  }
+                >
+                  <SelectTrigger className="w-full" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pontual">Pontual</SelectItem>
+                    <SelectItem value="recorrente">A cada X meses</SelectItem>
+                    <SelectItem value="anual">Anual (FGTS)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex w-28 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
+                <NumericInput
+                  maxLength={10}
+                  value={r.amount > 0 ? r.amount : undefined}
+                  parse={parseBRLToNumber}
+                  onValid={(v) =>
+                    updateRows(rows.map((x) => (x.id === r.id ? { ...x, amount: Math.max(0, v) } : x)))
+                  }
+                />
+              </div>
+              <div className="flex w-24 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground" htmlFor={`apMonth${r.id}`}>
+                  {r.tipo === 'anual' ? 'no mês' : r.tipo === 'recorrente' ? 'começando no mês' : 'mês'}
+                </Label>
+                <NumericInput
+                  id={`apMonth${r.id}`}
+                  maxLength={4}
+                  value={r.month}
+                  parse={parseIntStrict}
+                  onValid={(v) =>
+                    updateRows(rows.map((x) => (x.id === r.id ? { ...x, month: Math.max(1, v) } : x)))
+                  }
+                />
+              </div>
+              {r.tipo === 'recorrente' && (
+                <div className="flex w-20 flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground" htmlFor={`apEvery${r.id}`}>
+                    a cada
+                  </Label>
+                  <NumericInput
+                    id={`apEvery${r.id}`}
+                    maxLength={3}
+                    value={r.every}
+                    parse={parseIntStrict}
+                    onValid={(v) =>
+                      updateRows(rows.map((x) => (x.id === r.id ? { ...x, every: Math.max(1, v) } : x)))
+                    }
+                  />
+                </div>
+              )}
+              <div className="flex w-24 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground" htmlFor={`apUntil${r.id}`}>
+                  até o mês (opcional)
+                </Label>
+                <NumericInput
+                  id={`apUntil${r.id}`}
+                  maxLength={4}
+                  value={r.untilMonth}
+                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                  onValid={(v) =>
+                    updateRows(
+                      rows.map((x) => (x.id === r.id ? { ...x, untilMonth: v > 0 ? v : undefined } : x))
+                    )
+                  }
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Remover"
+                onClick={() => updateRows(rows.filter((x) => x.id !== r.id))}
+              >
+                <Trash2 className="size-4" />
+              </Button>
             </div>
-            <div className="flex w-28 flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground" htmlFor="recEvery">
-                a cada (meses)
-              </Label>
-              <NumericInput
-                id="recEvery"
-                value={strategies.recurringExtra?.every}
-                parse={parseIntStrict}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    recurringExtra: {
-                      amount: strategies.recurringExtra?.amount ?? 0,
-                      every: Math.max(1, v),
-                      startMonth: strategies.recurringExtra?.startMonth ?? 12,
-                      ...(strategies.recurringExtra?.untilMonth
-                        ? { untilMonth: strategies.recurringExtra.untilMonth }
-                        : {}),
-                    },
-                  })
-                }
-              />
-            </div>
-            <div className="flex w-28 flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground" htmlFor="recStart">
-                começando no mês
-              </Label>
-              <NumericInput
-                id="recStart"
-                value={strategies.recurringExtra?.startMonth}
-                parse={parseIntStrict}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    recurringExtra: {
-                      amount: strategies.recurringExtra?.amount ?? 0,
-                      every: strategies.recurringExtra?.every ?? 12,
-                      startMonth: Math.max(1, v),
-                      ...(strategies.recurringExtra?.untilMonth
-                        ? { untilMonth: strategies.recurringExtra.untilMonth }
-                        : {}),
-                    },
-                  })
-                }
-              />
-            </div>
-            <MesCampo
-              id="recUntil"
-              label="até o mês (opcional)"
-              value={strategies.recurringExtra?.untilMonth}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  recurringExtra: {
-                    amount: strategies.recurringExtra?.amount ?? 0,
-                    every: strategies.recurringExtra?.every ?? 12,
-                    startMonth: strategies.recurringExtra?.startMonth ?? 12,
-                    ...(v > 0 ? { untilMonth: v } : {}),
-                  },
-                })
+          ))}
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                updateRows([...rows, { id: ++aporteSeq, tipo: 'pontual', amount: 5000, month: 12, every: 12 }])
               }
-            />
-          </div>
-          <div className="flex items-end gap-2">
-            <div className="flex w-40 flex-col gap-1.5">
-              <Label htmlFor="fgtsAnnual">FGTS anual (R$)</Label>
-              <NumericInput
-                id="fgtsAnnual"
-                value={strategies.fgtsAnnual?.amount}
-                parse={parseBRLToNumber}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    fgtsAnnual:
-                      v > 0
-                        ? {
-                            amount: v,
-                            ...(strategies.fgtsAnnual?.startMonth
-                              ? { startMonth: strategies.fgtsAnnual.startMonth }
-                              : {}),
-                            ...(strategies.fgtsAnnual?.untilMonth
-                              ? { untilMonth: strategies.fgtsAnnual.untilMonth }
-                              : {}),
-                          }
-                        : undefined,
-                  })
-                }
-              />
-            </div>
-            <MesCampo
-              id="fgtsStart"
-              label="começando no mês"
-              value={strategies.fgtsAnnual?.startMonth}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  fgtsAnnual: {
-                    amount: strategies.fgtsAnnual?.amount ?? 0,
-                    startMonth: Math.max(1, v),
-                    ...(strategies.fgtsAnnual?.untilMonth
-                      ? { untilMonth: strategies.fgtsAnnual.untilMonth }
-                      : {}),
-                  },
-                })
-              }
-            />
-            <MesCampo
-              id="fgtsUntil"
-              label="até o mês (opcional)"
-              value={strategies.fgtsAnnual?.untilMonth}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  fgtsAnnual: {
-                    amount: strategies.fgtsAnnual?.amount ?? 0,
-                    startMonth: strategies.fgtsAnnual?.startMonth ?? 12,
-                    ...(v > 0 ? { untilMonth: v } : {}),
-                  },
-                })
-              }
-            />
+            >
+              <Plus className="size-4" /> Adicionar amortização
+            </Button>
           </div>
         </section>
 
