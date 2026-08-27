@@ -75,9 +75,10 @@ function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m
   };
   const strategies: Strategies = { extraLumpSum: [], reduceMode: 'term' };
   if (i.fixedPayment !== false) {
+    const until = i.fixedUntilMonth;
     strategies.fixedPayment = {
       amount: i.maxPayment,
-      ...(i.fixedUntilMonth !== undefined ? { untilMonth: i.fixedUntilMonth } : {}),
+      ...(Number.isInteger(until) && until !== undefined && until >= 1 ? { untilMonth: until } : {}),
     };
   } else if (extraMonthlyPct > 0) {
     strategies.extraMonthlyPct = extraMonthlyPct;

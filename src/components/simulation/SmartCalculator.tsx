@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
@@ -44,9 +44,19 @@ interface Props {
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
+  const calculatedRef = useRef(false);
+  const onCalculatedRef = useRef(onCalculated);
+  onCalculatedRef.current = onCalculated;
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
+
+  // recalcula ao vivo depois do primeiro cálculo
+  useEffect(() => {
+    if (!calculatedRef.current) return;
+    calcular();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f]);
 
   function calcular() {
     setError('');
@@ -56,6 +66,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     const insuranceMonthly = parseBRLToNumber(f.insuranceMonthly);
     const maxMonths = Number(f.maxMonths);
     const maxPayment = parseBRLToNumber(f.maxPayment);
+    const until = Number(f.fixedUntilMonth);
     if (!(principal > 0)) return setError('Informe o valor financiado (maior que zero).');
     if (!(annualRate > 0)) return setError('Informe a taxa anual (maior que zero).');
     if (!(trMonthly >= 0)) return setError('Informe a TR mensal válida.');
@@ -71,9 +82,10 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       bank: f.bank,
       maxMonths,
       maxPayment,
-      fixedUntilMonth: f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined,
+      fixedUntilMonth: Number.isInteger(until) && until >= 1 ? until : undefined,
     });
-    onCalculated(rec, f);
+    calculatedRef.current = true;
+    onCalculatedRef.current(rec, f);
   }
 
   return (
@@ -169,8 +181,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   onValid={(v) => set("maxPayment", String(v))}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Você pagará <strong>exatamente esse valor</strong> por mês (parcela + aporte
-                  automático) até quitar o financiamento.
+                  Parcela + aporte automático = sempre esse valor, até quitar.
                 </p>
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -183,7 +194,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   onValid={(v) => set('fixedUntilMonth', String(v))}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Depois do mês informado, volta a pagar apenas a parcela do contrato.
+                  Depois, volta a pagar só a parcela do contrato.
                 </p>
               </div>
             </div>
