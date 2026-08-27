@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Sparkles } from 'lucide-react';
+import { Lock, Sparkles } from 'lucide-react';
 import type { SmartRecommendation } from '@/lib/finance/smart';
 import type { FormState } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber } from '@/lib/utils';
@@ -221,22 +221,41 @@ export function SmartResultCard({ rec, fields }: Props) {
               total={b.result.metrics.totalPago}
               highlight
             />
-            {rec.maxTerms.map((t) => (
-              <ScenarioMiniCard
-                key={t.system}
-                title={`${t.system} · ${t.months} meses`}
-                subtitle="Entrando já no prazo máximo"
-                parcela={t.parcela}
-                aporte={t.extraMonthlyAmount}
-                quita={t.result.metrics.saldoZeroAt}
-                total={t.result.metrics.totalPago}
-                diff={t.result.metrics.totalPago - b.result.metrics.totalPago}
-              />
-            ))}
+            {rec.comparison.map((c) => {
+              const t = rec.maxTerms.find((mt) => mt.system === c.system);
+              if (!c.feasible || !t) {
+                return (
+                  <div
+                    key={c.system}
+                    className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
+                      <Lock className="size-3" /> {c.system} · 360 meses
+                    </div>
+                    <span className="text-muted-foreground">Entrando já no prazo máximo</span>
+                    <span className="mt-1 text-sm text-amber-700">
+                      Não cabe no seu orçamento — precisa de no mínimo {formatBRL(c.minParcela)}/mês.
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <ScenarioMiniCard
+                  key={t.system}
+                  title={`${t.system} · ${t.months} meses`}
+                  subtitle="Entrando já no prazo máximo"
+                  parcela={t.parcela}
+                  aporte={t.extraMonthlyAmount}
+                  quita={t.result.metrics.saldoZeroAt}
+                  total={t.result.metrics.totalPago}
+                  diff={t.result.metrics.totalPago - b.result.metrics.totalPago}
+                />
+              );
+            })}
           </div>
         </div>
 
-        <div>
+        <div className="flex justify-end">
           <Button type="button" onClick={abrirNoSandbox}>
             Abrir no sandbox
           </Button>
