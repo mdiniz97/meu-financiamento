@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
@@ -44,19 +44,9 @@ interface Props {
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
-  const calculatedRef = useRef(false);
-  const onCalculatedRef = useRef(onCalculated);
-  onCalculatedRef.current = onCalculated;
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
-
-  // recalcula ao vivo depois do primeiro cálculo
-  useEffect(() => {
-    if (!calculatedRef.current) return;
-    calcular();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [f]);
 
   function calcular() {
     setError('');
@@ -84,8 +74,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       maxPayment,
       fixedUntilMonth: Number.isInteger(until) && until >= 1 ? until : undefined,
     });
-    calculatedRef.current = true;
-    onCalculatedRef.current(rec, f);
+    onCalculated(rec, f);
   }
 
   return (
