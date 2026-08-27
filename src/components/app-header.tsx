@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/logo';
 
 export function AppHeader({ signedIn }: { signedIn: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-[#820AD1]/10 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <Link href="/nova-simulacao" className="flex items-baseline gap-1">
+        <Link href="/nova-simulacao" className="flex items-center gap-2">
+          <Logo size={30} />
           <span className="text-lg font-bold text-[#820AD1]">Raio X</span>
           <span className="hidden text-sm text-muted-foreground sm:inline">
             do Financiamento

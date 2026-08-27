@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon, CheckIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -14,7 +14,7 @@ export function Hero() {
       />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
         <span className="inline-flex items-center gap-2 rounded-full border border-[#820AD1]/20 bg-white px-4 py-1.5 text-sm font-medium text-[#820AD1] shadow-sm">
-          <SparklesIcon className="size-4" />
+          <ZapIcon className="size-4" />
           2 créditos de boas-vindas
         </span>
         <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
