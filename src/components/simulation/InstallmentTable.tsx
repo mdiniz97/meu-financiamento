@@ -10,9 +10,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export function InstallmentTable({ installments }: { installments: Installment[] }) {
+export function InstallmentTable({ installments, height = 'h-[480px]' }: { installments: Installment[]; height?: string }) {
   return (
-    <ScrollArea className="max-h-[480px] rounded-2xl bg-white shadow-sm">
+    <ScrollArea className={`${height} rounded-2xl bg-white shadow-sm`}>
       <Table>
         <TableHeader className="sticky top-0 bg-white">
           <TableRow>
