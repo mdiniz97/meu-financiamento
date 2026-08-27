@@ -4,6 +4,7 @@ import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
 import { recurringParcela } from '@/lib/finance/insights';
+import { convertAnnualToMonthly, pmt } from '@/lib/finance/engine';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,14 @@ interface Props {
   base: SimulationResult;
   current: SimulationResult;
 }
+
+const minimoQueAbate = (input: LoanInput) => {
+  const m = convertAnnualToMonthly(input.annualRate);
+  const mEff = (1 + m) * (1 + input.trMonthly) - 1;
+  return input.system === 'PRICE'
+    ? pmt(mEff, input.months, input.principal) + input.insuranceMonthly
+    : pmt(input.trMonthly, input.months, input.principal) + input.principal * m + input.insuranceMonthly;
+};
 
 export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
   const pctExtra = Math.round((strategies.extraMonthlyPct ?? 0) * 100);
@@ -289,10 +298,12 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             </RadioGroup>
             {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
               <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                Com esse aporte, a parcela não pode ser reduzida: o valor mínimo que ainda abate a
-                dívida é maior que a sua parcela atual. Por isso os dois modos dão o mesmo
-                resultado. Aumente o aporte (ou use aportes pontuais maiores) para o modo
-                &quot;reduzir parcela&quot; fazer efeito.
+                Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda
+                abate a dívida no seu prazo é de{' '}
+                <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima da sua parcela
+                atual ({formatBRL(recurringParcela(current))}/mês). Por isso os dois modos dão o
+                mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um
+                aporte <strong>mensal</strong> (pagamento fixo, % extra ou FGTS).
               </p>
             )}
           </div>
