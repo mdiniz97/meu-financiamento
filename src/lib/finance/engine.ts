@@ -56,9 +56,6 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   if (s.extraMonthlyPctUntilMonth !== undefined) {
     check(Number.isInteger(s.extraMonthlyPctUntilMonth) && s.extraMonthlyPctUntilMonth >= 1, 'mês final do percentual extra inválido');
   }
-  if (s.extraMonthlyPctGrowthYearly !== undefined) {
-    check(Number.isFinite(s.extraMonthlyPctGrowthYearly) && s.extraMonthlyPctGrowthYearly >= 0, 'escalada do percentual extra inválida');
-  }
   if (s.fgtsAnnual !== undefined) {
     check(Number.isFinite(s.fgtsAnnual.amount) && s.fgtsAnnual.amount >= 0, 'FGTS anual não pode ser negativo');
     if (s.fgtsAnnual.startMonth !== undefined) {
@@ -197,17 +194,11 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
 
     let extra = 0;
     const pctBase = strategies.extraMonthlyPct ?? 0;
-    const pctStart = strategies.extraMonthlyPctStartMonth ?? 1;
     const pctAtivo =
       pctBase > 0 &&
-      month >= pctStart &&
+      month >= (strategies.extraMonthlyPctStartMonth ?? 1) &&
       (!strategies.extraMonthlyPctUntilMonth || month <= strategies.extraMonthlyPctUntilMonth);
-    // escalada: o percentual cresce todo ano a partir do mês de início
-    const pctEfetivo =
-      pctAtivo && (strategies.extraMonthlyPctGrowthYearly ?? 0) > 0
-        ? pctBase * Math.pow(1 + (strategies.extraMonthlyPctGrowthYearly ?? 0), Math.floor((month - pctStart) / 12))
-        : pctBase;
-    const pctExtra = pctAtivo ? parcela * pctEfetivo : 0;
+    const pctExtra = pctAtivo ? parcela * pctBase : 0;
     if (pctExtra > 0) extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
     const lump = strategies.extraLumpSum.find((e) => e.month === month)?.amount ?? 0;
     if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));

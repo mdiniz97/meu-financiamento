@@ -33,7 +33,6 @@ export interface FormState {
   extraMonthlyPct: string;
   extraMonthlyPctStart: string;
   extraMonthlyPctUntil: string;
-  extraMonthlyPctGrowth: string;
   fixedPaymentStart: string;
   fgtsAnnual: string;
   fgtsStartMonth: string;
@@ -60,7 +59,6 @@ export const DEFAULT_FORM: FormState = {
   extraMonthlyPct: '0',
   extraMonthlyPctStart: '',
   extraMonthlyPctUntil: '',
-  extraMonthlyPctGrowth: '',
   fixedPaymentStart: '',
   fgtsAnnual: '0',
   fgtsStartMonth: '12',
@@ -123,7 +121,6 @@ export function formToStrategies(f: FormState): Strategies {
   const fgtsStart = parseIntSafe(f.fgtsStartMonth);
   const pctStart = parseIntSafe(f.extraMonthlyPctStart);
   const pctUntil = parseIntSafe(f.extraMonthlyPctUntil);
-  const pctGrowth = parseDecimal(f.extraMonthlyPctGrowth);
   return {
     extraLumpSum: f.lumpSum,
     ...(Number.isFinite(extraMonthlyPct) && extraMonthlyPct > 0
@@ -131,7 +128,6 @@ export function formToStrategies(f: FormState): Strategies {
           extraMonthlyPct: extraMonthlyPct / 100,
           ...(pctStart >= 1 ? { extraMonthlyPctStartMonth: pctStart } : {}),
           ...(pctUntil >= 1 ? { extraMonthlyPctUntilMonth: pctUntil } : {}),
-          ...(Number.isFinite(pctGrowth) && pctGrowth > 0 ? { extraMonthlyPctGrowthYearly: pctGrowth / 100 } : {}),
         }
       : {}),
     ...(fgtsAnnual > 0

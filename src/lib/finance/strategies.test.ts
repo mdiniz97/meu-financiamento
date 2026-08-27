@@ -148,13 +148,6 @@ describe('períodos dos aportes', () => {
     expect(r.installments[11].extra).toBeGreaterThan(0); // mês 12
     expect(r.installments[12].extra).toBe(0); // depois do fim
   });
-  it('% extra escalado: cresce todo ano a partir do início', () => {
-    const r = simulate(input, { ...base, extraMonthlyPct: 0.05, extraMonthlyPctGrowthYearly: 0.02 });
-    const pctDoMes = (inst: (typeof r.installments)[0]) => inst.extra / (inst.parcela - inst.extra);
-    expect(pctDoMes(r.installments[0])).toBeCloseTo(0.05, 3);
-    expect(pctDoMes(r.installments[12])).toBeCloseTo(0.05 * 1.02, 3);
-    expect(pctDoMes(r.installments[24])).toBeCloseTo(0.05 * 1.02 * 1.02, 3);
-  });
   it('pagamento fixo começa no mês X', () => {
     const r = simulate(input, { ...base, fixedPayment: { amount: 20000, startMonth: 24 } });
     expect(r.installments[0].extra).toBe(0);

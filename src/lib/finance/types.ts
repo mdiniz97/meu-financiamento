@@ -18,7 +18,6 @@ export interface Strategies {
   extraMonthlyPct?: number;            // 0.05 = 5% a mais na parcela
   extraMonthlyPctStartMonth?: number; // % extra a partir do mês X (opcional, default 1)
   extraMonthlyPctUntilMonth?: number;  // % extra só até o mês X (opcional)
-  extraMonthlyPctGrowthYearly?: number; // escalada: % extra cresce isso ao ano (0.01 = +1 p.p. ao ano)
   fixedPayment?: FixedPayment;         // pagamento mensal fixo (parcela + aporte)
   fgtsAnnual?: FgtsAnnual;             // amortização anual (mês 12 por padrão)
   recurringExtra?: RecurringExtra;     // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)

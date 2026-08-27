@@ -133,7 +133,6 @@ export function SmartResultCard({ rec, fields }: Props) {
       extraMonthlyPct: '0',
       extraMonthlyPctStart: '',
       extraMonthlyPctUntil: '',
-      extraMonthlyPctGrowth: '',
       fixedPaymentStart: '',
       fgtsAnnual: '0',
       fgtsStartMonth: '12',

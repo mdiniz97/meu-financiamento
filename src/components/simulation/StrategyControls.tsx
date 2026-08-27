@@ -33,12 +33,13 @@ const minimoQueAbate = (input: LoanInput) => {
 };
 
 const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: number) => void; id: string; label: string }) => (
-  <div className="flex w-32 flex-col gap-1.5">
+  <div className="flex w-24 flex-col gap-1.5">
     <Label className="text-xs text-muted-foreground" htmlFor={id}>
       {label}
     </Label>
     <NumericInput
       id={id}
+      maxLength={4}
       value={value}
       parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
       onValid={onValid}
@@ -56,6 +57,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
   const parcelaAtual = recurringParcela(current);
 
   return (
+    <div className="grid items-start gap-4 lg:grid-cols-2">
     <Card className="rounded-2xl bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg">Estratégias</CardTitle>
@@ -138,7 +140,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               />
               <NumericInput
                 id="extraMonthlyPct"
-                className="w-20"
+                className="w-14"
+                maxLength={3}
                 value={pctExtra}
                 parse={parseDecimal}
                 onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
@@ -161,33 +164,13 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 }
               />
             </div>
-            <div className="flex items-end gap-2">
-              <div className="flex w-40 flex-col gap-1.5">
-                <Label htmlFor="pctGrowth">Escalada: crescer (% ao ano, opcional)</Label>
-                <NumericInput
-                  id="pctGrowth"
-                  value={strategies.extraMonthlyPctGrowthYearly !== undefined ? strategies.extraMonthlyPctGrowthYearly * 100 : undefined}
-                  parse={parseDecimal}
-                  onValid={(v) =>
-                    onChange({
-                      ...strategies,
-                      extraMonthlyPctGrowthYearly: v > 0 ? v / 100 : undefined,
-                    })
-                  }
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {strategies.extraMonthlyPctGrowthYearly
-                  ? `O percentual sobe ${(strategies.extraMonthlyPctGrowthYearly * 100).toFixed(1)}% ao ano.`
-                  : 'Aumenta o percentual todo ano (ex: 5% vira 6%, 7%...).'}
-              </p>
-            </div>
           </div>
           <div className="flex items-end gap-2">
             <div className="flex flex-1 flex-col gap-1.5">
               <Label htmlFor="fixedPayment">Pagamento fixo: total por mês (R$)</Label>
               <MoneyInput
                 id="fixedPayment"
+                maxLength={10}
                 value={strategies.fixedPayment?.amount ?? 0}
                 onValid={(v) =>
                   onChange({
@@ -461,6 +444,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
           )}
         </section>
 
+      </CardContent>
+    </Card>
         <Separator />
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -500,7 +485,6 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             {economia >= 0 ? formatBRL(economia) : `-${formatBRL(-economia)}`}
           </span>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
