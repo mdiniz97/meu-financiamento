@@ -136,7 +136,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fixedPayment">Parcela fixa (R$/mês)</Label>
+            <Label htmlFor="fixedPayment">Pagar sempre o mesmo total por mês (R$)</Label>
             <div className="flex items-end gap-2">
               <MoneyInput
                 id="fixedPayment"
@@ -158,7 +158,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               />
               <div className="flex w-36 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground" htmlFor="fixedPaymentUntil">
-                  até o mês (opcional)
+                  só até o mês (opcional)
                 </Label>
                 <NumericInput
                   id="fixedPaymentUntil"
@@ -177,7 +177,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Paga exatamente esse total por mês (parcela + aporte) — sem variação.
+              Parcela + aporte automático = sempre esse valor. Deixe em branco para não usar.
             </p>
           </div>
 
