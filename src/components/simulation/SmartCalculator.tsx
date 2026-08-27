@@ -94,8 +94,8 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     onCalculated(rec, f);
   }
 
-  function usarNoInteligente(system: 'PRICE' | 'SAC', principal: number) {
-    // leva os valores descobertos para o cálculo inteligente
+  function usarNoInteligente(principal: number) {
+    // leva o valor descoberto para o cálculo inteligente
     set('principal', String(principal));
     set('maxPayment', modalFields.parcela);
     set('annualRate', modalFields.annualRate);
@@ -356,22 +356,17 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  {(['PRICE', 'SAC'] as const).map((s) => (
-                    <Button
-                      key={s}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => usarNoInteligente(s, modalResult[s])}
-                    >
-                      Usar no cálculo inteligente ({s})
-                    </Button>
-                  ))}
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={() => usarNoInteligente(Math.max(modalResult.PRICE, modalResult.SAC))}
+                  >
+                    Usar no cálculo inteligente
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  O valor escolhido vai para o cálculo inteligente — dali você descobre o melhor
-                  modelo, prazo e estratégia.
+                  O cálculo inteligente usa o maior valor (no {modalResult.PRICE >= modalResult.SAC ? 'PRICE' : 'SAC'}) e
+                  descobre o melhor modelo, prazo e estratégia para ele.
                 </p>
               </div>
             )}
