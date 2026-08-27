@@ -161,6 +161,32 @@ describe('períodos dos aportes', () => {
   });
 });
 
+describe('modo por aporte (reduceMode na fonte)', () => {
+  const input1M: LoanInput = { ...input, principal: 1000000, months: 360 };
+  it('pontual grande com reduceMode payment reduz a parcela', () => {
+    const r = simulate(input1M, {
+      extraLumpSum: [{ month: 12, amount: 300000, reduceMode: 'payment' }],
+      reduceMode: 'term',
+    });
+    expect(r.metrics.paymentApplied).toBe(true);
+    const base = simulate(input1M, { extraLumpSum: [], reduceMode: 'term' });
+    expect(r.metrics.totalPago).toBeLessThan(base.metrics.totalPago);
+  });
+  it('mesmo pontual sem modo: segue o global (term) e não reduz', () => {
+    const r = simulate(input1M, { extraLumpSum: [{ month: 12, amount: 300000 }], reduceMode: 'term' });
+    expect(r.metrics.paymentApplied).toBe(false);
+  });
+  it('% extra com modo próprio payment ativa a redução', () => {
+    const r = simulate(input1M, {
+      extraLumpSum: [],
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      reduceMode: 'term',
+    });
+    expect(r.metrics.paymentApplied).toBe(true);
+  });
+});
+
 describe('pagamento fixo (fixedPayment)', () => {
   const input1M: LoanInput = { ...input, principal: 1000000, months: 360 };
   it('parcela + aporte = exatamente o valor fixo todo mês', () => {

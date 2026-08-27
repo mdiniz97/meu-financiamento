@@ -9,15 +9,16 @@ export interface LoanInput {
   insuranceSplit: { taxPct: number; insurancePct: number }; // ex { 0.25, 0.75 }
   bank: string;
 }
-export interface ExtraPayment { month: number; amount: number } // month 1-based
-export interface RecurringExtra { amount: number; every: number; startMonth: number; untilMonth?: number } // aporte de `amount` a cada `every` meses, começando em `startMonth`, opcional até `untilMonth`
-export interface FgtsAnnual { amount: number; startMonth?: number; untilMonth?: number } // amortização anual, começando no mês `startMonth` (default 12), opcional até `untilMonth`
-export interface FixedPayment { amount: number; startMonth?: number; untilMonth?: number } // paga exatamente `amount`/mês (parcela + aporte), opcional de `startMonth` até `untilMonth`
+export interface ExtraPayment { month: number; amount: number; reduceMode?: 'term' | 'payment' } // month 1-based; reduceMode opcional por aporte
+export interface RecurringExtra { amount: number; every: number; startMonth: number; untilMonth?: number; reduceMode?: 'term' | 'payment' } // aporte de `amount` a cada `every` meses, começando em `startMonth`, opcional até `untilMonth`
+export interface FgtsAnnual { amount: number; startMonth?: number; untilMonth?: number; reduceMode?: 'term' | 'payment' } // amortização anual, começando no mês `startMonth` (default 12), opcional até `untilMonth`
+export interface FixedPayment { amount: number; startMonth?: number; untilMonth?: number; reduceMode?: 'term' | 'payment' } // paga exatamente `amount`/mês (parcela + aporte), opcional de `startMonth` até `untilMonth`
 export interface Strategies {
   extraLumpSum: ExtraPayment[];        // amortizações pontuais
   extraMonthlyPct?: number;            // 0.05 = 5% a mais na parcela
   extraMonthlyPctStartMonth?: number; // % extra a partir do mês X (opcional, default 1)
   extraMonthlyPctUntilMonth?: number;  // % extra só até o mês X (opcional)
+  extraMonthlyPctReduceMode?: 'term' | 'payment'; // modo deste aporte (opcional)
   fixedPayment?: FixedPayment;         // pagamento mensal fixo (parcela + aporte)
   fgtsAnnual?: FgtsAnnual;             // amortização anual (mês 12 por padrão)
   recurringExtra?: RecurringExtra;     // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)

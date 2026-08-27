@@ -42,6 +42,7 @@ interface AporteRow {
   month: number;
   every: number;
   untilMonth?: number;
+  mode?: 'term' | 'payment';
 }
 
 let aporteSeq = 0;
@@ -53,6 +54,7 @@ function deriveRows(strategies: Strategies): AporteRow[] {
     amount: l.amount,
     month: l.month,
     every: 12,
+    mode: l.reduceMode,
   }));
   if (strategies.extraMonthlyPct && strategies.extraMonthlyPct > 0) {
     rows.push({
@@ -62,6 +64,7 @@ function deriveRows(strategies: Strategies): AporteRow[] {
       month: strategies.extraMonthlyPctStartMonth ?? 1,
       every: 12,
       untilMonth: strategies.extraMonthlyPctUntilMonth,
+      mode: strategies.extraMonthlyPctReduceMode,
     });
   }
   if (strategies.fixedPayment) {
@@ -72,6 +75,7 @@ function deriveRows(strategies: Strategies): AporteRow[] {
       month: strategies.fixedPayment.startMonth ?? 1,
       every: 1,
       untilMonth: strategies.fixedPayment.untilMonth,
+      mode: strategies.fixedPayment.reduceMode,
     });
   }
   if (strategies.recurringExtra) {
@@ -82,6 +86,7 @@ function deriveRows(strategies: Strategies): AporteRow[] {
       month: strategies.recurringExtra.startMonth,
       every: strategies.recurringExtra.every,
       untilMonth: strategies.recurringExtra.untilMonth,
+      mode: strategies.recurringExtra.reduceMode,
     });
   }
   if (strategies.fgtsAnnual) {
@@ -92,6 +97,7 @@ function deriveRows(strategies: Strategies): AporteRow[] {
       month: strategies.fgtsAnnual.startMonth ?? 12,
       every: 12,
       untilMonth: strategies.fgtsAnnual.untilMonth,
+      mode: strategies.fgtsAnnual.reduceMode,
     });
   }
   return rows;
@@ -102,10 +108,11 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
   return {
     extraLumpSum: rows
       .filter((r) => r.tipo === 'pontual' && r.amount > 0 && r.month >= 1)
-      .map((r) => ({ month: r.month, amount: r.amount })),
+      .map((r) => ({ month: r.month, amount: r.amount, ...(r.mode ? { reduceMode: r.mode } : {}) })),
     extraMonthlyPct: pctRow ? pctRow.amount / 100 : undefined,
     ...(pctRow && pctRow.month >= 1 ? { extraMonthlyPctStartMonth: pctRow.month } : {}),
     ...(pctRow && pctRow.untilMonth ? { extraMonthlyPctUntilMonth: pctRow.untilMonth } : {}),
+    ...(pctRow && pctRow.mode ? { extraMonthlyPctReduceMode: pctRow.mode } : {}),
     fixedPayment: (() => {
       const r = rows.find((x) => x.tipo === 'mensal' && x.amount > 0);
       if (!r) return undefined;
@@ -113,6 +120,7 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
         amount: r.amount,
         ...(r.month >= 1 ? { startMonth: r.month } : {}),
         ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
       };
     })(),
     recurringExtra: (() => {
@@ -123,6 +131,7 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
         every: Math.max(1, r.every),
         startMonth: Math.max(1, r.month),
         ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
       };
     })(),
     fgtsAnnual: (() => {
@@ -132,6 +141,7 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
         amount: r.amount,
         ...(r.month >= 1 ? { startMonth: r.month } : {}),
         ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
       };
     })(),
   };
@@ -254,6 +264,30 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                     )
                   }
                 />
+              </div>
+              <div className="flex w-32 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Modo</Label>
+                <Select
+                  value={r.mode ?? 'auto'}
+                  onValueChange={(v) =>
+                    updateRows(
+                      rows.map((x) =>
+                        x.id === r.id
+                          ? { ...x, mode: v === 'auto' ? undefined : (v as 'term' | 'payment') }
+                          : x
+                      )
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Automático</SelectItem>
+                    <SelectItem value="term">Reduzir prazo</SelectItem>
+                    <SelectItem value="payment">Reduzir parcela</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 variant="outline"

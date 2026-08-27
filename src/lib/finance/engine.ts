@@ -46,9 +46,15 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     check(Number.isFinite(e.month) && e.month >= 1, 'mês de amortização extra inválido');
     // valor 0 é permitido (aporte inerte, ex: campo apagado pelo usuário)
     check(Number.isFinite(e.amount) && e.amount >= 0, 'valor de amortização extra inválido');
+    if (e.reduceMode !== undefined) {
+      check(e.reduceMode === 'term' || e.reduceMode === 'payment', 'modo de redução inválido no aporte');
+    }
   }
   if (s.extraMonthlyPct !== undefined) {
     check(Number.isFinite(s.extraMonthlyPct) && s.extraMonthlyPct >= 0 && s.extraMonthlyPct <= 1, 'percentual extra deve estar entre 0 e 100%');
+  }
+  if (s.extraMonthlyPctReduceMode !== undefined) {
+    check(s.extraMonthlyPctReduceMode === 'term' || s.extraMonthlyPctReduceMode === 'payment', 'modo do percentual extra inválido');
   }
   if (s.extraMonthlyPctStartMonth !== undefined) {
     check(Number.isInteger(s.extraMonthlyPctStartMonth) && s.extraMonthlyPctStartMonth >= 1, 'mês inicial do percentual extra inválido');
@@ -64,6 +70,9 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     if (s.fgtsAnnual.untilMonth !== undefined) {
       check(Number.isInteger(s.fgtsAnnual.untilMonth) && s.fgtsAnnual.untilMonth >= 1, 'mês final do FGTS inválido');
     }
+    if (s.fgtsAnnual.reduceMode !== undefined) {
+      check(s.fgtsAnnual.reduceMode === 'term' || s.fgtsAnnual.reduceMode === 'payment', 'modo do FGTS inválido');
+    }
   }
   if (s.recurringExtra !== undefined) {
     check(Number.isFinite(s.recurringExtra.amount) && s.recurringExtra.amount >= 0, 'valor de aporte recorrente inválido');
@@ -71,6 +80,9 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     check(Number.isInteger(s.recurringExtra.startMonth) && s.recurringExtra.startMonth >= 1, 'mês inicial do aporte recorrente inválido');
     if (s.recurringExtra.untilMonth !== undefined) {
       check(Number.isInteger(s.recurringExtra.untilMonth) && s.recurringExtra.untilMonth >= 1, 'mês final do aporte recorrente inválido');
+    }
+    if (s.recurringExtra.reduceMode !== undefined) {
+      check(s.recurringExtra.reduceMode === 'term' || s.recurringExtra.reduceMode === 'payment', 'modo do aporte recorrente inválido');
     }
   }
   if (s.portability !== undefined) {
@@ -88,6 +100,9 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
     }
     if (s.fixedPayment.untilMonth !== undefined) {
       check(Number.isInteger(s.fixedPayment.untilMonth) && s.fixedPayment.untilMonth >= 1, 'mês final do pagamento fixo inválido');
+    }
+    if (s.fixedPayment.reduceMode !== undefined) {
+      check(s.fixedPayment.reduceMode === 'term' || s.fixedPayment.reduceMode === 'payment', 'modo do pagamento fixo inválido');
     }
   }
 }
@@ -195,21 +210,33 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     }
 
     let extra = 0;
+    // modo por fonte: cada aporte pode definir o seu (senão usa o global)
+    let modoFonte: 'term' | 'payment' | undefined;
     const pctBase = strategies.extraMonthlyPct ?? 0;
     const pctAtivo =
       pctBase > 0 &&
       month >= (strategies.extraMonthlyPctStartMonth ?? 1) &&
       (!strategies.extraMonthlyPctUntilMonth || month <= strategies.extraMonthlyPctUntilMonth);
     const pctExtra = pctAtivo ? parcela * pctBase : 0;
-    if (pctExtra > 0) extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
-    const lump = strategies.extraLumpSum.find((e) => e.month === month)?.amount ?? 0;
-    if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));
+    if (pctExtra > 0) {
+      extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
+      if (strategies.extraMonthlyPctReduceMode) modoFonte = strategies.extraMonthlyPctReduceMode;
+    }
+    const lumpEntry = strategies.extraLumpSum.find((e) => e.month === month);
+    if (lumpEntry && lumpEntry.amount > 0) {
+      extra += Math.min(lumpEntry.amount, Math.max(saldo - amortizacao - extra, 0));
+      if (lumpEntry.reduceMode) modoFonte = lumpEntry.reduceMode;
+    }
     const fg = strategies.fgtsAnnual;
-    if (fg && month >= (fg.startMonth ?? 12) && (month - (fg.startMonth ?? 12)) % 12 === 0 && (!fg.untilMonth || month <= fg.untilMonth))
+    if (fg && month >= (fg.startMonth ?? 12) && (month - (fg.startMonth ?? 12)) % 12 === 0 && (!fg.untilMonth || month <= fg.untilMonth)) {
       extra += Math.min(fg.amount, Math.max(saldo - amortizacao - extra, 0));
+      if (fg.reduceMode) modoFonte = fg.reduceMode;
+    }
     const rec = strategies.recurringExtra;
-    if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0 && (!rec.untilMonth || month <= rec.untilMonth))
+    if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0 && (!rec.untilMonth || month <= rec.untilMonth)) {
       extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
+      if (rec.reduceMode) modoFonte = rec.reduceMode;
+    }
     const fp = strategies.fixedPayment;
     if (fp && month >= (fp.startMonth ?? 1) && (!fp.untilMonth || month <= fp.untilMonth)) {
       // pagamento fixo: parcela + aporte = exatamente `amount` (ou a parcela,
@@ -229,7 +256,8 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     saldo = Math.max(0, saldo - amortizacao + correcao);
     if (saldo < 1e-9) saldo = 0;
 
-    if (strategies.reduceMode === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
+    const modoEfetivo = modoFonte ?? strategies.reduceMode;
+    if (modoEfetivo === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
       // "reduzir parcela" mantém o prazo contratual restante, com a menor
       // parcela que ainda abate o saldo + correção (TR)
       mesesRestantesFixos = Math.max(1, input.months - month);
