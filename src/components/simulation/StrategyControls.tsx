@@ -49,7 +49,7 @@ const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: 
   </div>
 );
 
-type AporteTipo = 'pontual' | 'recorrente' | 'anual';
+type AporteTipo = 'pontual' | 'mensal' | 'recorrente' | 'anual';
 
 interface AporteRow {
   id: number;
@@ -70,6 +70,16 @@ function deriveRows(strategies: Strategies): AporteRow[] {
     month: l.month,
     every: 12,
   }));
+  if (strategies.fixedPayment) {
+    rows.push({
+      id: ++aporteSeq,
+      tipo: 'mensal',
+      amount: strategies.fixedPayment.amount,
+      month: strategies.fixedPayment.startMonth ?? 1,
+      every: 1,
+      untilMonth: strategies.fixedPayment.untilMonth,
+    });
+  }
   if (strategies.recurringExtra) {
     rows.push({
       id: ++aporteSeq,
@@ -93,11 +103,20 @@ function deriveRows(strategies: Strategies): AporteRow[] {
   return rows;
 }
 
-function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'recurringExtra' | 'fgtsAnnual'> {
+function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual'> {
   return {
     extraLumpSum: rows
       .filter((r) => r.tipo === 'pontual' && r.amount > 0 && r.month >= 1)
       .map((r) => ({ month: r.month, amount: r.amount })),
+    fixedPayment: (() => {
+      const r = rows.find((x) => x.tipo === 'mensal' && x.amount > 0);
+      if (!r) return undefined;
+      return {
+        amount: r.amount,
+        ...(r.month >= 1 ? { startMonth: r.month } : {}),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+      };
+    })(),
     recurringExtra: (() => {
       const r = rows.find((x) => x.tipo === 'recorrente' && x.amount > 0);
       if (!r) return undefined;
@@ -183,67 +202,6 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               />
             </div>
           </div>
-          <div className="flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="fixedPayment">Pagamento fixo: total por mês (R$)</Label>
-              <MoneyInput
-                id="fixedPayment"
-                maxLength={10}
-                value={strategies.fixedPayment?.amount ?? 0}
-                onValid={(v) =>
-                  onChange({
-                    ...strategies,
-                    fixedPayment:
-                      v > 0
-                        ? {
-                            amount: v,
-                            ...(strategies.fixedPayment?.startMonth
-                              ? { startMonth: strategies.fixedPayment.startMonth }
-                              : {}),
-                            ...(strategies.fixedPayment?.untilMonth
-                              ? { untilMonth: strategies.fixedPayment.untilMonth }
-                              : {}),
-                          }
-                        : undefined,
-                  })
-                }
-              />
-            </div>
-            <MesCampo
-              id="fixedPaymentStart"
-              label="do mês"
-              value={strategies.fixedPayment?.startMonth}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  fixedPayment: {
-                    amount: strategies.fixedPayment?.amount ?? 0,
-                    ...(v > 0 ? { startMonth: v } : {}),
-                    ...(strategies.fixedPayment?.untilMonth
-                      ? { untilMonth: strategies.fixedPayment.untilMonth }
-                      : {}),
-                  },
-                })
-              }
-            />
-            <MesCampo
-              id="fixedPaymentUntil"
-              label="até o mês (opcional)"
-              value={strategies.fixedPayment?.untilMonth}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  fixedPayment: {
-                    amount: strategies.fixedPayment?.amount ?? 0,
-                    ...(strategies.fixedPayment?.startMonth
-                      ? { startMonth: strategies.fixedPayment.startMonth }
-                      : {}),
-                    ...(v > 0 ? { untilMonth: v } : {}),
-                  },
-                })
-              }
-            />
-          </div>
           <div className="flex flex-col gap-1.5">
             <Label className="flex items-center gap-1.5">
               Com o aporte mensal, prefere
@@ -311,6 +269,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pontual">Pontual</SelectItem>
+                    <SelectItem value="mensal">Mensal (total fixo)</SelectItem>
                     <SelectItem value="recorrente">Recorrente</SelectItem>
                     <SelectItem value="anual">Anual (FGTS)</SelectItem>
                   </SelectContent>
@@ -329,7 +288,11 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               </div>
               <div className="flex w-24 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground" htmlFor={`apMonth${r.id}`}>
-                  {r.tipo === 'anual' ? 'no mês' : r.tipo === 'recorrente' ? 'começando no mês' : 'mês'}
+                  {r.tipo === 'anual'
+                    ? 'no mês'
+                    : r.tipo === 'recorrente' || r.tipo === 'mensal'
+                      ? 'do mês'
+                      : 'mês'}
                 </Label>
                 <NumericInput
                   id={`apMonth${r.id}`}
