@@ -82,27 +82,32 @@ export function SmartCalculator({ isUnlimited }: { isUnlimited: boolean }) {
     router.push('/simulacao?name=melhor-modelo');
   }
 
-  if (!isUnlimited) {
-    return (
-      <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
-        <Sparkles className="mx-auto size-8 text-[#820AD1]" />
-        <p className="font-semibold">Cálculo inteligente</p>
-        <p className="text-sm text-muted-foreground">
-          Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia para o seu
-          financiamento.
-        </p>
-        <Badge variant="secondary" className="mx-auto text-xs">
-          Exclusivo Ilimitado
-        </Badge>
-        <Link href="/planos" className="mx-auto text-sm font-medium text-[#820AD1]">
-          Ver planos
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-4">
+    <Card className="w-full rounded-2xl bg-white shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          Cálculo inteligente <Sparkles className="size-5 text-[#820AD1]" />
+        </CardTitle>
+        <CardDescription>
+          Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!isUnlimited ? (
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
+            <Sparkles className="mx-auto size-8 text-[#820AD1]" />
+            <p className="text-sm text-muted-foreground">
+              Recurso exclusivo do plano Ilimitado.
+            </p>
+            <Badge variant="secondary" className="mx-auto text-xs">
+              Exclusivo Ilimitado
+            </Badge>
+            <Link href="/planos" className="mx-auto text-sm font-medium text-[#820AD1]">
+              Ver planos
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="smartPrincipal">Valor financiado (R$)</Label>
@@ -212,7 +217,7 @@ export function SmartCalculator({ isUnlimited }: { isUnlimited: boolean }) {
                   </span>
                 </div>
               </div>
-              {rec.alternatives.length > 1 && (
+              {rec.alternatives.length > 0 && (
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-muted-foreground">
@@ -245,6 +250,9 @@ export function SmartCalculator({ isUnlimited }: { isUnlimited: boolean }) {
           </Card>
         </div>
       )}
-    </div>
+        </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

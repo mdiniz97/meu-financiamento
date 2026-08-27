@@ -16,9 +16,8 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { SmartCalculator } from './SmartCalculator';
 
-export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
+export function WizardForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [error, setError] = useState('');
@@ -58,9 +57,9 @@ export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
   }
 
   return (
-    <Card className="w-full max-w-2xl rounded-2xl bg-white shadow-sm">
+    <Card className="w-full rounded-2xl bg-white shadow-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Nova simulação</CardTitle>
+        <CardTitle className="text-xl">Simulação normal</CardTitle>
         <CardDescription>
           Informe os dados do financiamento e explore estratégias de amortização.
         </CardDescription>
@@ -74,9 +73,6 @@ export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
               </TabsTrigger>
               <TabsTrigger value="estrategias" className="flex-1">
                 Estratégias
-              </TabsTrigger>
-              <TabsTrigger value="inteligente" className="flex-1">
-                Cálculo inteligente ⚡
               </TabsTrigger>
             </TabsList>
 
@@ -398,10 +394,6 @@ export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
                   </div>
                 )}
               </div>
-            </TabsContent>
-
-            <TabsContent value="inteligente" className="flex flex-col gap-4 pt-4">
-              <SmartCalculator isUnlimited={isUnlimited} />
             </TabsContent>
           </Tabs>
 
