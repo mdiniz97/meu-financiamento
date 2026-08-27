@@ -16,8 +16,9 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SmartCalculator } from './SmartCalculator';
 
-export function WizardForm() {
+export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [error, setError] = useState('');
@@ -73,6 +74,9 @@ export function WizardForm() {
               </TabsTrigger>
               <TabsTrigger value="estrategias" className="flex-1">
                 Estratégias
+              </TabsTrigger>
+              <TabsTrigger value="inteligente" className="flex-1">
+                Cálculo inteligente ⚡
               </TabsTrigger>
             </TabsList>
 
@@ -389,11 +393,15 @@ export function WizardForm() {
                             </SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
+                       </Select>
                     </div>
                   </div>
                 )}
               </div>
+            </TabsContent>
+
+            <TabsContent value="inteligente" className="flex flex-col gap-4 pt-4">
+              <SmartCalculator isUnlimited={isUnlimited} />
             </TabsContent>
           </Tabs>
 
