@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
-import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
+import { useRouter } from 'next/navigation';
+import type { FormState } from '@/lib/simulation-context';
+import { maxFinancing, recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +25,7 @@ export interface SmartCalcFields {
   maxMonths: string;
   maxPayment: string;
   fixedUntilMonth: string;
+  inverseMode: boolean;
 }
 
 export const SMART_DEFAULTS: SmartCalcFields = {
@@ -34,6 +37,7 @@ export const SMART_DEFAULTS: SmartCalcFields = {
   maxMonths: '360',
   maxPayment: '12000',
   fixedUntilMonth: '',
+  inverseMode: false,
 };
 
 interface Props {
@@ -42,8 +46,10 @@ interface Props {
 }
 
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
+  const router = useRouter();
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
+  const [inverse, setInverse] = useState<{ PRICE: number; SAC: number } | null>(null);
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -64,6 +70,18 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     if (!(maxMonths >= 60 && maxMonths <= 600)) return setError('Prazo máximo deve estar entre 60 e 600 meses.');
     if (!(maxPayment > 0)) return setError('Informe quanto pode pagar por mês.');
 
+    if (f.inverseMode) {
+      const mf = maxFinancing({
+        maxPayment,
+        annualRate: annualRate / 100,
+        trMonthly: trMonthly / 100,
+        insuranceMonthly,
+        bank: f.bank,
+        months: maxMonths,
+      });
+      setInverse(mf);
+      return;
+    }
     const rec = recommendSmart({
       principal,
       annualRate: annualRate / 100,
@@ -75,6 +93,29 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       fixedUntilMonth: Number.isInteger(until) && until >= 1 ? until : undefined,
     });
     onCalculated(rec, f);
+  }
+
+  function abrirInverseNoSandbox(system: 'PRICE' | 'SAC', principal: number) {
+    const form: FormState = {
+      system,
+      principal: String(principal),
+      annualRate: f.annualRate,
+      months: f.maxMonths,
+      trMonthly: f.trMonthly,
+      insuranceMonthly: f.insuranceMonthly,
+      bank: f.bank,
+      lumpSum: [],
+      extraMonthlyPct: '0',
+      fgtsAnnual: '0',
+      recurringExtra: null,
+      fixedPayment: '',
+      fixedPaymentUntil: '',
+      paySacParcela: false,
+      reduceMode: 'term',
+      portability: null,
+    };
+    sessionStorage.setItem('sim-input', JSON.stringify(form));
+    router.push('/simulacao?name=financiamento-possivel');
   }
 
   return (
@@ -187,11 +228,55 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
               </div>
             </div>
 
+            <Label className="flex items-center gap-2 text-sm font-normal">
+              <input
+                type="checkbox"
+                checked={f.inverseMode}
+                onChange={(e) => {
+                  set('inverseMode', e.target.checked);
+                  setInverse(null);
+                }}
+                className="size-4 accent-[#820AD1]"
+              />
+              Quero descobrir o valor do imóvel que posso financiar
+            </Label>
+
             <div className="mt-auto flex justify-end">
               <Button type="button" onClick={calcular}>
-                <Sparkles className="size-4" /> Calcular melhor modelo
+                <Sparkles className="size-4" />{' '}
+                {f.inverseMode ? 'Calcular financiamento possível' : 'Calcular melhor modelo'}
               </Button>
             </div>
+
+            {inverse && (
+              <div className="flex flex-col gap-2 rounded-xl bg-primary/5 p-3 text-xs">
+                <p className="text-sm font-semibold text-primary">
+                  Com {formatBRL(parseBRLToNumber(f.maxPayment))}/mês você pode financiar até:
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(['PRICE', 'SAC'] as const).map((s) => (
+                    <div key={s} className="flex flex-col gap-1 rounded-xl bg-white p-3">
+                      <span className="text-muted-foreground">No {s}</span>
+                      <span className="text-lg font-semibold">{formatBRL(inverse[s])}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 w-fit"
+                        onClick={() => abrirInverseNoSandbox(s, inverse[s])}
+                      >
+                        Ver no sandbox
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-muted-foreground">
+                  Em {f.maxMonths} meses, com taxa de {parseDecimal(f.annualRate).toFixed(2)}% a.a. e TR{' '}
+                  {parseDecimal(f.trMonthly).toFixed(2)}%. A parcela 1 fica no seu teto; no PRICE ela
+                  cresce com a TR — no SAC ela cai.
+                </p>
+              </div>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
