@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceBreakEven, recurringParcela } from './insights';
+import { priceBreakEven, recurringParcela, sacVsPrice } from './insights';
 import { simulate } from './engine';
 import type { LoanInput } from './types';
 
@@ -73,5 +73,24 @@ describe('priceBreakEven', () => {
   it('recurringParcela mantém aporte percentual recorrente', () => {
     const pct5 = simulate(base, { ...noStrategy, extraMonthlyPct: 0.05 });
     expect(recurringParcela(pct5)).toBeCloseTo(9339.83, 2);
+  });
+});
+
+describe('sacVsPrice', () => {
+  const sacBase: LoanInput = { ...base, system: 'SAC' };
+  it('SAC começa mais caro, cruza com a PRICE e economiza no total', () => {
+    const c = sacVsPrice(sacBase);
+    expect(c.parcela1Sac).toBeCloseTo(11232.93, 2);
+    expect(c.parcela1Price).toBeCloseTo(8895.07, 2);
+    expect(c.ultimaParcelaSac).toBeCloseTo(5262.58, 2);
+    expect(c.crossingMonth).toBe(102);
+    expect(c.economiaVsPrice).toBeCloseTo(1182181, 0);
+    expect(c.dividaCai12mSac).toBeCloseTo(13423, 0);
+  });
+  it('dívida SAC cai em 12 meses enquanto a PRICE cresce no início', () => {
+    const c = sacVsPrice(sacBase);
+    expect(c.dividaCai12mSac).toBeGreaterThan(0);
+    const price12 = simulate({ ...sacBase, system: 'PRICE' }, { extraLumpSum: [], reduceMode: 'term' }).metrics.dividaCai12m;
+    expect(price12).toBeLessThan(0);
   });
 });

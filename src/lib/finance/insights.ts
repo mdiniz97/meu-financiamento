@@ -1,4 +1,4 @@
-import { convertAnnualToMonthly, pmt } from './engine';
+import { convertAnnualToMonthly, pmt, simulate } from './engine';
 import type { LoanInput, SimulationResult } from './types';
 
 export interface PriceBreakEven {
@@ -50,4 +50,40 @@ export function recurringParcela(result: SimulationResult): number {
     .filter((e) => e.month === first.month)
     .reduce((acc, e) => acc + e.amount, 0);
   return Math.max(0, first.parcela - lumpsNoMes1);
+}
+
+export interface SacVsPrice {
+  parcela1Sac: number;
+  parcela1Price: number;
+  ultimaParcelaSac: number;
+  /** primeiro mês em que a parcela SAC fica menor que a PRICE; null se nunca */
+  crossingMonth: number | null;
+  /** economia do SAC vs PRICE no total pago (positivo = SAC mais barato) */
+  economiaVsPrice: number;
+  /** quanto a dívida cai em 12 meses no SAC */
+  dividaCai12mSac: number;
+}
+
+/** Comparação SAC vs PRICE no mesmo contrato (cenário base, sem estratégias). */
+export function sacVsPrice(input: LoanInput): SacVsPrice {
+  const noStrategy = { extraLumpSum: [], reduceMode: 'term' as const };
+  const sac = simulate({ ...input, system: 'SAC' }, noStrategy);
+  const price = simulate({ ...input, system: 'PRICE' }, noStrategy);
+  const sacInst = sac.installments;
+  const priceInst = price.installments;
+  let crossingMonth: number | null = null;
+  for (let i = 0; i < priceInst.length; i++) {
+    if (sacInst[i] && sacInst[i].parcela < priceInst[i].parcela) {
+      crossingMonth = i + 1;
+      break;
+    }
+  }
+  return {
+    parcela1Sac: sacInst[0]?.parcela ?? 0,
+    parcela1Price: priceInst[0]?.parcela ?? 0,
+    ultimaParcelaSac: sacInst[sacInst.length - 1]?.parcela ?? 0,
+    crossingMonth,
+    economiaVsPrice: price.metrics.totalPago - sac.metrics.totalPago,
+    dividaCai12mSac: sac.metrics.dividaCai12m,
+  };
 }

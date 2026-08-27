@@ -277,6 +277,10 @@ export function SimulationSandbox({
           setCachedStrategies(s);
           listeners.forEach((l) => l());
         }}
+        onCompareWithPrice={() => {
+          setCompareSystems(true);
+          setActiveSystem('SAC');
+        }}
       />
 
       <section className="flex flex-col gap-3">
