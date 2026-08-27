@@ -123,7 +123,7 @@ export function SmartResultCard({ rec, fields }: Props) {
       extraMonthlyPct: '0',
       fgtsAnnual: '0',
       recurringExtra: null,
-      fixedPayment: fields.fixedPayment ? fields.maxPayment : '',
+      fixedPayment: fields.maxPayment,
       fixedPaymentUntil: fields.fixedUntilMonth ?? '',
       paySacParcela: false,
       reduceMode: 'term',
