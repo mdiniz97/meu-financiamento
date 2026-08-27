@@ -12,7 +12,7 @@ export default async function NovaSimulacaoPage() {
   }
   return (
     <div className="flex flex-1 items-start justify-center bg-[#F5F5F5] p-6">
-      <div className="grid w-full max-w-5xl items-start gap-6 lg:grid-cols-2">
+      <div className="grid w-full max-w-5xl items-stretch gap-6 lg:grid-cols-2">
         <WizardForm />
         <SmartCalculator isUnlimited={isUnlimited} />
       </div>

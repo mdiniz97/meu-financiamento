@@ -57,14 +57,14 @@ export function WizardForm() {
   }
 
   return (
-    <Card className="w-full rounded-2xl bg-white shadow-sm">
+    <Card className="flex h-full w-full flex-col rounded-2xl bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Simulação normal</CardTitle>
         <CardDescription>
           Informe os dados do financiamento e explore estratégias de amortização.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Tabs defaultValue="dados" className="w-full">
             <TabsList className="w-full">

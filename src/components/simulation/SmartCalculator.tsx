@@ -83,7 +83,7 @@ export function SmartCalculator({ isUnlimited }: { isUnlimited: boolean }) {
   }
 
   return (
-    <Card className="w-full rounded-2xl bg-white shadow-sm">
+    <Card className="flex h-full w-full flex-col rounded-2xl bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           Cálculo inteligente <Sparkles className="size-5 text-[#820AD1]" />
@@ -92,7 +92,7 @@ export function SmartCalculator({ isUnlimited }: { isUnlimited: boolean }) {
           Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {!isUnlimited ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
             <Sparkles className="mx-auto size-8 text-[#820AD1]" />
