@@ -38,6 +38,11 @@ export function NumericInput({
       onBlur={() => setFocused(false)}
       onChange={(e) => {
         setText(e.target.value);
+        if (e.target.value.trim() === '') {
+          // apagou tudo: emite 0 para o campo não voltar ao valor antigo no blur
+          onValid(0);
+          return;
+        }
         const v = parse(e.target.value);
         if (Number.isFinite(v)) onValid(v);
       }}
