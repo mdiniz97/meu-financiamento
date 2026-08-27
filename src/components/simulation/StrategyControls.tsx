@@ -104,86 +104,96 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl bg-white shadow-sm">
+            <Card className="rounded-2xl bg-white shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">% extra mensal</CardTitle>
-          <CardDescription>Paga um percentual a mais em toda parcela.</CardDescription>
+          <CardTitle className="text-base">Aporte mensal</CardTitle>
+          <CardDescription>Percentual extra e pagamento fixo (com período opcional).</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <Slider
-              className="flex-1"
-              min={0}
-              max={100}
-              step={1}
-              value={pctExtra}
-              onValueChange={(v) => onChange({ ...strategies, extraMonthlyPct: Number(v) / 100 })}
-            />
-            <NumericInput
-              id="extraMonthlyPct"
-              className="w-20"
-              value={pctExtra}
-              parse={parseDecimal}
-              onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
-            />
-            <span className="text-sm text-muted-foreground">%</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {pctExtra > 0
-              ? `Você paga ${formatBRL(parcelaBase * (pctExtra / 100))} a mais por mês.`
-              : 'Arraste para definir o percentual.'}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-2xl bg-white shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Pagamento fixo</CardTitle>
-          <CardDescription>Paga sempre o mesmo total por mês (parcela + aporte).</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <div className="flex items-end gap-2">
-            <MoneyInput
-              id="fixedPayment"
-              value={strategies.fixedPayment?.amount ?? 0}
-              onValid={(v) =>
-                onChange({
-                  ...strategies,
-                  fixedPayment:
-                    v > 0
-                      ? {
-                          amount: v,
-                          ...(strategies.fixedPayment?.untilMonth
-                            ? { untilMonth: strategies.fixedPayment.untilMonth }
-                            : {}),
-                        }
-                      : undefined,
-                })
-              }
-            />
-            <div className="flex w-36 flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground" htmlFor="fixedPaymentUntil">
-                só até o mês (opcional)
-              </Label>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <Label>% extra mensal ({pctExtra}%)</Label>
+            <div className="flex items-center gap-3">
+              <Slider
+                className="flex-1"
+                min={0}
+                max={100}
+                step={1}
+                value={pctExtra}
+                onValueChange={(v) => onChange({ ...strategies, extraMonthlyPct: Number(v) / 100 })}
+              />
               <NumericInput
-                id="fixedPaymentUntil"
-                value={strategies.fixedPayment?.untilMonth}
-                parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                id="extraMonthlyPct"
+                className="w-20"
+                value={pctExtra}
+                parse={parseDecimal}
+                onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="flex w-36 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground" htmlFor="pctUntil">até o mês (opcional)</Label>
+                <NumericInput
+                  id="pctUntil"
+                  value={strategies.extraMonthlyPctUntilMonth}
+                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                  onValid={(v) =>
+                    onChange({
+                      ...strategies,
+                      extraMonthlyPctUntilMonth: v > 0 ? v : undefined,
+                    })
+                  }
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pctExtra > 0
+                  ? `Você paga ${formatBRL(parcelaBase * (pctExtra / 100))} a mais por mês${strategies.extraMonthlyPctUntilMonth ? ` até o mês ${strategies.extraMonthlyPctUntilMonth}` : ''}.`
+                  : 'Arraste para definir o percentual.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fixedPayment">Ou pague sempre o mesmo total por mês (R$)</Label>
+            <div className="flex items-end gap-2">
+              <MoneyInput
+                id="fixedPayment"
+                value={strategies.fixedPayment?.amount ?? 0}
                 onValid={(v) =>
                   onChange({
                     ...strategies,
-                    fixedPayment: {
-                      amount: strategies.fixedPayment?.amount ?? 0,
-                      ...(v > 0 ? { untilMonth: v } : {}),
-                    },
+                    fixedPayment:
+                      v > 0
+                        ? {
+                            amount: v,
+                            ...(strategies.fixedPayment?.untilMonth
+                              ? { untilMonth: strategies.fixedPayment.untilMonth }
+                              : {}),
+                          }
+                        : undefined,
                   })
                 }
               />
+              <div className="flex w-36 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground" htmlFor="fixedPaymentUntil">
+                  só até o mês (opcional)
+                </Label>
+                <NumericInput
+                  id="fixedPaymentUntil"
+                  value={strategies.fixedPayment?.untilMonth}
+                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                  onValid={(v) =>
+                    onChange({
+                      ...strategies,
+                      fixedPayment: {
+                        amount: strategies.fixedPayment?.amount ?? 0,
+                        ...(v > 0 ? { untilMonth: v } : {}),
+                      },
+                    })
+                  }
+                />
+              </div>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Deixe em branco para não usar.
-          </p>
         </CardContent>
       </Card>
 
@@ -253,18 +263,77 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         )}
       </Card>
 
-      <Card className="rounded-2xl bg-white shadow-sm">
+            <Card className="rounded-2xl bg-white shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">FGTS anual</CardTitle>
-          <CardDescription>Amortiza o valor todo mês de dezembro (mês 12).</CardDescription>
+          <CardDescription>Amortiza todo ano, começando no mês 12 (ou no mês que você escolher).</CardDescription>
         </CardHeader>
-        <CardContent>
-          <NumericInput
-            id="fgtsAnnual"
-            value={strategies.fgtsAnnual}
-            parse={parseBRLToNumber}
-            onValid={(v) => onChange({ ...strategies, fgtsAnnual: v > 0 ? v : undefined })}
-          />
+        <CardContent className="flex flex-col gap-2">
+          <div className="flex items-end gap-2">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="fgtsAnnual">Valor (R$)</Label>
+              <NumericInput
+                id="fgtsAnnual"
+                value={strategies.fgtsAnnual?.amount}
+                parse={parseBRLToNumber}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    fgtsAnnual:
+                      v > 0
+                        ? {
+                            amount: v,
+                            ...(strategies.fgtsAnnual?.startMonth
+                              ? { startMonth: strategies.fgtsAnnual.startMonth }
+                              : {}),
+                            ...(strategies.fgtsAnnual?.untilMonth
+                              ? { untilMonth: strategies.fgtsAnnual.untilMonth }
+                              : {}),
+                          }
+                        : undefined,
+                  })
+                }
+              />
+            </div>
+            <div className="flex w-32 flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground" htmlFor="fgtsStart">começando no mês</Label>
+              <NumericInput
+                id="fgtsStart"
+                value={strategies.fgtsAnnual?.startMonth}
+                parse={parseIntStrict}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    fgtsAnnual: {
+                      amount: strategies.fgtsAnnual?.amount ?? 0,
+                      startMonth: Math.max(1, v),
+                      ...(strategies.fgtsAnnual?.untilMonth
+                        ? { untilMonth: strategies.fgtsAnnual.untilMonth }
+                        : {}),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="flex w-32 flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground" htmlFor="fgtsUntil">até o mês (opcional)</Label>
+              <NumericInput
+                id="fgtsUntil"
+                value={strategies.fgtsAnnual?.untilMonth}
+                parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    fgtsAnnual: {
+                      amount: strategies.fgtsAnnual?.amount ?? 0,
+                      startMonth: strategies.fgtsAnnual?.startMonth ?? 12,
+                      ...(v > 0 ? { untilMonth: v } : {}),
+                    },
+                  })
+                }
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

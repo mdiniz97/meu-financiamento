@@ -50,13 +50,25 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   if (s.extraMonthlyPct !== undefined) {
     check(Number.isFinite(s.extraMonthlyPct) && s.extraMonthlyPct >= 0 && s.extraMonthlyPct <= 1, 'percentual extra deve estar entre 0 e 100%');
   }
+  if (s.extraMonthlyPctUntilMonth !== undefined) {
+    check(Number.isInteger(s.extraMonthlyPctUntilMonth) && s.extraMonthlyPctUntilMonth >= 1, 'mês final do percentual extra inválido');
+  }
   if (s.fgtsAnnual !== undefined) {
-    check(Number.isFinite(s.fgtsAnnual) && s.fgtsAnnual >= 0, 'FGTS anual não pode ser negativo');
+    check(Number.isFinite(s.fgtsAnnual.amount) && s.fgtsAnnual.amount >= 0, 'FGTS anual não pode ser negativo');
+    if (s.fgtsAnnual.startMonth !== undefined) {
+      check(Number.isInteger(s.fgtsAnnual.startMonth) && s.fgtsAnnual.startMonth >= 1, 'mês inicial do FGTS inválido');
+    }
+    if (s.fgtsAnnual.untilMonth !== undefined) {
+      check(Number.isInteger(s.fgtsAnnual.untilMonth) && s.fgtsAnnual.untilMonth >= 1, 'mês final do FGTS inválido');
+    }
   }
   if (s.recurringExtra !== undefined) {
     check(Number.isFinite(s.recurringExtra.amount) && s.recurringExtra.amount >= 0, 'valor de aporte recorrente inválido');
     check(Number.isInteger(s.recurringExtra.every) && s.recurringExtra.every >= 1, 'intervalo do aporte recorrente inválido');
     check(Number.isInteger(s.recurringExtra.startMonth) && s.recurringExtra.startMonth >= 1, 'mês inicial do aporte recorrente inválido');
+    if (s.recurringExtra.untilMonth !== undefined) {
+      check(Number.isInteger(s.recurringExtra.untilMonth) && s.recurringExtra.untilMonth >= 1, 'mês final do aporte recorrente inválido');
+    }
   }
   if (s.portability !== undefined) {
     check(Number.isFinite(s.portability.annualRate) && s.portability.annualRate >= 0 && s.portability.annualRate <= 1, 'taxa de portabilidade inválida');
@@ -175,14 +187,19 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     }
 
     let extra = 0;
-    const pctExtra = parcela * (strategies.extraMonthlyPct ?? 0);
+    const pctExtra =
+      (strategies.extraMonthlyPct ?? 0) > 0 &&
+      (!strategies.extraMonthlyPctUntilMonth || month <= strategies.extraMonthlyPctUntilMonth)
+        ? parcela * (strategies.extraMonthlyPct ?? 0)
+        : 0;
     if (pctExtra > 0) extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
     const lump = strategies.extraLumpSum.find((e) => e.month === month)?.amount ?? 0;
     if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));
-    if (strategies.fgtsAnnual && month % 12 === 0)
-      extra += Math.min(strategies.fgtsAnnual, Math.max(saldo - amortizacao - extra, 0));
+    const fg = strategies.fgtsAnnual;
+    if (fg && month >= (fg.startMonth ?? 12) && (month - (fg.startMonth ?? 12)) % 12 === 0 && (!fg.untilMonth || month <= fg.untilMonth))
+      extra += Math.min(fg.amount, Math.max(saldo - amortizacao - extra, 0));
     const rec = strategies.recurringExtra;
-    if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0)
+    if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0 && (!rec.untilMonth || month <= rec.untilMonth))
       extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
     const fp = strategies.fixedPayment;
     if (fp && (!fp.untilMonth || month <= fp.untilMonth)) {

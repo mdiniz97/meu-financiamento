@@ -34,9 +34,15 @@ describe('percentual extra mensal', () => {
 
 describe('FGTS anual', () => {
   it('amortiza FGTS nos meses 12 e 24', () => {
-    const r = simulate(input, { ...base, fgtsAnnual: 3000 });
+    const r = simulate(input, { ...base, fgtsAnnual: { amount: 3000 } });
     expect(r.installments[11].extra).toBeCloseTo(3000, 2);
     expect(r.installments[23].extra).toBeCloseTo(3000, 2);
+  });
+  it('FGTS com mês inicial customizado e limite final', () => {
+    const r = simulate(input, { ...base, fgtsAnnual: { amount: 3000, startMonth: 6, untilMonth: 18 } });
+    expect(r.installments[5].extra).toBeCloseTo(3000, 2); // mês 6
+    expect(r.installments[17].extra).toBeCloseTo(3000, 2); // mês 18
+    expect(r.installments[29].extra).toBe(0); // mês 30: fora do limite
   });
 });
 
@@ -131,6 +137,21 @@ describe('aporte recorrente', () => {
   it('aporte recorrente reduz o total pago', () => {
     const comAporte = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 12, startMonth: 6 } });
     expect(comAporte.metrics.totalPago).toBeLessThan(simulate(input, base).metrics.totalPago);
+  });
+});
+
+describe('períodos dos aportes', () => {
+  it('% extra até o mês X: depois volta ao normal', () => {
+    const r = simulate(input, { ...base, extraMonthlyPct: 0.05, extraMonthlyPctUntilMonth: 12 });
+    expect(r.installments[0].extra).toBeGreaterThan(0);
+    expect(r.installments[11].extra).toBeGreaterThan(0);
+    expect(r.installments[12].extra).toBe(0);
+  });
+  it('aporte recorrente com fim: para de aportar após o mês Y', () => {
+    const r = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 6, startMonth: 6, untilMonth: 18 } });
+    expect(r.installments[5].extra).toBeCloseTo(10000, 2);
+    expect(r.installments[17].extra).toBeCloseTo(10000, 2);
+    expect(r.installments[23].extra).toBe(0); // mês 24: fora do limite
   });
 });
 

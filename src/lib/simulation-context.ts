@@ -1,7 +1,8 @@
 import type { AmortSystem, ExtraPayment, LoanInput, RecurringExtra, Strategies } from './finance/types';
 import { parseBRLToNumber, parseDecimal } from './utils';
 
-const parseIntSafe = (s: string) => {
+const parseIntSafe = (s: string | undefined) => {
+  if (s == null) return 0;
   const d = s.replace(/[^\d]/g, '');
   return d === '' ? 0 : Number(d);
 };
@@ -17,6 +18,7 @@ export interface RecurringExtraForm {
   amount: string;
   every: string;
   startMonth: string;
+  untilMonth: string;
 }
 
 export interface FormState {
@@ -29,7 +31,10 @@ export interface FormState {
   bank: string;
   lumpSum: ExtraPayment[];
   extraMonthlyPct: string;
+  extraMonthlyPctUntil: string;
   fgtsAnnual: string;
+  fgtsStartMonth: string;
+  fgtsUntilMonth: string;
   recurringExtra: RecurringExtraForm | null;
   fixedPayment: string;
   fixedPaymentUntil: string;
@@ -50,7 +55,10 @@ export const DEFAULT_FORM: FormState = {
   bank: 'Caixa',
   lumpSum: [],
   extraMonthlyPct: '0',
+  extraMonthlyPctUntil: '',
   fgtsAnnual: '0',
+  fgtsStartMonth: '12',
+  fgtsUntilMonth: '',
   recurringExtra: null,
   fixedPayment: '',
   fixedPaymentUntil: '',
@@ -102,14 +110,29 @@ export function formToStrategies(f: FormState): Strategies {
         amount: parseBRLToNumber(f.recurringExtra.amount),
         every: Number(f.recurringExtra.every),
         startMonth: Number(f.recurringExtra.startMonth),
+        ...(parseIntSafe(f.recurringExtra.untilMonth) >= 1 ? { untilMonth: parseIntSafe(f.recurringExtra.untilMonth) } : {}),
       }
     : null;
+  const fgtsUntil = parseIntSafe(f.fgtsUntilMonth);
+  const fgtsStart = parseIntSafe(f.fgtsStartMonth);
+  const pctUntil = parseIntSafe(f.extraMonthlyPctUntil);
   return {
     extraLumpSum: f.lumpSum,
     ...(Number.isFinite(extraMonthlyPct) && extraMonthlyPct > 0
-      ? { extraMonthlyPct: extraMonthlyPct / 100 }
+      ? {
+          extraMonthlyPct: extraMonthlyPct / 100,
+          ...(pctUntil >= 1 ? { extraMonthlyPctUntilMonth: pctUntil } : {}),
+        }
       : {}),
-    ...(fgtsAnnual > 0 ? { fgtsAnnual } : {}),
+    ...(fgtsAnnual > 0
+      ? {
+          fgtsAnnual: {
+            amount: fgtsAnnual,
+            ...(fgtsStart >= 1 ? { startMonth: fgtsStart } : {}),
+            ...(fgtsUntil >= 1 ? { untilMonth: fgtsUntil } : {}),
+          },
+        }
+      : {}),
     ...(recurring && Number.isFinite(recurring.amount) && recurring.amount > 0 && Number.isInteger(recurring.every) && recurring.every >= 1 && Number.isInteger(recurring.startMonth) && recurring.startMonth >= 1
       ? { recurringExtra: recurring }
       : {}),
