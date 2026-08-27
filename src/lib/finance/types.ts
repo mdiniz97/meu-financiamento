@@ -10,16 +10,18 @@ export interface LoanInput {
   bank: string;
 }
 export interface ExtraPayment { month: number; amount: number } // month 1-based
-export interface RecurringExtra { amount: number; every: number; startMonth: number } // aporte de `amount` a cada `every` meses, começando em `startMonth`
+export interface RecurringExtra { amount: number; every: number; startMonth: number; untilMonth?: number } // aporte de `amount` a cada `every` meses, começando em `startMonth`, opcional até `untilMonth`
+export interface FgtsAnnual { amount: number; startMonth?: number; untilMonth?: number } // amortização anual, começando no mês `startMonth` (default 12), opcional até `untilMonth`
 export interface FixedPayment { amount: number; untilMonth?: number } // paga exatamente `amount`/mês (parcela + aporte), opcional até o mês X
 export interface Strategies {
-  extraLumpSum: ExtraPayment[];      // amortizações pontuais
-  extraMonthlyPct?: number;          // 0.05 = 5% a mais na parcela
-  fixedPayment?: FixedPayment;       // pagamento mensal fixo (parcela + aporte)
-  fgtsAnnual?: number;               // R$ amortizados todo mês 12, 24, 36...
-  recurringExtra?: RecurringExtra;   // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)
-  paySacParcela?: boolean;           // PRICE: pagar a parcela do SAC: a diferença vira amortização extra
-  reduceMode: 'payment' | 'term';    // default 'term'
+  extraLumpSum: ExtraPayment[];        // amortizações pontuais
+  extraMonthlyPct?: number;            // 0.05 = 5% a mais na parcela
+  extraMonthlyPctUntilMonth?: number;  // % extra só até o mês X (opcional)
+  fixedPayment?: FixedPayment;         // pagamento mensal fixo (parcela + aporte)
+  fgtsAnnual?: FgtsAnnual;             // amortização anual (mês 12 por padrão)
+  recurringExtra?: RecurringExtra;     // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)
+  paySacParcela?: boolean;             // PRICE: pagar a parcela do SAC: a diferença vira amortização extra
+  reduceMode: 'payment' | 'term';      // default 'term'
   portability?: { annualRate: number; bank: string; insuranceMonthly: number };
 }
 export interface Installment {
