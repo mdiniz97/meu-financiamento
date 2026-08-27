@@ -163,7 +163,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 <NumericInput
                   id="fixedPaymentUntil"
                   value={strategies.fixedPayment?.untilMonth}
-                  parse={parseIntStrict}
+                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
                   onValid={(v) =>
                     onChange({
                       ...strategies,

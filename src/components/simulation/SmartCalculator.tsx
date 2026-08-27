@@ -178,8 +178,8 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 <NumericInput
                   id="smartFixedUntil"
                   value={f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined}
-                  parse={parseIntStrict}
-                  onValid={(v) => set('fixedUntilMonth', String(v))}
+                  parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
+                  onValid={(v) => set('fixedUntilMonth', v > 0 ? String(v) : '')}
                 />
                 <p className="text-xs text-muted-foreground">
                   Depois, volta a pagar só a parcela do contrato.
