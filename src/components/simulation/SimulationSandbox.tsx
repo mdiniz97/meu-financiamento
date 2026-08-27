@@ -210,7 +210,13 @@ export function SimulationSandbox({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
         <span className="text-sm font-medium">Comparar PRICE ↔ SAC</span>
         {isUnlimited ? (
-          <Switch checked={compareSystems} onCheckedChange={setCompareSystems} />
+          <Switch
+            checked={compareSystems}
+            onCheckedChange={(v) => {
+              setCompareSystems(v);
+              if (!v) setActiveSystem(null);
+            }}
+          />
         ) : (
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">

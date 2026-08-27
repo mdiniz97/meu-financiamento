@@ -30,7 +30,11 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   const check = (cond: boolean, msg: string) => {
     if (!cond) throw new Error(`input inválido: ${msg}`);
   };
-  check(Number.isFinite(input.principal) && input.principal > 0, 'valor financiado deve ser maior que zero');
+  check(
+    Number.isFinite(input.principal) && input.principal > 0 && input.principal <= 1_000_000_000_000,
+    'valor financiado deve ser maior que zero e no máximo R$ 1 trilhão'
+  );
+  check(typeof input.bank === 'string' && input.bank.length <= 60, 'banco inválido');
   check(Number.isFinite(input.months) && input.months >= 1 && input.months <= 600, 'prazo deve estar entre 1 e 600 meses');
   check(Number.isFinite(input.annualRate) && input.annualRate >= 0 && input.annualRate <= 1, 'taxa anual deve estar entre 0 e 100%');
   check(Number.isFinite(input.trMonthly) && input.trMonthly >= 0 && input.trMonthly <= 0.1, 'TR mensal deve estar entre 0 e 10%');
@@ -86,6 +90,8 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
         : modoPayment
           ? saldo / mesesRestantesFixos
           : (saldo + correcao) / (input.months - month + 1);
+      // Arredondamento que espelha a planilha de referência: no SAC, a
+      // amortização é arredondada para cima (2 casas) a partir do mês 2.
       if (month > 1) amortizacao = Math.ceil(amortizacao * 100) / 100;
       amortizacao = Math.min(amortizacao, saldo + correcao);
       parcela = amortizacao + juros + seguroMensal;

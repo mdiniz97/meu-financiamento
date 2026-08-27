@@ -4,14 +4,26 @@ import { db, schema } from '@/db';
 import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
-  const { name, email, password } = await req.json();
-  if (!email || !password || password.length < 6) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Corpo da requisição inválido' }, { status: 400 });
+  }
+  const { name, email, password } = (body ?? {}) as Record<string, unknown>;
+  if (typeof name !== 'string' || name.length === 0 || name.length > 100) {
+    return NextResponse.json({ error: 'Nome inválido' }, { status: 400 });
+  }
+  if (typeof email !== 'string' || email.length === 0 || !email.includes('@')) {
+    return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
+  }
+  if (typeof password !== 'string' || password.length < 6) {
     return NextResponse.json(
       { error: 'Email e senha (mín. 6 caracteres) são obrigatórios' },
       { status: 400 }
     );
   }
-  const normalized = (email as string).toLowerCase();
+  const normalized = email.toLowerCase();
   const exists = await db.query.users.findFirst({
     where: eq(schema.users.email, normalized),
   });

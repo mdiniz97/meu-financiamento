@@ -7,6 +7,7 @@ export interface Recommendation {
 }
 
 export function recommend(input: LoanInput, strategiesList: Strategies[]): Recommendation {
+  if (strategiesList.length === 0) throw new Error('strategiesList vazio');
   const scenarios = strategiesList.map((s) => simulate(input, s));
   scenarios.sort(
     (a, b) =>

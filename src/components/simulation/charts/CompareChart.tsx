@@ -26,7 +26,7 @@ export function CompareChart({
         <LineChart data={data}>
           <XAxis dataKey="month" tickFormatter={(m) => `m${m}`} />
           <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
-          <Tooltip formatter={(v) => formatBRL(Number(v))} />
+          <Tooltip formatter={(v) => (v == null ? '' : formatBRL(Number(v)))} />
           <Line type="monotone" dataKey="base" stroke="#9CA3AF" strokeWidth={2} dot={false} name="Sem estratégia" />
           <Line type="monotone" dataKey="withStrategy" stroke="#820AD1" strokeWidth={2} dot={false} name="Com estratégia" />
         </LineChart>

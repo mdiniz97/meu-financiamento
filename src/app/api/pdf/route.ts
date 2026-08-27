@@ -32,11 +32,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Parâmetro result inválido' }, { status: 400 });
     }
     validateLoanInput(raw.input, raw.strategies);
-    if (Array.isArray(raw.installments) && raw.installments.length > 0 && raw.metrics) {
-      result = raw as SimulationResult;
-    } else {
-      result = simulate(raw.input, raw.strategies ?? EMPTY);
-    }
+    // Nunca confia nas parcelas enviadas pelo cliente: re-simula no servidor
+    // (também cobre payloads compactos que só trazem input + strategies).
+    result = simulate(raw.input, raw.strategies ?? EMPTY);
   } catch {
     return NextResponse.json({ error: 'Parâmetro result inválido' }, { status: 400 });
   }

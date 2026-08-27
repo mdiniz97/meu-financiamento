@@ -20,14 +20,19 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const result = await signIn('credentials', { email, password, redirect: false });
-    setLoading(false);
-    if (result?.error) {
-      setError('Email ou senha incorretos');
-      return;
+    try {
+      const result = await signIn('credentials', { email, password, redirect: false });
+      if (result?.error) {
+        setError('Email ou senha incorretos');
+        return;
+      }
+      router.push('/nova-simulacao');
+      router.refresh();
+    } catch {
+      setError('Não foi possível entrar. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
-    router.push('/nova-simulacao');
-    router.refresh();
   }
 
   return (

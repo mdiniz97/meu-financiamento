@@ -28,13 +28,3 @@ export async function addCredits(
     .insert(schema.creditLedger)
     .values({ userId, amount, kind, description });
 }
-
-export async function spendCredit(userId: string, description: string) {
-  const { credits, isUnlimited } = await getCreditBalance(userId);
-  if (isUnlimited) return true;
-  if (credits < 1) return false;
-  await db
-    .insert(schema.creditLedger)
-    .values({ userId, amount: -1, kind: 'spend', description });
-  return true;
-}

@@ -41,6 +41,19 @@ export async function GET(req: Request) {
   return processPayment(result);
 }
 
+function isUniqueViolation(e: unknown): boolean {
+  // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
+  let err = e as { code?: unknown; cause?: unknown } | null;
+  while (err && typeof err.code === 'undefined' && err.cause) {
+    err = err.cause as { code?: unknown; cause?: unknown } | null;
+  }
+  return err?.code === '23505';
+}
+
+function idempotent() {
+  return NextResponse.json({ ok: true, idempotent: true });
+}
+
 async function processPayment(result: {
   userId: string;
   packId: string;
@@ -58,7 +71,7 @@ async function processPayment(result: {
       where: eq(schema.subscriptions.providerId, result.providerId),
     });
     if (alreadyProcessed) {
-      return NextResponse.json({ ok: true, idempotent: true });
+      return idempotent();
     }
     const providerName = process.env.PAYMENT_PROVIDER ?? 'fake';
     const periodEnd = new Date(
@@ -71,24 +84,30 @@ async function processPayment(result: {
         eq(schema.subscriptions.provider, providerName)
       ),
     });
-    if (current) {
-      await db
-        .update(schema.subscriptions)
-        .set({
+    try {
+      if (current) {
+        await db
+          .update(schema.subscriptions)
+          .set({
+            providerId: result.providerId,
+            status: 'active',
+            currentPeriodEnd: periodEnd,
+          })
+          .where(eq(schema.subscriptions.id, current.id));
+      } else {
+        await db.insert(schema.subscriptions).values({
+          userId: result.userId,
+          packId: result.packId,
+          provider: providerName,
           providerId: result.providerId,
           status: 'active',
           currentPeriodEnd: periodEnd,
-        })
-        .where(eq(schema.subscriptions.id, current.id));
-    } else {
-      await db.insert(schema.subscriptions).values({
-        userId: result.userId,
-        packId: result.packId,
-        provider: providerName,
-        providerId: result.providerId,
-        status: 'active',
-        currentPeriodEnd: periodEnd,
-      });
+        });
+      }
+    } catch (e) {
+      // Corrida de webhooks: outro request já inseriu a mesma assinatura.
+      if (isUniqueViolation(e)) return idempotent();
+      throw e;
     }
     return NextResponse.json({ ok: true });
   }
@@ -103,9 +122,15 @@ async function processPayment(result: {
       ),
     });
     if (alreadyProcessed) {
-      return NextResponse.json({ ok: true, idempotent: true });
+      return idempotent();
     }
-    await addCredits(result.userId, pack.credits, LEDGER_KIND, description);
+    try {
+      await addCredits(result.userId, pack.credits, LEDGER_KIND, description);
+    } catch (e) {
+      // Corrida de webhooks: outro request já concedeu os créditos.
+      if (isUniqueViolation(e)) return idempotent();
+      throw e;
+    }
   }
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
-import { pgTable, text, integer, uuid, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -17,30 +18,50 @@ export const packs = pgTable('packs', {
   isSubscription: boolean('is_subscription').notNull().default(false),
 });
 
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  packId: text('pack_id')
-    .notNull()
-    .references(() => packs.id),
-  provider: text('provider').notNull(),
-  providerId: text('provider_id'),
-  status: text('status').notNull(),
-  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
-});
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    packId: text('pack_id')
+      .notNull()
+      .references(() => packs.id),
+    provider: text('provider').notNull(),
+    providerId: text('provider_id'),
+    status: text('status').notNull(),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('subscriptions_provider_id_unique')
+      .on(table.providerId)
+      .where(sql`${table.providerId} IS NOT NULL`),
+  ]
+);
 
-export const creditLedger = pgTable('credit_ledger', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  amount: integer('amount').notNull(),
-  kind: text('kind').notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export const creditLedger = pgTable(
+  'credit_ledger',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    kind: text('kind').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    // Idempotência de compras: cada providerId gera description única, então
+    // re-compras legítimas não colidem. Bonus ('Bônus de boas-vindas', kind
+    // 'bonus') e gastos (kind 'spend', descrições repetidas entre saves) ficam
+    // fora do índice por causa do WHERE kind = 'purchase'.
+    uniqueIndex('credit_ledger_user_kind_description_unique')
+      .on(table.userId, table.kind, table.description)
+      .where(sql`${table.kind} = 'purchase'`),
+  ]
+);
 
 export const simulations = pgTable('simulations', {
   id: uuid('id').primaryKey().defaultRandom(),

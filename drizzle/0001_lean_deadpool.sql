@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "credit_ledger_user_kind_description_unique" ON "credit_ledger" USING btree ("user_id","kind","description") WHERE "credit_ledger"."kind" = 'purchase';--> statement-breakpoint
+CREATE UNIQUE INDEX "subscriptions_provider_id_unique" ON "subscriptions" USING btree ("provider_id") WHERE "subscriptions"."provider_id" IS NOT NULL;
