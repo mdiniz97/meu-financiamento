@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Info, Plus, Trash2 } from 'lucide-react';
 import { BANKS, DEFAULT_FORM, type FormState } from '@/lib/simulation-context';
 import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function WizardForm() {
   const router = useRouter();
@@ -296,7 +297,20 @@ export function WizardForm() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Com a estratégia, prefere</Label>
+                <Label className="flex items-center gap-1.5">
+                  Com a estratégia, prefere
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-64 text-xs">
+                        <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — você paga menos por mês até o fim.</p>
+                        <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma — o financiamento termina antes e você paga menos juros.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
                 <RadioGroup
                   value={form.reduceMode}
                   onValueChange={(mode) => set('reduceMode', mode as FormState['reduceMode'])}
