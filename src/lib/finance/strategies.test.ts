@@ -99,6 +99,22 @@ describe('regressão: SAC payment mode com aporte recorrente não estica a dívi
   });
 });
 
+describe('regressão: SAC reduzir prazo encurta o prazo de verdade', () => {
+  const inputSac: LoanInput = { ...input, system: 'SAC', principal: 1000000, months: 360 };
+  it('com % extra mensal, term quita antes de 360', () => {
+    const r = simulate(inputSac, { extraLumpSum: [], extraMonthlyPct: 0.14, reduceMode: 'term' });
+    expect(r.metrics.saldoZeroAt).toBeLessThan(360);
+  });
+  it('com lump sum no mês 12, term quita antes de 360', () => {
+    const r = simulate(inputSac, { extraLumpSum: [{ month: 12, amount: 100000 }], reduceMode: 'term' });
+    expect(r.metrics.saldoZeroAt).toBeLessThan(360);
+  });
+  it('sem estratégias, term segue o cronograma (360)', () => {
+    const r = simulate(inputSac, { extraLumpSum: [], reduceMode: 'term' });
+    expect(r.metrics.saldoZeroAt).toBe(360);
+  });
+});
+
 describe('aporte recorrente', () => {
   it('aplica aporte a cada X meses começando no mês Y', () => {
     const r = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 12, startMonth: 6 } });

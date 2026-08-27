@@ -79,6 +79,20 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   // taxa efetiva que cobre juros + correção monetária (TR) — usada no modo
   // "reduzir parcela" para que a parcela reduzida continue amortizando o saldo
   const mEff = (1 + m) * (1 + input.trMonthly) - 1;
+  // cronograma base de amortização SAC (sem estratégias) — usado no modo
+  // "reduzir prazo": a amortização contratual mantida encurta o prazo quando
+  // há aportes (senão a amortização se redetermina e o prazo fica fixo)
+  const baseSacAmort: number[] = [];
+  if (input.system === 'SAC') {
+    let bs = input.principal;
+    for (let t = 1; t <= input.months; t++) {
+      const corr = bs * input.trMonthly;
+      let a = t === 1 ? input.principal / input.months : (bs + corr) / (input.months - t + 1);
+      if (t > 1) a = Math.ceil(a * 100) / 100;
+      baseSacAmort.push(Math.min(a, bs + corr));
+      bs = Math.max(0, bs - a + corr);
+    }
+  }
 
   for (let month = 1; month <= input.months + 360; month++) {
     if (saldo <= 1e-9) break;
@@ -98,11 +112,13 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       }
       amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
     } else {
-      amortizacao = month === 1
-        ? input.principal / input.months
-        : modoPayment
-          ? amortizacaoFixada
-          : (saldo + correcao) / (input.months - month + 1);
+      // modo termo: mantém a amortização do cronograma contratual — aportes
+      // encurtam o prazo; modo payment: amortização fixa que cobre a TR
+      amortizacao = modoPayment
+        ? amortizacaoFixada
+        : month === 1
+          ? input.principal / input.months
+          : baseSacAmort[month - 1];
       // Arredondamento que espelha a planilha de referência: no SAC, a
       // amortização é arredondada para cima (2 casas) a partir do mês 2.
       if (month > 1) amortizacao = Math.ceil(amortizacao * 100) / 100;

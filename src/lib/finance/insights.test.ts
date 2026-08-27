@@ -82,7 +82,7 @@ describe('sacVsPrice', () => {
     const c = sacVsPrice(sacBase);
     expect(c.parcela1Sac).toBeCloseTo(11232.93, 2);
     expect(c.parcela1Price).toBeCloseTo(8895.07, 2);
-    expect(c.ultimaParcelaSac).toBeCloseTo(5262.58, 2);
+    expect(c.ultimaParcelaSac).toBeCloseTo(5262.29, 2);
     expect(c.crossingMonth).toBe(102);
     expect(c.economiaVsPrice).toBeCloseTo(1182181, 0);
     expect(c.dividaCai12mSac).toBeCloseTo(13423, 0);
