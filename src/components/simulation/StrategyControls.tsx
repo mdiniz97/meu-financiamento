@@ -134,8 +134,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
   const parcelaAtual = recurringParcela(current);
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-    <Card className="rounded-2xl bg-white shadow-sm">
+    <div className="grid items-start gap-4 lg:grid-cols-4">
+    <Card className="rounded-2xl bg-white shadow-sm lg:col-span-3">
       <CardHeader>
         <CardTitle className="text-lg">Estratégias</CardTitle>
         <CardDescription>
@@ -418,7 +418,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
       </CardContent>
     </Card>
 
-    <Card className="rounded-2xl bg-white shadow-sm">
+    <Card className="rounded-2xl bg-white shadow-sm lg:col-span-1">
       <CardHeader>
         <CardTitle className="text-lg">Resultado</CardTitle>
       </CardHeader>

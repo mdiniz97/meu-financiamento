@@ -296,7 +296,6 @@ export function SimulationSandbox({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Estratégias</h2>
         <StrategyControls
           input={input}
           strategies={strategies}
