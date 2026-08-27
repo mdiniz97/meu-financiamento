@@ -50,8 +50,14 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   if (s.extraMonthlyPct !== undefined) {
     check(Number.isFinite(s.extraMonthlyPct) && s.extraMonthlyPct >= 0 && s.extraMonthlyPct <= 1, 'percentual extra deve estar entre 0 e 100%');
   }
+  if (s.extraMonthlyPctStartMonth !== undefined) {
+    check(Number.isInteger(s.extraMonthlyPctStartMonth) && s.extraMonthlyPctStartMonth >= 1, 'mês inicial do percentual extra inválido');
+  }
   if (s.extraMonthlyPctUntilMonth !== undefined) {
     check(Number.isInteger(s.extraMonthlyPctUntilMonth) && s.extraMonthlyPctUntilMonth >= 1, 'mês final do percentual extra inválido');
+  }
+  if (s.extraMonthlyPctGrowthYearly !== undefined) {
+    check(Number.isFinite(s.extraMonthlyPctGrowthYearly) && s.extraMonthlyPctGrowthYearly >= 0, 'escalada do percentual extra inválida');
   }
   if (s.fgtsAnnual !== undefined) {
     check(Number.isFinite(s.fgtsAnnual.amount) && s.fgtsAnnual.amount >= 0, 'FGTS anual não pode ser negativo');
@@ -80,6 +86,9 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   }
   if (s.fixedPayment !== undefined) {
     check(Number.isFinite(s.fixedPayment.amount) && s.fixedPayment.amount > 0, 'valor do pagamento fixo inválido');
+    if (s.fixedPayment.startMonth !== undefined) {
+      check(Number.isInteger(s.fixedPayment.startMonth) && s.fixedPayment.startMonth >= 1, 'mês inicial do pagamento fixo inválido');
+    }
     if (s.fixedPayment.untilMonth !== undefined) {
       check(Number.isInteger(s.fixedPayment.untilMonth) && s.fixedPayment.untilMonth >= 1, 'mês final do pagamento fixo inválido');
     }
@@ -187,11 +196,18 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     }
 
     let extra = 0;
-    const pctExtra =
-      (strategies.extraMonthlyPct ?? 0) > 0 &&
-      (!strategies.extraMonthlyPctUntilMonth || month <= strategies.extraMonthlyPctUntilMonth)
-        ? parcela * (strategies.extraMonthlyPct ?? 0)
-        : 0;
+    const pctBase = strategies.extraMonthlyPct ?? 0;
+    const pctStart = strategies.extraMonthlyPctStartMonth ?? 1;
+    const pctAtivo =
+      pctBase > 0 &&
+      month >= pctStart &&
+      (!strategies.extraMonthlyPctUntilMonth || month <= strategies.extraMonthlyPctUntilMonth);
+    // escalada: o percentual cresce todo ano a partir do mês de início
+    const pctEfetivo =
+      pctAtivo && (strategies.extraMonthlyPctGrowthYearly ?? 0) > 0
+        ? pctBase * Math.pow(1 + (strategies.extraMonthlyPctGrowthYearly ?? 0), Math.floor((month - pctStart) / 12))
+        : pctBase;
+    const pctExtra = pctAtivo ? parcela * pctEfetivo : 0;
     if (pctExtra > 0) extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
     const lump = strategies.extraLumpSum.find((e) => e.month === month)?.amount ?? 0;
     if (lump > 0) extra += Math.min(lump, Math.max(saldo - amortizacao - extra, 0));
@@ -202,7 +218,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0 && (!rec.untilMonth || month <= rec.untilMonth))
       extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
     const fp = strategies.fixedPayment;
-    if (fp && (!fp.untilMonth || month <= fp.untilMonth)) {
+    if (fp && month >= (fp.startMonth ?? 1) && (!fp.untilMonth || month <= fp.untilMonth)) {
       // pagamento fixo: parcela + aporte = exatamente `amount` (ou a parcela,
       // se a parcela já ultrapassar o valor fixo)
       const extraFixo = Math.max(0, fp.amount - parcela);

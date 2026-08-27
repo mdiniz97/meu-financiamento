@@ -32,7 +32,7 @@ const minimoQueAbate = (input: LoanInput) => {
     : pmt(input.trMonthly, input.months, input.principal) + input.principal * m + input.insuranceMonthly;
 };
 
-const MesAte = ({ value, onValid, id, label }: { value?: number; onValid: (v: number) => void; id: string; label: string }) => (
+const MesCampo = ({ value, onValid, id, label }: { value?: number; onValid: (v: number) => void; id: string; label: string }) => (
   <div className="flex w-32 flex-col gap-1.5">
     <Label className="text-xs text-muted-foreground" htmlFor={id}>
       {label}
@@ -123,7 +123,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
 
         <Separator />
 
-        <section className="flex flex-col gap-3">
+                <section className="flex flex-col gap-3">
           <h3 className="text-sm font-medium">Aporte mensal</h3>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="extraMonthlyPct">% extra mensal ({pctExtra}%)</Label>
@@ -144,7 +144,15 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 onValid={(v) => onChange({ ...strategies, extraMonthlyPct: Math.min(100, Math.max(0, v)) / 100 })}
               />
               <span className="text-sm text-muted-foreground">%</span>
-              <MesAte
+              <MesCampo
+                id="pctStart"
+                label="do mês"
+                value={strategies.extraMonthlyPctStartMonth}
+                onValid={(v) =>
+                  onChange({ ...strategies, extraMonthlyPctStartMonth: v > 0 ? v : undefined })
+                }
+              />
+              <MesCampo
                 id="pctUntil"
                 label="até o mês (opcional)"
                 value={strategies.extraMonthlyPctUntilMonth}
@@ -152,6 +160,27 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   onChange({ ...strategies, extraMonthlyPctUntilMonth: v > 0 ? v : undefined })
                 }
               />
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="flex w-40 flex-col gap-1.5">
+                <Label htmlFor="pctGrowth">Escalada: crescer (% ao ano, opcional)</Label>
+                <NumericInput
+                  id="pctGrowth"
+                  value={strategies.extraMonthlyPctGrowthYearly !== undefined ? strategies.extraMonthlyPctGrowthYearly * 100 : undefined}
+                  parse={parseDecimal}
+                  onValid={(v) =>
+                    onChange({
+                      ...strategies,
+                      extraMonthlyPctGrowthYearly: v > 0 ? v / 100 : undefined,
+                    })
+                  }
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {strategies.extraMonthlyPctGrowthYearly
+                  ? `O percentual sobe ${(strategies.extraMonthlyPctGrowthYearly * 100).toFixed(1)}% ao ano.`
+                  : 'Aumenta o percentual todo ano (ex: 5% vira 6%, 7%...).'}
+              </p>
             </div>
           </div>
           <div className="flex items-end gap-2">
@@ -167,6 +196,9 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                       v > 0
                         ? {
                             amount: v,
+                            ...(strategies.fixedPayment?.startMonth
+                              ? { startMonth: strategies.fixedPayment.startMonth }
+                              : {}),
                             ...(strategies.fixedPayment?.untilMonth
                               ? { untilMonth: strategies.fixedPayment.untilMonth }
                               : {}),
@@ -176,15 +208,35 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 }
               />
             </div>
-            <MesAte
+            <MesCampo
+              id="fixedPaymentStart"
+              label="do mês"
+              value={strategies.fixedPayment?.startMonth}
+              onValid={(v) =>
+                onChange({
+                  ...strategies,
+                  fixedPayment: {
+                    amount: strategies.fixedPayment?.amount ?? 0,
+                    ...(v > 0 ? { startMonth: v } : {}),
+                    ...(strategies.fixedPayment?.untilMonth
+                      ? { untilMonth: strategies.fixedPayment.untilMonth }
+                      : {}),
+                  },
+                })
+              }
+            />
+            <MesCampo
               id="fixedPaymentUntil"
-              label="só até o mês (opcional)"
+              label="até o mês (opcional)"
               value={strategies.fixedPayment?.untilMonth}
               onValid={(v) =>
                 onChange({
                   ...strategies,
                   fixedPayment: {
                     amount: strategies.fixedPayment?.amount ?? 0,
+                    ...(strategies.fixedPayment?.startMonth
+                      ? { startMonth: strategies.fixedPayment.startMonth }
+                      : {}),
                     ...(v > 0 ? { untilMonth: v } : {}),
                   },
                 })
@@ -196,7 +248,6 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             total escolhido. Use um ou outro (ou os dois).
           </p>
         </section>
-
         <Separator />
 
         <section className="flex flex-col gap-3">
@@ -272,7 +323,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 }
               />
             </div>
-            <MesAte
+            <MesCampo
               id="recUntil"
               label="até o mês (opcional)"
               value={strategies.recurringExtra?.untilMonth}
@@ -315,7 +366,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 }
               />
             </div>
-            <MesAte
+            <MesCampo
               id="fgtsStart"
               label="começando no mês"
               value={strategies.fgtsAnnual?.startMonth}
@@ -332,7 +383,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 })
               }
             />
-            <MesAte
+            <MesCampo
               id="fgtsUntil"
               label="até o mês (opcional)"
               value={strategies.fgtsAnnual?.untilMonth}

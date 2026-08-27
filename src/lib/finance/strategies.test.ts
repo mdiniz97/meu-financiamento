@@ -141,11 +141,24 @@ describe('aporte recorrente', () => {
 });
 
 describe('períodos dos aportes', () => {
-  it('% extra até o mês X: depois volta ao normal', () => {
-    const r = simulate(input, { ...base, extraMonthlyPct: 0.05, extraMonthlyPctUntilMonth: 12 });
-    expect(r.installments[0].extra).toBeGreaterThan(0);
-    expect(r.installments[11].extra).toBeGreaterThan(0);
-    expect(r.installments[12].extra).toBe(0);
+  it('% extra do mês X até o mês Y', () => {
+    const r = simulate(input, { ...base, extraMonthlyPct: 0.05, extraMonthlyPctStartMonth: 6, extraMonthlyPctUntilMonth: 12 });
+    expect(r.installments[0].extra).toBe(0); // antes do início
+    expect(r.installments[5].extra).toBeGreaterThan(0); // mês 6
+    expect(r.installments[11].extra).toBeGreaterThan(0); // mês 12
+    expect(r.installments[12].extra).toBe(0); // depois do fim
+  });
+  it('% extra escalado: cresce todo ano a partir do início', () => {
+    const r = simulate(input, { ...base, extraMonthlyPct: 0.05, extraMonthlyPctGrowthYearly: 0.02 });
+    const pctDoMes = (inst: (typeof r.installments)[0]) => inst.extra / (inst.parcela - inst.extra);
+    expect(pctDoMes(r.installments[0])).toBeCloseTo(0.05, 3);
+    expect(pctDoMes(r.installments[12])).toBeCloseTo(0.05 * 1.02, 3);
+    expect(pctDoMes(r.installments[24])).toBeCloseTo(0.05 * 1.02 * 1.02, 3);
+  });
+  it('pagamento fixo começa no mês X', () => {
+    const r = simulate(input, { ...base, fixedPayment: { amount: 20000, startMonth: 24 } });
+    expect(r.installments[0].extra).toBe(0);
+    expect(r.installments[23].extra).toBeGreaterThan(0);
   });
   it('aporte recorrente com fim: para de aportar após o mês Y', () => {
     const r = simulate(input, { ...base, recurringExtra: { amount: 10000, every: 6, startMonth: 6, untilMonth: 18 } });
