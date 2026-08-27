@@ -258,6 +258,7 @@ export function SmartResultCard({ rec, fields }: Props) {
                   quita={t.result.metrics.saldoZeroAt}
                   total={t.result.metrics.totalPago}
                   diff={t.result.metrics.totalPago - b.result.metrics.totalPago}
+                  onOpen={() => abrirCenario(t)}
                 />
               );
             })}
