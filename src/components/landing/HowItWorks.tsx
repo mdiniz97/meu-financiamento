@@ -1,4 +1,5 @@
 import { CalculatorIcon, LightbulbIcon, SparklesIcon, TargetIcon } from "lucide-react";
+import { Reveal } from "@/components/landing/motion-primitives";
 
 const steps = [
   {
@@ -34,18 +35,20 @@ const steps = [
 export function HowItWorks() {
   return (
     <section className="mx-auto w-full max-w-6xl border-b border-border px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Como funciona
-        </h2>
-        <p className="mt-3 text-lg text-muted-foreground">
-          Do valor do imóvel à melhor estratégia de pagamento em três passos
-          simples.
-        </p>
-      </div>
+      <Reveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Como funciona
+          </h2>
+          <p className="mt-3 text-lg text-muted-foreground">
+            Do valor do imóvel à melhor estratégia de pagamento em três passos
+            simples.
+          </p>
+        </div>
+      </Reveal>
       <div className="mt-12 grid divide-y divide-border border border-border md:grid-cols-2 md:divide-x md:divide-y-0 lg:grid-cols-4">
-        {steps.map(({ icon: Icon, step, title, description }) => (
-          <div key={step} className="flex flex-col gap-4 p-6">
+        {steps.map(({ icon: Icon, step, title, description }, i) => (
+          <Reveal key={step} delay={i * 0.1} hover className="flex flex-col gap-4 p-6">
             <div className="flex items-center justify-between">
               <Icon className="size-5 text-primary" />
               <span className="font-mono text-sm font-semibold text-muted-foreground">
@@ -56,7 +59,7 @@ export function HowItWorks() {
             <p className="text-sm leading-relaxed text-muted-foreground">
               {description}
             </p>
-          </div>
+          </Reveal>
         ))}
       </div>
     </section>
