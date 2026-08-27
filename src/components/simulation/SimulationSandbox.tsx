@@ -233,7 +233,7 @@ export function SimulationSandbox({
       <RecommendationCard base={base} best={recommendation?.best ?? base} />
 
       {compareSystems && systemCompare && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div id="comparacao-sistemas" className="grid gap-3 sm:grid-cols-2">
           {(['PRICE', 'SAC'] as AmortSystem[]).map((system) => {
             const res = systemCompare[system];
             const isPrimary = primarySystem === system;
@@ -280,6 +280,11 @@ export function SimulationSandbox({
         onCompareWithPrice={() => {
           setCompareSystems(true);
           setActiveSystem('SAC');
+          // a comparação aparece no topo da página — rola até ela pra o clique
+          // ter feedback visual
+          setTimeout(() => {
+            document.getElementById('comparacao-sistemas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 50);
         }}
       />
 
