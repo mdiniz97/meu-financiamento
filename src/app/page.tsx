@@ -1,5 +1,6 @@
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
+import { TrustRow } from "@/components/landing/TrustRow";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { SystemsExplain } from "@/components/landing/SystemsExplain";
 import { PricingPreview } from "@/components/landing/PricingPreview";
@@ -13,6 +14,7 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
+        <TrustRow />
         <HowItWorks />
         <SystemsExplain />
         <PricingPreview />
