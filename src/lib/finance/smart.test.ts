@@ -44,12 +44,13 @@ describe('recommendSmart', () => {
     expect(r.comparison.every((c) => c.feasible)).toBe(true);
     expect(r.comparison.every((c) => c.candidate)).toBeTruthy();
   });
-  it('maxTerm mostra o melhor sistema já no prazo máximo', () => {
+  it('maxTerms mostra ambos os sistemas viáveis no prazo máximo', () => {
     const r = recommendSmart({ ...base, maxPayment: 11000 });
-    expect(r.maxTerm).not.toBeNull();
-    expect(r.maxTerm!.system).toBe(r.best!.system);
-    expect(r.maxTerm!.months).toBe(360);
-    expect(r.maxTerm!.result.metrics.totalPago).toBeGreaterThanOrEqual(r.best!.result.metrics.totalPago);
+    expect(r.maxTerms.length).toBeGreaterThan(0);
+    for (const t of r.maxTerms) {
+      expect(t.months).toBe(360);
+      expect(t.result.metrics.totalPago).toBeGreaterThanOrEqual(r.best!.result.metrics.totalPago);
+    }
   });
   it('aporte limitado a +100% da parcela (orçamento absurdamente alto)', () => {
     const r = recommendSmart({ ...base, maxPayment: 100000 });

@@ -48,6 +48,59 @@ function ComparativoTable({ rec }: { rec: SmartRecommendation }) {
   );
 }
 
+function ScenarioMiniCard({
+  title,
+  subtitle,
+  parcela,
+  aporte,
+  quita,
+  total,
+  diff,
+  highlight,
+}: {
+  title: string;
+  subtitle: string;
+  parcela: number;
+  aporte: number;
+  quita: number;
+  total: number;
+  diff?: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-1 rounded-2xl p-3 text-xs ${
+        highlight ? 'bg-primary/5 ring-2 ring-[#820AD1]' : 'bg-muted/50'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className={`font-semibold ${highlight ? 'text-[#820AD1]' : ''}`}>{title}</span>
+        {highlight && (
+          <Badge variant="secondary" className="text-[10px]">
+            Melhor
+          </Badge>
+        )}
+      </div>
+      <span className="text-muted-foreground">{subtitle}</span>
+      <span className="mt-1 text-base font-semibold">
+        {formatBRL(parcela)}
+        {aporte > 0 && (
+          <span className="text-xs font-normal text-muted-foreground"> + aporte {formatBRL(aporte)}</span>
+        )}
+      </span>
+      <span>
+        Quita em <strong>{quita} meses</strong> ({(quita / 12).toFixed(1)} anos)
+      </span>
+      <span>
+        Total <strong>{formatBRL(total)}</strong>
+      </span>
+      {diff !== undefined && diff > 0 && (
+        <span className="text-destructive">R$ {formatBRL(diff)} a mais que o recomendado</span>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   rec: SmartRecommendation;
   fields: SmartCalcFields;
@@ -150,18 +203,37 @@ export function SmartResultCard({ rec, fields }: Props) {
 
         <ComparativoTable rec={rec} />
 
-        {rec.maxTerm && rec.maxTerm !== b && (
-          <p className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-            Entrar já no prazo máximo ({rec.maxTerm.months} meses) com o mesmo orçamento: parcela{' '}
-            {formatBRL(rec.maxTerm.parcela)} + aporte {formatBRL(rec.maxTerm.extraMonthlyAmount)}, total{' '}
-            {formatBRL(rec.maxTerm.result.metrics.totalPago)} —{' '}
-            <span className="text-destructive">
-              {formatBRL(rec.maxTerm.result.metrics.totalPago - b.result.metrics.totalPago)} a mais
-            </span>{' '}
-            que o prazo recomendado (mais parcelas de seguro e juros). O prazo máximo só vale a pena
-            pela parcela mínima menor — se você nem sempre consegue aportar.
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium">E se eu entrar direto no prazo máximo?</p>
+          <p className="text-xs text-muted-foreground">
+            Entrar no prazo máximo paga <strong>mais no total</strong> (mais parcelas de seguro e
+            juros), mas a parcela mínima é menor — útil se você nem sempre consegue aportar o valor
+            cheio.
           </p>
-        )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ScenarioMiniCard
+              title={`${b.system} · ${b.months} meses`}
+              subtitle="Melhor prazo para o seu orçamento"
+              parcela={b.parcela}
+              aporte={b.extraMonthlyAmount}
+              quita={b.result.metrics.saldoZeroAt}
+              total={b.result.metrics.totalPago}
+              highlight
+            />
+            {rec.maxTerms.map((t) => (
+              <ScenarioMiniCard
+                key={t.system}
+                title={`${t.system} · ${t.months} meses`}
+                subtitle="Entrando já no prazo máximo"
+                parcela={t.parcela}
+                aporte={t.extraMonthlyAmount}
+                quita={t.result.metrics.saldoZeroAt}
+                total={t.result.metrics.totalPago}
+                diff={t.result.metrics.totalPago - b.result.metrics.totalPago}
+              />
+            ))}
+          </div>
+        </div>
 
         <div>
           <Button type="button" onClick={abrirNoSandbox}>

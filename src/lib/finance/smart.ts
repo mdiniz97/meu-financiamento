@@ -44,8 +44,8 @@ export interface SmartRecommendation {
   alternatives: SmartCandidate[];
   /** PRICE e SAC sempre presentes, viáveis ou não */
   comparison: SystemComparison[];
-  /** melhor sistema entrando já no prazo máximo (para comparar com o recomendado) */
-  maxTerm: SmartCandidate | null;
+  /** PRICE e SAC entrando já no prazo máximo (viáveis), para comparar com o recomendado */
+  maxTerms: SmartCandidate[];
   infeasible: boolean;
   /** menor orçamento viável no prazo máximo */
   minBudget: number;
@@ -164,13 +164,15 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     candidate: candidates.find((c) => c.system === system),
   }));
   const best = candidates[0] ?? null;
-  const maxTerm = best ? simulateCandidate(best.system, maxMonths, i, m) : null;
+  const maxTerms: SmartCandidate[] = (['PRICE', 'SAC'] as AmortSystem[])
+    .filter((system) => minN[system] !== null)
+    .map((system) => simulateCandidate(system, maxMonths, i, m));
 
   return {
     best,
     alternatives: candidates,
     comparison,
-    maxTerm,
+    maxTerms,
     infeasible: candidates.length === 0,
     minBudget,
   };
