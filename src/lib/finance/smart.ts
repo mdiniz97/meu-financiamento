@@ -217,12 +217,14 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     payment: candidates.find((c) => c.result.strategies.reduceMode === 'payment') ?? null,
   };
   // quando o modo payment é inviável, mostra a parcela mínima que abate
-  const paymentMinParcela =
-    modes.payment === null && best
-      ? best.system === 'PRICE'
+  let paymentMinParcela: number | null = null;
+  if (modes.payment === null && best) {
+    const minimo =
+      best.system === 'PRICE'
         ? pmt((1 + m) * (1 + i.trMonthly) - 1, maxMonths, i.principal) + i.insuranceMonthly
-        : pmt(i.trMonthly, maxMonths, i.principal) + i.principal * m + i.insuranceMonthly
-      : null;
+        : pmt(i.trMonthly, maxMonths, i.principal) + i.principal * m + i.insuranceMonthly;
+    paymentMinParcela = Number.isFinite(minimo) ? minimo : null;
+  }
   const maxTerms: SmartCandidate[] = (['PRICE', 'SAC'] as AmortSystem[])
     .filter((system) => minN[system] !== null)
     .map((system) => simulateCandidate(system, maxMonths, i, m, bestMode));
