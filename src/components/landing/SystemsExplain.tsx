@@ -80,7 +80,7 @@ export function SystemsExplain() {
 
           <div className="flex flex-col gap-4 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E]">
+              <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E] dark:border-amber-400 dark:text-amber-400">
                 Atenção nos primeiros anos
               </span>
               <span className="text-xs font-medium text-muted-foreground">
@@ -95,7 +95,7 @@ export function SystemsExplain() {
             <ul className="mt-2 flex flex-col gap-3">
               {pricePoints.map((point) => (
                 <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E]" />
+                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
                   {point}
                 </li>
               ))}

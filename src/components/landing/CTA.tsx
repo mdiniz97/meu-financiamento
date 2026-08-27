@@ -8,8 +8,8 @@ export function CTA() {
     <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6">
       <div className="border border-foreground bg-foreground px-6 py-16 text-center text-background sm:px-12">
         <div className="mx-auto max-w-2xl">
-          <span className="font-mono text-xs font-medium uppercase tracking-widest text-background/70">
-            2 créditos de boas-vindas · sem cartão de crédito
+          <span className="text-xs font-medium uppercase tracking-widest text-background/70">
+            <span className="font-mono">2</span> créditos de boas-vindas · sem cartão de crédito
           </span>
           <h2 className="mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
             Pronto para enxergar o que está por trás das parcelas?
