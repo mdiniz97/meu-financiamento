@@ -71,7 +71,7 @@ function ScenarioMiniCard({
 }) {
   return (
     <div
-      className={`flex flex-col gap-1 rounded-2xl p-3 text-xs ${
+      className={`flex h-full flex-col gap-1 rounded-2xl p-3 text-xs ${
         highlight ? 'bg-primary/5 ring-2 ring-[#820AD1]' : 'bg-muted/50'
       }`}
     >
@@ -103,7 +103,7 @@ function ScenarioMiniCard({
         <button
           type="button"
           onClick={onOpen}
-          className="mt-1 flex items-center gap-1 self-end text-xs font-medium text-[#820AD1] hover:underline"
+          className="mt-auto flex items-center gap-1 self-end pt-2 text-xs font-medium text-[#820AD1] hover:underline"
         >
           Abrir no simulador <ArrowRight className="size-3" />
         </button>
