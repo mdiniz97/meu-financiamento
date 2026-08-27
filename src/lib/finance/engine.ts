@@ -256,6 +256,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     dividaCai3a: input.principal - (installments[Math.min(35, installments.length - 1)]?.saldo ?? 0),
     saldoZeroAt: installments.length,
     parcelaPagaDividaPct: installments[0].amortizacao / input.principal,
+    paymentApplied: modoPayment,
   };
 
   return { system: input.system, input, strategies, installments, metrics };

@@ -287,6 +287,14 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 Reduzir prazo
               </Label>
             </RadioGroup>
+            {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
+              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                Com esse aporte, a parcela não pode ser reduzida: o valor mínimo que ainda abate a
+                dívida é maior que a sua parcela atual. Por isso os dois modos dão o mesmo
+                resultado. Aumente o aporte (ou use aportes pontuais maiores) para o modo
+                &quot;reduzir parcela&quot; fazer efeito.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">

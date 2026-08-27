@@ -32,6 +32,8 @@ export interface SimulationMetrics {
   totalAmortizacao: number; totalCorrecao: number; totalSeguro: number;
   dividaAlemDaDivida: number; dividaCai12m: number; dividaCai3a: number;
   saldoZeroAt: number; parcelaPagaDividaPct: number;
+  /** true quando o modo "reduzir parcela" conseguiu reduzir a parcela de fato */
+  paymentApplied: boolean;
 }
 export interface SimulationResult {
   system: AmortSystem; input: LoanInput; strategies: Strategies;
