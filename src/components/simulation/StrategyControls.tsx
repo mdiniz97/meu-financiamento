@@ -28,6 +28,16 @@ interface Props {
 
 type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual';
 
+const TIPO_LABELS: Record<AporteTipo, string> = {
+  pontual: 'Pontual',
+  mensal: 'Mensal (total fixo)',
+  pct: '% extra mensal',
+  recorrente: 'Recorrente',
+  anual: 'Anual (FGTS)',
+};
+
+const MODO_LABELS = { auto: 'Automático', term: 'Reduzir prazo', payment: 'Reduzir parcela' };
+
 interface AporteRow {
   id: number;
   tipo: AporteTipo;
@@ -255,7 +265,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   }
                 >
                   <SelectTrigger className="w-full" size="sm">
-                    <SelectValue />
+                    <SelectValue>{TIPO_LABELS[r.tipo]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pontual">Pontual</SelectItem>
@@ -358,7 +368,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                     }
                   >
                     <SelectTrigger className="w-full" size="sm">
-                      <SelectValue />
+                      <SelectValue>{MODO_LABELS[r.mode ?? 'auto']}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="auto">Automático</SelectItem>
