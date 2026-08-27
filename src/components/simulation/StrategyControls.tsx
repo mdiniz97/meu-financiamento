@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { recurringParcela } from '@/lib/finance/insights';
@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -23,14 +22,6 @@ interface Props {
   base: SimulationResult;
   current: SimulationResult;
 }
-
-const minimoQueAbate = (input: LoanInput) => {
-  const m = convertAnnualToMonthly(input.annualRate);
-  const mEff = (1 + m) * (1 + input.trMonthly) - 1;
-  return input.system === 'PRICE'
-    ? pmt(mEff, input.months, input.principal) + input.insuranceMonthly
-    : pmt(input.trMonthly, input.months, input.principal) + input.principal * m + input.insuranceMonthly;
-};
 
 
 type AporteTipo = 'pontual' | 'mensal' | 'pct' | 'recorrente' | 'anual';
@@ -103,6 +94,52 @@ function deriveRows(strategies: Strategies): AporteRow[] {
   return rows;
 }
 
+function rowPick(r: AporteRow): Partial<Strategies> {
+  if (r.tipo === 'pontual' && r.amount > 0 && r.month >= 1) {
+    return { extraLumpSum: [{ month: r.month, amount: r.amount, ...(r.mode ? { reduceMode: r.mode } : {}) }] };
+  }
+  if (r.tipo === 'pct' && r.amount > 0) {
+    return {
+      extraMonthlyPct: r.amount / 100,
+      ...(r.month >= 1 ? { extraMonthlyPctStartMonth: r.month } : {}),
+      ...(r.untilMonth ? { extraMonthlyPctUntilMonth: r.untilMonth } : {}),
+      ...(r.mode ? { extraMonthlyPctReduceMode: r.mode } : {}),
+    };
+  }
+  if (r.tipo === 'mensal' && r.amount > 0) {
+    return {
+      fixedPayment: {
+        amount: r.amount,
+        ...(r.month >= 1 ? { startMonth: r.month } : {}),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
+      },
+    };
+  }
+  if (r.tipo === 'recorrente' && r.amount > 0) {
+    return {
+      recurringExtra: {
+        amount: r.amount,
+        every: Math.max(1, r.every),
+        startMonth: Math.max(1, r.month),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
+      },
+    };
+  }
+  if (r.tipo === 'anual' && r.amount > 0) {
+    return {
+      fgtsAnnual: {
+        amount: r.amount,
+        ...(r.month >= 1 ? { startMonth: r.month } : {}),
+        ...(r.untilMonth ? { untilMonth: r.untilMonth } : {}),
+        ...(r.mode ? { reduceMode: r.mode } : {}),
+      },
+    };
+  }
+  return {};
+}
+
 function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 'extraMonthlyPct' | 'extraMonthlyPctStartMonth' | 'extraMonthlyPctUntilMonth' | 'fixedPayment' | 'recurringExtra' | 'fgtsAnnual'> {
   const pctRow = rows.find((r) => r.tipo === 'pct' && r.amount > 0);
   return {
@@ -150,6 +187,24 @@ function rowsToStrategies(rows: AporteRow[]): Pick<Strategies, 'extraLumpSum' | 
 export function StrategyControls({ input, strategies, onChange, base, current }: Props) {
   const [rows, setRows] = useState<AporteRow[]>(() => deriveRows(strategies));
 
+  // diferença real entre os modos para cada linha (só mostra o seletor quando há)
+  const rowsInfo = useMemo(
+    () =>
+      rows.map((r) => {
+        const baseRow = { extraLumpSum: [], reduceMode: 'term' as const };
+        const t = simulate(input, { ...baseRow, ...rowPick(r), reduceMode: 'term' });
+        const p = simulate(input, { ...baseRow, ...rowPick(r), reduceMode: 'payment' });
+        return {
+          differs:
+            Math.abs(t.metrics.totalPago - p.metrics.totalPago) > 1 ||
+            t.metrics.saldoZeroAt !== p.metrics.saldoZeroAt,
+          termTotal: t.metrics.totalPago,
+          payTotal: p.metrics.totalPago,
+        };
+      }),
+    [input, rows]
+  );
+
   const updateRows = (next: AporteRow[]) => {
     setRows(next);
     onChange({ ...strategies, ...rowsToStrategies(next) });
@@ -180,7 +235,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
           {rows.length === 0 && (
             <p className="text-xs text-muted-foreground">Nenhuma amortização definida.</p>
           )}
-          {rows.map((r) => (
+          {rows.map((r, ri) => (
             <div key={r.id} className="flex flex-wrap items-end gap-2">
               <div className="flex w-32 flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">Tipo</Label>
@@ -265,30 +320,45 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   }
                 />
               </div>
-              <div className="flex w-32 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Modo</Label>
-                <Select
-                  value={r.mode ?? 'auto'}
-                  onValueChange={(v) =>
-                    updateRows(
-                      rows.map((x) =>
-                        x.id === r.id
-                          ? { ...x, mode: v === 'auto' ? undefined : (v as 'term' | 'payment') }
-                          : x
+              {rowsInfo[ri]?.differs && (
+                <div className="flex w-32 flex-col gap-1.5">
+                  <Label className="flex items-center gap-1 text-xs text-muted-foreground">
+                    Modo
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="size-3 cursor-help" aria-label="Explicação do modo" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-60 text-xs">
+                          <p><strong>Reduzir prazo:</strong> mantém a parcela e quita antes (economiza mais).</p>
+                          <p className="mt-1"><strong>Reduzir parcela:</strong> mantém o prazo e diminui a parcela (alivia o fluxo de caixa).</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                  <Select
+                    value={r.mode ?? 'auto'}
+                    onValueChange={(v) =>
+                      updateRows(
+                        rows.map((x) =>
+                          x.id === r.id
+                            ? { ...x, mode: v === 'auto' ? undefined : (v as 'term' | 'payment') }
+                            : x
+                        )
                       )
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full" size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Automático</SelectItem>
-                    <SelectItem value="term">Reduzir prazo</SelectItem>
-                    <SelectItem value="payment">Reduzir parcela</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                    }
+                  >
+                    <SelectTrigger className="w-full" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automático</SelectItem>
+                      <SelectItem value="term">Reduzir prazo</SelectItem>
+                      <SelectItem value="payment">Reduzir parcela</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="icon"
@@ -310,45 +380,6 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
             >
               <Plus className="size-4" /> Adicionar amortização
             </Button>
-          </div>
-          <div className="flex flex-col gap-1.5 pt-1">
-            <Label className="flex items-center gap-1.5">
-              Com os aportes, prefere
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-64 text-xs">
-                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
-                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </Label>
-            <RadioGroup
-              value={strategies.reduceMode}
-              onValueChange={(mode) => onChange({ ...strategies, reduceMode: mode as Strategies['reduceMode'] })}
-              className="flex flex-row gap-4"
-            >
-              <Label className="flex items-center gap-2 font-normal">
-                <RadioGroupItem value="payment" />
-                Reduzir parcela
-              </Label>
-              <Label className="flex items-center gap-2 font-normal">
-                <RadioGroupItem value="term" />
-                Reduzir prazo
-              </Label>
-            </RadioGroup>
-            {strategies.reduceMode === 'payment' && current.metrics.paymentApplied === false && (
-              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                Aporte <strong>pontual</strong> não reduz a parcela mensal: o mínimo que ainda abate a
-                dívida no seu prazo é de <strong>{formatBRL(minimoQueAbate(input))}/mês</strong>, acima
-                da sua parcela atual ({formatBRL(parcelaAtual)}/mês). Por isso os dois modos dão o
-                mesmo resultado. Para o modo &quot;reduzir parcela&quot; fazer efeito, use um aporte{' '}
-                <strong>mensal</strong> (% extra ou pagamento fixo).
-              </p>
-            )}
           </div>
         </section>
 
