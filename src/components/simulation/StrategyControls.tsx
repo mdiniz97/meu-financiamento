@@ -290,7 +290,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">Amortizações</h3>
           <p className="text-xs text-muted-foreground">
-            Pontuais (uma vez no mês X), periódicas (a cada X meses) ou anuais (FGTS). Cada uma com
+            Pontuais (uma vez no mês X), recorrentes (a cada X meses) ou anuais (FGTS). Cada uma com
             início e fim opcionais.
           </p>
           {rows.length === 0 && (
@@ -311,7 +311,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pontual">Pontual</SelectItem>
-                    <SelectItem value="recorrente">A cada X meses</SelectItem>
+                    <SelectItem value="recorrente">Recorrente</SelectItem>
                     <SelectItem value="anual">Anual (FGTS)</SelectItem>
                   </SelectContent>
                 </Select>
