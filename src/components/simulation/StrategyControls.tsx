@@ -68,7 +68,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                   <div className="flex flex-1 flex-col gap-1.5">
                     <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
                     <NumericInput
-                      value={l.amount}
+                      value={l.amount > 0 ? l.amount : undefined}
                       parse={parseBRLToNumber}
                       onValid={(v) =>
                         setLump(

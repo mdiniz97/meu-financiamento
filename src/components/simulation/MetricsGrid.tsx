@@ -3,11 +3,14 @@ import { formatBRL } from '@/lib/utils';
 
 const pct = (v: number, digits = 2) => `${(v * 100).toFixed(digits)}%`;
 
+const formatCai = (v: number) => (v >= 0 ? formatBRL(v) : `cresceu ${formatBRL(-v)}`);
+
 interface Item {
   label: string;
   value: string;
   highlight?: boolean;
   years?: string;
+  neg?: boolean;
 }
 
 export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
@@ -16,8 +19,8 @@ export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
     { label: 'Total pago', value: formatBRL(metrics.totalPago) },
     { label: 'Juros totais', value: formatBRL(metrics.totalJuros) },
     { label: 'Dívida além da dívida', value: formatBRL(metrics.dividaAlemDaDivida) },
-    { label: 'Dívida cai em 12 meses', value: formatBRL(metrics.dividaCai12m) },
-    { label: 'Dívida cai em 3 anos', value: formatBRL(metrics.dividaCai3a) },
+    { label: 'Dívida cai em 12 meses', value: formatCai(metrics.dividaCai12m), neg: metrics.dividaCai12m < 0 },
+    { label: 'Dívida cai em 3 anos', value: formatCai(metrics.dividaCai3a), neg: metrics.dividaCai3a < 0 },
     { label: 'Parcela paga da dívida', value: pct(metrics.parcelaPagaDividaPct, 1) },
     { label: 'Quita em', value: `${metrics.saldoZeroAt} meses`, years: (metrics.saldoZeroAt / 12).toFixed(1), highlight: true },
   ];
@@ -31,7 +34,11 @@ export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
           <span className="text-xs text-muted-foreground">{it.label}</span>
           <span
             className={
-              it.highlight ? 'text-lg font-semibold text-primary' : 'text-lg font-semibold'
+              it.highlight
+                ? 'text-lg font-semibold text-primary'
+                : it.neg
+                  ? 'text-lg font-semibold text-destructive'
+                  : 'text-lg font-semibold'
             }
           >
             {it.value}
