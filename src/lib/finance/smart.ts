@@ -25,10 +25,21 @@ export interface SmartCandidate {
   result: SimulationResult;
 }
 
+export interface SystemComparison {
+  system: AmortSystem;
+  /** se o sistema cabe no orçamento dentro do prazo máximo */
+  feasible: boolean;
+  /** menor parcela 1 possível no prazo máximo (mesmo inviável) */
+  minParcela: number;
+  candidate?: SmartCandidate;
+}
+
 export interface SmartRecommendation {
   best: SmartCandidate | null;
   /** melhor candidato de cada sistema (para comparação) */
   alternatives: SmartCandidate[];
+  /** PRICE e SAC sempre presentes, viáveis ou não */
+  comparison: SystemComparison[];
   infeasible: boolean;
   /** menor orçamento viável no prazo máximo */
   minBudget: number;
@@ -72,6 +83,7 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
   const maxMonths = Math.min(i.maxMonths ?? 420, 600);
 
   const candidates: SmartCandidate[] = [];
+  const minN: Record<AmortSystem, number | null> = { PRICE: null, SAC: null };
   for (const system of ['PRICE', 'SAC'] as AmortSystem[]) {
     // menor prazo viável por bisseção (parcela 1 <= orçamento)
     if (parcela1(system, maxMonths, i, m) > i.maxPayment) continue;
@@ -82,6 +94,7 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
       else lo = mid + 1;
     }
     const nMin = lo;
+    minN[system] = nMin;
 
     // avalia a faixa com passo 6 meses e refina ±5 em torno do melhor
     const steps: number[] = [];
@@ -114,10 +127,17 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
   );
 
   const minBudget = Math.min(parcela1('PRICE', maxMonths, i, m), parcela1('SAC', maxMonths, i, m));
+  const comparison: SystemComparison[] = (['PRICE', 'SAC'] as AmortSystem[]).map((system) => ({
+    system,
+    feasible: minN[system] !== null,
+    minParcela: parcela1(system, maxMonths, i, m),
+    candidate: candidates.find((c) => c.system === system),
+  }));
 
   return {
     best: candidates[0] ?? null,
     alternatives: candidates,
+    comparison,
     infeasible: candidates.length === 0,
     minBudget,
   };

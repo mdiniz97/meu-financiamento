@@ -34,7 +34,15 @@ describe('recommendSmart', () => {
     const r = recommendSmart({ ...base, maxPayment: 12000, maxMonths: 180 });
     expect(r.infeasible).toBe(false);
     expect(r.best!.system).toBe('PRICE');
-    expect(r.alternatives.find((a) => a.system === 'SAC')).toBeUndefined();
+    const sac = r.comparison.find((c) => c.system === 'SAC')!;
+    expect(sac.feasible).toBe(false);
+    expect(sac.minParcela).toBeGreaterThan(12000);
+  });
+  it('comparação sempre traz os dois sistemas', () => {
+    const r = recommendSmart(base);
+    expect(r.comparison.map((c) => c.system)).toEqual(['PRICE', 'SAC']);
+    expect(r.comparison.every((c) => c.feasible)).toBe(true);
+    expect(r.comparison.every((c) => c.candidate)).toBeTruthy();
   });
   it('aporte limitado a +100% da parcela (orçamento absurdamente alto)', () => {
     const r = recommendSmart({ ...base, maxPayment: 100000 });
