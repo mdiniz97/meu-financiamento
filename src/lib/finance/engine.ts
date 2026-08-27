@@ -103,6 +103,26 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       bs = Math.max(0, bs - a + corr);
     }
   }
+  // cronograma de parcelas do PRICE base (sem estratégias) — no modo termo a
+  // parcela segue esse cronograma contratual, imune a aportes (evita drift:
+  // amortização extra não pode aumentar o total pago)
+  const basePriceParcela: number[] = [];
+  if (input.system === 'PRICE') {
+    let bs = input.principal;
+    let prevP = 0;
+    for (let t = 1; t <= input.months + 360; t++) {
+      if (bs <= 1e-9) break;
+      const corr = bs * input.trMonthly;
+      const pagNper = prevP > 0 ? prevP - seguroMensal : 0;
+      const pvNper = prevP > 0 ? bs - corr : 0;
+      const rem = pagNper > 0 ? nper(m, pagNper, pvNper) : input.months;
+      const parcela = pmt(m, rem, bs) + seguroMensal;
+      const amort = Math.min(Math.max(parcela - bs * m - seguroMensal, 0), bs);
+      basePriceParcela.push(parcela);
+      bs = Math.max(0, bs - amort + corr);
+      prevP = parcela;
+    }
+  }
   // cronograma de parcelas do SAC base (mesmo contrato): para a opção
   // "pagar parcela do SAC" no PRICE: a diferença vira amortização extra
   const sacParcelas: number[] = [];
@@ -129,13 +149,16 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (input.system === 'PRICE') {
       if (modoPayment) {
         parcela = parcelaFixada;
+        amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
       } else {
-        const pagamentoNper = parcelaBase > 0 ? parcelaBase - seguroMensal : 0;
-        const pvNper = parcelaBase > 0 ? saldo - correcao : 0;
-        const mesesRestantes = pagamentoNper > 0 ? nper(m, pagamentoNper, pvNper) : input.months;
-        parcela = pmt(m, mesesRestantes, saldo) + seguroMensal;
+        // modo termo: parcela-alvo do cronograma contratual base (imune a
+        // aportes); o pago real é juros + amortização (cap) + seguro
+        const alvo = basePriceParcela[month - 1] ?? (parcelaBase > 0
+          ? pmt(m, nper(m, parcelaBase - seguroMensal, saldo - correcao), saldo) + seguroMensal
+          : pmt(m, input.months, saldo) + seguroMensal);
+        amortizacao = Math.min(Math.max(alvo - juros - seguroMensal, 0), saldo);
+        parcela = juros + amortizacao + seguroMensal;
       }
-      amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
     } else {
       // modo termo: mantém a amortização do cronograma contratual: aportes
       // encurtam o prazo; modo payment: amortização fixa que cobre a TR
@@ -181,16 +204,26 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (saldo < 1e-9) saldo = 0;
 
     if (strategies.reduceMode === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {
-      modoPayment = true;
-      // "reduzir parcela" mantém o prazo contratual restante
+      // "reduzir parcela" mantém o prazo contratual restante, com a menor
+      // parcela que ainda abate o saldo + correção (TR)
       mesesRestantesFixos = Math.max(1, input.months - month);
+      const parcelaAtual = parcela - extra;
+      let novaParcela: number;
       if (input.system === 'PRICE') {
-        // parcela que amortiza saldo + correção (TR) no prazo restante
-        parcelaFixada = pmt(mEff, mesesRestantesFixos, saldo) + seguroMensal;
+        novaParcela = pmt(mEff, mesesRestantesFixos, saldo) + seguroMensal;
       } else {
-        // SAC paga juros à parte; a amortização fixa precisa cobrir apenas o
-        // crescimento do saldo pela TR: pmt(TR, N, saldo): senão o prazo estica
-        amortizacaoFixada = pmt(input.trMonthly, mesesRestantesFixos, saldo);
+        const novaAmort = pmt(input.trMonthly, mesesRestantesFixos, saldo);
+        novaParcela = novaAmort + juros + seguroMensal;
+      }
+      if (novaParcela < parcelaAtual) {
+        // só reduz a parcela se o mínimo que abate for menor que a atual;
+        // senão mantém o comportamento normal (aporte só ajuda aos poucos)
+        modoPayment = true;
+        if (input.system === 'PRICE') {
+          parcelaFixada = novaParcela;
+        } else {
+          amortizacaoFixada = pmt(input.trMonthly, mesesRestantesFixos, saldo);
+        }
       }
     }
 

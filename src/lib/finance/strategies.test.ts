@@ -70,18 +70,24 @@ describe('regressão: % extra NÃO compõe a parcela base (TERM)', () => {
 
 describe('regressão: modo payment não aumenta a dívida', () => {
   const input360: LoanInput = { ...input, principal: 1000000, months: 360 };
-  it('saldo decresce após reduzir a parcela', () => {
-    const r = simulate(input360, { extraLumpSum: [{ month: 12, amount: 50000 }], reduceMode: 'payment' });
+  it('saldo decresce após reduzir a parcela (aporte grande o bastante)', () => {
+    const r = simulate(input360, { extraLumpSum: [{ month: 12, amount: 300000 }], reduceMode: 'payment' });
     const s12 = r.installments[11].saldo;
     const s24 = r.installments[23].saldo;
     expect(s24).toBeLessThan(s12);
   });
-  it('payment + % extra: dívida para de crescer após o 1º mês e quita', () => {
-    const r = simulate(input360, { extraLumpSum: [], extraMonthlyPct: 0.05, reduceMode: 'payment' });
+  it('payment + % extra: só reduz a parcela se o mínimo que abate for menor que a atual', () => {
+    const r = simulate(input360, { extraLumpSum: [], extraMonthlyPct: 0.14, reduceMode: 'payment' });
+    // 14% não cobre o mínimo que abate no 1M/360 -> modo volta ao termo
     expect(r.metrics.saldoZeroAt).toBeLessThan(400);
-    for (let k = 2; k < r.installments.length; k++) {
-      expect(r.installments[k].saldo).toBeLessThan(r.installments[k - 1].saldo);
-    }
+    expect(r.metrics.totalPago).toBeLessThan(simulate(input360, { extraLumpSum: [], reduceMode: 'term' }).metrics.totalPago);
+  });
+  it('aporte pequeno no modo payment não dispara economia absurda (parcela não pode aumentar)', () => {
+    const r = simulate(input360, { extraLumpSum: [{ month: 12, amount: 500 }], reduceMode: 'payment' });
+    const base = simulate(input360, { extraLumpSum: [], reduceMode: 'term' });
+    const economia = base.metrics.totalPago - r.metrics.totalPago;
+    expect(economia).toBeGreaterThan(0);
+    expect(economia).toBeLessThan(20000);
   });
 });
 

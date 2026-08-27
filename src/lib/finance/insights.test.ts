@@ -84,7 +84,7 @@ describe('sacVsPrice', () => {
     expect(c.parcela1Price).toBeCloseTo(8895.07, 2);
     expect(c.ultimaParcelaSac).toBeCloseTo(5262.29, 2);
     expect(c.crossingMonth).toBe(102);
-    expect(c.economiaVsPrice).toBeCloseTo(1182181, 0);
+    expect(c.economiaVsPrice).toBeCloseTo(1116212, 0);
     expect(c.dividaCai12mSac).toBeCloseTo(13423, 0);
   });
   it('dívida SAC cai em 12 meses enquanto a PRICE cresce no início', () => {
