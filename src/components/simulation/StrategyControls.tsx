@@ -351,7 +351,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               variant="outline"
               size="sm"
               onClick={() =>
-                updateRows([...rows, { id: ++aporteSeq, tipo: 'pontual', amount: 5000, month: 12, every: 12 }])
+                updateRows([...rows, { id: ++aporteSeq, tipo: 'pontual', amount: 0, month: 1, every: 12 }])
               }
             >
               <Plus className="size-4" /> Adicionar amortização
