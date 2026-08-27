@@ -48,7 +48,7 @@ interface AporteRow {
   mode?: 'term' | 'payment';
 }
 
-let aporteSeq = 0;
+let aporteSeq = Math.floor(Math.random() * 1e9);
 
 function deriveRows(strategies: Strategies): AporteRow[] {
   const rows: AporteRow[] = strategies.extraLumpSum.map((l) => ({
