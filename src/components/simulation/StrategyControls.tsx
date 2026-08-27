@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import { recurringParcela } from '@/lib/finance/insights';
-import { convertAnnualToMonthly, pmt } from '@/lib/finance/engine';
+import { simulate } from '@/lib/finance/engine';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
