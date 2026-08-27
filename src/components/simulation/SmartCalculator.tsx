@@ -222,7 +222,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartFixedUntil">Pagar esse valor só até o mês (opcional)</Label>
+                <Label htmlFor="smartFixedUntil">Pagar esse valor por um período (opcional)</Label>
                 <NumericInput
                   id="smartFixedUntil"
                   value={f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined}
@@ -230,7 +230,8 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   onValid={(v) => set('fixedUntilMonth', v > 0 ? String(v) : '')}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Depois, volta a pagar só a parcela do contrato.
+                  Até o mês informado você paga o valor cheio; depois, volta a pagar apenas a
+                  parcela do contrato.
                 </p>
               </div>
             </div>

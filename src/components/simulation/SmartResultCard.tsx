@@ -110,14 +110,12 @@ interface Props {
 export function SmartResultCard({ rec, fields }: Props) {
   const router = useRouter();
 
-  function abrirNoSandbox() {
-    if (!rec.best) return;
-    const b = rec.best;
+  function abrirCenario(c: { system: string; months: number }) {
     const form: FormState = {
-      system: b.system,
+      system: c.system as FormState['system'],
       principal: fields.principal,
       annualRate: fields.annualRate,
-      months: String(b.months),
+      months: String(c.months),
       trMonthly: fields.trMonthly,
       insuranceMonthly: fields.insuranceMonthly,
       bank: fields.bank,
@@ -125,7 +123,7 @@ export function SmartResultCard({ rec, fields }: Props) {
       extraMonthlyPct: '0',
       fgtsAnnual: '0',
       recurringExtra: null,
-      fixedPayment: fields.maxPayment,
+      fixedPayment: fields.fixedPayment ? fields.maxPayment : '',
       fixedPaymentUntil: fields.fixedUntilMonth ?? '',
       paySacParcela: false,
       reduceMode: 'term',
@@ -255,10 +253,22 @@ export function SmartResultCard({ rec, fields }: Props) {
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={abrirNoSandbox}>
-            Abrir no sandbox
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="text-xs text-muted-foreground">Abrir no sandbox:</span>
+          <Button type="button" size="sm" onClick={() => abrirCenario(b)}>
+            Melhor modelo
           </Button>
+          {rec.maxTerms.map((t) => (
+            <Button
+              key={t.system}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => abrirCenario(t)}
+            >
+              {t.system} · {t.months} meses
+            </Button>
+          ))}
         </div>
       </CardContent>
     </Card>
