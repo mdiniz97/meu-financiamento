@@ -6,7 +6,7 @@ import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,8 @@ export interface SmartCalcFields {
   bank: string;
   maxMonths: string;
   maxPayment: string;
+  fixedPayment: boolean;
+  fixedUntilMonth: string;
 }
 
 export const SMART_DEFAULTS: SmartCalcFields = {
@@ -32,6 +34,8 @@ export const SMART_DEFAULTS: SmartCalcFields = {
   bank: 'Caixa',
   maxMonths: '360',
   maxPayment: '12000',
+  fixedPayment: true,
+  fixedUntilMonth: '',
 };
 
 interface Props {
@@ -43,7 +47,8 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
 
-  const set = (k: keyof SmartCalcFields, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
+    setF((p) => ({ ...p, [k]: v }));
 
   function calcular() {
     setError('');
@@ -68,6 +73,8 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       bank: f.bank,
       maxMonths,
       maxPayment,
+      fixedPayment: f.fixedPayment,
+      fixedUntilMonth: f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined,
     });
     onCalculated(rec, f);
   }
@@ -164,6 +171,32 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 value={parseBRLToNumber(f.maxPayment)}
                 onValid={(v) => set("maxPayment", String(v))}
               />
+              </div>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <Label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={f.fixedPayment}
+                    onChange={(e) => set('fixedPayment', e.target.checked)}
+                    className="size-4 accent-[#820AD1]"
+                  />
+                  Manter o pagamento fixo todo mês
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Paga exatamente {f.maxPayment ? formatBRL(parseBRLToNumber(f.maxPayment)) : 'o valor'} por
+                  mês (parcela + aporte) — sem variação.
+                </p>
+                {f.fixedPayment && (
+                  <div className="flex flex-col gap-1.5 sm:max-w-44">
+                    <Label htmlFor="smartFixedUntil">Pagar fixo até o mês (opcional)</Label>
+                    <NumericInput
+                      id="smartFixedUntil"
+                      value={f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined}
+                      parse={parseIntStrict}
+                      onValid={(v) => set('fixedUntilMonth', String(v))}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

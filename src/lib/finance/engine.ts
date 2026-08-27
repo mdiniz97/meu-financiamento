@@ -65,6 +65,12 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   if (s.paySacParcela !== undefined) {
     check(typeof s.paySacParcela === 'boolean', 'opção pagar parcela do SAC inválida');
   }
+  if (s.fixedPayment !== undefined) {
+    check(Number.isFinite(s.fixedPayment.amount) && s.fixedPayment.amount > 0, 'valor do pagamento fixo inválido');
+    if (s.fixedPayment.untilMonth !== undefined) {
+      check(Number.isInteger(s.fixedPayment.untilMonth) && s.fixedPayment.untilMonth >= 1, 'mês final do pagamento fixo inválido');
+    }
+  }
 }
 
 export function simulate(input: LoanInput, strategies: Strategies = emptyStrategies()): SimulationResult {
@@ -154,6 +160,13 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     const rec = strategies.recurringExtra;
     if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0)
       extra += Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
+    const fp = strategies.fixedPayment;
+    if (fp && (!fp.untilMonth || month <= fp.untilMonth)) {
+      // pagamento fixo: parcela + aporte = exatamente `amount` (ou a parcela,
+      // se a parcela já ultrapassar o valor fixo)
+      const extraFixo = Math.max(0, fp.amount - parcela);
+      if (extraFixo > 0) extra += Math.min(extraFixo, Math.max(saldo - amortizacao - extra, 0));
+    }
     if (strategies.paySacParcela && input.system === 'PRICE' && sacParcelas[month - 1] !== undefined) {
       // paga o que pagaria no SAC: a diferença (SAC − PRICE) vira amortização
       const extraSac = Math.max(0, sacParcelas[month - 1] - parcela);

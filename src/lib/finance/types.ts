@@ -11,9 +11,11 @@ export interface LoanInput {
 }
 export interface ExtraPayment { month: number; amount: number } // month 1-based
 export interface RecurringExtra { amount: number; every: number; startMonth: number } // aporte de `amount` a cada `every` meses, começando em `startMonth`
+export interface FixedPayment { amount: number; untilMonth?: number } // paga exatamente `amount`/mês (parcela + aporte), opcional até o mês X
 export interface Strategies {
   extraLumpSum: ExtraPayment[];      // amortizações pontuais
   extraMonthlyPct?: number;          // 0.05 = 5% a mais na parcela
+  fixedPayment?: FixedPayment;       // pagamento mensal fixo (parcela + aporte)
   fgtsAnnual?: number;               // R$ amortizados todo mês 12, 24, 36...
   recurringExtra?: RecurringExtra;   // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)
   paySacParcela?: boolean;           // PRICE: pagar a parcela do SAC — a diferença vira amortização extra

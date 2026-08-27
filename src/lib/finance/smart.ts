@@ -9,6 +9,10 @@ export interface SmartInput {
   bank: string;
   /** orçamento mensal disponível (parcela + aporte) */
   maxPayment: number;
+  /** manter o pagamento fixo todo mês (parcela + aporte = orçamento); default true */
+  fixedPayment?: boolean;
+  /** pagamento fixo só até o mês X (depois paga só a parcela) */
+  fixedUntilMonth?: number;
   minMonths?: number;
   maxMonths?: number;
 }
@@ -55,7 +59,8 @@ function parcela1(system: AmortSystem, months: number, i: SmartInput, m: number)
 
 function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m: number): SmartCandidate {
   const parcela = parcela1(system, months, i, m);
-  // aporte mensal = orçamento − parcela; limitado a +100% da parcela
+  // aporte mensal = orçamento − parcela; no modo fixo o pagamento total
+  // permanece exatamente o orçamento todo mês
   const extraMonthlyAmount = Math.max(0, Math.min(i.maxPayment - parcela, parcela));
   const extraMonthlyPct = parcela > 0 ? extraMonthlyAmount / parcela : 0;
   const input: LoanInput = {
@@ -69,7 +74,14 @@ function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m
     bank: i.bank,
   };
   const strategies: Strategies = { extraLumpSum: [], reduceMode: 'term' };
-  if (extraMonthlyPct > 0) strategies.extraMonthlyPct = extraMonthlyPct;
+  if (i.fixedPayment !== false) {
+    strategies.fixedPayment = {
+      amount: i.maxPayment,
+      ...(i.fixedUntilMonth !== undefined ? { untilMonth: i.fixedUntilMonth } : {}),
+    };
+  } else if (extraMonthlyPct > 0) {
+    strategies.extraMonthlyPct = extraMonthlyPct;
+  }
   const result = simulate(input, strategies);
   return { system, months, parcela, extraMonthlyPct, extraMonthlyAmount, result };
 }
@@ -86,17 +98,32 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
 
   const candidates: SmartCandidate[] = [];
   const minN: Record<AmortSystem, number | null> = { PRICE: null, SAC: null };
+  // no modo pagamento fixo, deixa folga no orçamento (parcela <= 85% do
+  // orçamento quando possível) para o aporte absorver o crescimento da parcela
+  // pela TR — senão a parcela estoura o valor fixo em poucos meses
+  const fixedLimit = i.fixedPayment !== false ? Math.min(i.maxPayment, i.maxPayment * 0.85) : i.maxPayment;
   for (const system of ['PRICE', 'SAC'] as AmortSystem[]) {
-    // menor prazo viável por bisseção (parcela 1 <= orçamento)
-    if (parcela1(system, maxMonths, i, m) > i.maxPayment) continue;
-    let lo = minMonths, hi = maxMonths;
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (parcela1(system, mid, i, m) <= i.maxPayment) hi = mid;
-      else lo = mid + 1;
+    const limit = i.fixedPayment !== false ? fixedLimit : i.maxPayment;
+    if (parcela1(system, maxMonths, i, m) > limit) {
+      // sem folga disponível: aceita o orçamento cheio para ainda ser viável
+      if (i.fixedPayment !== false && parcela1(system, maxMonths, i, m) > i.maxPayment) continue;
+      let lo = minMonths, hi = maxMonths;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (parcela1(system, mid, i, m) <= i.maxPayment) hi = mid;
+        else lo = mid + 1;
+      }
+      minN[system] = lo;
+    } else {
+      let lo = minMonths, hi = maxMonths;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (parcela1(system, mid, i, m) <= limit) hi = mid;
+        else lo = mid + 1;
+      }
+      minN[system] = lo;
     }
-    const nMin = lo;
-    minN[system] = nMin;
+    const nMin = minN[system]!;
 
     // avalia a faixa com passo 6 meses e refina ±5 em torno do melhor
     const steps: number[] = [];

@@ -57,6 +57,26 @@ describe('recommendSmart', () => {
     expect(b.extraMonthlyPct).toBeLessThanOrEqual(1);
     expect(b.months).toBeGreaterThanOrEqual(60);
   });
+  it('pagamento fixo: todo mês paga exatamente o orçamento', () => {
+    const r = recommendSmart({ ...base, maxPayment: 12000 });
+    const b = r.best!;
+    for (const i of b.result.installments.slice(0, 12)) {
+      expect(i.parcela).toBeCloseTo(12000, 1);
+    }
+  });
+  it('pagamento fixo só até o mês X: depois volta à parcela', () => {
+    const r = recommendSmart({ ...base, maxPayment: 12000, fixedUntilMonth: 12 });
+    const b = r.best!;
+    expect(b.result.installments[0].parcela).toBeCloseTo(12000, 1);
+    expect(b.result.installments[12].parcela).toBeLessThan(12000);
+  });
+  it('fixedPayment=false usa percentual extra (aporte cresce com a parcela)', () => {
+    const r = recommendSmart({ ...base, maxPayment: 12000, fixedPayment: false });
+    const b = r.best!;
+    const p1 = b.result.installments[0].parcela;
+    const p24 = b.result.installments[23]?.parcela ?? p1;
+    expect(p24).toBeGreaterThan(p1);
+  });
 });
 
 function toInput(s: SmartInput): LoanInput {

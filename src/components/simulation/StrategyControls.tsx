@@ -8,6 +8,7 @@ import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -132,6 +133,52 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
               parse={parseBRLToNumber}
               onValid={(v) => onChange({ ...strategies, fgtsAnnual: v > 0 ? v : undefined })}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fixedPayment">Parcela fixa (R$/mês)</Label>
+            <div className="flex items-end gap-2">
+              <MoneyInput
+                id="fixedPayment"
+                value={strategies.fixedPayment?.amount ?? 0}
+                onValid={(v) =>
+                  onChange({
+                    ...strategies,
+                    fixedPayment:
+                      v > 0
+                        ? {
+                            amount: v,
+                            ...(strategies.fixedPayment?.untilMonth
+                              ? { untilMonth: strategies.fixedPayment.untilMonth }
+                              : {}),
+                          }
+                        : undefined,
+                  })
+                }
+              />
+              <div className="flex w-36 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground" htmlFor="fixedPaymentUntil">
+                  até o mês (opcional)
+                </Label>
+                <NumericInput
+                  id="fixedPaymentUntil"
+                  value={strategies.fixedPayment?.untilMonth}
+                  parse={parseIntStrict}
+                  onValid={(v) =>
+                    onChange({
+                      ...strategies,
+                      fixedPayment: {
+                        amount: strategies.fixedPayment?.amount ?? 0,
+                        ...(v > 0 ? { untilMonth: v } : {}),
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Paga exatamente esse total por mês (parcela + aporte) — sem variação.
+            </p>
           </div>
 
           {input.system === 'PRICE' && (

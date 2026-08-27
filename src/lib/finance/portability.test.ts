@@ -64,4 +64,10 @@ describe('portabilityBreakEven', () => {
     const b = portabilityBreakEven(base, 1);
     expect(b.maxRateForTargetParcela).toBeNull();
   });
+  it('parcela alvo folgada (acima da parcela no limite) → retorna o limite, não 0', () => {
+    const b = portabilityBreakEven(base);
+    const bFolgado = portabilityBreakEven(base, 999999);
+    expect(bFolgado.maxRateForTargetParcela).not.toBeNull();
+    expect(bFolgado.maxRateForTargetParcela!).toBeCloseTo(b.maxWorthwhileRate, 3);
+  });
 });

@@ -113,15 +113,20 @@ export function portabilityBreakEven(i: PortabilityInput, targetParcela?: number
     if (parcelaNa(0) > targetParcela) {
       maxRateForTargetParcela = null;
     } else {
-      let pLo = 0, pHi = hi > 0 ? hi : 0.5;
-      if (parcelaNa(pHi) > targetParcela) {
+      const pHi = hi > 0 ? hi : 0.5;
+      if (parcelaNa(pHi) <= targetParcela) {
+        // todo o intervalo [0, pHi] atende a parcela desejada
+        maxRateForTargetParcela = pHi;
+      } else {
+        let pLo = 0;
+        let pHiBis = pHi;
         for (let k = 0; k < 60; k++) {
-          const mid = (pLo + pHi) / 2;
+          const mid = (pLo + pHiBis) / 2;
           if (parcelaNa(mid) <= targetParcela) pLo = mid;
-          else pHi = mid;
+          else pHiBis = mid;
         }
+        maxRateForTargetParcela = pLo;
       }
-      maxRateForTargetParcela = pLo;
     }
   }
 

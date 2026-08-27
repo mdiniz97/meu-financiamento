@@ -1,6 +1,11 @@
 import type { AmortSystem, ExtraPayment, LoanInput, RecurringExtra, Strategies } from './finance/types';
 import { parseBRLToNumber, parseDecimal } from './utils';
 
+const parseIntSafe = (s: string) => {
+  const d = s.replace(/[^\d]/g, '');
+  return d === '' ? 0 : Number(d);
+};
+
 export type ReduceMode = 'payment' | 'term';
 
 export interface PortabilityForm {
@@ -26,6 +31,8 @@ export interface FormState {
   extraMonthlyPct: string;
   fgtsAnnual: string;
   recurringExtra: RecurringExtraForm | null;
+  fixedPayment: string;
+  fixedPaymentUntil: string;
   paySacParcela: boolean;
   reduceMode: ReduceMode;
   portability: PortabilityForm | null;
@@ -45,6 +52,8 @@ export const DEFAULT_FORM: FormState = {
   extraMonthlyPct: '0',
   fgtsAnnual: '0',
   recurringExtra: null,
+  fixedPayment: '',
+  fixedPaymentUntil: '',
   paySacParcela: false,
   reduceMode: 'term',
   portability: null,
@@ -105,6 +114,17 @@ export function formToStrategies(f: FormState): Strategies {
       ? { recurringExtra: recurring }
       : {}),
     ...(f.paySacParcela ? { paySacParcela: true } : {}),
+    ...(() => {
+      const amount = parseBRLToNumber(f.fixedPayment);
+      if (!(amount > 0)) return {};
+      const until = parseIntSafe(f.fixedPaymentUntil);
+      return {
+        fixedPayment: {
+          amount,
+          ...(until > 0 ? { untilMonth: until } : {}),
+        },
+      };
+    })(),
     reduceMode: f.reduceMode,
     ...(f.portability && Number.isFinite(portAnnualRate) && portAnnualRate > 0
       ? {

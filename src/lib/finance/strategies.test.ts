@@ -128,6 +128,31 @@ describe('aporte recorrente', () => {
   });
 });
 
+describe('pagamento fixo (fixedPayment)', () => {
+  const input1M: LoanInput = { ...input, principal: 1000000, months: 360 };
+  it('parcela + aporte = exatamente o valor fixo todo mês', () => {
+    const r = simulate(input1M, { ...base, fixedPayment: { amount: 12000 } });
+    for (const i of r.installments.slice(0, 12)) {
+      expect(i.parcela).toBeCloseTo(12000, 2);
+    }
+  });
+  it('fixedPayment até o mês X: depois paga só a parcela', () => {
+    const r = simulate(input1M, { ...base, fixedPayment: { amount: 12000, untilMonth: 12 } });
+    expect(r.installments[0].parcela).toBeCloseTo(12000, 2);
+    expect(r.installments[11].parcela).toBeCloseTo(12000, 2);
+    const baseParcela = r.installments[12].parcela;
+    expect(baseParcela).toBeLessThan(12000);
+    const parcela13 = r.installments[13].parcela;
+    expect(parcela13).toBeLessThan(12000);
+    expect(r.installments[12].extra).toBe(0);
+  });
+  it('pagamento fixo antecipa a quitação', () => {
+    const r = simulate(input1M, { ...base, fixedPayment: { amount: 12000 } });
+    const sem = simulate(input1M, base);
+    expect(r.metrics.saldoZeroAt).toBeLessThan(sem.metrics.saldoZeroAt);
+  });
+});
+
 describe('pagar parcela do SAC no PRICE (paySacParcela)', () => {
   const input1M: LoanInput = { ...input, principal: 1000000, months: 360 };
   const sac = simulate({ ...input1M, system: 'SAC' }, base);
