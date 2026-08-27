@@ -249,7 +249,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardContent>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Quanto você pode financiar</DialogTitle>
             <DialogDescription>
