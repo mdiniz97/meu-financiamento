@@ -173,7 +173,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 onValid={(v) => set("maxMonths", String(v))}
               />
               </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartMaxPayment2">Quanto pode pagar por mês (R$)</Label>
                 <MoneyInput
                   id="smartMaxPayment2"
@@ -184,11 +184,10 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   Parcela + aporte automático = sempre esse valor, até quitar.
                 </p>
               </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartFixedUntil">Pagar esse valor só até o mês (opcional)</Label>
                 <NumericInput
                   id="smartFixedUntil"
-                  className="sm:max-w-44"
                   value={f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined}
                   parse={parseIntStrict}
                   onValid={(v) => set('fixedUntilMonth', String(v))}
