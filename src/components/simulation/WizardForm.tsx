@@ -122,7 +122,7 @@ export function WizardForm() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <Label>Sistema</Label>
                   <RadioGroup
                     value={form.system}
