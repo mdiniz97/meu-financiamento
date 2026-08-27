@@ -1,3 +1,5 @@
+"use client";
+
 import { CheckIcon, InfoIcon } from "lucide-react";
 import { simulate } from "@/lib/finance/engine";
 import { priceBreakEven } from "@/lib/finance/insights";

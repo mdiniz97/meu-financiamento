@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
