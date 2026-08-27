@@ -213,6 +213,39 @@ export function SmartResultCard({ rec, fields }: Props) {
         <ComparativoTable rec={rec} />
 
         <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium">E o aporte: reduzir o prazo ou a parcela?</p>
+          <p className="text-xs text-muted-foreground">
+            O cálculo inteligente avalia os dois e recomenda o de menor custo total. A alternativa
+            também aparece, caso você prefira outro perfil.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['term', 'Reduzir o prazo', 'Quita antes, mantendo a parcela'],
+                ['payment', 'Reduzir a parcela', 'Mantém o prazo com valor mensal menor'],
+              ] as const
+            ).map(([mode, titulo, subtitulo]) => {
+              const c = rec.modes[mode];
+              if (!c) return null;
+              const melhor = rec.best && c.result.metrics.totalPago === rec.best.result.metrics.totalPago;
+              return (
+                <ScenarioMiniCard
+                  key={mode}
+                  title={titulo}
+                  subtitle={subtitulo}
+                  parcela={c.parcela}
+                  aporte={c.extraMonthlyAmount}
+                  quita={c.result.metrics.saldoZeroAt}
+                  total={c.result.metrics.totalPago}
+                  highlight={Boolean(melhor)}
+                  diff={melhor ? undefined : c.result.metrics.totalPago - (rec.best?.result.metrics.totalPago ?? 0)}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">E se eu entrar direto no prazo máximo?</p>
           <p className="text-xs text-muted-foreground">
             Entrar no prazo máximo paga <strong>mais no total</strong> (mais parcelas de seguro e

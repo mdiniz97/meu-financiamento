@@ -40,8 +40,6 @@ export interface SmartInput {
   fixedPayment?: boolean;
   /** pagamento fixo só até o mês X (depois paga só a parcela) */
   fixedUntilMonth?: number;
-  /** o que fazer com o aporte: encurtar o prazo (term) ou reduzir a parcela (payment) */
-  reduceMode?: 'term' | 'payment';
   minMonths?: number;
   maxMonths?: number;
 }
@@ -73,6 +71,8 @@ export interface SmartRecommendation {
   alternatives: SmartCandidate[];
   /** PRICE e SAC sempre presentes, viáveis ou não */
   comparison: SystemComparison[];
+  /** melhor de cada modo de redução (prazo x parcela) */
+  modes: { term: SmartCandidate | null; payment: SmartCandidate | null };
   /** PRICE e SAC entrando já no prazo máximo (viáveis), para comparar com o recomendado */
   maxTerms: SmartCandidate[];
   infeasible: boolean;
@@ -86,7 +86,13 @@ function parcela1(system: AmortSystem, months: number, i: SmartInput, m: number)
     : i.principal / months + i.principal * m + i.insuranceMonthly;
 }
 
-function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m: number): SmartCandidate {
+function simulateCandidate(
+  system: AmortSystem,
+  months: number,
+  i: SmartInput,
+  m: number,
+  reduceMode: 'term' | 'payment'
+): SmartCandidate {
   const parcela = parcela1(system, months, i, m);
   // aporte mensal = orçamento − parcela; no modo fixo o pagamento total
   // permanece exatamente o orçamento todo mês
@@ -102,7 +108,7 @@ function simulateCandidate(system: AmortSystem, months: number, i: SmartInput, m
     insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
     bank: i.bank,
   };
-  const strategies: Strategies = { extraLumpSum: [], reduceMode: i.reduceMode ?? 'term' };
+  const strategies: Strategies = { extraLumpSum: [], reduceMode };
   if (i.fixedPayment !== false) {
     const until = i.fixedUntilMonth;
     strategies.fixedPayment = {
@@ -155,28 +161,38 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     }
     const nMin = minN[system]!;
 
-    // avalia a faixa com passo 6 meses e refina ±5 em torno do melhor
-    const steps: number[] = [];
-    for (let n = nMin; n <= maxMonths; n += 6) steps.push(n);
-    if (steps[steps.length - 1] !== maxMonths) steps.push(maxMonths);
+    // avalia a faixa com passo 6 meses e refina ±5 em torno do melhor,
+    // para cada modo de redução (prazo ou parcela)
+    for (const mode of ['term', 'payment'] as const) {
+      const steps: number[] = [];
+      for (let n = nMin; n <= maxMonths; n += 6) steps.push(n);
+      if (steps[steps.length - 1] !== maxMonths) steps.push(maxMonths);
 
-    let bestN = nMin;
-    let bestTotal = Infinity;
-    for (const n of steps) {
-      const c = simulateCandidate(system, n, i, m);
-      if (c.result.metrics.totalPago < bestTotal) {
-        bestTotal = c.result.metrics.totalPago;
-        bestN = n;
+      let bestN = nMin;
+      let bestTotal = Infinity;
+      // no modo payment, o pagamento natural (sem o aporte fixo) não pode
+      // estourar o orçamento em nenhum mês
+      const candidatoValido = (c: SmartCandidate) =>
+        mode !== 'payment' ||
+        c.result.installments.every((inst) => inst.parcela - inst.extra <= i.maxPayment + 1);
+      for (const n of steps) {
+        const c = simulateCandidate(system, n, i, m, mode);
+        if (candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
+          bestTotal = c.result.metrics.totalPago;
+          bestN = n;
+        }
+      }
+      for (let n = Math.max(nMin, bestN - 5); n <= Math.min(maxMonths, bestN + 5); n++) {
+        const c = simulateCandidate(system, n, i, m, mode);
+        if (candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
+          bestTotal = c.result.metrics.totalPago;
+          bestN = n;
+        }
+      }
+      if (Number.isFinite(bestTotal)) {
+        candidates.push(simulateCandidate(system, bestN, i, m, mode));
       }
     }
-    for (let n = Math.max(nMin, bestN - 5); n <= Math.min(maxMonths, bestN + 5); n++) {
-      const c = simulateCandidate(system, n, i, m);
-      if (c.result.metrics.totalPago < bestTotal) {
-        bestTotal = c.result.metrics.totalPago;
-        bestN = n;
-      }
-    }
-    candidates.push(simulateCandidate(system, bestN, i, m));
   }
 
   candidates.sort(
@@ -193,14 +209,20 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
     candidate: candidates.find((c) => c.system === system),
   }));
   const best = candidates[0] ?? null;
+  const bestMode = best?.result.strategies.reduceMode ?? 'term';
+  const modes: { term: SmartCandidate | null; payment: SmartCandidate | null } = {
+    term: candidates.find((c) => c.result.strategies.reduceMode === 'term') ?? null,
+    payment: candidates.find((c) => c.result.strategies.reduceMode === 'payment') ?? null,
+  };
   const maxTerms: SmartCandidate[] = (['PRICE', 'SAC'] as AmortSystem[])
     .filter((system) => minN[system] !== null)
-    .map((system) => simulateCandidate(system, maxMonths, i, m));
+    .map((system) => simulateCandidate(system, maxMonths, i, m, bestMode));
 
   return {
     best,
     alternatives: candidates,
     comparison,
+    modes,
     maxTerms,
     infeasible: candidates.length === 0,
     minBudget,

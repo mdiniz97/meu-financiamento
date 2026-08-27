@@ -13,7 +13,6 @@ import { maxFinancing, recommendSmart, type SmartRecommendation } from '@/lib/fi
 import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,6 @@ export interface SmartCalcFields {
   maxMonths: string;
   maxPayment: string;
   fixedUntilMonth: string;
-  reduceMode: 'term' | 'payment';
 }
 
 export const SMART_DEFAULTS: SmartCalcFields = {
@@ -43,7 +41,6 @@ export const SMART_DEFAULTS: SmartCalcFields = {
   maxMonths: '360',
   maxPayment: '12000',
   fixedUntilMonth: '',
-  reduceMode: 'term',
 };
 
 interface Props {
@@ -93,7 +90,6 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       maxMonths,
       maxPayment,
       fixedUntilMonth: Number.isInteger(until) && until >= 1 ? until : undefined,
-      reduceMode: f.reduceMode,
     });
     onCalculated(rec, f);
   }
@@ -223,25 +219,6 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 />
                 <p className="text-xs text-muted-foreground">
                   Parcela + aporte automático = sempre esse valor, até quitar.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Com o aporte, prefere</Label>
-                <RadioGroup
-                  value={f.reduceMode}
-                  onValueChange={(v) => set('reduceMode', v as 'term' | 'payment')}
-                  className="flex flex-row gap-4"
-                >
-                  <Label className="flex items-center gap-2 font-normal">
-                    <RadioGroupItem value="term" /> Reduzir o prazo
-                  </Label>
-                  <Label className="flex items-center gap-2 font-normal">
-                    <RadioGroupItem value="payment" /> Reduzir a parcela
-                  </Label>
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground">
-                  Reduzir o prazo quita antes; reduzir a parcela mantém o prazo com um valor mensal
-                  menor.
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
