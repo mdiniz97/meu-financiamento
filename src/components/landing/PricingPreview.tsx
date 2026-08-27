@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { Reveal } from "@/components/landing/motion-primitives";
 
 const starterFeatures = [
   "10 simulações completas",
@@ -20,22 +19,17 @@ const unlimitedFeatures = [
 export function PricingPreview() {
   return (
     <section className="mx-auto w-full max-w-6xl border-b border-border px-4 py-20 sm:px-6">
-      <Reveal>
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Planos simples, preços honestos
-          </h2>
-          <p className="mt-3 text-lg text-muted-foreground">
-            Comece grátis com 2 créditos de boas-vindas e evolua quando precisar.
-          </p>
-        </div>
-      </Reveal>
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+          Planos simples, preços honestos
+        </h2>
+        <p className="mt-3 text-lg text-muted-foreground">
+          Comece grátis com 2 créditos de boas-vindas e evolua quando precisar.
+        </p>
+      </div>
 
       <div className="mx-auto mt-12 grid max-w-3xl border border-border md:grid-cols-2">
-        <Reveal
-          hover
-          className="flex flex-col gap-5 p-7 transition-colors hover:border-primary/30"
-        >
+        <div className="flex flex-col gap-5 p-7 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30">
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-4xl font-bold tracking-tight">R$ 10</span>
             <span className="text-sm font-medium text-muted-foreground">
@@ -57,13 +51,9 @@ export function PricingPreview() {
           >
             Criar conta grátis
           </Link>
-        </Reveal>
+        </div>
 
-        <Reveal
-          delay={0.1}
-          hover
-          className="flex flex-col gap-5 border-t-2 border-t-primary p-7 transition-colors md:border-t-0 md:border-l-2 md:border-l-primary"
-        >
+        <div className="flex flex-col gap-5 border-t-2 border-t-primary p-7 transition-all duration-200 hover:-translate-y-1 md:border-t-0 md:border-l-2 md:border-l-primary">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-4xl font-bold tracking-tight">R$ 99,90</span>
@@ -88,7 +78,7 @@ export function PricingPreview() {
           >
             Criar conta grátis
           </Link>
-        </Reveal>
+        </div>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
