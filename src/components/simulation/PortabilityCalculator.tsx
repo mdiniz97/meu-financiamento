@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
+import { PortabilitySandbox } from './PortabilitySandbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -39,6 +40,7 @@ const DEFAULTS = {
 export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean }) {
   const [f, setF] = useState(DEFAULTS);
   const [result, setResult] = useState<PortabilityResult | null>(null);
+  const [showSandbox, setShowSandbox] = useState(false);
   const [error, setError] = useState('');
 
   const set = <K extends keyof typeof DEFAULTS>(k: K, v: (typeof DEFAULTS)[K]) =>
@@ -251,8 +253,9 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                 Busca inteligente
               </Label>
               <p className="text-xs text-muted-foreground">
-                Descubra a maior taxa que ainda compensa portar — e a taxa máxima para atingir a
-                parcela que você quer.
+                Não sabe qual taxa pedir? Diga até quanto quer de parcela (ou use só o limite de
+                compensação) e descubra a taxa máxima que o novo banco pode cobrar pra ainda valer
+                a pena portar.
               </p>
               {f.smartMode && (
                 <div className="flex flex-col gap-3">
@@ -273,8 +276,11 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   {f.smartResult && (
                     <div className="flex flex-col gap-2 rounded-xl bg-white p-3 text-xs">
                       <p>
-                        <strong>Taxa máxima que compensa portar:</strong>{' '}
+                        <strong>Taxa máxima que ainda compensa portar:</strong>{' '}
                         {(f.smartResult.maxWorthwhileRate * 100).toFixed(2)}% a.a.{' '}
+                        <span className="text-muted-foreground">
+                          (com taxa acima disso, portar sai mais caro que manter)
+                        </span>{' '}
                         <Button
                           type="button"
                           variant="link"
@@ -287,7 +293,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                       </p>
                       {f.smartResult.maxRateForTargetParcela !== null ? (
                         <p>
-                          <strong>Taxa máxima para a parcela desejada:</strong>{' '}
+                          <strong>Taxa necessária para a sua parcela desejada:</strong>{' '}
                           {(f.smartResult.maxRateForTargetParcela * 100).toFixed(2)}% a.a.{' '}
                           <Button
                             type="button"
@@ -329,11 +335,10 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   {vantajoso ? (
                     <>
                       <strong>Vale a pena portar!</strong> Você economiza{' '}
-                      <strong>{formatBRL(result.economia)}</strong> no total
-                      {result.paybackMonth
-                        ? ` — a economia acumulada cobre os custos no mês ${result.paybackMonth} (${(result.paybackMonth / 12).toFixed(1)} anos)`
-                        : ' (sem custos, a economia é imediata)'}
-                      .
+                      <strong>{formatBRL(result.economia)}</strong> no total.
+                      {parseBRLToNumber(f.costs) > 0 && result.paybackMonth
+                        ? ` A economia acumulada cobre os custos da portabilidade em ${result.paybackMonth} ${result.paybackMonth === 1 ? 'mês' : 'meses'} (${(result.paybackMonth / 12).toFixed(1)} anos).`
+                        : ' Sua parcela já cai a partir da primeira parcela.'}
                     </>
                   ) : (
                     <>
@@ -376,7 +381,26 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                     <span className="text-lg font-semibold">{formatBRL(result.ported.metrics.totalPago)}</span>
                   </div>
                 </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSandbox((v) => !v)}
+                  >
+                    {showSandbox ? 'Ocultar comparação' : 'Ver comparação lado a lado'}
+                  </Button>
+                </div>
               </div>
+            )}
+
+            {result && showSandbox && (
+              <PortabilitySandbox
+                keep={result.keep}
+                ported={result.ported}
+                keepTitle={`Manter no ${f.bank} (${f.currentSystem})`}
+                portedTitle={`Portar para ${f.newBank} (${f.newSystem} @ ${parseDecimal(f.newAnnualRate).toFixed(2)}% a.a.)`}
+              />
             )}
           </div>
         )}

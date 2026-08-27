@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
+import { MoneyInput } from '@/components/ui/money-input';
+import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
@@ -100,19 +101,37 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartPrincipal">Valor financiado (R$)</Label>
-                <Input id="smartPrincipal" inputMode="numeric" value={f.principal} onChange={(e) => set('principal', e.target.value)} />
+                <MoneyInput
+                id="smartPrincipal"
+                value={parseBRLToNumber(f.principal)}
+                onValid={(v) => set("principal", String(v))}
+              />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartRate">Taxa a.a. (%)</Label>
-                <Input id="smartRate" inputMode="decimal" value={f.annualRate} onChange={(e) => set('annualRate', e.target.value)} />
+                <NumericInput
+                id="smartRate"
+                value={parseDecimal(f.annualRate)}
+                parse={parseDecimal}
+                onValid={(v) => set("annualRate", String(v))}
+              />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartTr">TR mensal (%)</Label>
-                <Input id="smartTr" inputMode="decimal" value={f.trMonthly} onChange={(e) => set('trMonthly', e.target.value)} />
+                <NumericInput
+                id="smartTr"
+                value={parseDecimal(f.trMonthly)}
+                parse={parseDecimal}
+                onValid={(v) => set("trMonthly", String(v))}
+              />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartSeguro">Seguro (R$/mês)</Label>
-                <Input id="smartSeguro" inputMode="numeric" value={f.insuranceMonthly} onChange={(e) => set('insuranceMonthly', e.target.value)} />
+                <MoneyInput
+                id="smartSeguro"
+                value={parseBRLToNumber(f.insuranceMonthly)}
+                onValid={(v) => set("insuranceMonthly", String(v))}
+              />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Banco</Label>
@@ -131,15 +150,24 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartMaxMonths">Prazo máximo (meses)</Label>
-                <Input id="smartMaxMonths" inputMode="numeric" value={f.maxMonths} onChange={(e) => set('maxMonths', e.target.value)} />
+                <NumericInput
+                id="smartMaxMonths"
+                value={Number(f.maxMonths)}
+                parse={parseIntStrict}
+                onValid={(v) => set("maxMonths", String(v))}
+              />
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor="smartMaxPayment">Quanto pode pagar por mês (R$)</Label>
-                <Input id="smartMaxPayment" inputMode="numeric" value={f.maxPayment} onChange={(e) => set('maxPayment', e.target.value)} />
+                <MoneyInput
+                id="smartMaxPayment"
+                value={parseBRLToNumber(f.maxPayment)}
+                onValid={(v) => set("maxPayment", String(v))}
+              />
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="mt-auto flex justify-end">
               <Button type="button" onClick={calcular}>
                 <Sparkles className="size-4" /> Calcular melhor modelo
               </Button>

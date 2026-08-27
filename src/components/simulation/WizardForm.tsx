@@ -7,6 +7,7 @@ import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -60,15 +61,14 @@ export function WizardForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col gap-4">
           <div className="flex flex-col gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="principal">Valor financiado (R$)</Label>
-                  <NumericInput
+                  <MoneyInput
                     id="principal"
                     value={parseBRLToNumber(form.principal)}
-                    parse={parseBRLToNumber}
                     onValid={(v) => set('principal', String(v))}
                   />
                 </div>
@@ -101,10 +101,9 @@ export function WizardForm() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="insuranceMonthly">Seguro (R$/mês)</Label>
-                  <NumericInput
+                  <MoneyInput
                     id="insuranceMonthly"
                     value={parseBRLToNumber(form.insuranceMonthly)}
-                    parse={parseBRLToNumber}
                     onValid={(v) => set('insuranceMonthly', String(v))}
                   />
                 </div>
@@ -145,7 +144,7 @@ export function WizardForm() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
             <Badge variant="secondary" className="text-xs">
               {form.system === 'PRICE' ? 'Sistema PRICE' : 'Sistema SAC'}
             </Badge>

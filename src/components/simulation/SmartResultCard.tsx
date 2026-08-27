@@ -148,6 +148,19 @@ export function SmartResultCard({ rec, fields }: Props) {
 
         <ComparativoTable rec={rec} />
 
+        {rec.maxTerm && rec.maxTerm !== b && (
+          <p className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+            Entrar já no prazo máximo ({rec.maxTerm.months} meses) com o mesmo orçamento: parcela{' '}
+            {formatBRL(rec.maxTerm.parcela)} + aporte {formatBRL(rec.maxTerm.extraMonthlyAmount)}, total{' '}
+            {formatBRL(rec.maxTerm.result.metrics.totalPago)} —{' '}
+            <span className="text-destructive">
+              {formatBRL(rec.maxTerm.result.metrics.totalPago - b.result.metrics.totalPago)} a mais
+            </span>{' '}
+            que o prazo recomendado (mais parcelas de seguro e juros). O prazo máximo só vale a pena
+            pela parcela mínima menor — se você nem sempre consegue aportar.
+          </p>
+        )}
+
         <div>
           <Button type="button" onClick={abrirNoSandbox}>
             Abrir no sandbox
