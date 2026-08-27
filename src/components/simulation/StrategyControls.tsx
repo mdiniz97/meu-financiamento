@@ -9,7 +9,6 @@ import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
