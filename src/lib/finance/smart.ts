@@ -128,7 +128,7 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
   const minN: Record<AmortSystem, number | null> = { PRICE: null, SAC: null };
   // no modo pagamento fixo, deixa folga no orçamento (parcela <= 85% do
   // orçamento quando possível) para o aporte absorver o crescimento da parcela
-  // pela TR — senão a parcela estoura o valor fixo em poucos meses
+  // pela TR: senão a parcela estoura o valor fixo em poucos meses
   const fixedLimit = i.fixedPayment !== false ? Math.min(i.maxPayment, i.maxPayment * 0.85) : i.maxPayment;
   for (const system of ['PRICE', 'SAC'] as AmortSystem[]) {
     const limit = i.fixedPayment !== false ? fixedLimit : i.maxPayment;

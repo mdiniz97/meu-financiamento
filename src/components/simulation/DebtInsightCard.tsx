@@ -46,7 +46,7 @@ export function DebtInsightCard({ input, result, strategies, isUnlimited, onChan
         <CardHeader>
           <CardTitle className="text-lg">Raio X da dívida</CardTitle>
           <CardDescription>
-            No SAC a amortização é fixa desde a 1ª parcela — a dívida abate todo mês. Compare com o PRICE:
+            No SAC a amortização é fixa desde a 1ª parcela: a dívida abate todo mês. Compare com o PRICE:
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
@@ -85,10 +85,10 @@ export function DebtInsightCard({ input, result, strategies, isUnlimited, onChan
             </div>
           </div>
           <p className="rounded-xl bg-emerald-50 p-3 text-emerald-800">
-            No SAC sua dívida <strong>cai desde o mês 1</strong> — diferentemente do PRICE, onde pode
+            No SAC sua dívida <strong>cai desde o mês 1</strong>: diferentemente do PRICE, onde pode
             crescer no início. O preço é a parcela inicial mais alta
             {sacMaisCara ? ` (${formatBRL(c.parcela1Sac - c.parcela1Price)} a mais)` : ''}; depois do mês{' '}
-            {c.crossingMonth ?? '—'} ela fica menor que a PRICE para sempre. Use o seletor
+            {c.crossingMonth ?? '·'} ela fica menor que a PRICE para sempre. Use o seletor
             &quot;Comparar PRICE ↔ SAC&quot; no topo para ver lado a lado.
           </p>
         </CardContent>
@@ -186,7 +186,7 @@ export function DebtInsightCard({ input, result, strategies, isUnlimited, onChan
         </div>
         {!abateDesdeInicio && (
           <p className="rounded-xl bg-amber-50 p-3 text-amber-800">
-            Sua parcela de <strong>{formatBRL(parcelaAtual)}</strong> não abate a dívida no começo —
+            Sua parcela de <strong>{formatBRL(parcelaAtual)}</strong> não abate a dívida no começo.
             por <strong>{formatBRL(be.requiredExtraMonthly)}/mês</strong> de aporte por fora, ou
             financiando em até {be.maxMonths} meses com parcela de{' '}
             <strong>{formatBRL(be.idealPayment ?? parcelaAtual)}</strong>, a dívida cai desde a 1ª

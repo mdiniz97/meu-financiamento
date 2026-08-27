@@ -31,15 +31,15 @@ function ComparativoTable({ rec }: { rec: SmartRecommendation }) {
                 <span className="ml-1 text-muted-foreground">(não cabe no orçamento)</span>
               )}
             </td>
-            <td className="text-right">{c.candidate ? `${c.candidate.months} m` : '—'}</td>
+            <td className="text-right">{c.candidate ? `${c.candidate.months} m` : '-'}</td>
             <td className="text-right">
               {c.candidate ? formatBRL(c.candidate.parcela) : `mín. ${formatBRL(c.minParcela)}`}
             </td>
             <td className="text-right">
-              {c.candidate ? `${c.candidate.result.metrics.saldoZeroAt} m` : '—'}
+              {c.candidate ? `${c.candidate.result.metrics.saldoZeroAt} m` : '-'}
             </td>
             <td className="text-right">
-              {c.candidate ? formatBRL(c.candidate.result.metrics.totalPago) : '—'}
+              {c.candidate ? formatBRL(c.candidate.result.metrics.totalPago) : '-'}
             </td>
           </tr>
         ))}
@@ -105,7 +105,7 @@ function ScenarioMiniCard({
           onClick={onOpen}
           className="mt-1 flex items-center gap-1 self-end text-xs font-medium text-[#820AD1] hover:underline"
         >
-          Abrir no sandbox <ArrowRight className="size-3" />
+          Abrir no simulador <ArrowRight className="size-3" />
         </button>
       )}
     </div>
@@ -150,7 +150,7 @@ export function SmartResultCard({ rec, fields }: Props) {
           <p>
             Com {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês não dá para amortizar esse
             financiamento nem no prazo máximo ({fields.maxMonths} meses). O orçamento mínimo é de{' '}
-            <strong>{formatBRL(rec.minBudget)}/mês</strong> — ou aumente o prazo máximo.
+            <strong>{formatBRL(rec.minBudget)}/mês</strong> (ou aumente o prazo máximo).
           </p>
           <ComparativoTable rec={rec} />
         </CardContent>
@@ -216,7 +216,7 @@ export function SmartResultCard({ rec, fields }: Props) {
           <p className="text-sm font-medium">E se eu entrar direto no prazo máximo?</p>
           <p className="text-xs text-muted-foreground">
             Entrar no prazo máximo paga <strong>mais no total</strong> (mais parcelas de seguro e
-            juros), mas a parcela mínima é menor — útil se você nem sempre consegue aportar o valor
+            juros), mas a parcela mínima é menor: útil se você nem sempre consegue aportar o valor
             cheio.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -243,7 +243,7 @@ export function SmartResultCard({ rec, fields }: Props) {
                     </div>
                     <span className="text-muted-foreground">Entrando já no prazo máximo</span>
                     <span className="mt-1 text-sm text-amber-700">
-                      Não cabe no seu orçamento — precisa de no mínimo {formatBRL(c.minParcela)}/mês.
+                      Não cabe no seu orçamento: precisa de no mínimo {formatBRL(c.minParcela)}/mês.
                     </span>
                   </div>
                 );

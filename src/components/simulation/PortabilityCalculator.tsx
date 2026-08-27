@@ -130,7 +130,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
           Portabilidade <ArrowLeftRight className="size-5 text-[#820AD1]" />
         </CardTitle>
         <CardDescription>
-          Informe seu financiamento atual e a proposta do novo banco — veja se vale a pena portar.
+          Informe seu financiamento atual e a proposta do novo banco: veja se vale a pena portar.
         </CardDescription>
       </CardHeader>
       <CardContent>

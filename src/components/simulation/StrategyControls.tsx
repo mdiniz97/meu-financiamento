@@ -191,7 +191,7 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                 Pagar parcela do SAC
               </Label>
               <p className="text-xs text-muted-foreground">
-                Paga no PRICE o mesmo valor que pagaria no SAC — a diferença vira amortização extra,
+                Paga no PRICE o mesmo valor que pagaria no SAC: a diferença vira amortização extra,
                 acelerando a quitação.
               </p>
             </div>
@@ -267,8 +267,8 @@ export function StrategyControls({ input, strategies, onChange, base, current }:
                     <Info className="size-3.5 cursor-help text-muted-foreground" aria-label="Explicação" />
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-64 text-xs">
-                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo — a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
-                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma — o financiamento termina antes e você paga menos juros.</p>
+                    <p><strong>Reduzir parcela:</strong> o aporte abate a dívida e o prazo continua o mesmo: a parcela é recalculada para abater o saldo + correção. Se sua parcela atual não cobre juros + TR, o mínimo que abate pode ser maior que ela.</p>
+                    <p className="mt-1"><strong>Reduzir prazo:</strong> o aporte abate a dívida e a parcela continua a mesma: o financiamento termina antes e você paga menos juros.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

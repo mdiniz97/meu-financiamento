@@ -18,7 +18,7 @@ export function CTA() {
         <div className="relative mx-auto max-w-2xl">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium">
             <SparklesIcon className="size-4" />
-            2 créditos de boas-vindas — sem cartão de crédito
+            2 créditos de boas-vindas, sem cartão de crédito
           </span>
           <h2 className="mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
             Pronto para enxergar o que está por trás das parcelas?

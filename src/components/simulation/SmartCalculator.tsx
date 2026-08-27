@@ -253,7 +253,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
           <DialogHeader>
             <DialogTitle>Quanto você pode financiar</DialogTitle>
             <DialogDescription>
-              Informe quanto quer pagar por mês — calculamos o valor máximo do imóvel em cada
+              Informe quanto quer pagar por mês: calculamos o valor máximo do imóvel em cada
               modelo.
             </DialogDescription>
           </DialogHeader>
@@ -351,7 +351,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {s === 'PRICE'
-                          ? 'Parcela constante — cresce com a TR'
+                          ? 'Parcela constante: cresce com a TR'
                           : 'Parcela começa maior e cai'}
                       </span>
                     </div>

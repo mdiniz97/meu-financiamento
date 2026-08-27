@@ -31,7 +31,7 @@ export function Footer() {
         </div>
       </div>
       <p className="border-t border-black/5 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Raio X do Financiamento — ferramenta de
+        © {new Date().getFullYear()} Raio X do Financiamento: ferramenta de
         simulação e educação financeira. Não substitui aconselhamento financeiro
         profissional.
       </p>

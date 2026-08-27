@@ -33,7 +33,7 @@ export function InstallmentTable({ installments }: { installments: Installment[]
               <TableCell className="font-medium">{i.month}</TableCell>
               <TableCell className="text-right">{formatBRL(Math.max(0, i.parcela - i.extra))}</TableCell>
               <TableCell className="text-right">
-                {i.extra > 0 ? <span className="font-medium text-primary">{formatBRL(i.extra)}</span> : '—'}
+                {i.extra > 0 ? <span className="font-medium text-primary">{formatBRL(i.extra)}</span> : '-'}
               </TableCell>
               <TableCell className="text-right font-semibold">{formatBRL(i.parcela)}</TableCell>
               <TableCell className="text-right">{formatBRL(i.juros)}</TableCell>

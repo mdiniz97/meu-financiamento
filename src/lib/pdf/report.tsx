@@ -118,7 +118,7 @@ function InstallmentsTable({
       <View style={[styles.header, { marginBottom: 8 }]}>
         <View>
           <Text style={styles.title}>Raio X do Financiamento</Text>
-          <Text style={styles.subtitle}>Continuação — tabela de parcelas</Text>
+          <Text style={styles.subtitle}>Continuação: tabela de parcelas</Text>
         </View>
       </View>
       {header}

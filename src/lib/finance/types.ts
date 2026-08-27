@@ -18,7 +18,7 @@ export interface Strategies {
   fixedPayment?: FixedPayment;       // pagamento mensal fixo (parcela + aporte)
   fgtsAnnual?: number;               // R$ amortizados todo mês 12, 24, 36...
   recurringExtra?: RecurringExtra;   // aporte recorrente (ex: R$ 10 mil a cada 12 meses a partir do mês 6)
-  paySacParcela?: boolean;           // PRICE: pagar a parcela do SAC — a diferença vira amortização extra
+  paySacParcela?: boolean;           // PRICE: pagar a parcela do SAC: a diferença vira amortização extra
   reduceMode: 'payment' | 'term';    // default 'term'
   portability?: { annualRate: number; bank: string; insuranceMonthly: number };
 }

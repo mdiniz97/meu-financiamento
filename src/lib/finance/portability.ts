@@ -96,7 +96,7 @@ export function portabilityBreakEven(i: PortabilityInput, targetParcela?: number
   let hi = Math.max(0.5, i.currentAnnualRate * 2);
   let lo = 0;
   if (economiaNa(hi) >= 0) {
-    // até 2× a taxa atual ainda compensa — retorna o teto do intervalo
+    // até 2× a taxa atual ainda compensa: retorna o teto do intervalo
     lo = hi;
   } else {
     for (let k = 0; k < 60; k++) {

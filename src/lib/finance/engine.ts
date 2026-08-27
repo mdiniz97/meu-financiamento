@@ -85,10 +85,10 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   let mesesRestantesFixos = input.months;
   let parcelaFixada = 0; // PRICE: nova parcela (fixa) no modo "reduzir parcela"
   let amortizacaoFixada = 0; // SAC: nova amortização (fixa) no modo "reduzir parcela"
-  // taxa efetiva que cobre juros + correção monetária (TR) — usada no modo
+  // taxa efetiva que cobre juros + correção monetária (TR): usada no modo
   // "reduzir parcela" para que a parcela reduzida continue amortizando o saldo
   const mEff = (1 + m) * (1 + input.trMonthly) - 1;
-  // cronograma base de amortização SAC (sem estratégias) — usado no modo
+  // cronograma base de amortização SAC (sem estratégias): usado no modo
   // "reduzir prazo": a amortização contratual mantida encurta o prazo quando
   // há aportes (senão a amortização se redetermina e o prazo fica fixo)
   const baseSacAmort: number[] = [];
@@ -102,7 +102,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       bs = Math.max(0, bs - a + corr);
     }
   }
-  // cronograma de parcelas do SAC base (mesmo contrato) — para a opção
+  // cronograma de parcelas do SAC base (mesmo contrato): para a opção
   // "pagar parcela do SAC" no PRICE: a diferença vira amortização extra
   const sacParcelas: number[] = [];
   if (input.system === 'PRICE' && strategies.paySacParcela) {
@@ -136,7 +136,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       }
       amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
     } else {
-      // modo termo: mantém a amortização do cronograma contratual — aportes
+      // modo termo: mantém a amortização do cronograma contratual: aportes
       // encurtam o prazo; modo payment: amortização fixa que cobre a TR
       amortizacao = modoPayment
         ? amortizacaoFixada
@@ -188,7 +188,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
         parcelaFixada = pmt(mEff, mesesRestantesFixos, saldo) + seguroMensal;
       } else {
         // SAC paga juros à parte; a amortização fixa precisa cobrir apenas o
-        // crescimento do saldo pela TR: pmt(TR, N, saldo) — senão o prazo estica
+        // crescimento do saldo pela TR: pmt(TR, N, saldo): senão o prazo estica
         amortizacaoFixada = pmt(input.trMonthly, mesesRestantesFixos, saldo);
       }
     }

@@ -7,7 +7,7 @@ type InputProps = ComponentProps<typeof Input>;
 
 /**
  * Input numérico que aceita vírgula PT-BR, permite apagar tudo e nunca propaga
- * texto inválido (letras etc.) — só emite valores numéricos válidos.
+ * texto inválido (letras etc.): só emite valores numéricos válidos.
  */
 export function NumericInput({
   value,

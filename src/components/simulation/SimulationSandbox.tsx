@@ -180,7 +180,7 @@ export function SimulationSandbox({
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{saved?.name ?? 'Sandbox de simulação'}</h1>
+          <h1 className="text-xl font-semibold">{saved?.name ?? 'Simulador de financiamento'}</h1>
           <p className="text-sm text-muted-foreground">
             {input.system === 'PRICE' ? 'Sistema PRICE' : 'Sistema SAC'} · {formatBRL(input.principal)} ·{' '}
             {(input.annualRate * 100).toFixed(2)}% a.a. · {input.months} meses · {input.bank}

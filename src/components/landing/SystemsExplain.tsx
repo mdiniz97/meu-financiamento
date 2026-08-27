@@ -89,7 +89,7 @@ export function SystemsExplain() {
         <div className="mt-8 overflow-hidden rounded-2xl bg-[#F5F5F5]">
           <div className="flex items-center gap-2 border-b border-black/5 bg-white px-6 py-4">
             <span className="text-sm font-semibold">
-              Exemplo numérico — financiamento de R$ 1.000.000 em 360 meses (10% a.a.)
+              Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a.)
             </span>
           </div>
           <div className="px-6 py-2">
@@ -113,7 +113,7 @@ export function SystemsExplain() {
           </div>
           <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
             Valores aproximados calculados com taxa de 10% a.a. O resultado exato
-            depende das taxas do seu contrato — simule o seu caso.
+            depende das taxas do seu contrato: simule o seu caso.
           </p>
         </div>
       </div>
