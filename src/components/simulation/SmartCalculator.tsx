@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useRouter } from 'next/navigation';
-import type { FormState } from '@/lib/simulation-context';
 import { maxFinancing, recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -32,7 +30,6 @@ export interface SmartCalcFields {
   maxMonths: string;
   maxPayment: string;
   fixedUntilMonth: string;
-  inverseMode: boolean;
 }
 
 export const SMART_DEFAULTS: SmartCalcFields = {
@@ -44,7 +41,6 @@ export const SMART_DEFAULTS: SmartCalcFields = {
   maxMonths: '360',
   maxPayment: '12000',
   fixedUntilMonth: '',
-  inverseMode: false,
 };
 
 interface Props {
@@ -53,11 +49,18 @@ interface Props {
 }
 
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
-  const router = useRouter();
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
-  const [inverse, setInverse] = useState<{ PRICE: number; SAC: number } | null>(null);
-  const [inverseOpen, setInverseOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalFields, setModalFields] = useState({
+    parcela: '12000',
+    annualRate: '10.5',
+    trMonthly: '0.17',
+    insuranceMonthly: '100',
+    months: '360',
+  });
+  const [modalResult, setModalResult] = useState<{ PRICE: number; SAC: number } | null>(null);
+  const [modalError, setModalError] = useState('');
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -78,19 +81,6 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     if (!(maxMonths >= 60 && maxMonths <= 600)) return setError('Prazo máximo deve estar entre 60 e 600 meses.');
     if (!(maxPayment > 0)) return setError('Informe quanto pode pagar por mês.');
 
-    if (f.inverseMode) {
-      const mf = maxFinancing({
-        maxPayment,
-        annualRate: annualRate / 100,
-        trMonthly: trMonthly / 100,
-        insuranceMonthly,
-        bank: f.bank,
-        months: maxMonths,
-      });
-      setInverse(mf);
-      setInverseOpen(true);
-      return;
-    }
     const rec = recommendSmart({
       principal,
       annualRate: annualRate / 100,
@@ -104,27 +94,15 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     onCalculated(rec, f);
   }
 
-  function abrirInverseNoSandbox(system: 'PRICE' | 'SAC', principal: number) {
-    const form: FormState = {
-      system,
-      principal: String(principal),
-      annualRate: f.annualRate,
-      months: f.maxMonths,
-      trMonthly: f.trMonthly,
-      insuranceMonthly: f.insuranceMonthly,
-      bank: f.bank,
-      lumpSum: [],
-      extraMonthlyPct: '0',
-      fgtsAnnual: '0',
-      recurringExtra: null,
-      fixedPayment: '',
-      fixedPaymentUntil: '',
-      paySacParcela: false,
-      reduceMode: 'term',
-      portability: null,
-    };
-    sessionStorage.setItem('sim-input', JSON.stringify(form));
-    router.push('/simulacao?name=financiamento-possivel');
+  function usarNoInteligente(system: 'PRICE' | 'SAC', principal: number) {
+    // leva os valores descobertos para o cálculo inteligente
+    set('principal', String(principal));
+    set('maxPayment', modalFields.parcela);
+    set('annualRate', modalFields.annualRate);
+    set('trMonthly', modalFields.trMonthly);
+    set('insuranceMonthly', modalFields.insuranceMonthly);
+    set('maxMonths', modalFields.months);
+    setModalOpen(false);
   }
 
   return (
@@ -153,6 +131,26 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setModalFields({
+                    parcela: f.maxPayment,
+                    annualRate: f.annualRate,
+                    trMonthly: f.trMonthly,
+                    insuranceMonthly: f.insuranceMonthly,
+                    months: f.maxMonths,
+                  });
+                  setModalResult(null);
+                  setModalOpen(true);
+                }}
+              >
+                <Search className="size-3.5" /> Descobrir quanto posso financiar
+              </Button>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="smartPrincipal">Valor financiado (R$)</Label>
@@ -237,23 +235,9 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
               </div>
             </div>
 
-            <Label className="flex items-center gap-2 text-sm font-normal">
-              <input
-                type="checkbox"
-                checked={f.inverseMode}
-                onChange={(e) => {
-                  set('inverseMode', e.target.checked);
-                  setInverse(null);
-                }}
-                className="size-4 accent-[#820AD1]"
-              />
-              Quero descobrir o valor do imóvel que posso financiar
-            </Label>
-
             <div className="mt-auto flex justify-end">
               <Button type="button" onClick={calcular}>
-                <Sparkles className="size-4" />{' '}
-                {f.inverseMode ? 'Calcular financiamento possível' : 'Calcular melhor modelo'}
+                <Sparkles className="size-4" /> Calcular melhor modelo
               </Button>
             </div>
 
@@ -263,50 +247,133 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
         )}
       </CardContent>
 
-      <Dialog open={inverseOpen} onOpenChange={setInverseOpen}>
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Quanto você pode financiar</DialogTitle>
             <DialogDescription>
-              Com {inverse ? formatBRL(parseBRLToNumber(f.maxPayment)) : ''}/mês, em {f.maxMonths}{' '}
-              meses, a {parseDecimal(f.annualRate).toFixed(2)}% a.a. e TR{' '}
-              {parseDecimal(f.trMonthly).toFixed(2)}%:
+              Informe quanto quer pagar por mês e os dados do financiamento — o sistema calcula o
+              valor máximo do imóvel em cada modelo.
             </DialogDescription>
           </DialogHeader>
-          {inverse && (
-            <div className="flex flex-col gap-3">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(['PRICE', 'SAC'] as const).map((s) => (
-                  <div key={s} className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
-                    <span className="text-xs text-muted-foreground">No {s} você financia até</span>
-                    <span className="text-lg font-semibold text-primary">{formatBRL(inverse[s])}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {s === 'PRICE'
-                        ? 'Parcela constante — cresce com a TR'
-                        : 'Parcela começa maior e cai'}
-                    </span>
-                  </div>
-                ))}
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mfParcela">Quanto quer pagar por mês (R$)</Label>
+                <MoneyInput
+                  id="mfParcela"
+                  value={parseBRLToNumber(modalFields.parcela)}
+                  onValid={(v) => setModalFields((p) => ({ ...p, parcela: String(v) }))}
+                />
               </div>
-              <p className="text-xs text-muted-foreground">
-                A primeira parcela fica no seu teto mensal. Abra no sandbox para ver o detalhamento
-                completo e ajustar estratégias.
-              </p>
-              <div className="flex flex-wrap justify-end gap-2">
-                {(['PRICE', 'SAC'] as const).map((s) => (
-                  <Button
-                    key={s}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => abrirInverseNoSandbox(s, inverse[s])}
-                  >
-                    Ver no sandbox ({s})
-                  </Button>
-                ))}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mfMonths">Prazo (meses)</Label>
+                <NumericInput
+                  id="mfMonths"
+                  value={Number(modalFields.months)}
+                  parse={parseIntStrict}
+                  onValid={(v) => setModalFields((p) => ({ ...p, months: String(v) }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mfRate">Taxa a.a. (%)</Label>
+                <NumericInput
+                  id="mfRate"
+                  value={parseDecimal(modalFields.annualRate)}
+                  parse={parseDecimal}
+                  onValid={(v) => setModalFields((p) => ({ ...p, annualRate: String(v) }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mfTr">TR mensal (%)</Label>
+                <NumericInput
+                  id="mfTr"
+                  value={parseDecimal(modalFields.trMonthly)}
+                  parse={parseDecimal}
+                  onValid={(v) => setModalFields((p) => ({ ...p, trMonthly: String(v) }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label htmlFor="mfSeguro">Seguro (R$/mês)</Label>
+                <MoneyInput
+                  id="mfSeguro"
+                  value={parseBRLToNumber(modalFields.insuranceMonthly)}
+                  onValid={(v) => setModalFields((p) => ({ ...p, insuranceMonthly: String(v) }))}
+                />
               </div>
             </div>
-          )}
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setModalError('');
+                  const parcela = parseBRLToNumber(modalFields.parcela);
+                  const rate = parseDecimal(modalFields.annualRate);
+                  const tr = parseDecimal(modalFields.trMonthly);
+                  const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
+                  const months = Number(modalFields.months);
+                  if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
+                  if (!(rate > 0)) return setModalError('Informe a taxa anual.');
+                  if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
+                  if (!(seguro >= 0)) return setModalError('Informe o seguro.');
+                  if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
+                  setModalResult(
+                    maxFinancing({
+                      maxPayment: parcela,
+                      annualRate: rate / 100,
+                      trMonthly: tr / 100,
+                      insuranceMonthly: seguro,
+                      bank: f.bank,
+                      months,
+                    })
+                  );
+                }}
+              >
+                <Search className="size-3.5" /> Calcular
+              </Button>
+            </div>
+
+            {modalError && <p className="text-sm text-destructive">{modalError}</p>}
+
+            {modalResult && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-semibold text-primary">
+                  Com {formatBRL(parseBRLToNumber(modalFields.parcela))}/mês você pode financiar até:
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(['PRICE', 'SAC'] as const).map((s) => (
+                    <div key={s} className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                      <span className="text-xs text-muted-foreground">No {s}</span>
+                      <span className="text-lg font-semibold text-primary">
+                        {formatBRL(modalResult[s])}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {s === 'PRICE'
+                          ? 'Parcela constante — cresce com a TR'
+                          : 'Parcela começa maior e cai'}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 w-fit"
+                        onClick={() => usarNoInteligente(s, modalResult[s])}
+                      >
+                        Usar no cálculo inteligente
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O valor vai para o cálculo inteligente — dali você descobre o melhor modelo, prazo
+                  e estratégia para esse financiamento.
+                </p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
