@@ -22,6 +22,7 @@ const sacPoints = [
 ];
 
 const pricePoints = [
+  "Parcela inicial menor que o SAC — mais fácil de caber no orçamento e na aprovação do crédito",
   "Parcela igual do início ao fim",
   "No começo, quase tudo é juro e a amortização é mínima",
   `No exemplo abaixo, a dívida até cresce nos primeiros anos (por causa da TR)`,
