@@ -52,14 +52,19 @@ export function DashboardTabs({
 
   return (
     <div className="mt-12 grid border border-border sm:grid-cols-[160px_1fr]">
-      <div className="hidden flex-col divide-y divide-border border-r border-border sm:flex">
+      <div
+        role="tablist"
+        className="flex divide-x divide-border overflow-x-auto border-b border-border sm:flex-col sm:divide-x-0 sm:divide-y sm:overflow-visible sm:border-b-0 sm:border-r"
+      >
         {sidebarItems.map((item, i) => (
           <button
             key={item}
             type="button"
+            role="tab"
+            aria-selected={i === active}
             onClick={() => setActive(i)}
             className={cn(
-              "p-4 text-left text-xs",
+              "whitespace-nowrap p-4 text-left text-xs",
               i === active ? "font-semibold text-primary" : "text-muted-foreground"
             )}
           >
@@ -92,21 +97,36 @@ export function DashboardTabs({
         {active === 2 && <ComparisonTable title="Amortização por mês" rows={amortizacaoRows} />}
 
         {active === 3 && (
-          <svg viewBox="0 0 300 80" className="w-full text-border" aria-hidden="true">
-            <polyline
-              points="0,8 60,20 120,38 180,54 240,66 300,74"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1"
-            />
-            <polyline
-              points="0,6 60,14 120,26 180,42 240,58 300,72"
-              fill="none"
-              className="text-primary"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-          </svg>
+          <div className="flex flex-col gap-3">
+            <svg
+              viewBox="0 0 300 80"
+              className="w-full text-border"
+              role="img"
+              aria-label="Evolução do saldo devedor ao longo do financiamento: o SAC cai mais rápido que o PRICE."
+            >
+              <polyline
+                points="0,6 60,14 120,26 180,42 240,58 300,72"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+              />
+              <polyline
+                points="0,8 60,20 120,38 180,54 240,66 300,74"
+                fill="none"
+                className="text-primary"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </svg>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4 bg-border" /> PRICE
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4 bg-primary" /> SAC
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </div>

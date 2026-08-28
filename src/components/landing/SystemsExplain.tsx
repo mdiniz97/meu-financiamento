@@ -21,11 +21,12 @@ const sacPoints = [
   "Ideal para quem quer reduzir a dívida mais rápido",
 ];
 
+const priceProsCount = 3;
+
 const pricePoints = [
-  "Parcela inicial menor que o SAC — mais fácil de caber no orçamento e na aprovação do crédito",
+  "Parcela inicial ~R$ 2,3 mil menor que o SAC — mais fácil de caber no orçamento",
+  "Maior facilidade de aprovação: bancos costumam financiar até 90% do valor do imóvel quando a parcela é menor",
   "Parcela igual do início ao fim",
-  "No começo, quase tudo é juro e a amortização é mínima",
-  `No exemplo abaixo, a dívida até cresce nos primeiros anos (por causa da TR)`,
   `Só passa a amortizar de verdade a partir da ~${be.maxMonths}ª parcela (mais de 18 anos)`,
 ];
 
@@ -111,9 +112,13 @@ export function SystemsExplain() {
               amortização.
             </p>
             <ul className="mt-2 flex flex-col gap-3">
-              {pricePoints.map((point) => (
+              {pricePoints.map((point, i) => (
                 <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
+                  {i < priceProsCount ? (
+                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
+                  ) : (
+                    <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
+                  )}
                   {point}
                 </li>
               ))}
