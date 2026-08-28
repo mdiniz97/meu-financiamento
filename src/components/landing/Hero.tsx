@@ -119,7 +119,7 @@ export function Hero() {
               <AnimatedNumber
                 value={sac.metrics.totalJuros}
                 format="brl"
-                className="font-mono text-lg font-semibold tabular-nums text-primary"
+                className="font-mono text-lg font-semibold tabular-nums"
               />
             </div>
             <div className="flex flex-col gap-1 p-5">
