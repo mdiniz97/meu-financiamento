@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 const faqs = [
   {
     q: "Qual a diferença entre SAC e PRICE?",
-    a: "No SAC a amortização é fixa: a parcela começa maior e cai todo mês, e a dívida abate desde a primeira parcela. No PRICE a parcela é constante, mas no começo quase tudo é juro — e com a correção (TR) a dívida pode até crescer nos primeiros anos. No total, o SAC costuma pagar bem menos juros.",
+    a: "No SAC a amortização é fixa: a parcela começa maior e cai todo mês, e a dívida abate desde a primeira parcela. No PRICE a parcela é constante, mas no começo quase tudo é juro, e com a correção (TR) a dívida pode até crescer nos primeiros anos. No total, o SAC costuma pagar bem menos juros.",
   },
   {
     q: "Vale a pena amortizar o financiamento?",
-    a: "Sim, quase sempre. Cada real amortizado deixa de render juros até o fim do contrato — uma amortização pequena pode economizar muitas vezes o seu valor em juros. O nosso simulador mostra exatamente quanto você economiza e o quanto o prazo encurta.",
+    a: "Sim, quase sempre. Cada real amortizado deixa de render juros até o fim do contrato: uma amortização pequena pode economizar muitas vezes o seu valor em juros. O nosso simulador mostra exatamente quanto você economiza e o quanto o prazo encurta.",
   },
   {
     q: "O que é o 'Raio X da dívida'?",
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: "Preciso criar conta para usar?",
-    a: "Sim — ao criar a conta você ganha 2 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 10 simulações) ou o plano Ilimitado (R$ 99,90/mês).",
+    a: "Sim, ao criar a conta você ganha 2 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 10 simulações) ou o plano Ilimitado (R$ 99,90/mês).",
   },
 ];
 

@@ -50,7 +50,7 @@ export function DashboardPreview() {
           </h2>
           <p className="mt-3 text-lg text-muted-foreground">
             Gráficos de evolução da dívida, tabela de amortização comparativa e o
-            break-even entre SAC e PRICE — tudo em um só lugar.
+            break-even entre SAC e PRICE: tudo em um só lugar.
           </p>
         </div>
 
