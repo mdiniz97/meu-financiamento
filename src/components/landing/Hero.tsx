@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { simulate } from "@/lib/finance/engine";
 import type { LoanInput } from "@/lib/finance/types";
-import { AnimatedNumber } from "@/components/landing/motion-primitives";
+import { AnimatedNumber, TypewriterPhrase } from "@/components/landing/motion-primitives";
 
 const trustPoints = ["Grátis para começar", "Sem cartão de crédito", "2 créditos de boas-vindas"];
 
@@ -24,12 +24,12 @@ export function Hero() {
         <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
           <span className="font-mono">2</span> créditos de boas-vindas
         </span>
-        <p className="mt-5 max-w-xl text-base font-semibold text-muted-foreground sm:text-lg">
-          Não sabe qual plano escolher? SAC ou PRICE? Mais parcelas ou menos parcelas?
-        </p>
-        <h1 className="font-display mt-4 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
-          Veja o raio X do seu financiamento{" "}
-          <span className="text-primary">antes de assinar o contrato</span>
+        <h1 className="font-display mt-6 min-h-[135px] max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:min-h-[120px] sm:text-5xl sm:leading-tight">
+          Prefere{" "}
+          <TypewriterPhrase
+            className="text-primary"
+            phrases={["SAC", "PRICE", "Parcela menor", "Menos juros"]}
+          />
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           Compare os sistemas SAC e PRICE, descubra quanto você realmente paga de

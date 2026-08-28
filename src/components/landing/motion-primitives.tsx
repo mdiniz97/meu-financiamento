@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { animate, motion, useInView, useMotionValue, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,65 @@ export function AnimatedNumber({
   return (
     <span ref={ref} className={className}>
       {formatFn(value)}
+    </span>
+  );
+}
+
+export function TypewriterPhrase({
+  phrases,
+  className,
+  typingSpeed = 45,
+  deletingSpeed = 28,
+  pauseMs = 1500,
+}: {
+  phrases: string[];
+  className?: string;
+  typingSpeed?: number;
+  deletingSpeed?: number;
+  pauseMs?: number;
+}) {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [charCount, setCharCount] = useState(phrases[0]?.length ?? 0);
+  const [phase, setPhase] = useState<"typing" | "pausing" | "deleting">("pausing");
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reduceMotion || phrases.length <= 1) return;
+    const current = phrases[phraseIndex];
+
+    if (phase === "pausing") {
+      const t = setTimeout(() => setPhase("deleting"), pauseMs);
+      return () => clearTimeout(t);
+    }
+
+    if (phase === "deleting") {
+      if (charCount === 0) {
+        const t = setTimeout(() => {
+          setPhraseIndex((i) => (i + 1) % phrases.length);
+          setPhase("typing");
+        }, 300);
+        return () => clearTimeout(t);
+      }
+      const t = setTimeout(() => setCharCount((c) => c - 1), deletingSpeed);
+      return () => clearTimeout(t);
+    }
+
+    if (charCount === current.length) {
+      const t = setTimeout(() => setPhase("pausing"), 0);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setCharCount((c) => c + 1), typingSpeed);
+    return () => clearTimeout(t);
+  }, [phase, charCount, phraseIndex, phrases, reduceMotion, pauseMs, typingSpeed, deletingSpeed]);
+
+  const text = reduceMotion ? phrases[0] : phrases[phraseIndex].slice(0, charCount);
+
+  return (
+    <span className={cn("inline-flex items-baseline", className)}>
+      {text}
+      {!reduceMotion && (
+        <span className="ml-0.5 inline-block h-[0.9em] w-[2px] animate-pulse bg-current" />
+      )}
     </span>
   );
 }
