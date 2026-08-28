@@ -1,11 +1,12 @@
 'use client';
 
-import { Link, Plus, Lock } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Lock } from 'lucide-react';
 import type { LoanInput, SimulationResult } from '@/lib/finance/types';
 import { priceBreakEven, recurringParcela, sacVsPrice } from '@/lib/finance/insights';
 import { formatBRL } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
@@ -17,23 +18,28 @@ interface Props {
 }
 
 export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: Props) {
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   if (!isUnlimited) {
     return (
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            Raio X da dívida
-            <Badge variant="secondary" className="text-xs">
-              <Lock className="size-3" /> Exclusivo Ilimitado
-            </Badge>
+            <Lock className="size-4 text-primary" /> Raio X da dívida
           </CardTitle>
           <CardDescription>
             Descubra a parcela mínima que abate sua dívida e o prazo ideal de financiamento.
-            <a href="/planos" className="mt-1 flex items-center gap-1 text-xs font-medium text-primary">
-              <Link className="size-3" /> Ver planos
-            </a>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              <Lock className="size-3" /> Recurso exclusivo: ver opções de acesso
+            </Button>
           </CardDescription>
         </CardHeader>
+        <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
       </Card>
     );
   }

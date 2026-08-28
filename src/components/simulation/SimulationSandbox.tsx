@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { simulate } from '@/lib/finance/engine';
 import { recommend } from '@/lib/finance/recommend';
 import type { AmortSystem, LoanInput, Strategies } from '@/lib/finance/types';
@@ -94,6 +95,7 @@ export function SimulationSandbox({
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
   const applyAporteRef = useRef<((pct: number) => void) | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState('');
@@ -221,14 +223,14 @@ export function SimulationSandbox({
             }}
           />
         ) : (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
-              <Lock className="size-3" /> Exclusivo Ilimitado
-            </Badge>
-            <Link href="/planos" className="text-sm font-medium text-[#820AD1]">
-              Ver planos
-            </Link>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setUpgradeOpen(true)}
+          >
+            <Lock className="size-3.5" /> Comparar PRICE × SAC: Exclusivo Ilimitado
+          </Button>
         )}
       </div>
 
@@ -328,6 +330,7 @@ export function SimulationSandbox({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

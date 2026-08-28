@@ -55,6 +55,12 @@ export function AppHeader({
           >
             Minhas simulações
           </Link>
+          <Link
+            href="/perfil"
+            className="hidden text-sm font-medium text-foreground transition-colors hover:text-[#820AD1] sm:inline"
+          >
+            Meu perfil
+          </Link>
           <ThemeToggle />
           {signedIn ? (
             <Button variant="outline" size="sm" onClick={() => signOut()}>

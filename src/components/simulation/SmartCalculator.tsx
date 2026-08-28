@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Search, Sparkles, Lock } from 'lucide-react';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 import {
   Dialog,
   DialogContent,
@@ -14,12 +15,10 @@ import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Link from 'next/link';
 
 export interface SmartCalcFields {
   principal: string;
@@ -51,6 +50,7 @@ interface Props {
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
   const [error, setError] = useState('');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalFields, setModalFields] = useState({
     parcela: '12000',
@@ -144,17 +144,21 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
         {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-6 text-center">
-            <Sparkles className="mx-auto size-8 text-[#820AD1]" />
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center dark:bg-zinc-800/50">
+            <Lock className="mx-auto size-8 text-[#820AD1]" />
+            <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
             <p className="text-sm text-muted-foreground">
-              Recurso exclusivo do plano Ilimitado.
+              Cálculo inteligente: descubra o melhor modelo e prazo pelo seu orçamento.
             </p>
-            <Badge variant="secondary" className="mx-auto text-xs">
-              <Lock className="size-3" /> Exclusivo Ilimitado
-            </Badge>
-            <Link href="/planos" className="mx-auto text-sm font-medium text-[#820AD1]">
-              Ver planos
-            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mx-auto"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              <Lock className="size-3" /> Ver opções de acesso
+            </Button>
           </div>
         ) : (
           <div className="flex flex-1 flex-col gap-4">
@@ -403,6 +407,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </Card>
   );
 }

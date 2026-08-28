@@ -1,9 +1,11 @@
+import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { AppHeader } from '@/components/app-header';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+  if (!session?.userId) redirect('/login');
   let credits = 0;
   let isUnlimited = false;
   if (session?.userId) {

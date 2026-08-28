@@ -26,7 +26,7 @@ test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {
   await page.getByLabel('Email').fill(`u${Date.now()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
   await page.getByRole('button', { name: /criar conta/i }).click();
-  await page.goto('/nova-simulacao');
+  await page.waitForURL(/nova-simulacao/);
   await page.getByRole('button', { name: /simular/i }).click();
   await expect(page.getByText(/exclusivo/i).first()).toBeVisible();
 });

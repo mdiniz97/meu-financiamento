@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import type { SimulationResult } from '@/lib/finance/types';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 
 export function ExportPdfButton({
   result,
@@ -15,24 +21,28 @@ export function ExportPdfButton({
 }) {
   const [downloading, setDownloading] = useState(false);
 
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
   if (!isUnlimited) {
     return (
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="Exportação em PDF é exclusiva do plano Ilimitado"
-        >
-          Exportar PDF
-        </Button>
-        <Badge variant="secondary" className="text-xs">
-          Exclusivo Ilimitado
-        </Badge>
-        <Link href="/planos" className="text-sm font-medium text-[#820AD1]">
-          Ver planos
-        </Link>
-      </div>
+      <>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Exportar PDF (exclusivo do plano Ilimitado)"
+                onClick={() => setUpgradeOpen(true)}
+              >
+                Exportar PDF <Lock className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exclusivo do plano Ilimitado</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+      </>
     );
   }
 
