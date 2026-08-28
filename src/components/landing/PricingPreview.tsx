@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -50,7 +50,7 @@ export function PricingPreview() {
               href="/cadastro"
               className={cn(buttonVariants({ variant: "outline" }), "mt-auto h-11 text-base")}
             >
-              Criar conta grátis
+              Comprar créditos
             </Link>
           </div>
 
@@ -75,9 +75,13 @@ export function PricingPreview() {
             </ul>
             <Link
               href="/cadastro"
-              className={cn(buttonVariants({ variant: "default" }), "mt-auto h-11 text-base")}
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "mt-auto h-11 items-center gap-2 text-base"
+              )}
             >
-              Criar conta grátis
+              <ZapIcon className="size-4" />
+              Assinar plano Ilimitado
             </Link>
           </div>
         </div>
