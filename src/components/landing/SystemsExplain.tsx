@@ -163,11 +163,6 @@ export function SystemsExplain() {
               </div>
             ))}
           </div>
-          <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
-            Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
-            0,17% a.m. O amortizador inteligente considera um aporte extra de R$ 500/mês reduzindo
-            o prazo. O resultado exato depende das taxas do seu contrato: simule o seu caso.
-          </p>
         </div>
       </div>
     </section>
