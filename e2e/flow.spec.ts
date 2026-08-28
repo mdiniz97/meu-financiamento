@@ -6,7 +6,7 @@ test('cadastro → simular → comprar créditos', async ({ page }) => {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await expect(page).toHaveURL(/nova-simulacao/);
 
   await page.goto('/nova-simulacao');
@@ -25,7 +25,7 @@ test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {
   await page.getByLabel('Nome').fill('Teste2');
   await page.getByLabel('Email').fill(`u${Date.now()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   await page.getByRole('button', { name: /simular/i }).click();
   await expect(page.getByText(/exclusivo/i).first()).toBeVisible();

@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import bcrypt from 'bcryptjs';
+import { emailLoginEnabled } from '@/lib/auth-mode';
 
 export async function POST(req: Request) {
+  if (!emailLoginEnabled()) {
+    return NextResponse.json({ error: 'Cadastro por email indisponível' }, { status: 403 });
+  }
   let body: unknown;
   try {
     body = await req.json();

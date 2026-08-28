@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { GoogleButton } from '@/components/google-button';
+import { emailLoginEnabled } from '@/lib/auth-mode';
 
 export function LoginForm() {
   const router = useRouter();
@@ -43,40 +45,60 @@ export function LoginForm() {
           <CardDescription>Acesse sua conta para continuar</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+          {emailLoginEnabled() ? (
+            <>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Entrando…' : 'Entrar'}
+                </Button>
+              </form>
+              <div className="my-4 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground">ou</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <GoogleButton label="Entrar com Google" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Não tem conta?{' '}
+                <Link
+                  href="/cadastro"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Cadastre-se
+                </Link>
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <GoogleButton label="Entrar com Google" />
+              <p className="text-center text-xs text-muted-foreground">
+                Login por email e senha disponível apenas em desenvolvimento.
+              </p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Entrando…' : 'Entrar'}
-            </Button>
-          </form>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Não tem conta?{' '}
-            <Link href="/cadastro" className="font-medium text-primary underline-offset-4 hover:underline">
-              Cadastre-se
-            </Link>
-          </p>
+          )}
         </CardContent>
       </Card>
     </div>
