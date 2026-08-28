@@ -24,11 +24,11 @@ export function Hero() {
         <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
           <span className="font-mono">2</span> créditos de boas-vindas
         </span>
-        <h1 className="font-display mt-6 min-h-[135px] max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:min-h-[120px] sm:text-5xl sm:leading-tight">
-          Prefere{" "}
+        <h1 className="font-display mt-6 flex min-h-[139px] max-w-3xl flex-col items-center gap-1 text-4xl font-extrabold leading-tight tracking-tight sm:min-h-[124px] sm:text-5xl sm:leading-tight">
+          <span>Prefere</span>
           <TypewriterPhrase
             className="text-primary"
-            phrases={["SAC", "PRICE", "Parcela menor", "Menos juros"]}
+            phrases={["SAC?", "PRICE?", "Parcela menor?", "Menos juros?"]}
           />
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
