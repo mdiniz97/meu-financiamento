@@ -19,7 +19,7 @@ export default async function MinhasSimulacoesPage() {
   const sims = await listSimulations();
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-[#F5F5F5] p-6">
+    <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Minhas simulações</h1>
@@ -35,7 +35,7 @@ export default async function MinhasSimulacoesPage() {
       </div>
 
       {sims.length === 0 ? (
-        <Card className="rounded-2xl bg-white p-10 text-center shadow-sm">
+        <Card className="rounded-2xl p-10 text-center shadow-sm">
           <p className="text-muted-foreground">
             Simule um financiamento e salve para comparar depois.
           </p>
@@ -51,7 +51,7 @@ export default async function MinhasSimulacoesPage() {
               sac?: { metrics?: { totalPago?: number } };
             }>(sim.result);
             return (
-              <Card key={sim.id} className="flex flex-col gap-3 rounded-2xl bg-white shadow-sm">
+              <Card key={sim.id} className="flex flex-col gap-3 rounded-2xl shadow-sm">
                 <CardHeader className="gap-1">
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="secondary" className="text-xs">

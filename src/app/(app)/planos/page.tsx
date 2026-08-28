@@ -17,7 +17,7 @@ export default async function PlanosPage() {
   ]);
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-[#F5F5F5] p-6">
+    <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
       <div>
         <h1 className="text-xl font-semibold">Planos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -33,7 +33,7 @@ export default async function PlanosPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {packs.map((pack) => (
-          <Card key={pack.id} className="flex flex-col gap-3 rounded-2xl bg-white shadow-sm">
+          <Card key={pack.id} className="flex flex-col gap-3 rounded-2xl shadow-sm">
             <CardHeader className="gap-1">
               <CardTitle className="text-base">{pack.name}</CardTitle>
               <p className="text-sm text-muted-foreground">
