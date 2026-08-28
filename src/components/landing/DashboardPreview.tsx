@@ -1,6 +1,6 @@
 import { simulate } from "@/lib/finance/engine";
 import type { LoanInput } from "@/lib/finance/types";
-import { cn } from "@/lib/utils";
+import { DashboardTabs } from "@/components/landing/DashboardTabs";
 
 const input: LoanInput = {
   system: "PRICE", principal: 1000000, annualRate: 0.10, months: 360,
@@ -16,11 +16,29 @@ const brl = (v: number) =>
 
 const sidebarItems = ["Visão geral", "Comparativo", "Amortização", "Gráficos"];
 
-const rows = [
+const comparativoRows = [
   { label: "Parcela inicial", price: brl(price.installments[0].parcela), sac: brl(sac.installments[0].parcela) },
   { label: "Amortização na 1ª parcela", price: brl(price.installments[0].amortizacao), sac: brl(sac.installments[0].amortizacao) },
   { label: "Juros totais em 30 anos", price: brl(price.metrics.totalJuros), sac: brl(sac.metrics.totalJuros) },
 ];
+
+const amortizacaoMonths = [
+  { month: 1, index: 0 },
+  { month: 12, index: 11 },
+  { month: 60, index: 59 },
+  { month: 120, index: 119 },
+  { month: 360, index: 359 },
+];
+
+const amortizacaoRows = amortizacaoMonths.map(({ month, index }) => ({
+  label: `Mês ${month}`,
+  price: brl(price.installments[index].amortizacao),
+  sac: brl(sac.installments[index].amortizacao),
+}));
+
+const parcelaInicialPrice = brl(price.installments[0].parcela);
+const parcelaInicialSac = brl(sac.installments[0].parcela);
+const economiaTotal = brl(price.metrics.totalJuros - sac.metrics.totalJuros);
 
 export function DashboardPreview() {
   return (
@@ -36,53 +54,14 @@ export function DashboardPreview() {
           </p>
         </div>
 
-        <div className="mt-12 grid border border-border sm:grid-cols-[160px_1fr]">
-          <div className="hidden flex-col divide-y divide-border border-r border-border sm:flex">
-            {sidebarItems.map((item, i) => (
-              <span
-                key={item}
-                className={cn(
-                  "p-4 text-xs",
-                  i === 1 ? "font-semibold text-primary" : "text-muted-foreground"
-                )}
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-          <div className="p-4 sm:p-6">
-            <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <span>Comparativo SAC × PRICE</span>
-              <span className="text-right">PRICE</span>
-              <span className="text-right">SAC</span>
-            </div>
-            {rows.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
-              >
-                <span className="text-muted-foreground">{row.label}</span>
-                <span className="text-right font-mono tabular-nums">{row.price}</span>
-                <span className="text-right font-mono tabular-nums text-primary">{row.sac}</span>
-              </div>
-            ))}
-            <svg viewBox="0 0 300 80" className="mt-4 w-full text-border" aria-hidden="true">
-              <polyline
-                points="0,8 60,20 120,38 180,54 240,66 300,74"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-              />
-              <polyline
-                points="0,6 60,14 120,26 180,42 240,58 300,72"
-                fill="none"
-                className="text-primary"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </div>
-        </div>
+        <DashboardTabs
+          sidebarItems={sidebarItems}
+          comparativoRows={comparativoRows}
+          amortizacaoRows={amortizacaoRows}
+          parcelaInicialPrice={parcelaInicialPrice}
+          parcelaInicialSac={parcelaInicialSac}
+          economiaTotal={economiaTotal}
+        />
       </div>
     </section>
   );
