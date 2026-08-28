@@ -66,6 +66,8 @@ Adicionar as variáveis para os ambientes **preview** e **production**:
 ```bash
 vercel env add DATABASE_URL preview     # connection string do Neon (idem para production)
 vercel env add AUTH_SECRET preview      # mesmo valor nos dois ambientes
+vercel env add AUTH_GOOGLE_ID preview       # id do OAuth Google (idem para production)
+vercel env add AUTH_GOOGLE_SECRET preview   # secret do OAuth Google (idem para production)
 vercel env add PAYMENT_PROVIDER preview # fake
 vercel env add PAYMENT_PROVIDER production  # fake (ver AVISO) — trocar por stripe|asaas antes do lançamento
 ```
@@ -74,11 +76,22 @@ vercel env add PAYMENT_PROVIDER production  # fake (ver AVISO) — trocar por st
 | -------- | ----- | ------- |
 | `DATABASE_URL` | connection string do Neon | mesma para preview e production |
 | `AUTH_SECRET` | `openssl rand -base64 32` | **mesmo valor nos dois ambientes** — se mudar, todas as sessões são invalidadas |
+| `AUTH_GOOGLE_ID` | id do OAuth Google | credenciais em console.cloud.google.com |
+| `AUTH_GOOGLE_SECRET` | secret do OAuth Google | mesmo valor nos dois ambientes |
 | `PAYMENT_PROVIDER` | `fake` | dev/preview; em produção ver AVISO abaixo |
 
 Não defina `NODE_ENV` — a Vercel e o Next.js gerenciam (`production` em todo
 deploy, inclusive preview). O `PAYMENT_PROVIDER=fake` + `NODE_ENV=production`
 faz o guard do `getPaymentProvider` lançar erro — ver AVISO.
+
+**Login em produção é somente Google** (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`):
+o cadastro por email/senha fica desativado (rota `/cadastro` redireciona para
+`/login` e a API `/api/signup` responde 403). Cada conta Google cria um
+usuário local com bônus único de 2 créditos — reentrar com a mesma conta
+Google reutiliza o usuário, impedindo farming de créditos. Em desenvolvimento
+o email/senha continua ativo para facilitar testes. No console do Google,
+adicione as callback URLs `https://<projeto>.vercel.app/api/auth/callback/google`
+(preview) e `https://<dominio>/api/auth/callback/google` (produção).
 
 ## Passo 4 — Deploy
 

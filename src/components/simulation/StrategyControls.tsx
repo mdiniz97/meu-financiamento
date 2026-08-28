@@ -452,19 +452,19 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <section className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela atual</span>
             <span className="text-lg font-semibold">{formatBRL(parcelaBase)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela nova</span>
             <span className="text-lg font-semibold text-primary">{formatBRL(parcelaAtual)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Juros totais</span>
             <span className="text-lg font-semibold">{formatBRL(current.metrics.totalJuros)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {current.metrics.saldoZeroAt} meses
@@ -476,14 +476,14 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
         </section>
         <div
           className={`flex flex-col gap-1 rounded-2xl p-4 shadow-sm ${
-            economia >= 0 ? 'bg-emerald-50' : 'bg-destructive/10'
+            economia >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/60' : 'bg-destructive/10 dark:bg-destructive/20'
           }`}
         >
           <span className="text-xs text-muted-foreground">
             {economia >= 0 ? 'Economia total' : 'Custo adicional'}
           </span>
           <span
-            className={`text-lg font-semibold ${economia >= 0 ? 'text-emerald-600' : 'text-destructive'}`}
+            className={`text-lg font-semibold ${economia >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}
           >
             {economia >= 0 ? formatBRL(economia) : `-${formatBRL(-economia)}`}
           </span>

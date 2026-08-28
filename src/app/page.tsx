@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
 import { TrustRow } from "@/components/landing/TrustRow";
@@ -10,20 +11,22 @@ import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+  const signedIn = Boolean(session?.userId);
   return (
     <div className="flex flex-1 flex-col">
-      <Header />
+      <Header signedIn={signedIn} />
       <main className="flex-1">
-        <Hero />
+        <Hero signedIn={signedIn} />
         <TrustRow />
         <HowItWorks />
         <SystemsExplain />
         <DashboardPreview />
-        <PricingPreview />
+        <PricingPreview signedIn={signedIn} />
         <StatsBar />
         <FAQ />
-        <CTA />
+        <CTA signedIn={signedIn} />
       </main>
       <Footer />
     </div>

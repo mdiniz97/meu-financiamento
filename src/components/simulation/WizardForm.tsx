@@ -131,7 +131,7 @@ export function WizardForm() {
                   >
                     <Label
                       className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 font-normal transition-colors ${
-                        form.system === 'PRICE' ? 'border-[#820AD1] bg-primary/5' : 'border-border'
+                        form.system === 'PRICE' ? 'border-[#820AD1] bg-primary/5 dark:bg-[#820AD1]/15' : 'border-border'
                       }`}
                     >
                       <RadioGroupItem value="PRICE" />
@@ -144,7 +144,7 @@ export function WizardForm() {
                     </Label>
                     <Label
                       className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 font-normal transition-colors ${
-                        form.system === 'SAC' ? 'border-[#820AD1] bg-primary/5' : 'border-border'
+                        form.system === 'SAC' ? 'border-[#820AD1] bg-primary/5 dark:bg-[#820AD1]/15' : 'border-border'
                       }`}
                     >
                       <RadioGroupItem value="SAC" />

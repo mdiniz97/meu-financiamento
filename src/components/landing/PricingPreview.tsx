@@ -16,7 +16,7 @@ const unlimitedFeatures = [
   "Exportação do Raio X em PDF",
 ];
 
-export function PricingPreview() {
+export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <section className="border-b border-border">
       <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
@@ -47,10 +47,10 @@ export function PricingPreview() {
               ))}
             </ul>
             <Link
-              href="/cadastro"
+              href={signedIn ? "/nova-simulacao" : "/cadastro"}
               className={cn(buttonVariants({ variant: "outline" }), "mt-auto h-11 text-base")}
             >
-              Comprar créditos
+              {signedIn ? "Ir para o simulador" : "Comprar créditos"}
             </Link>
           </div>
 
@@ -74,7 +74,7 @@ export function PricingPreview() {
               ))}
             </ul>
             <Link
-              href="/cadastro"
+              href={signedIn ? "/nova-simulacao" : "/cadastro"}
               className={cn(
                 buttonVariants({ variant: "default" }),
                 "mt-auto h-11 items-center gap-2 text-base"

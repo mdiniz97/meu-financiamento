@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { simulate } from '@/lib/finance/engine';
 import { recommend } from '@/lib/finance/recommend';
 import type { AmortSystem, LoanInput, Strategies } from '@/lib/finance/types';
@@ -93,6 +95,7 @@ export function SimulationSandbox({
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
   const applyAporteRef = useRef<((pct: number) => void) | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState('');
@@ -220,14 +223,14 @@ export function SimulationSandbox({
             }}
           />
         ) : (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
-              Exclusivo Ilimitado
-            </Badge>
-            <Link href="/planos" className="text-sm font-medium text-[#820AD1]">
-              Ver planos
-            </Link>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setUpgradeOpen(true)}
+          >
+            <Lock className="size-3.5" /> Comparar PRICE × SAC: Exclusivo Ilimitado
+          </Button>
         )}
       </div>
 
@@ -244,7 +247,7 @@ export function SimulationSandbox({
                 type="button"
                 onClick={() => setActiveSystem(system)}
                 className={`flex flex-col gap-1 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors ${
-                  isPrimary ? 'ring-2 ring-[#820AD1]' : 'hover:ring-1 hover:ring-[#820AD1]/40'
+                  isPrimary ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'hover:ring-1 hover:ring-[#820AD1] dark:ring-[#a44ce0]/40'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -321,12 +324,13 @@ export function SimulationSandbox({
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Fechar</DialogClose>
-            <Button nativeButton={false} render={<Link href="/planos" />}>
+            <Button nativeButton={false} render={<Link href="/perfil" />}>
               Ver planos
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

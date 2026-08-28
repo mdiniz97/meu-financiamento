@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeftRight, Sparkles } from 'lucide-react';
+import { ArrowLeftRight, Sparkles, Lock } from 'lucide-react';
+import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { comparePortability, portabilityBreakEven, type PortabilityResult } from '@/lib/finance/portability';
 import type { AmortSystem } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,6 @@ import { PortabilitySandbox } from './PortabilitySandbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import Link from 'next/link';
 
 type SmartBreakEven = { maxWorthwhileRate: number; maxRateForTargetParcela: number | null };
 
@@ -41,6 +40,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
   const [f, setF] = useState(DEFAULTS);
   const [result, setResult] = useState<PortabilityResult | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [error, setError] = useState('');
 
   const set = <K extends keyof typeof DEFAULTS>(k: K, v: (typeof DEFAULTS)[K]) =>
@@ -135,17 +135,21 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
       </CardHeader>
       <CardContent>
         {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
-            <ArrowLeftRight className="mx-auto size-8 text-[#820AD1]" />
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center dark:bg-zinc-800/50">
+            <Lock className="mx-auto size-8 text-[#820AD1]" />
+            <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
             <p className="text-sm text-muted-foreground">
-              Recurso exclusivo do plano Ilimitado.
+              Compare manter o contrato com portar para um novo banco.
             </p>
-            <Badge variant="secondary" className="mx-auto text-xs">
-              Exclusivo Ilimitado
-            </Badge>
-            <Link href="/planos" className="mx-auto text-sm font-medium text-[#820AD1]">
-              Ver planos
-            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mx-auto"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              <Lock className="size-3" /> Ver opções de acesso
+            </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -244,7 +248,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-4">
+            <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-4">
               <Label className="flex items-center gap-2">
                 <Switch
                   checked={f.smartMode}
@@ -306,7 +310,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                           </Button>
                         </p>
                       ) : (
-                        <p className="text-amber-700">
+                        <p className="text-amber-700 dark:text-amber-400">
                           <strong>Parcela desejada impossível:</strong> nem com taxa 0% dá para
                           chegar nesse valor.
                         </p>
@@ -329,7 +333,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               <div className="flex flex-col gap-4">
                 <div
                   className={`rounded-xl p-4 text-sm ${
-                    vantajoso ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
+                    vantajoso ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' : 'bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300'
                   }`}
                 >
                   {vantajoso ? (
@@ -348,7 +352,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
                     <span className="text-xs text-muted-foreground">Parcela atual</span>
                     <span className="text-lg font-semibold">
                       {formatBRL(result.keep.installments[0]?.parcela ?? 0)}
@@ -357,12 +361,12 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                       {result.keep.metrics.saldoZeroAt} meses restantes
                     </span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
                     <span className="text-xs text-muted-foreground">Parcela portada</span>
                     <span
                       className={`text-lg font-semibold ${
                         (result.keep.installments[0]?.parcela ?? 0) > (result.ported.installments[0]?.parcela ?? 0)
-                          ? 'text-emerald-600'
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-destructive'
                       }`}
                     >
@@ -372,11 +376,11 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                       {result.ported.metrics.saldoZeroAt} meses no novo contrato
                     </span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
                     <span className="text-xs text-muted-foreground">Total pago hoje</span>
                     <span className="text-lg font-semibold">{formatBRL(result.keep.metrics.totalPago)}</span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
                     <span className="text-xs text-muted-foreground">Total pago portando</span>
                     <span className="text-lg font-semibold">{formatBRL(result.ported.metrics.totalPago)}</span>
                   </div>
@@ -405,6 +409,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
           </div>
         )}
       </CardContent>
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </Card>
   );
 }
