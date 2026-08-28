@@ -209,7 +209,7 @@ export function SimulationSandbox({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-sm">
         <span className="text-sm font-medium">Comparar PRICE ↔ SAC</span>
         {isUnlimited ? (
           <Switch
@@ -243,7 +243,7 @@ export function SimulationSandbox({
                 key={system}
                 type="button"
                 onClick={() => setActiveSystem(system)}
-                className={`flex flex-col gap-1 rounded-2xl bg-white p-4 text-left shadow-sm transition-colors ${
+                className={`flex flex-col gap-1 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors ${
                   isPrimary ? 'ring-2 ring-[#820AD1]' : 'hover:ring-1 hover:ring-[#820AD1]/40'
                 }`}
               >

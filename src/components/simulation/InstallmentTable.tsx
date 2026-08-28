@@ -12,9 +12,9 @@ import {
 
 export function InstallmentTable({ installments, height = 'h-[480px]', showAporte = true }: { installments: Installment[]; height?: string; showAporte?: boolean }) {
   return (
-    <ScrollArea className={`${height} rounded-2xl bg-white shadow-sm`}>
+    <ScrollArea className={`${height} rounded-2xl bg-card shadow-sm`}>
       <Table>
-        <TableHeader className="sticky top-0 bg-white">
+        <TableHeader className="sticky top-0 bg-card">
           <TableRow>
             <TableHead>Mês</TableHead>
             <TableHead className="text-right">Parcela</TableHead>

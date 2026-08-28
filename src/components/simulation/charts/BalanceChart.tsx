@@ -4,7 +4,7 @@ import { formatBRL } from '@/lib/utils';
 
 export function BalanceChart({ data }: { data: { month: number; saldo: number }[] }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-semibold">Saldo devedor</h3>
       <ResponsiveContainer width="100%" height={260}>
         <AreaChart data={data}>

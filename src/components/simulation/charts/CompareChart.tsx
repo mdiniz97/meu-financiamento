@@ -20,7 +20,7 @@ export function CompareChart({
   }, [base, withStrategy]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-semibold">Comparação de cenários</h3>
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data}>
