@@ -137,7 +137,7 @@ export function SystemsExplain() {
               <span>Comparativo</span>
               <span className="text-right">PRICE</span>
               <span className="text-right">SAC</span>
-              <span className="text-right normal-case text-primary">Com plano de amortização</span>
+              <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
             </div>
             {exampleRows.map((row) => (
               <div
@@ -165,7 +165,7 @@ export function SystemsExplain() {
           </div>
           <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
             Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
-            0,17% a.m. O plano de amortização considera um aporte extra de R$ 500/mês reduzindo
+            0,17% a.m. O amortizador inteligente considera um aporte extra de R$ 500/mês reduzindo
             o prazo. O resultado exato depende das taxas do seu contrato: simule o seu caso.
           </p>
         </div>
