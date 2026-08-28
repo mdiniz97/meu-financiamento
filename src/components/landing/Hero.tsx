@@ -16,6 +16,10 @@ const input: LoanInput = {
 const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
+const smart = simulate(
+  { ...input, system: "PRICE" },
+  { extraLumpSum: [], reduceMode: "term", recurringExtra: { amount: 500, every: 1, startMonth: 1 } }
+);
 
 export function Hero() {
   return (
@@ -89,6 +93,16 @@ export function Hero() {
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={smart.installments[0].parcela}
+                  format="brl"
+                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">
+                  amortizador inteligente
+                </span>
+              </span>
             </div>
             <div className="flex flex-col gap-1 p-5">
               <span className="text-xs text-muted-foreground">Amortização na 1ª parcela</span>
@@ -108,19 +122,45 @@ export function Hero() {
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={smart.installments[0].amortizacao}
+                  format="brl"
+                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">
+                  amortizador inteligente
+                </span>
+              </span>
             </div>
             <div className="flex flex-col gap-1 p-5">
               <span className="text-xs text-muted-foreground">Juros totais em 30 anos</span>
-              <AnimatedNumber
-                value={price.metrics.totalJuros}
-                format="brl"
-                className="font-mono text-lg font-semibold tabular-nums"
-              />
-              <AnimatedNumber
-                value={sac.metrics.totalJuros}
-                format="brl"
-                className="font-mono text-lg font-semibold tabular-nums"
-              />
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={price.metrics.totalJuros}
+                  format="brl"
+                  className="font-mono text-lg font-semibold tabular-nums"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
+              </span>
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={sac.metrics.totalJuros}
+                  format="brl"
+                  className="font-mono text-lg font-semibold tabular-nums"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
+              </span>
+              <span className="flex items-baseline gap-1">
+                <AnimatedNumber
+                  value={smart.metrics.totalJuros}
+                  format="brl"
+                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                />
+                <span className="font-sans text-xs font-normal text-muted-foreground">
+                  amortizador inteligente
+                </span>
+              </span>
             </div>
             <div className="flex flex-col gap-1 p-5">
               <span className="text-xs text-muted-foreground">Diferença no total pago</span>
@@ -131,6 +171,14 @@ export function Hero() {
               />
               <span className="text-xs text-muted-foreground">
                 de economia escolhendo certo
+              </span>
+              <AnimatedNumber
+                value={price.metrics.totalJuros - smart.metrics.totalJuros}
+                format="brl"
+                className="font-mono text-lg font-bold tabular-nums text-primary"
+              />
+              <span className="text-xs text-muted-foreground">
+                a mais com o amortizador inteligente
               </span>
             </div>
           </div>
