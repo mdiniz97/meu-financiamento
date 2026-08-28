@@ -15,17 +15,17 @@ interface Props {
 
 function ScenarioCard({ title, result, accent }: { title: string; result: SimulationResult; accent: boolean }) {
   return (
-    <Card className={`rounded-2xl shadow-sm ${accent ? 'ring-2 ring-[#820AD1]' : ''}`}>
+    <Card className={`rounded-2xl shadow-sm ${accent ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}>
       <CardHeader>
         <CardTitle className={`text-lg ${accent ? 'text-[#820AD1]' : ''}`}>{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela 1</span>
             <span className="text-lg font-semibold">{formatBRL(result.installments[0]?.parcela ?? 0)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {result.metrics.saldoZeroAt} meses
@@ -34,11 +34,11 @@ function ScenarioCard({ title, result, accent }: { title: string; result: Simula
               </span>
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Total pago</span>
             <span className="text-lg font-semibold">{formatBRL(result.metrics.totalPago)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
             <span className="text-xs text-muted-foreground">Juros totais</span>
             <span className="text-lg font-semibold">{formatBRL(result.metrics.totalJuros)}</span>
           </div>
@@ -58,7 +58,7 @@ export function PortabilitySandbox({ keep, ported, keepTitle, portedTitle }: Pro
         Comparação lado a lado:{' '}
         {vantajoso ? (
           <>
-            <strong className="text-emerald-600">portar economiza {formatBRL(keep.metrics.totalPago - ported.metrics.totalPago)}</strong> no
+            <strong className="text-emerald-600 dark:text-emerald-400">portar economiza {formatBRL(keep.metrics.totalPago - ported.metrics.totalPago)}</strong> no
             total
           </>
         ) : (

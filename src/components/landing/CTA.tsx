@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverScale } from "@/components/landing/motion-primitives";
 
-export function CTA() {
+export function CTA({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6">
       <div className="border border-foreground bg-foreground px-6 py-16 text-center text-background sm:px-12">
@@ -22,13 +22,13 @@ export function CTA() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <HoverScale>
               <Link
-                href="/cadastro"
+                href={signedIn ? "/nova-simulacao" : "/cadastro"}
                 className={cn(
                   buttonVariants({ variant: "default" }),
                   "h-12 border border-background bg-background px-8 text-base text-foreground hover:bg-background/90"
                 )}
               >
-                Criar conta grátis
+                {signedIn ? "Ir para o simulador" : "Criar conta grátis"}
                 <ArrowRightIcon className="size-4" />
               </Link>
             </HoverScale>

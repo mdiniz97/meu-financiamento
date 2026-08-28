@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import { simulate } from '@/lib/finance/engine';
 import { recommend } from '@/lib/finance/recommend';
 import type { AmortSystem, LoanInput, Strategies } from '@/lib/finance/types';
@@ -222,7 +223,7 @@ export function SimulationSandbox({
         ) : (
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              Exclusivo Ilimitado
+              <Lock className="size-3" /> Exclusivo Ilimitado
             </Badge>
             <Link href="/planos" className="text-sm font-medium text-[#820AD1]">
               Ver planos
@@ -244,7 +245,7 @@ export function SimulationSandbox({
                 type="button"
                 onClick={() => setActiveSystem(system)}
                 className={`flex flex-col gap-1 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors ${
-                  isPrimary ? 'ring-2 ring-[#820AD1]' : 'hover:ring-1 hover:ring-[#820AD1]/40'
+                  isPrimary ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'hover:ring-1 hover:ring-[#820AD1] dark:ring-[#a44ce0]/40'
                 }`}
               >
                 <div className="flex items-center justify-between">

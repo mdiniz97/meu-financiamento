@@ -72,7 +72,7 @@ function ScenarioMiniCard({
   return (
     <div
       className={`flex h-full flex-col gap-1 rounded-2xl p-3 text-xs ${
-        highlight ? 'bg-primary/5 ring-2 ring-[#820AD1]' : 'bg-muted/50'
+        highlight ? 'bg-primary/5 dark:bg-[#820AD1]/15 ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'bg-muted/50 dark:bg-zinc-800/50'
       }`}
     >
       <div className="flex items-center justify-between gap-1">
@@ -150,8 +150,8 @@ export function SmartResultCard({ rec, fields }: Props) {
 
   if (rec.infeasible) {
     return (
-      <Card className="rounded-2xl bg-amber-50">
-        <CardContent className="flex flex-col gap-3 pt-6 text-sm text-amber-800">
+      <Card className="rounded-2xl bg-amber-50 dark:bg-amber-950/60">
+        <CardContent className="flex flex-col gap-3 pt-6 text-sm text-amber-800 dark:text-amber-300">
           <p>
             Com {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês não dá para amortizar esse
             financiamento nem no prazo máximo ({fields.maxMonths} meses). O orçamento mínimo é de{' '}
@@ -178,13 +178,13 @@ export function SmartResultCard({ rec, fields }: Props) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="flex flex-col gap-1 rounded-xl bg-primary/5 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-primary/5 dark:bg-[#820AD1]/15 p-3">
             <span className="text-xs text-muted-foreground">Modelo e prazo</span>
             <span className="text-lg font-semibold text-primary">
               {b.system} · {b.months} meses ({(b.months / 12).toFixed(1)} anos)
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-primary/5 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-primary/5 dark:bg-[#820AD1]/15 p-3">
             <span className="text-xs text-muted-foreground">Parcela + aporte</span>
             <span className="text-lg font-semibold text-primary">
               {formatBRL(b.parcela)}
@@ -207,9 +207,9 @@ export function SmartResultCard({ rec, fields }: Props) {
               </span>
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-emerald-50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-3">
             <span className="text-xs text-muted-foreground">Total pago</span>
-            <span className="text-lg font-semibold text-emerald-600">
+            <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
               {formatBRL(b.result.metrics.totalPago)}
             </span>
           </div>
@@ -236,13 +236,13 @@ export function SmartResultCard({ rec, fields }: Props) {
                   return (
                     <div
                       key={mode}
-                      className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
+                      className="flex flex-col gap-1 rounded-2xl bg-muted/30 dark:bg-zinc-800/40 p-3 text-xs opacity-80"
                     >
                       <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
                         <Lock className="size-3" /> Reduzir a parcela
                       </div>
                       <span className="text-muted-foreground">Mantém o prazo com valor mensal menor</span>
-                      <span className="mt-1 text-sm text-amber-700">
+                      <span className="mt-1 text-sm text-amber-700 dark:text-amber-400">
                         Não cabe no seu orçamento: a parcela mínima que abate a dívida é de{' '}
                         {formatBRL(rec.paymentMinParcela)}/mês.
                       </span>
@@ -293,13 +293,13 @@ export function SmartResultCard({ rec, fields }: Props) {
                 return (
                   <div
                     key={c.system}
-                    className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
+                    className="flex flex-col gap-1 rounded-2xl bg-muted/30 dark:bg-zinc-800/40 p-3 text-xs opacity-80"
                   >
                     <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
                       <Lock className="size-3" /> {c.system} · 360 meses
                     </div>
                     <span className="text-muted-foreground">Entrando já no prazo máximo</span>
-                    <span className="mt-1 text-sm text-amber-700">
+                    <span className="mt-1 text-sm text-amber-700 dark:text-amber-400">
                       Não cabe no seu orçamento: precisa de no mínimo {formatBRL(c.minParcela)}/mês.
                     </span>
                   </div>

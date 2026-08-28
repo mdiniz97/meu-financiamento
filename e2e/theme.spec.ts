@@ -18,12 +18,12 @@ test('elementos com borda na landing usam border-radius 0', async ({ page }) => 
   await expect(card).toHaveCSS('border-radius', '0px');
 });
 
-test('tema escuro na landing não vaza para rota autenticada em (app)', async ({ page }) => {
+test('tema escuro persiste da landing para as rotas autenticadas em (app)', async ({ page }) => {
   await page.goto('/');
   const html = page.locator('html');
   await page.getByRole('button', { name: /ativar tema escuro/i }).click();
   await expect(html).toHaveClass(/dark/);
 
   await page.goto('/nova-simulacao');
-  await expect(html).not.toHaveClass(/dark/);
+  await expect(html).toHaveClass(/dark/);
 });

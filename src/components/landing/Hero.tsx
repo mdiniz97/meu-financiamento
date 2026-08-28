@@ -17,7 +17,7 @@ const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
 
-export function Hero() {
+export function Hero({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <section className="border-b border-border">
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
@@ -35,17 +35,17 @@ export function Hero() {
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
           <Link
-            href="/cadastro"
+            href={signedIn ? "/nova-simulacao" : "/cadastro"}
             className={cn(buttonVariants({ variant: "default" }), "h-12 px-8 text-base")}
           >
-            Criar conta grátis
+            {signedIn ? "Simular meu financiamento" : "Criar conta grátis"}
             <ArrowRightIcon className="size-4" />
           </Link>
           <Link
-            href="/login"
+            href={signedIn ? "/minhas-simulacoes" : "/login"}
             className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
           >
-            Fazer login
+            {signedIn ? "Minhas simulações" : "Fazer login"}
           </Link>
         </div>
         <ul className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">

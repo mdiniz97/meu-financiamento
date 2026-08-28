@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Sparkles } from 'lucide-react';
+import { Search, Sparkles, Lock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -144,13 +144,13 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
         {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-6 text-center">
             <Sparkles className="mx-auto size-8 text-[#820AD1]" />
             <p className="text-sm text-muted-foreground">
               Recurso exclusivo do plano Ilimitado.
             </p>
             <Badge variant="secondary" className="mx-auto text-xs">
-              Exclusivo Ilimitado
+              <Lock className="size-3" /> Exclusivo Ilimitado
             </Badge>
             <Link href="/planos" className="mx-auto text-sm font-medium text-[#820AD1]">
               Ver planos
@@ -286,7 +286,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
+            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 dark:bg-zinc-800/40 p-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mfParcela">Quanto quer pagar por mês (R$)</Label>
                 <MoneyInput
