@@ -13,7 +13,7 @@ const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
 const smart = simulate(
   { ...input, system: "PRICE" },
-  { extraLumpSum: [], reduceMode: "term", recurringExtra: { amount: 500, every: 1, startMonth: 1 } }
+  { extraLumpSum: [], reduceMode: "term", extraMonthlyPct: 0.113 }
 );
 
 const sacPoints = [
