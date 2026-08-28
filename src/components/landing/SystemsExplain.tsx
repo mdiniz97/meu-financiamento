@@ -77,7 +77,7 @@ export function SystemsExplain() {
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">SAC</h3>
             <p className="text-xs font-medium text-muted-foreground">
-              SAC: Sistema de Amortização Constante
+              Sistema de Amortização Constante
             </p>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela começa maior e cai a cada mês, porque a amortização é
@@ -101,7 +101,7 @@ export function SystemsExplain() {
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">PRICE</h3>
             <p className="text-xs font-medium text-muted-foreground">
-              PRICE: Sistema de Parcelas Constantes
+              Sistema de Parcelas Constantes
             </p>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela é fixa, mas no começo você paga muito mais juro do que
