@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { SystemsExplain } from "@/components/landing/SystemsExplain";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { PricingPreview } from "@/components/landing/PricingPreview";
+import { StatsBar } from "@/components/landing/StatsBar";
 import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
@@ -20,6 +21,7 @@ export default function Home() {
         <SystemsExplain />
         <DashboardPreview />
         <PricingPreview />
+        <StatsBar />
         <FAQ />
         <CTA />
       </main>
