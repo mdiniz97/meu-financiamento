@@ -3,17 +3,20 @@ import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getCreditBalance } from '@/lib/credits';
+import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
 
 export default async function PerfilPage() {
   const session = await auth();
   if (!session?.userId) redirect('/login');
 
-  const [user, { credits, isUnlimited }] = await Promise.all([
+  const [user, { credits, isUnlimited }, packs] = await Promise.all([
     db.query.users.findFirst({ where: eq(schema.users.id, session.userId) }),
     getCreditBalance(session.userId),
+    db.query.packs.findMany({ orderBy: (packs, { asc }) => [asc(packs.priceCents)] }),
   ]);
 
   return (
@@ -51,16 +54,40 @@ export default async function PerfilPage() {
               Assinatura ilimitada ativa
             </Badge>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Sem assinatura ativa.{' '}
-              <a href="/planos" className="font-medium text-primary">
-                Ver planos
-              </a>
-            </p>
+            <Badge variant="secondary" className="w-fit">
+              {credits} {credits === 1 ? 'crédito disponível' : 'créditos disponíveis'}
+            </Badge>
           )}
           <div>
             <LogoutButton />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Planos</CardTitle>
+          <CardDescription>Compre créditos avulsos ou assine o Ilimitado.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          {packs.map((pack) => (
+            <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
+              <span className="font-semibold">{pack.name}</span>
+              <span className="text-sm text-muted-foreground">
+                {pack.isSubscription
+                  ? `${formatBRL(pack.priceCents / 100)}/mês`
+                  : formatBRL(pack.priceCents / 100)}
+              </span>
+              <BuyPackButton
+                packId={pack.id}
+                label={
+                  pack.isSubscription
+                    ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/mês`
+                    : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
+                }
+              />
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

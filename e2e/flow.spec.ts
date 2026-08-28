@@ -13,11 +13,11 @@ test('cadastro → simular → comprar créditos', async ({ page }) => {
   await page.getByRole('button', { name: /simular/i }).click();
   await expect(page.getByText(/total pago/i).first()).toBeVisible();
 
-  await page.goto('/planos');
+  await page.goto('/perfil');
   await page.getByRole('button', { name: /10 créditos/i }).click();
   await expect(page).toHaveURL(/webhooks\/payments/);
-  await page.goto('/planos');
-  await expect(page.getByText(/saldo de créditos: 12/i)).toBeVisible();
+  await page.goto('/perfil');
+  await expect(page.getByText('12 créditos disponíveis')).toBeVisible();
 });
 
 test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {

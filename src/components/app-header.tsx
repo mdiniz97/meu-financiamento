@@ -44,12 +44,6 @@ export function AppHeader({
             Portabilidade
           </Link>
           <Link
-            href="/planos"
-            className="hidden text-sm font-medium text-foreground transition-colors hover:text-[#820AD1] sm:inline"
-          >
-            Planos
-          </Link>
-          <Link
             href="/minhas-simulacoes"
             className="hidden text-sm font-medium text-foreground transition-colors hover:text-[#820AD1] sm:inline"
           >

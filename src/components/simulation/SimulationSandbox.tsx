@@ -324,7 +324,7 @@ export function SimulationSandbox({
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Fechar</DialogClose>
-            <Button nativeButton={false} render={<Link href="/planos" />}>
+            <Button nativeButton={false} render={<Link href="/perfil" />}>
               Ver planos
             </Button>
           </DialogFooter>
