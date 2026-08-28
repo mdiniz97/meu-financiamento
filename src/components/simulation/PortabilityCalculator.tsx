@@ -124,7 +124,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
   const vantajoso = (result?.economia ?? 0) > 0;
 
   return (
-    <Card className="rounded-2xl bg-white shadow-sm">
+    <Card className="rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           Portabilidade <ArrowLeftRight className="size-5 text-[#820AD1]" />
@@ -274,7 +274,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                     </Button>
                   </div>
                   {f.smartResult && (
-                    <div className="flex flex-col gap-2 rounded-xl bg-white p-3 text-xs">
+                    <div className="flex flex-col gap-2 rounded-xl bg-muted p-3 text-xs">
                       <p>
                         <strong>Taxa máxima que ainda compensa portar:</strong>{' '}
                         {(f.smartResult.maxWorthwhileRate * 100).toFixed(2)}% a.a.{' '}

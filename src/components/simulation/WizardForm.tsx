@@ -53,7 +53,7 @@ export function WizardForm() {
   }
 
   return (
-    <Card className="flex h-full w-full flex-col rounded-2xl bg-white shadow-sm">
+    <Card className="flex h-full w-full flex-col rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Simulação normal</CardTitle>
         <CardDescription>

@@ -133,7 +133,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   }
 
   return (
-    <Card className="flex h-full w-full flex-col rounded-2xl bg-white shadow-sm">
+    <Card className="flex h-full w-full flex-col rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           Cálculo inteligente <Sparkles className="size-5 text-[#820AD1]" />
@@ -373,7 +373,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(['PRICE', 'SAC'] as const).map((s) => (
-                    <div key={s} className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm">
+                    <div key={s} className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-muted p-4 shadow-sm">
                       <span className="text-xs text-muted-foreground">No {s}</span>
                       <span className="text-lg font-semibold text-primary break-all">
                         {formatBRL(modalResult[s])}

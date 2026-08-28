@@ -167,7 +167,7 @@ export function SmartResultCard({ rec, fields }: Props) {
   const b = rec.best;
 
   return (
-    <Card className="rounded-2xl bg-white shadow-sm">
+    <Card className="rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           Melhor modelo <Sparkles className="size-4 text-[#820AD1]" />
@@ -198,7 +198,7 @@ export function SmartResultCard({ rec, fields }: Props) {
               {formatBRL(b.parcela + b.extraMonthlyAmount)} do orçamento usado
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-white p-3 shadow-sm">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted p-3 shadow-sm">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {b.result.metrics.saldoZeroAt} meses

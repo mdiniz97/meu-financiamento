@@ -19,7 +19,7 @@ interface Props {
 export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: Props) {
   if (!isUnlimited) {
     return (
-      <Card className="rounded-2xl bg-white shadow-sm">
+      <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             Raio X da dívida
@@ -42,7 +42,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
     const c = sacVsPrice(input);
     const sacMaisCara = c.parcela1Sac > c.parcela1Price;
     return (
-      <Card className="rounded-2xl bg-white shadow-sm">
+      <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg">Raio X da dívida</CardTitle>
           <CardDescription>
@@ -103,7 +103,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
   const prazoOk = input.months <= be.maxMonths;
 
   return (
-    <Card className="rounded-2xl bg-white shadow-sm">
+    <Card className="rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg">Raio X da dívida</CardTitle>
         <CardDescription>No PRICE, juros + correção podem crescer mais que a amortização.</CardDescription>
