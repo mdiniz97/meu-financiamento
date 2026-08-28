@@ -274,7 +274,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                     </Button>
                   </div>
                   {f.smartResult && (
-                    <div className="flex flex-col gap-2 rounded-xl bg-muted p-3 text-xs">
+                    <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3 text-xs">
                       <p>
                         <strong>Taxa máxima que ainda compensa portar:</strong>{' '}
                         {(f.smartResult.maxWorthwhileRate * 100).toFixed(2)}% a.a.{' '}

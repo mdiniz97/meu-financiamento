@@ -12,7 +12,7 @@ import {
 
 export function InstallmentTable({ installments, height = 'h-[480px]', showAporte = true }: { installments: Installment[]; height?: string; showAporte?: boolean }) {
   return (
-    <ScrollArea className={`${height} rounded-2xl bg-card shadow-sm`}>
+    <ScrollArea className={`${height} rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10`}>
       <Table>
         <TableHeader className="sticky top-0 bg-card">
           <TableRow>

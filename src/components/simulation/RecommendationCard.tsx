@@ -18,7 +18,7 @@ export function RecommendationCard({ base, best }: Props) {
   return (
     <div className="rounded-2xl border-2 border-[#820AD1] bg-card p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Badge className="bg-primary">Melhor caminho</Badge>
+        <Badge>Melhor caminho</Badge>
         <span className="text-xs text-muted-foreground">
           Sistema {best.system}
           {hasGain ? ' · com estratégias aplicadas' : ' · sem estratégias aplicadas'}

@@ -69,7 +69,7 @@ export function ScenarioCompare({ input, base, current }: Props) {
     <div className="rounded-2xl bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-base font-semibold">Comparação de cenários</h3>
-        <Badge className="bg-primary">Melhor caminho: cenário {bestIdx === 0 ? 'sem' : 'com'} estratégia</Badge>
+        <Badge>Melhor caminho: cenário {bestIdx === 0 ? 'sem' : 'com'} estratégia</Badge>
       </div>
       <Table>
         <TableHeader>
