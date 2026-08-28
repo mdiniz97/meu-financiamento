@@ -7,7 +7,7 @@ import { Logo } from '@/components/logo';
 
 export function AppHeader({ signedIn }: { signedIn: boolean }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-[#820AD1]/10 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
         <Link href="/nova-simulacao" className="flex items-center gap-2">
           <Logo size={30} />
