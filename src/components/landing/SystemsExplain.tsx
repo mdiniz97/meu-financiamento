@@ -76,7 +76,7 @@ export function SystemsExplain() {
               </span>
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">SAC</h3>
-            <p className="text-xs font-medium text-muted-foreground">
+            <p className="-mt-4 text-xs font-medium text-muted-foreground">
               Sistema de Amortização Constante
             </p>
             <p className="-mt-2 text-sm text-muted-foreground">
@@ -100,7 +100,7 @@ export function SystemsExplain() {
               </span>
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">PRICE</h3>
-            <p className="text-xs font-medium text-muted-foreground">
+            <p className="-mt-4 text-xs font-medium text-muted-foreground">
               Sistema de Parcelas Constantes
             </p>
             <p className="-mt-2 text-sm text-muted-foreground">
