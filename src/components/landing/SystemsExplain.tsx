@@ -20,7 +20,7 @@ const sacPoints = [
 ];
 
 const pricePoints = [
-  "Parcela inicial menor que o SAC — mais fácil de caber no orçamento",
+  "Parcela inicial menor que o SAC, mais fácil de caber no orçamento",
   "Maior facilidade de aprovação, já que a parcela menor pesa menos na renda exigida pelo banco",
   "Parcela igual do início ao fim",
   "Até 90% de financiamento do valor do imóvel",
@@ -74,11 +74,11 @@ export function SystemsExplain() {
               <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 Amortiza desde o início
               </span>
-              <span className="text-xs font-medium text-muted-foreground">
-                Sistema de Amortização Constante
-              </span>
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">SAC</h3>
+            <p className="text-xs font-medium text-muted-foreground">
+              SAC: Sistema de Amortização Constante
+            </p>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela começa maior e cai a cada mês, porque a amortização é
               fixa desde a primeira parcela.
@@ -95,14 +95,14 @@ export function SystemsExplain() {
 
           <div className="flex flex-col gap-4 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="border border-[#92400E] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#92400E] dark:border-amber-400 dark:text-amber-400">
+              <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 Atenção nos primeiros anos
-              </span>
-              <span className="text-xs font-medium text-muted-foreground">
-                Sistema de Parcelas Constantes
               </span>
             </div>
             <h3 className="font-display text-2xl font-bold tracking-tight">PRICE</h3>
+            <p className="text-xs font-medium text-muted-foreground">
+              PRICE: Sistema de Parcelas Constantes
+            </p>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela é fixa, mas no começo você paga muito mais juro do que
               amortização.
