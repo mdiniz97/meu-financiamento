@@ -10,7 +10,7 @@ export function NovaSimulacaoClient({ isUnlimited }: { isUnlimited: boolean }) {
   const [rec, setRec] = useState<{ recommendation: SmartRecommendation; fields: SmartCalcFields } | null>(null);
 
   return (
-    <div className="flex w-full flex-col items-center gap-6 bg-muted p-6">
+    <div className="flex w-full flex-1 flex-col items-center gap-6 bg-muted p-6">
       <div className="grid w-full max-w-5xl items-stretch gap-6 lg:grid-cols-2">
         <WizardForm />
         <SmartCalculator

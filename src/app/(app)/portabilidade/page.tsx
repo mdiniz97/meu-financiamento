@@ -10,7 +10,7 @@ export default async function PortabilidadePage() {
     isUnlimited = bal.isUnlimited;
   }
   return (
-    <div className="flex w-full items-start justify-center bg-muted p-6">
+    <div className="flex w-full flex-1 items-start justify-center bg-muted p-6">
       <div className="w-full max-w-3xl">
         <PortabilityCalculator isUnlimited={isUnlimited} />
       </div>

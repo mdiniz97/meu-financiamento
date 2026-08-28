@@ -16,7 +16,7 @@ export default async function SimulacaoPage({
     : { isUnlimited: false };
 
   return (
-    <div className="flex w-full bg-muted p-6">
+    <div className="flex w-full flex-1 bg-muted p-6">
       <SimulationSandbox saved={saved} isUnlimited={isUnlimited} />
     </div>
   );

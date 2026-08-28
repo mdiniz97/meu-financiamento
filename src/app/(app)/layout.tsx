@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <ForceLightTheme />
       <AppHeader signedIn={Boolean(session?.userId)} />
-      <main className="flex flex-col">{children}</main>
+      <main className="flex flex-1 flex-col">{children}</main>
     </>
   );
 }

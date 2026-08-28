@@ -15,7 +15,7 @@ interface Props {
 
 function ScenarioCard({ title, result, accent }: { title: string; result: SimulationResult; accent: boolean }) {
   return (
-    <Card className={`rounded-2xl bg-card shadow-sm ${accent ? 'ring-2 ring-[#820AD1]' : ''}`}>
+    <Card className={`rounded-2xl shadow-sm ${accent ? 'ring-2 ring-[#820AD1]' : ''}`}>
       <CardHeader>
         <CardTitle className={`text-lg ${accent ? 'text-[#820AD1]' : ''}`}>{title}</CardTitle>
       </CardHeader>
