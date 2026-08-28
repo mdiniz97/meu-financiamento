@@ -1,6 +1,5 @@
-import { CheckIcon, InfoIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { simulate } from "@/lib/finance/engine";
-import { priceBreakEven } from "@/lib/finance/insights";
 import type { LoanInput } from "@/lib/finance/types";
 import { AnimatedNumber } from "@/components/landing/motion-primitives";
 
@@ -12,7 +11,6 @@ const input: LoanInput = {
 const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
-const be = priceBreakEven(input, price);
 
 const sacPoints = [
   "Amortiza o saldo devedor desde a primeira parcela",
@@ -21,13 +19,11 @@ const sacPoints = [
   "Ideal para quem quer reduzir a dívida mais rápido",
 ];
 
-const priceProsCount = 3;
-
 const pricePoints = [
-  "Parcela inicial ~R$ 2,3 mil menor que o SAC — mais fácil de caber no orçamento",
-  "Maior facilidade de aprovação: bancos costumam financiar até 90% do valor do imóvel quando a parcela é menor",
+  "Parcela inicial menor que o SAC — mais fácil de caber no orçamento",
+  "Maior facilidade de aprovação, já que a parcela menor pesa menos na renda exigida pelo banco",
   "Parcela igual do início ao fim",
-  `Só passa a amortizar de verdade a partir da ~${be.maxMonths}ª parcela (mais de 18 anos)`,
+  "Até 90% de financiamento do valor do imóvel",
 ];
 
 const exampleRows = [
@@ -112,13 +108,9 @@ export function SystemsExplain() {
               amortização.
             </p>
             <ul className="mt-2 flex flex-col gap-3">
-              {pricePoints.map((point, i) => (
+              {pricePoints.map((point) => (
                 <li key={point} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                  {i < priceProsCount ? (
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                  ) : (
-                    <InfoIcon className="mt-0.5 size-4 shrink-0 text-[#92400E] dark:text-amber-400" />
-                  )}
+                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
                   {point}
                 </li>
               ))}
