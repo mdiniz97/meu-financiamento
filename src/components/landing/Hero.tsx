@@ -24,7 +24,10 @@ export function Hero() {
         <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
           <span className="font-mono">2</span> créditos de boas-vindas
         </span>
-        <h1 className="font-display mt-6 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
+        <p className="mt-5 max-w-xl text-base font-semibold text-muted-foreground sm:text-lg">
+          Não sabe qual plano escolher? SAC ou PRICE? Mais parcelas ou menos parcelas?
+        </p>
+        <h1 className="font-display mt-4 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
           Veja o raio X do seu financiamento{" "}
           <span className="text-primary">antes de assinar o contrato</span>
         </h1>
@@ -82,7 +85,7 @@ export function Hero() {
                 <AnimatedNumber
                   value={sac.installments[0].parcela}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums text-primary"
+                  className="font-mono text-lg font-semibold tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
@@ -101,7 +104,7 @@ export function Hero() {
                 <AnimatedNumber
                   value={sac.installments[0].amortizacao}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums text-primary"
+                  className="font-mono text-lg font-semibold tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>

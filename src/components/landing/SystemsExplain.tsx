@@ -153,7 +153,7 @@ export function SystemsExplain() {
                 <AnimatedNumber
                   value={row.sacValue}
                   format={row.format}
-                  className="text-right font-mono font-semibold tabular-nums text-primary"
+                  className="text-right font-mono font-semibold tabular-nums"
                 />
                 <AnimatedNumber
                   value={row.smartValue}

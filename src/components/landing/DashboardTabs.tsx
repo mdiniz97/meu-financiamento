@@ -35,7 +35,7 @@ function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
         >
           <span className="text-muted-foreground">{row.label}</span>
           <span className="text-right font-mono tabular-nums">{row.price}</span>
-          <span className="text-right font-mono tabular-nums text-primary">{row.sac}</span>
+          <span className="text-right font-mono tabular-nums">{row.sac}</span>
           <span className="text-right font-mono font-bold tabular-nums text-primary">{row.smart}</span>
         </div>
       ))}
@@ -85,7 +85,7 @@ export function DashboardTabs({
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Parcela inicial SAC</span>
-                <span className="font-mono text-lg font-semibold tabular-nums text-primary">{parcelaInicialSac}</span>
+                <span className="font-mono text-lg font-semibold tabular-nums">{parcelaInicialSac}</span>
               </div>
             </div>
             <div className="flex flex-col gap-1 border-t border-border pt-4">
