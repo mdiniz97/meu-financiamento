@@ -11,6 +11,10 @@ const input: LoanInput = {
 const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
+const smart = simulate(
+  { ...input, system: "PRICE" },
+  { extraLumpSum: [], reduceMode: "term", recurringExtra: { amount: 500, every: 1, startMonth: 1 } }
+);
 
 const sacPoints = [
   "Amortiza o saldo devedor desde a primeira parcela",
@@ -31,24 +35,28 @@ const exampleRows = [
     label: "Parcela inicial",
     priceValue: price.installments[0].parcela,
     sacValue: sac.installments[0].parcela,
+    smartValue: smart.installments[0].parcela,
     format: "brlApprox" as const,
   },
   {
     label: "Amortização na 1ª parcela",
     priceValue: price.installments[0].amortizacao,
     sacValue: sac.installments[0].amortizacao,
+    smartValue: smart.installments[0].amortizacao,
     format: "brlApprox" as const,
   },
   {
     label: "Saldo devedor após 5 anos",
     priceValue: price.installments[59].saldo,
     sacValue: sac.installments[59].saldo,
+    smartValue: smart.installments[59].saldo,
     format: "brlMilhaoApprox" as const,
   },
   {
     label: "Juros totais em 30 anos",
     priceValue: price.metrics.totalJuros,
     sacValue: sac.metrics.totalJuros,
+    smartValue: smart.metrics.totalJuros,
     format: "brlMilhaoApprox" as const,
   },
 ];
@@ -125,15 +133,16 @@ export function SystemsExplain() {
             </span>
           </div>
           <div className="px-6 py-2">
-            <div className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <span>Comparativo</span>
               <span className="text-right">PRICE</span>
               <span className="text-right">SAC</span>
+              <span className="text-right normal-case text-primary">Com plano de amortização</span>
             </div>
             {exampleRows.map((row) => (
               <div
                 key={row.label}
-                className="grid grid-cols-[1.6fr_1fr_1fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
+                className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
               >
                 <span className="pr-2 text-muted-foreground">{row.label}</span>
                 <AnimatedNumber
@@ -146,12 +155,18 @@ export function SystemsExplain() {
                   format={row.format}
                   className="text-right font-mono font-semibold tabular-nums text-primary"
                 />
+                <AnimatedNumber
+                  value={row.smartValue}
+                  format={row.format}
+                  className="text-right font-mono font-bold tabular-nums text-primary"
+                />
               </div>
             ))}
           </div>
           <p className="px-6 pb-4 pt-1 text-xs text-muted-foreground">
             Valores calculados com o nosso motor de simulação, com taxa de 10% a.a. e TR de
-            0,17% a.m. O resultado exato depende das taxas do seu contrato: simule o seu caso.
+            0,17% a.m. O plano de amortização considera um aporte extra de R$ 500/mês reduzindo
+            o prazo. O resultado exato depende das taxas do seu contrato: simule o seu caso.
           </p>
         </div>
       </div>

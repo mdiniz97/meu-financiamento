@@ -10,6 +10,10 @@ const input: LoanInput = {
 const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
+const smart = simulate(
+  { ...input, system: "PRICE" },
+  { extraLumpSum: [], reduceMode: "term", recurringExtra: { amount: 500, every: 1, startMonth: 1 } }
+);
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
@@ -17,9 +21,24 @@ const brl = (v: number) =>
 const sidebarItems = ["Visão geral", "Comparativo", "Amortização", "Gráficos"];
 
 const comparativoRows = [
-  { label: "Parcela inicial", price: brl(price.installments[0].parcela), sac: brl(sac.installments[0].parcela) },
-  { label: "Amortização na 1ª parcela", price: brl(price.installments[0].amortizacao), sac: brl(sac.installments[0].amortizacao) },
-  { label: "Juros totais em 30 anos", price: brl(price.metrics.totalJuros), sac: brl(sac.metrics.totalJuros) },
+  {
+    label: "Parcela inicial",
+    price: brl(price.installments[0].parcela),
+    sac: brl(sac.installments[0].parcela),
+    smart: brl(smart.installments[0].parcela),
+  },
+  {
+    label: "Amortização na 1ª parcela",
+    price: brl(price.installments[0].amortizacao),
+    sac: brl(sac.installments[0].amortizacao),
+    smart: brl(smart.installments[0].amortizacao),
+  },
+  {
+    label: "Juros totais em 30 anos",
+    price: brl(price.metrics.totalJuros),
+    sac: brl(sac.metrics.totalJuros),
+    smart: brl(smart.metrics.totalJuros),
+  },
 ];
 
 const amortizacaoMonths = [
@@ -34,6 +53,7 @@ const amortizacaoRows = amortizacaoMonths.map(({ month, index }) => ({
   label: `Mês ${month}`,
   price: brl(price.installments[index].amortizacao),
   sac: brl(sac.installments[index].amortizacao),
+  smart: brl(smart.installments[index]?.amortizacao ?? 0),
 }));
 
 const parcelaInicialPrice = brl(price.installments[0].parcela);

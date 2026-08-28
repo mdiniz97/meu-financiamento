@@ -11,7 +11,7 @@ const starterFeatures = [
 
 const unlimitedFeatures = [
   "Simulações ilimitadas",
-  "Cálculo inteligente: melhor modelo pelo seu orçamento",
+  "Amortizador inteligente: menos juros e financiamento mais curto",
   "Comparação SAC × PRICE ao vivo e portabilidade",
   "Exportação do Raio X em PDF",
 ];

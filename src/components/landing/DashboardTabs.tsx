@@ -7,6 +7,7 @@ interface Row {
   label: string;
   price: string;
   sac: string;
+  smart: string;
 }
 
 interface DashboardTabsProps {
@@ -21,19 +22,21 @@ interface DashboardTabsProps {
 function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
     <div>
-      <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         <span>{title}</span>
         <span className="text-right">PRICE</span>
         <span className="text-right">SAC</span>
+        <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
       </div>
       {rows.map((row) => (
         <div
           key={row.label}
-          className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
+          className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
         >
           <span className="text-muted-foreground">{row.label}</span>
           <span className="text-right font-mono tabular-nums">{row.price}</span>
           <span className="text-right font-mono tabular-nums text-primary">{row.sac}</span>
+          <span className="text-right font-mono font-bold tabular-nums text-primary">{row.smart}</span>
         </div>
       ))}
     </div>
