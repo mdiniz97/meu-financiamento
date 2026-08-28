@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 const syne = Syne({
-  variable: "--font-heading",
+  variable: "--font-display",
   subsets: ["latin"],
   weight: ["600", "700", "800"],
 });

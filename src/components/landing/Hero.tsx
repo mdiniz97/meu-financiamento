@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,9 +17,6 @@ const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
-
 export function Hero() {
   return (
     <section className="border-b border-border">
@@ -29,7 +24,7 @@ export function Hero() {
         <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
           <span className="font-mono">2</span> créditos de boas-vindas
         </span>
-        <h1 className="font-heading mt-6 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
+        <h1 className="font-display mt-6 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl sm:leading-tight">
           Veja o raio X do seu financiamento{" "}
           <span className="text-primary">antes de assinar o contrato</span>
         </h1>
@@ -78,7 +73,7 @@ export function Hero() {
               <span className="flex items-baseline gap-1">
                 <AnimatedNumber
                   value={price.installments[0].parcela}
-                  format={brl}
+                  format="brl"
                   className="font-mono text-lg font-semibold tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
@@ -86,7 +81,7 @@ export function Hero() {
               <span className="flex items-baseline gap-1">
                 <AnimatedNumber
                   value={sac.installments[0].parcela}
-                  format={brl}
+                  format="brl"
                   className="font-mono text-lg font-semibold tabular-nums text-primary"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
@@ -97,7 +92,7 @@ export function Hero() {
               <span className="flex items-baseline gap-1">
                 <AnimatedNumber
                   value={price.installments[0].amortizacao}
-                  format={brl}
+                  format="brl"
                   className="font-mono text-lg font-semibold tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
@@ -105,7 +100,7 @@ export function Hero() {
               <span className="flex items-baseline gap-1">
                 <AnimatedNumber
                   value={sac.installments[0].amortizacao}
-                  format={brl}
+                  format="brl"
                   className="font-mono text-lg font-semibold tabular-nums text-primary"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
@@ -115,12 +110,12 @@ export function Hero() {
               <span className="text-xs text-muted-foreground">Juros totais em 30 anos</span>
               <AnimatedNumber
                 value={price.metrics.totalJuros}
-                format={brl}
+                format="brl"
                 className="font-mono text-lg font-semibold tabular-nums"
               />
               <AnimatedNumber
                 value={sac.metrics.totalJuros}
-                format={brl}
+                format="brl"
                 className="font-mono text-lg font-semibold tabular-nums text-primary"
               />
             </div>
@@ -128,7 +123,7 @@ export function Hero() {
               <span className="text-xs text-muted-foreground">Diferença no total pago</span>
               <AnimatedNumber
                 value={price.metrics.totalJuros - sac.metrics.totalJuros}
-                format={brl}
+                format="brl"
                 className="font-mono text-lg font-semibold tabular-nums text-emerald-600"
               />
               <span className="text-xs text-muted-foreground">

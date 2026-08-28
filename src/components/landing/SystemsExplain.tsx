@@ -1,5 +1,3 @@
-"use client";
-
 import { CheckIcon, InfoIcon } from "lucide-react";
 import { simulate } from "@/lib/finance/engine";
 import { priceBreakEven } from "@/lib/finance/insights";
@@ -15,12 +13,6 @@ const none = { extraLumpSum: [], reduceMode: "term" as const };
 const price = simulate({ ...input, system: "PRICE" }, none);
 const sac = simulate({ ...input, system: "SAC" }, none);
 const be = priceBreakEven(input, price);
-
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
-const brlMilhao = (v: number) => (v / 1_000_000).toFixed(v > 1_000_000 ? 2 : 3).replace(".", ",") + " mi";
-const brlApprox = (v: number) => `~${brl(v)}`;
-const brlMilhaoApprox = (v: number) => `~${brlMilhao(v)}`;
 
 const sacPoints = [
   "Amortiza o saldo devedor desde a primeira parcela",
@@ -41,25 +33,25 @@ const exampleRows = [
     label: "Parcela inicial",
     priceValue: price.installments[0].parcela,
     sacValue: sac.installments[0].parcela,
-    format: brlApprox,
+    format: "brlApprox" as const,
   },
   {
     label: "Amortização na 1ª parcela",
     priceValue: price.installments[0].amortizacao,
     sacValue: sac.installments[0].amortizacao,
-    format: brlApprox,
+    format: "brlApprox" as const,
   },
   {
     label: "Saldo devedor após 5 anos",
     priceValue: price.installments[59].saldo,
     sacValue: sac.installments[59].saldo,
-    format: brlMilhaoApprox,
+    format: "brlMilhaoApprox" as const,
   },
   {
     label: "Juros totais em 30 anos",
     priceValue: price.metrics.totalJuros,
     sacValue: sac.metrics.totalJuros,
-    format: brlMilhaoApprox,
+    format: "brlMilhaoApprox" as const,
   },
 ];
 
@@ -68,7 +60,7 @@ export function SystemsExplain() {
     <section className="border-b border-border">
       <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             SAC vs PRICE: a diferença custa caro
           </h2>
           <p className="mt-3 text-lg text-muted-foreground">
@@ -88,7 +80,7 @@ export function SystemsExplain() {
                 Sistema de Amortização Constante
               </span>
             </div>
-            <h3 className="font-heading text-2xl font-bold tracking-tight">SAC</h3>
+            <h3 className="font-display text-2xl font-bold tracking-tight">SAC</h3>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela começa maior e cai a cada mês, porque a amortização é
               fixa desde a primeira parcela.
@@ -112,7 +104,7 @@ export function SystemsExplain() {
                 Sistema de Parcelas Constantes
               </span>
             </div>
-            <h3 className="font-heading text-2xl font-bold tracking-tight">PRICE</h3>
+            <h3 className="font-display text-2xl font-bold tracking-tight">PRICE</h3>
             <p className="-mt-2 text-sm text-muted-foreground">
               A parcela é fixa, mas no começo você paga muito mais juro do que
               amortização.

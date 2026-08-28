@@ -12,7 +12,7 @@ export function CTA() {
           <span className="text-xs font-medium uppercase tracking-widest text-background/70">
             <span className="font-mono">2</span> créditos de boas-vindas · sem cartão de crédito
           </span>
-          <h2 className="font-heading mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="font-display mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
             Pronto para enxergar o que está por trás das parcelas?
           </h2>
           <p className="mt-4 text-lg text-background/80">
