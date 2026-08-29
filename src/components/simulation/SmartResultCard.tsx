@@ -1,12 +1,15 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 import type { SmartRecommendation } from '@/lib/finance/smart';
 import type { FormState } from '@/lib/simulation-context';
-import { formatBRL, parseBRLToNumber } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { simulate } from '@/lib/finance/engine';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CompareChart } from './charts/CompareChart';
 import type { SmartCalcFields } from './SmartCalculator';
 
 function ComparativoTable({ rec }: { rec: SmartRecommendation }) {
@@ -72,7 +75,7 @@ function ScenarioMiniCard({
   return (
     <div
       className={`flex h-full flex-col gap-1 rounded-2xl p-3 text-xs ${
-        highlight ? 'bg-primary/5 dark:bg-[#820AD1]/15 ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'bg-muted/50 dark:bg-zinc-800/50'
+        highlight ? 'bg-primary/5 dark:bg-[#820AD1]/15 ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'bg-muted/50'
       }`}
     >
       <div className="flex items-center justify-between gap-1">
@@ -148,6 +151,32 @@ export function SmartResultCard({ rec, fields }: Props) {
     router.push('/simulacao?name=melhor-modelo');
   }
 
+  // comparação gráfica: mesmo sistema no mesmo prazo, sem aportes (cinza)
+  // vs amortizador inteligente (roxo)
+  // useMemo ANTES dos early returns: contagem de hooks não pode variar entre renders
+  const chartData = useMemo(() => {
+    const best = rec.best;
+    if (!best) return null;
+    const principal = parseBRLToNumber(fields.principal);
+    const annualRate = parseDecimal(fields.annualRate) / 100;
+    const trMonthly = parseDecimal(fields.trMonthly) / 100;
+    const insuranceMonthly = parseBRLToNumber(fields.insuranceMonthly);
+    const plain = simulate({
+      system: best.system,
+      principal,
+      annualRate,
+      trMonthly,
+      insuranceMonthly,
+      insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
+      bank: fields.bank,
+      months: best.months,
+    });
+    return {
+      base: plain.installments.map((i) => i.saldo),
+      withStrategy: best.result.installments.map((i) => i.saldo),
+    };
+  }, [rec, fields]);
+
   if (rec.infeasible) {
     return (
       <Card className="rounded-2xl bg-amber-50 dark:bg-amber-950/60">
@@ -157,7 +186,6 @@ export function SmartResultCard({ rec, fields }: Props) {
             financiamento nem no prazo máximo ({fields.maxMonths} meses). O orçamento mínimo é de{' '}
             <strong>{formatBRL(rec.minBudget)}/mês</strong> (ou aumente o prazo máximo).
           </p>
-          <ComparativoTable rec={rec} />
         </CardContent>
       </Card>
     );
@@ -217,6 +245,15 @@ export function SmartResultCard({ rec, fields }: Props) {
 
         <ComparativoTable rec={rec} />
 
+        {chartData && (
+          <CompareChart
+            base={chartData.base}
+            withStrategy={chartData.withStrategy}
+            baseName={`${b.system} · ${b.months} meses`}
+            strategyName="Amortizador inteligente"
+          />
+        )}
+
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">E o aporte: reduzir o prazo ou a parcela?</p>
           <p className="text-xs text-muted-foreground">
@@ -236,7 +273,7 @@ export function SmartResultCard({ rec, fields }: Props) {
                   return (
                     <div
                       key={mode}
-                      className="flex flex-col gap-1 rounded-2xl bg-muted/30 dark:bg-zinc-800/40 p-3 text-xs opacity-80"
+                      className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
                     >
                       <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
                         <Lock className="size-3" /> Reduzir a parcela
@@ -293,7 +330,7 @@ export function SmartResultCard({ rec, fields }: Props) {
                 return (
                   <div
                     key={c.system}
-                    className="flex flex-col gap-1 rounded-2xl bg-muted/30 dark:bg-zinc-800/40 p-3 text-xs opacity-80"
+                    className="flex flex-col gap-1 rounded-2xl bg-muted/30 p-3 text-xs opacity-80"
                   >
                     <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
                       <Lock className="size-3" /> {c.system} · 360 meses

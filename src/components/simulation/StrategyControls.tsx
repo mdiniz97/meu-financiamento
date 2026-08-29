@@ -452,19 +452,19 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <section className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela atual</span>
             <span className="text-lg font-semibold">{formatBRL(parcelaBase)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Parcela nova</span>
             <span className="text-lg font-semibold text-primary">{formatBRL(parcelaAtual)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Juros totais</span>
             <span className="text-lg font-semibold">{formatBRL(current.metrics.totalJuros)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {current.metrics.saldoZeroAt} meses

@@ -6,9 +6,13 @@ import { formatBRL } from '@/lib/utils';
 export function CompareChart({
   base,
   withStrategy,
+  baseName = 'Sem estratégia',
+  strategyName = 'Com estratégia',
 }: {
   base: number[];
   withStrategy: number[];
+  baseName?: string;
+  strategyName?: string;
 }) {
   const data = useMemo(() => {
     const len = Math.max(base.length, withStrategy.length);
@@ -27,8 +31,8 @@ export function CompareChart({
           <XAxis dataKey="month" tickFormatter={(m) => `m${m}`} />
           <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
           <Tooltip formatter={(v) => (v == null ? '' : formatBRL(Number(v)))} />
-          <Line type="monotone" dataKey="base" stroke="#9CA3AF" strokeWidth={2} dot={false} name="Sem estratégia" />
-          <Line type="monotone" dataKey="withStrategy" stroke="#820AD1" strokeWidth={2} dot={false} name="Com estratégia" />
+          <Line type="monotone" dataKey="base" stroke="#9CA3AF" strokeWidth={2} dot={false} name={baseName} />
+          <Line type="monotone" dataKey="withStrategy" stroke="#820AD1" strokeWidth={2} dot={false} name={strategyName} />
         </LineChart>
       </ResponsiveContainer>
     </div>

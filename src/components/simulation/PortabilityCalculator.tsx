@@ -135,7 +135,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
       </CardHeader>
       <CardContent>
         {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center dark:bg-zinc-800/50">
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
             <Lock className="mx-auto size-8 text-[#820AD1]" />
             <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
             <p className="text-sm text-muted-foreground">
@@ -248,7 +248,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 dark:bg-zinc-800/50 p-4">
+            <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-4">
               <Label className="flex items-center gap-2">
                 <Switch
                   checked={f.smartMode}
@@ -352,7 +352,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
                     <span className="text-xs text-muted-foreground">Parcela atual</span>
                     <span className="text-lg font-semibold">
                       {formatBRL(result.keep.installments[0]?.parcela ?? 0)}
@@ -361,7 +361,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                       {result.keep.metrics.saldoZeroAt} meses restantes
                     </span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
                     <span className="text-xs text-muted-foreground">Parcela portada</span>
                     <span
                       className={`text-lg font-semibold ${
@@ -376,11 +376,11 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                       {result.ported.metrics.saldoZeroAt} meses no novo contrato
                     </span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
                     <span className="text-xs text-muted-foreground">Total pago hoje</span>
                     <span className="text-lg font-semibold">{formatBRL(result.keep.metrics.totalPago)}</span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+                  <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
                     <span className="text-xs text-muted-foreground">Total pago portando</span>
                     <span className="text-lg font-semibold">{formatBRL(result.ported.metrics.totalPago)}</span>
                   </div>
@@ -403,7 +403,8 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                 keep={result.keep}
                 ported={result.ported}
                 keepTitle={`Manter no ${f.bank} (${f.currentSystem})`}
-                portedTitle={`Portar para ${f.newBank} (${f.newSystem} @ ${parseDecimal(f.newAnnualRate).toFixed(2)}% a.a.)`}
+                portedTitle={`Portar para ${f.newBank} (${f.newSystem} a ${parseDecimal(f.newAnnualRate).toFixed(2).replace('.', ',')}% a.a.)`}
+                prefill={{ principal: f.principal, annualRate: f.newAnnualRate, months: f.months }}
               />
             )}
           </div>

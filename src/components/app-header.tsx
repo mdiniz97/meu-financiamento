@@ -16,16 +16,16 @@ export function AppHeader({
   isUnlimited: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo size={30} />
-          <span className="text-lg font-bold text-[#820AD1]">Raio X</span>
-          <span className="hidden text-sm text-muted-foreground sm:inline">
-            do Financiamento
+    <header className="sticky top-0 z-40 border-b border-border bg-background">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Logo size={32} />
+          <span className="text-base font-semibold tracking-tight">
+            Raio X
+            <span className="font-normal text-muted-foreground"> do Financiamento</span>
           </span>
         </Link>
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-2">
           {signedIn && (
             <span className="hidden text-xs font-medium text-muted-foreground md:inline">
               {isUnlimited ? 'Plano Ilimitado' : `${credits} ${credits === 1 ? 'crédito' : 'créditos'}`}

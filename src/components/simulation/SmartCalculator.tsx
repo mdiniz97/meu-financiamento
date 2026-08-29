@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, Sparkles, Lock } from 'lucide-react';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
 import {
@@ -48,7 +49,20 @@ interface Props {
 }
 
 export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
-  const [f, setF] = useState<SmartCalcFields>(SMART_DEFAULTS);
+  const search = useSearchParams();
+  // prefill vindo da portabilidade: /nova-simulacao?principal=&taxa=&prazo=
+  const [f, setF] = useState<SmartCalcFields>(() => {
+    const principal = search.get('principal');
+    const taxa = search.get('taxa');
+    const prazo = search.get('prazo');
+    if (!principal && !taxa && !prazo) return SMART_DEFAULTS;
+    return {
+      ...SMART_DEFAULTS,
+      principal: principal ?? SMART_DEFAULTS.principal,
+      annualRate: taxa ?? SMART_DEFAULTS.annualRate,
+      maxMonths: prazo ?? SMART_DEFAULTS.maxMonths,
+    };
+  });
   const [error, setError] = useState('');
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -144,7 +158,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
         {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center dark:bg-zinc-800/50">
+          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
             <Lock className="mx-auto size-8 text-[#820AD1]" />
             <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
             <p className="text-sm text-muted-foreground">
@@ -290,7 +304,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 dark:bg-zinc-800/40 p-4">
+            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mfParcela">Quanto quer pagar por mês (R$)</Label>
                 <MoneyInput

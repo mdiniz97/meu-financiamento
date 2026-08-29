@@ -60,6 +60,32 @@ const parcelaInicialPrice = brl(price.installments[0].parcela);
 const parcelaInicialSac = brl(sac.installments[0].parcela);
 const economiaTotal = brl(price.metrics.totalJuros - sac.metrics.totalJuros);
 
+// pontos do gráfico da aba "Gráficos": PRICE e SAC sem estratégia (cinza) e
+// amortizador inteligente (roxo) — mesmos dados reais das simulações acima
+const W = 300;
+const H = 80;
+const PAD_Y = 6;
+
+function toChartPoints(saldos: number[]) {
+  const pts = saldos.map((saldoRaw, i) => {
+    const saldo = Math.max(0, saldoRaw);
+    const x = (i / 359) * W;
+    const y = PAD_Y + (1 - saldo / input.principal) * (H - PAD_Y * 2);
+    // sem arredondar para inteiro: passos de ~0,8px entre meses formariam
+    // degraus no SVG; com decimais a curva fica suave
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  // quem quita antes do prazo: estende a linha no saldo zero até a borda direita
+  if (saldos.length < 360) pts.push(`${W},${(PAD_Y + H - PAD_Y * 2).toFixed(1)}`);
+  return pts.join(' ');
+}
+
+const chartSeries = {
+  price: toChartPoints(price.installments.map((i) => i.saldo)),
+  sac: toChartPoints(sac.installments.map((i) => i.saldo)),
+  smart: toChartPoints(smart.installments.map((i) => i.saldo)),
+};
+
 export function DashboardPreview() {
   return (
     <section className="border-b border-border">
@@ -81,6 +107,7 @@ export function DashboardPreview() {
           parcelaInicialPrice={parcelaInicialPrice}
           parcelaInicialSac={parcelaInicialSac}
           economiaTotal={economiaTotal}
+          chartSeries={chartSeries}
         />
       </div>
     </section>

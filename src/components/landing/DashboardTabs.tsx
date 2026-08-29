@@ -17,6 +17,7 @@ interface DashboardTabsProps {
   parcelaInicialPrice: string;
   parcelaInicialSac: string;
   economiaTotal: string;
+  chartSeries: { price: string; sac: string; smart: string };
 }
 
 function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
@@ -50,6 +51,7 @@ export function DashboardTabs({
   parcelaInicialPrice,
   parcelaInicialSac,
   economiaTotal,
+  chartSeries,
 }: DashboardTabsProps) {
   const [active, setActive] = useState(1);
 
@@ -102,23 +104,30 @@ export function DashboardTabs({
         {active === 3 && (
           <div className="flex flex-col gap-3">
             <svg
-              viewBox="0 0 300 80"
+              viewBox="-3 -3 306 86"
               className="w-full text-border"
               role="img"
-              aria-label="Evolução do saldo devedor ao longo do financiamento: o SAC cai mais rápido que o PRICE."
+              aria-label="Evolução do saldo devedor ao longo do financiamento: o amortizador inteligente quita a dívida mais rápido que PRICE e SAC."
             >
               <polyline
-                points="0,6 60,14 120,26 180,42 240,58 300,72"
+                points={chartSeries.price}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1"
               />
               <polyline
-                points="0,8 60,20 120,38 180,54 240,66 300,74"
+                points={chartSeries.sac}
                 fill="none"
-                className="text-primary"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="1"
+                strokeDasharray="4 3"
+              />
+              <polyline
+                points={chartSeries.smart}
+                fill="none"
+                className="text-[#820AD1]"
+                stroke="currentColor"
+                strokeWidth="1.25"
               />
             </svg>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -126,7 +135,10 @@ export function DashboardTabs({
                 <span className="h-0.5 w-4 bg-border" /> PRICE
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 bg-primary" /> SAC
+                <span className="h-0.5 w-4 border-t border-dashed border-border" /> SAC
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4 bg-[#820AD1]" /> Amortizador inteligente
               </span>
             </div>
           </div>

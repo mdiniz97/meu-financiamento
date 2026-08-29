@@ -57,7 +57,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
               <span className="text-xs text-muted-foreground">Parcela 1 no SAC</span>
               <span className="text-lg font-semibold">{formatBRL(c.parcela1Sac)}</span>
               <span className="text-xs text-muted-foreground">
@@ -66,14 +66,14 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
                   : 'já menor que a PRICE'}
               </span>
             </div>
-            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
               <span className="text-xs text-muted-foreground">Parcela mínima (última) no SAC</span>
               <span className="text-lg font-semibold">{formatBRL(c.ultimaParcelaSac)}</span>
               <span className="text-xs text-muted-foreground">
                 cai {formatBRL(c.parcela1Sac - c.ultimaParcelaSac)} até o fim
               </span>
             </div>
-            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+            <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
               <span className="text-xs text-muted-foreground">Parcela SAC fica menor que a PRICE no mês</span>
               <span className="text-lg font-semibold">
                 {c.crossingMonth ? `${c.crossingMonth} (${(c.crossingMonth / 12).toFixed(1)} anos)` : 'nunca'}
@@ -116,7 +116,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Sua parcela</span>
             <span className={`text-lg font-semibold ${parcelaCobre ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
               {formatBRL(parcelaAtual)}
@@ -127,7 +127,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
                 : `mínima para abater: ${formatBRL(be.minPayment)}`}
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Dívida começa a cair no mês</span>
             <span className="text-lg font-semibold">
               {abateDesdeInicio ? '1' : `${be.monthsUntilAmortize}`}
@@ -137,7 +137,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
               {abateDesdeInicio ? 'desde a primeira parcela' : `dos ${input.months} meses do contrato`}
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 dark:bg-zinc-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
             <span className="text-xs text-muted-foreground">Prazo ideal para abater desde o início</span>
             <span className={`text-lg font-semibold ${prazoOk ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
               {Number.isFinite(be.maxMonths) ? `até ${be.maxMonths} meses` : 'sem limite'}
