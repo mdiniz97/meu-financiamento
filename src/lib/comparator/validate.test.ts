@@ -5,8 +5,8 @@ import type { ComparatorInput } from './types';
 const ok = (): ComparatorInput => ({
   monthlyBudget: 12000,
   proposals: [
-    { id: 'p1', bank: 'Caixa', propertyValue: 850000, downPayment: 250000, system: 'SAC', months: 360, annualRate: 0.097, cetInformed: 0.1042, trMonthly: 0.0017, insuranceMonthly: 100, fees: [{ id: 'f1', label: 'Avaliação', amount: 1500, includeInCet: true }] },
-    { id: 'p2', bank: 'Itaú', propertyValue: 850000, downPayment: 230000, system: 'PRICE', months: 360, annualRate: 0.092, cetInformed: 0.0994, trMonthly: 0.0017, insuranceMonthly: 80, fees: [] },
+    { id: 'p1', bank: 'Caixa', propertyValue: 850000, downPayment: 250000, principal: 600000, system: 'SAC', months: 360, annualRate: 0.097, cetInformed: 0.1042, trMonthly: 0.0017, insuranceMonthly: 100, fees: [{ id: 'f1', label: 'Avaliação', amount: 1500, includeInCet: true }] },
+    { id: 'p2', bank: 'Itaú', propertyValue: 850000, downPayment: 230000, principal: 620000, system: 'PRICE', months: 360, annualRate: 0.092, cetInformed: 0.0994, trMonthly: 0.0017, insuranceMonthly: 80, fees: [] },
   ],
 });
 

@@ -44,6 +44,12 @@ export function AppHeader({
             Portabilidade
           </Link>
           <Link
+            href="/comparar-propostas"
+            className="hidden text-sm font-medium text-foreground transition-colors hover:text-[#820AD1] sm:inline"
+          >
+            Comparar propostas
+          </Link>
+          <Link
             href="/minhas-simulacoes"
             className="hidden text-sm font-medium text-foreground transition-colors hover:text-[#820AD1] sm:inline"
           >
