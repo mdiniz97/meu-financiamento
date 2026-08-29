@@ -1,4 +1,4 @@
-import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, doublePrecision, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -76,9 +76,24 @@ export const simulations = pgTable('simulations', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const proposalComparisons = pgTable('proposal_comparisons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  monthlyBudget: doublePrecision('monthly_budget').notNull(),
+  proposals: jsonb('proposals').notNull(),
+  result: jsonb('result').notNull(),
+  engineVersion: text('engine_version').notNull().default('1'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Pack = typeof packs.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type CreditLedgerEntry = typeof creditLedger.$inferSelect;
 export type Simulation = typeof simulations.$inferSelect;
+export type ProposalComparison = typeof proposalComparisons.$inferSelect;
