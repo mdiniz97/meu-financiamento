@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { deleteComparison, type ComparisonSummary } from './actions';
 export function SavedList({ initial }: { initial: ComparisonSummary[] }) {
   const router = useRouter();
   const [items, setItems] = useState(initial);
+  useEffect(() => setItems(initial), [initial]);
   if (items.length === 0) return null;
   return (
     <Card className="rounded-2xl shadow-sm">
