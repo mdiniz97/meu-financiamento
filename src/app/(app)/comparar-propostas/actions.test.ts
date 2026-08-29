@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serializeComparisonInput, deserializeComparisonInput } from './actions';
+import { serializeComparisonInput, deserializeComparisonInput } from '@/lib/comparator/serialize';
 
 const input = {
   monthlyBudget: 12000,
