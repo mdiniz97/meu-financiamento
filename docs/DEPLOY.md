@@ -111,6 +111,7 @@ Com o deploy no ar (URL de produção):
 - [ ] **Login/logout** — sessão JWT funciona (valida `AUTH_SECRET` estável).
 - [ ] **Simulação** — SAC e PRICE funcionam (a conta nova já tem 2 créditos de bônus; sem necessidade de compra).
 - [ ] **PDF gate** — exportar PDF após simulação; conferir que o download acontece (usa `@react-pdf/renderer` no runtime Node).
+- [ ] **Comparador** — com conta Ilimitado, comparar 2–3 propostas, conferir ranking, alerta de CET, salvar/reabrir/recalcular e PDF.
 - [ ] **Créditos fake (compra)** — ⚠️ **não testável no Vercel** (nem em preview): `NODE_ENV=production` em todo deploy da Vercel, e o guard bloqueia `PAYMENT_PROVIDER=fake` em produção (`src/lib/payments/index.ts:9`). Isso é **intencional**. Para testar o fluxo de compra fake, rode localmente: `npm run dev` com `DATABASE_URL` apontando para o Neon e `PAYMENT_PROVIDER=fake`, depois `GET /api/webhooks/payments?userId=<id>&packId=credits10` e confira créditos no `credit_ledger`.
 
 ## AVISO IMPORTANTE — PAYMENT_PROVIDER=fake em produção
