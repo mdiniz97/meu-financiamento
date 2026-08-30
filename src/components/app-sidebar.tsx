@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -54,30 +55,78 @@ function PlanChip({ credits, isUnlimited }: { credits: number; isUnlimited: bool
   );
 }
 
-function ActionsRow() {
+function ActionsRow({ onDone }: { onDone?: () => void }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <ThemeToggle />
-      <Button variant="outline" size="sm" className="flex-1" onClick={() => signOut()}>
+      <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => signOut()}>
         Sair
       </Button>
     </div>
   );
 }
 
-export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
-  const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+function MobileDrawer({
+  open,
+  onClose,
+  credits,
+  isUnlimited,
+}: {
+  open: boolean;
+  onClose: () => void;
+  credits: number;
+  isUnlimited: boolean;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [open, onClose]);
+
+  if (!mounted || !open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex min-[1024px]:hidden" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-y-0 left-0 flex w-full max-w-sm flex-col bg-background shadow-2xl">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+          <span className="flex items-center gap-2.5">
+            <Logo size={28} />
+            <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
+          </span>
+          <Button type="button" variant="ghost" size="sm" aria-label="Fechar menu" onClick={onClose}>
+            <X className="size-5" />
+          </Button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          <NavLinks onNavigate={onClose} />
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
+          <PlanChip credits={credits} isUnlimited={isUnlimited} />
+          <ActionsRow />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  useEffect(() => setOpen(false), [pathname]);
 
   return (
     <>
@@ -110,28 +159,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
         </Button>
       </header>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background min-[1024px]:hidden" role="dialog" aria-modal="true">
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-            <span className="flex items-center gap-2.5">
-              <Logo size={28} />
-              <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
-            </span>
-            <Button type="button" variant="ghost" size="sm" aria-label="Fechar menu" onClick={() => setOpen(false)}>
-              <X className="size-5" />
-            </Button>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-            <NavLinks onNavigate={() => setOpen(false)} />
-          </div>
-
-          <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
-            <PlanChip credits={credits} isUnlimited={isUnlimited} />
-            <ActionsRow />
-          </div>
-        </div>
-      )}
+      <MobileDrawer open={open} onClose={() => setOpen(false)} credits={credits} isUnlimited={isUnlimited} />
     </>
   );
 }
