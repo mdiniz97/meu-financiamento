@@ -18,6 +18,53 @@ const NAV = [
   { href: '/perfil', label: 'Meu perfil', icon: User },
 ];
 
+function NavLinks({ compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }) {
+  const pathname = usePathname();
+  return (
+    <nav className="flex flex-col gap-1">
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href || pathname.startsWith(`${href}/`);
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors',
+              compact ? 'px-3 py-2' : 'rounded-xl px-4 py-3.5 text-base',
+              active
+                ? 'bg-primary/10 text-[#820AD1]'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
+          >
+            <Icon className={cn('shrink-0', compact ? 'size-4' : 'size-5')} />
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function PlanChip({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
+  return (
+    <span className="rounded-lg bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+      {isUnlimited ? 'Plano Ilimitado' : `${credits} ${credits === 1 ? 'crédito' : 'créditos'}`}
+    </span>
+  );
+}
+
+function ActionsRow() {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <ThemeToggle />
+      <Button variant="outline" size="sm" className="flex-1" onClick={() => signOut()}>
+        Sair
+      </Button>
+    </div>
+  );
+}
+
 export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -34,7 +81,26 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background lg:flex">
+        <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Logo size={32} />
+            <span className="text-base font-semibold tracking-tight">
+              Raio X
+              <span className="block font-normal text-muted-foreground">do Financiamento</span>
+            </span>
+          </Link>
+        </div>
+        <div className="flex flex-1 flex-col justify-between p-3">
+          <NavLinks compact />
+          <div className="flex flex-col gap-3 border-t border-border pt-3">
+            <PlanChip credits={credits} isUnlimited={isUnlimited} />
+            <ActionsRow />
+          </div>
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
         <Link href="/" className="flex items-center gap-2.5">
           <Logo size={28} />
           <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
@@ -45,7 +111,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden" role="dialog" aria-modal="true">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
             <span className="flex items-center gap-2.5">
               <Logo size={28} />
@@ -57,38 +123,12 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-            <nav className="flex flex-col gap-1">
-              {NAV.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href || pathname.startsWith(`${href}/`);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={cn(
-                      'flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-medium transition-colors',
-                      active
-                        ? 'bg-primary/10 text-[#820AD1]'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    )}
-                  >
-                    <Icon className="size-5 shrink-0" />
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <NavLinks onNavigate={() => setOpen(false)} />
           </div>
 
           <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
-            <span className="rounded-lg bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
-              {isUnlimited ? 'Plano Ilimitado' : `${credits} ${credits === 1 ? 'crédito' : 'créditos'}`}
-            </span>
-            <div className="flex items-center justify-between gap-2">
-              <ThemeToggle />
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => signOut()}>
-                Sair
-              </Button>
-            </div>
+            <PlanChip credits={credits} isUnlimited={isUnlimited} />
+            <ActionsRow />
           </div>
         </div>
       )}

@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isUnlimited = bal.isUnlimited;
   }
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen bg-background">
       <AppSidebar credits={credits} isUnlimited={isUnlimited} />
       <main className="flex min-w-0 flex-1 flex-col">{children}</main>
     </div>
