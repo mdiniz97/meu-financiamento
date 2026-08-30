@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -101,7 +101,10 @@ export function ComparatorClient({
         name: p.name ?? '',
         propertyValue: String(Math.round(p.propertyValue)),
         downPayment: String(Math.round(p.downPayment)),
-        principalManual: String(Math.round(p.principal)),
+        principalManual:
+          Math.round(p.principal) === Math.round(p.propertyValue - p.downPayment)
+            ? ''
+            : String(Math.round(p.principal)),
         system: p.system,
         months: String(p.months),
         annualRate: String((p.annualRate * 100).toFixed(2)),
@@ -118,6 +121,37 @@ export function ComparatorClient({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState('');
   const [saveMsg, setSaveMsg] = useState('');
+
+  // navegação client-side para ?id=X preserva a instância: useEffect repopula
+  useEffect(() => {
+    if (saved) {
+      setProposals(
+        saved.input.proposals.map((p) => ({
+          id: p.id,
+          bank: p.bank,
+          name: p.name ?? '',
+          propertyValue: String(Math.round(p.propertyValue)),
+          downPayment: String(Math.round(p.downPayment)),
+          principalManual:
+            Math.round(p.principal) === Math.round(p.propertyValue - p.downPayment)
+              ? ''
+              : String(Math.round(p.principal)),
+          system: p.system,
+          months: String(p.months),
+          annualRate: String((p.annualRate * 100).toFixed(2)),
+          cetInformed: String((p.cetInformed * 100).toFixed(2)),
+          trMonthly: String((p.trMonthly * 100).toFixed(2)),
+          insuranceMonthly: String(Math.round(p.insuranceMonthly)),
+          fees: p.fees.map((f) => ({ id: f.id, label: f.label, amount: String(f.amount), includeInCet: f.includeInCet })),
+        }))
+      );
+      setBudget(String(Math.round(saved.input.monthlyBudget)));
+      setResult(saved.result);
+      setErrors({});
+      setGlobalError('');
+      setSaveMsg('');
+    }
+  }, [saved]);
 
   const set = (id: string, patch: Partial<RawProposal>) =>
     setProposals((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
