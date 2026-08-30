@@ -81,7 +81,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background min-[1024px]:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={32} />
@@ -100,7 +100,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 min-[1024px]:hidden">
         <Link href="/" className="flex items-center gap-2.5">
           <Logo size={28} />
           <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
@@ -111,7 +111,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background min-[1024px]:hidden" role="dialog" aria-modal="true">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
             <span className="flex items-center gap-2.5">
               <Logo size={28} />
