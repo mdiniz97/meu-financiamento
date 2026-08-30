@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
-import { AppHeader } from '@/components/app-header';
+import { AppSidebar } from '@/components/app-sidebar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -14,13 +14,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isUnlimited = bal.isUnlimited;
   }
   return (
-    <>
-      <AppHeader
-        signedIn={Boolean(session?.userId)}
-        credits={credits}
-        isUnlimited={isUnlimited}
-      />
-      <main className="flex flex-1 flex-col">{children}</main>
-    </>
+    <div className="flex min-h-screen bg-background">
+      <AppSidebar credits={credits} isUnlimited={isUnlimited} />
+      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+    </div>
   );
 }
