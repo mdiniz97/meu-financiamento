@@ -78,8 +78,11 @@ test('ilimitado compara 2 propostas, adiciona 3ª, vê ranking + alerta CET, sal
   await expect(page.getByText(/caixa vs itaú/i)).toBeVisible();
 
   await page.getByRole('button', { name: 'Abrir', exact: true }).click();
+  await page.waitForURL(/id=/);
+  await page.reload();
   await expect(page.getByText(/melhor proposta/i)).toBeVisible();
   await expect(page.getByLabel(/Banco/).nth(1)).toHaveValue('Itaú');
+  await expect(page.getByText(/melhor proposta: santander/i)).toBeVisible();
 
   const pdfResponse = page.waitForResponse((r) => r.url().includes('/api/pdf/comparison'));
   await page.getByRole('button', { name: /gerar pdf/i }).click();

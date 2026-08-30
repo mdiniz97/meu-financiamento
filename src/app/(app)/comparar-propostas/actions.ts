@@ -12,6 +12,14 @@ import type { ComparatorInput } from '@/lib/comparator/types';
 
 const ENGINE_VERSION = '1';
 
+function parseJsonb<T>(v: unknown): T {
+  return typeof v === 'string' ? (JSON.parse(v) as T) : (v as T);
+}
+
+function jsonbToString(v: unknown): string {
+  return typeof v === 'string' ? v : JSON.stringify(v);
+}
+
 async function requireUnlimited() {
   const session = await auth();
   if (!session?.userId) throw new Error('Não autenticado');
@@ -66,7 +74,7 @@ export async function listComparisons(): Promise<ComparisonSummary[]> {
   return rows.map((r) => {
     let bestBank: string | null = null;
     try {
-      const res = JSON.parse(r.result as unknown as string) as ComparatorResult;
+      const res = parseJsonb<ComparatorResult>(r.result);
       bestBank = res.v1.best?.proposal.bank ?? null;
     } catch {
       // resultado antigo/corrompido
@@ -86,8 +94,8 @@ export async function loadComparison(
   if (!row) return null;
   try {
     return {
-      input: deserializeComparisonInput(row.proposals as unknown as string),
-      result: JSON.parse(row.result as unknown as string) as ComparatorResult,
+      input: deserializeComparisonInput(jsonbToString(row.proposals)),
+      result: parseJsonb<ComparatorResult>(row.result),
       name: row.name,
       engineVersion: row.engineVersion,
     };
@@ -105,9 +113,9 @@ export async function recalculateComparison(
       where: and(eq(schema.proposalComparisons.id, id), eq(schema.proposalComparisons.userId, userId)),
     });
     if (!row) return { error: 'Comparação não encontrada' };
-    const input = deserializeComparisonInput(row.proposals as unknown as string);
+    const input = deserializeComparisonInput(jsonbToString(row.proposals));
     const fresh = computeComparator(input);
-    const prev = JSON.parse(row.result as unknown as string) as ComparatorResult;
+    const prev = parseJsonb<ComparatorResult>(row.result);
     const changed = JSON.stringify(prev) !== JSON.stringify(fresh);
     await db
       .update(schema.proposalComparisons)
