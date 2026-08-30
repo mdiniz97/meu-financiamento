@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,25 +8,45 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import type { RawFee, RawProposal } from './comparator-client';
 
 export function ProposalCard({
   raw,
   error,
+  canRemove,
   onChange,
+  onRemove,
 }: {
   raw: RawProposal;
   error?: string;
+  canRemove: boolean;
   onChange: (patch: Partial<RawProposal>) => void;
+  onRemove: () => void;
 }) {
   const updateFee = (feeId: string, patch: Partial<RawFee>) =>
     onChange({ fees: raw.fees.map((x) => (x.id === feeId ? { ...x, ...patch } : x)) });
 
+  const computedPrincipal = parseBRLToNumber(raw.propertyValue) - parseBRLToNumber(raw.downPayment);
+  const principalIsManual = raw.principalManual !== '';
+  const principalValue = principalIsManual ? parseBRLToNumber(raw.principalManual) : computedPrincipal;
+
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{raw.bank || `Proposta ${raw.id.toUpperCase()}`}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{raw.bank || `Proposta ${raw.id.toUpperCase()}`}</CardTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!canRemove}
+            aria-label={`Remover proposta ${raw.id.toUpperCase()}`}
+            onClick={onRemove}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
         <div className="flex flex-col gap-1.5">
@@ -44,8 +64,31 @@ export function ProposalCard({
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${raw.id}-principal`}>Valor financiado (R$) · automático</Label>
-          <MoneyInput id={`${raw.id}-principal`} value={parseBRLToNumber(raw.principalManual)} onValid={(v) => onChange({ principalManual: String(v) })} />
+          <Label htmlFor={`${raw.id}-principal`}>Valor financiado (R$)</Label>
+          <div className="flex items-center gap-2">
+            <MoneyInput
+              id={`${raw.id}-principal`}
+              value={principalValue}
+              onValid={(v) => onChange({ principalManual: String(v) })}
+              className="flex-1"
+            />
+            {principalIsManual && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                title="Voltar ao automático (imóvel − entrada)"
+                onClick={() => onChange({ principalManual: '' })}
+              >
+                <RotateCcw className="size-3.5" /> automático
+              </Button>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {principalIsManual
+              ? `Ajustado manualmente (imóvel − entrada = ${formatBRL(computedPrincipal)})`
+              : 'Automático: imóvel − entrada. Edite para ajustar.'}
+          </span>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${raw.id}-system`}>Sistema</Label>

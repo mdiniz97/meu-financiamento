@@ -71,7 +71,7 @@ test('ilimitado compara 2 propostas, adiciona 3ª, vê ranking + alerta CET, sal
   await expect(page.getByText(/melhor proposta/i)).toBeVisible();
   await expect(page.getByText(/custo total da aquisição/i)).toBeVisible();
   await expect(page.getByText(/alerta de cet/i)).toBeVisible();
-  await expect(page.getByText(/meses com aporte de/i).first()).toBeVisible();
+  await expect(page.getByText(/amortizador inteligente/i).first()).toBeVisible();
 
   await page.getByRole('button', { name: /salvar comparação/i }).click();
   await expect(page.getByText(/comparações salvas/i)).toBeVisible();

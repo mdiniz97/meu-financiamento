@@ -190,7 +190,18 @@ export function ComparatorClient({
           {globalError && <p className="text-sm text-destructive">{globalError}</p>}
           <div className="grid items-start gap-4 lg:grid-cols-3">
             {proposals.map((p) => (
-              <ProposalCard key={p.id} raw={p} error={errors[p.id]} onChange={(patch) => set(p.id, patch)} />
+              <ProposalCard
+                key={p.id}
+                raw={p}
+                error={errors[p.id]}
+                canRemove={proposals.length > 2}
+                onChange={(patch) => set(p.id, patch)}
+                onRemove={() => {
+                  setProposals((ps) => ps.filter((x) => x.id !== p.id));
+                  setResult(null);
+                  setSaveMsg('');
+                }}
+              />
             ))}
           </div>
           {proposals.length < 3 && (
