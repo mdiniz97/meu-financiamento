@@ -12,18 +12,21 @@ type InputProps = ComponentProps<typeof Input>;
 export function NumericInput({
   value,
   onValid,
+  onValidityChange,
   parse,
   className,
   ...props
 }: {
   value: number | undefined;
   onValid: (v: number) => void;
+  onValidityChange?: (valid: boolean) => void;
   parse: (s: string) => number;
 } & Omit<InputProps, 'value' | 'onChange'>) {
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
 
-  const displayed = focused ? text : value != null ? String(value) : '';
+  const controlledText = value != null ? String(value) : '';
+  const displayed = focused ? text : controlledText;
 
   return (
     <Input
@@ -34,17 +37,23 @@ export function NumericInput({
       onFocus={(e) => {
         setText(e.target.value);
         setFocused(true);
+        onValidityChange?.(e.target.value.trim() === '' || Number.isFinite(parse(e.target.value)));
       }}
-      onBlur={() => setFocused(false)}
+      onBlur={() => {
+        setFocused(false);
+      }}
       onChange={(e) => {
         setText(e.target.value);
         if (e.target.value.trim() === '') {
           // apagou tudo: emite 0 para o campo não voltar ao valor antigo no blur
+          onValidityChange?.(true);
           onValid(0);
           return;
         }
         const v = parse(e.target.value);
-        if (Number.isFinite(v)) onValid(v);
+        const valid = Number.isFinite(v);
+        onValidityChange?.(valid);
+        if (valid) onValid(v);
       }}
     />
   );
@@ -52,6 +61,6 @@ export function NumericInput({
 
 /** aceita apenas dígitos (para mês, intervalo etc.) */
 export const parseIntStrict = (s: string) => {
-  const digits = s.replace(/[^\d]/g, '');
-  return digits === '' ? NaN : Number(digits);
+  const value = s.trim();
+  return /^\d+$/.test(value) ? Number(value) : NaN;
 };

@@ -31,6 +31,11 @@ describe('maxFinancing (cálculo inverso)', () => {
       expect(res.installments[0].parcela).toBeLessThanOrEqual(input.maxPayment + 1);
     }
   });
+  it('taxa zero usa inversão direta do principal', () => {
+    const result = maxFinancing({ ...input, annualRate: 0 });
+    expect(result.PRICE).toBe((input.maxPayment - input.insuranceMonthly) * input.months);
+    expect(result.SAC).toBe((input.maxPayment - input.insuranceMonthly) * input.months);
+  });
 });
 
 describe('recommendSmart', () => {
@@ -114,6 +119,16 @@ describe('recommendSmart', () => {
     const p1 = b.result.installments[0].parcela;
     const p24 = b.result.installments[23]?.parcela ?? p1;
     expect(p24).toBeGreaterThan(p1);
+  });
+  it('até o mês fixo além do prazo é clampado no contrato, sem lançar (fix5b)', () => {
+    const r = recommendSmart({ ...base, maxMonths: 360, fixedUntilMonth: 400 });
+    expect(r.infeasible).toBe(false);
+    expect(r.best).not.toBeNull();
+    for (const c of r.alternatives) {
+      const until = c.result.strategies.fixedPayment?.untilMonth;
+      expect(until === undefined || until <= 360).toBe(true);
+    }
+    expect(r.best!.result.strategies.fixedPayment!.untilMonth).toBeLessThanOrEqual(360);
   });
 });
 

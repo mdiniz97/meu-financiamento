@@ -59,4 +59,25 @@ describe('computeComparator', () => {
     bad.proposals[0].months = 0;
     expect(() => computeComparator(bad)).toThrow();
   });
+
+  it('restaura banco legado em todos os resultados retornados e serializados', () => {
+    const legacy = input();
+    const originalBank = 'Banco legado '.repeat(8).trim();
+    legacy.proposals[0].bank = originalBank;
+
+    const result = computeComparator(legacy, { legacy: true });
+    const outcome = result.v1.outcomes.find((item) => item.proposal.id === 'p1')!;
+    const simulationResults = [
+      outcome.result,
+      ...outcome.smart!.recommended.alternatives.map((candidate) => candidate.result),
+      ...outcome.smart!.recommended.comparison.flatMap((comparison) => comparison.candidate ? [comparison.candidate.result] : []),
+      ...Object.values(outcome.smart!.recommended.modes).flatMap((candidate) => candidate ? [candidate.result] : []),
+      ...outcome.smart!.recommended.maxTerms.map((candidate) => candidate.result),
+    ];
+
+    expect(simulationResults.length).toBeGreaterThan(1);
+    expect(simulationResults.every((simulation) => simulation.input.bank === originalBank)).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('"bank":"Banco legado"');
+    expect(legacy.proposals[0].bank).toBe(originalBank);
+  });
 });

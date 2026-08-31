@@ -5,12 +5,18 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
-import { computeComparator, type ComparatorResult } from '@/lib/comparator/calculate';
-import { serializeComparisonInput, deserializeComparisonInput } from '@/lib/comparator/serialize';
-import { ComparatorValidationError } from '@/lib/comparator/validate';
+import {
+  COMPARISON_ENGINE_VERSION,
+  comparisonLoadVersions,
+  computeComparator,
+  type ComparatorResult,
+} from '@/lib/comparator/calculate';
+import {
+  deserializeStoredComparisonInput,
+  deserializeStoredComparisonSnapshot,
+  serializeComparisonInput,
+} from '@/lib/comparator/serialize';
 import type { ComparatorInput } from '@/lib/comparator/types';
-
-const ENGINE_VERSION = '1';
 
 function parseJsonb<T>(v: unknown): T {
   return typeof v === 'string' ? (JSON.parse(v) as T) : (v as T);
@@ -47,7 +53,7 @@ export async function saveComparison(input: ComparatorInput, name: string): Prom
         monthlyBudget: input.monthlyBudget,
         proposals: serializeComparisonInput(input),
         result: JSON.stringify(result),
-        engineVersion: ENGINE_VERSION,
+        engineVersion: COMPARISON_ENGINE_VERSION,
       })
       .returning();
     revalidatePath('/comparar-propostas');
@@ -85,7 +91,7 @@ export async function listComparisons(): Promise<ComparisonSummary[]> {
 
 export async function loadComparison(
   id: string
-): Promise<{ input: ComparatorInput; result: ComparatorResult; name: string; engineVersion: string } | null> {
+): Promise<{ input: ComparatorInput; result: ComparatorResult; name: string; resultEngineVersion: string; storedEngineVersion: string; recalculated: boolean } | null> {
   const session = await auth();
   if (!session?.userId) return null;
   const row = await db.query.proposalComparisons.findFirst({
@@ -93,11 +99,15 @@ export async function loadComparison(
   });
   if (!row) return null;
   try {
+    const snapshot = deserializeStoredComparisonSnapshot(
+      jsonbToString(row.proposals),
+      row.result,
+      row.engineVersion
+    );
     return {
-      input: deserializeComparisonInput(jsonbToString(row.proposals)),
-      result: parseJsonb<ComparatorResult>(row.result),
+      ...snapshot,
       name: row.name,
-      engineVersion: row.engineVersion,
+      ...comparisonLoadVersions(row.engineVersion, snapshot.recalculated),
     };
   } catch {
     return null;
@@ -113,13 +123,13 @@ export async function recalculateComparison(
       where: and(eq(schema.proposalComparisons.id, id), eq(schema.proposalComparisons.userId, userId)),
     });
     if (!row) return { error: 'Comparação não encontrada' };
-    const input = deserializeComparisonInput(jsonbToString(row.proposals));
-    const fresh = computeComparator(input);
+    const input = deserializeStoredComparisonInput(jsonbToString(row.proposals));
+    const fresh = computeComparator(input, { legacy: true });
     const prev = parseJsonb<ComparatorResult>(row.result);
     const changed = JSON.stringify(prev) !== JSON.stringify(fresh);
     await db
       .update(schema.proposalComparisons)
-      .set({ result: JSON.stringify(fresh), engineVersion: ENGINE_VERSION })
+      .set({ result: JSON.stringify(fresh), engineVersion: COMPARISON_ENGINE_VERSION })
       .where(eq(schema.proposalComparisons.id, id));
     return { result: fresh, changed };
   } catch (e) {

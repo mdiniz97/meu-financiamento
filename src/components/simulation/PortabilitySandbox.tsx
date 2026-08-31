@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { SimulationResult } from '@/lib/finance/types';
+import { NOVA_SIMULACAO_PREFILL_KEY, type FormState } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,22 +14,39 @@ interface Props {
   ported: SimulationResult;
   keepTitle: string;
   portedTitle: string;
-  prefill?: { principal: string; annualRate: string; months: string };
+  costs: number;
+  economiaLiquida: number;
+  prefill?: FormState;
+  disabled?: boolean;
 }
 
-function ScenarioCard({ title, result, accent }: { title: string; result: SimulationResult; accent: boolean }) {
+function ScenarioCard({
+  title,
+  result,
+  accent,
+  costs = 0,
+}: {
+  title: string;
+  result: SimulationResult;
+  accent: boolean;
+  costs?: number;
+}) {
   return (
-    <Card className={`rounded-2xl shadow-sm ${accent ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}>
+    <Card
+      role="region"
+      aria-label={title}
+      className={`min-w-0 overflow-hidden rounded-2xl shadow-sm [overflow-wrap:anywhere] ${accent ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}
+    >
       <CardHeader>
         <CardTitle className={`text-lg ${accent ? 'text-[#820AD1]' : ''}`}>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+      <CardContent className="flex min-w-0 flex-col gap-4 overflow-hidden">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl bg-muted/50 p-3 [overflow-wrap:anywhere]">
             <span className="text-xs text-muted-foreground">Parcela 1</span>
             <span className="text-lg font-semibold">{formatBRL(result.installments[0]?.parcela ?? 0)}</span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl bg-muted/50 p-3 [overflow-wrap:anywhere]">
             <span className="text-xs text-muted-foreground">Quitação</span>
             <span className="text-lg font-semibold">
               {result.metrics.saldoZeroAt} meses
@@ -37,11 +55,14 @@ function ScenarioCard({ title, result, accent }: { title: string; result: Simula
               </span>
             </span>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl bg-muted/50 p-3 [overflow-wrap:anywhere]">
             <span className="text-xs text-muted-foreground">Total pago</span>
-            <span className="text-lg font-semibold">{formatBRL(result.metrics.totalPago)}</span>
+            <span className="text-lg font-semibold">{formatBRL(result.metrics.totalPago + costs)}</span>
+            {costs > 0 && (
+              <span className="text-xs text-muted-foreground">inclui {formatBRL(costs)} de custos</span>
+            )}
           </div>
-          <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl bg-muted/50 p-3 [overflow-wrap:anywhere]">
             <span className="text-xs text-muted-foreground">Juros totais</span>
             <span className="text-lg font-semibold">{formatBRL(result.metrics.totalJuros)}</span>
           </div>
@@ -53,43 +74,55 @@ function ScenarioCard({ title, result, accent }: { title: string; result: Simula
   );
 }
 
-export function PortabilitySandbox({ keep, ported, keepTitle, portedTitle, prefill }: Props) {
+export function PortabilitySandbox({
+  keep,
+  ported,
+  keepTitle,
+  portedTitle,
+  costs,
+  economiaLiquida,
+  prefill,
+  disabled,
+}: Props) {
   const router = useRouter();
-  const vantajoso = keep.metrics.totalPago - ported.metrics.totalPago > 0;
+  const outcome = economiaLiquida > 0 ? 'positive' : economiaLiquida < 0 ? 'negative' : 'neutral';
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
-        {vantajoso ? (
+    <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
+      <p className="min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+        {outcome === 'positive' ? (
           <>
             Portar reduz o total pago em{' '}
             <strong className="text-emerald-600 dark:text-emerald-400">
-              {formatBRL(keep.metrics.totalPago - ported.metrics.totalPago)}
+              {formatBRL(economiaLiquida)}
             </strong>
           </>
-        ) : (
+        ) : outcome === 'negative' ? (
           <>
             Manter no banco atual é{' '}
             <strong className="text-destructive">
-              {formatBRL(ported.metrics.totalPago - keep.metrics.totalPago)}
+              {formatBRL(-economiaLiquida)}
             </strong>{' '}
             mais barato que portar
           </>
+        ) : (
+          <>Empate: manter e portar têm o mesmo custo total.</>
         )}
       </p>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <ScenarioCard title={keepTitle} result={keep} accent={!vantajoso} />
-        <div className="flex flex-col gap-3">
-          <ScenarioCard title={portedTitle} result={ported} accent={vantajoso} />
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <ScenarioCard title={keepTitle} result={keep} accent={outcome === 'negative'} />
+        <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
+          <ScenarioCard title={portedTitle} result={ported} accent={outcome === 'positive'} costs={costs} />
           {prefill && (
             <Button
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() =>
-                router.push(
-                  `/nova-simulacao?principal=${encodeURIComponent(prefill.principal)}&taxa=${encodeURIComponent(prefill.annualRate)}&prazo=${encodeURIComponent(prefill.months)}`
-                )
-              }
+              disabled={disabled}
+              onClick={() => {
+                if (disabled) return;
+                sessionStorage.setItem(NOVA_SIMULACAO_PREFILL_KEY, JSON.stringify(prefill));
+                router.push('/nova-simulacao');
+              }}
             >
               Levar para o simulador
             </Button>

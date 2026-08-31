@@ -16,6 +16,7 @@ export function NovaSimulacaoClient({ isUnlimited }: { isUnlimited: boolean }) {
         <SmartCalculator
           isUnlimited={isUnlimited}
           onCalculated={(recommendation, fields) => setRec({ recommendation, fields })}
+          onValidationFailed={() => setRec(null)}
         />
       </div>
 

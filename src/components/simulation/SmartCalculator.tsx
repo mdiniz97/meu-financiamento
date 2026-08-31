@@ -11,19 +11,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { maxFinancing, recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
+import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { RateField } from '@/components/ui/rate-field';
+import { normalizeRate, type RateKind } from '@/lib/finance/rates';
+import type { AmortSystem } from '@/lib/finance/types';
+import { numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { FieldHelp } from '@/components/ui/field-help';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AffordabilityCalculator } from './AffordabilityCalculator';
 
 export interface SmartCalcFields {
+  preferredSystem: AmortSystem | 'AUTO';
   principal: string;
   annualRate: string;
+  annualRateKind: RateKind;
   trMonthly: string;
   insuranceMonthly: string;
   bank: string;
@@ -33,8 +39,10 @@ export interface SmartCalcFields {
 }
 
 export const SMART_DEFAULTS: SmartCalcFields = {
+  preferredSystem: 'AUTO',
   principal: '1000000',
   annualRate: '10.5',
+  annualRateKind: 'effective-annual',
   trMonthly: '0.17',
   insuranceMonthly: '100',
   bank: 'Caixa',
@@ -43,12 +51,21 @@ export const SMART_DEFAULTS: SmartCalcFields = {
   fixedUntilMonth: '',
 };
 
+function effectiveAnnualPercent(value: string, kind: RateKind) {
+  try {
+    return normalizeRate(parseDecimal(value), kind).effectiveAnnual * 100;
+  } catch {
+    return 0;
+  }
+}
+
 interface Props {
   isUnlimited: boolean;
   onCalculated: (rec: SmartRecommendation, fields: SmartCalcFields) => void;
+  onValidationFailed?: () => void;
 }
 
-export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
+export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed }: Props) {
   const search = useSearchParams();
   // prefill vindo da portabilidade: /nova-simulacao?principal=&taxa=&prazo=
   const [f, setF] = useState<SmartCalcFields>(() => {
@@ -66,48 +83,17 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
   const [error, setError] = useState('');
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalFields, setModalFields] = useState({
-    parcela: '12000',
-    annualRate: '10.5',
-    trMonthly: '0.17',
-    insuranceMonthly: '100',
-    months: '360',
-  });
-  const [modalError, setModalError] = useState('');
-  const [modalCalculado, setModalCalculado] = useState(false);
-  const [modalResult, setModalResult] = useState<{ PRICE: number; SAC: number } | null>(null);
-
-  // recalcula ao vivo após o primeiro cálculo; valor inválido mantém o
-  // último resultado válido
-  function updateModal(k: keyof typeof modalFields, v: string) {
-    const next = { ...modalFields, [k]: v };
-    setModalFields(next);
-    if (!modalCalculado) return;
-    const parcela = parseBRLToNumber(next.parcela);
-    const rate = parseDecimal(next.annualRate);
-    const tr = parseDecimal(next.trMonthly);
-    const seguro = parseBRLToNumber(next.insuranceMonthly);
-    const months = Number(next.months);
-    if (!(parcela > 0) || !(rate > 0) || !(tr >= 0) || !(seguro >= 0) || !(months >= 1 && months <= 600)) {
-      return;
-    }
-    setModalResult(
-      maxFinancing({
-        maxPayment: parcela,
-        annualRate: rate / 100,
-        trMonthly: tr / 100,
-        insuranceMonthly: seguro,
-        bank: f.bank,
-        months,
-      })
-    );
-  }
+  const [annualRateValid, setAnnualRateValid] = useState(true);
 
   const set = <K extends keyof SmartCalcFields>(k: K, v: SmartCalcFields[K]) =>
     setF((p) => ({ ...p, [k]: v }));
 
   function calcular() {
     setError('');
+    onValidationFailed?.();
+    if (!annualRateValid) {
+      return setError('Informe uma taxa válida.');
+    }
     const principal = parseBRLToNumber(f.principal);
     const annualRate = parseDecimal(f.annualRate);
     const trMonthly = parseDecimal(f.trMonthly);
@@ -115,8 +101,14 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
     const maxMonths = Number(f.maxMonths);
     const maxPayment = parseBRLToNumber(f.maxPayment);
     const until = Number(f.fixedUntilMonth);
+    let effectiveAnnualRate = NaN;
+    try {
+      effectiveAnnualRate = normalizeRate(annualRate, f.annualRateKind).effectiveAnnual;
+    } catch {
+      // Validação abaixo apresenta erro no formulário.
+    }
     if (!(principal > 0)) return setError('Informe o valor financiado (maior que zero).');
-    if (!(annualRate > 0)) return setError('Informe a taxa anual (maior que zero).');
+    if (!(effectiveAnnualRate >= 0 && effectiveAnnualRate <= 1)) return setError('Informe uma taxa válida.');
     if (!(trMonthly >= 0)) return setError('Informe a TR mensal válida.');
     if (!(insuranceMonthly >= 0)) return setError('Informe o seguro mensal válido.');
     if (!(maxMonths >= 60 && maxMonths <= 600)) return setError('Prazo máximo deve estar entre 60 e 600 meses.');
@@ -124,26 +116,17 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
 
     const rec = recommendSmart({
       principal,
-      annualRate: annualRate / 100,
+      annualRate: effectiveAnnualRate,
       trMonthly: trMonthly / 100,
       insuranceMonthly,
       bank: f.bank,
       maxMonths,
       maxPayment,
-      fixedUntilMonth: Number.isInteger(until) && until >= 1 ? until : undefined,
+      fixedUntilMonth:
+        Number.isInteger(until) && until >= 1 ? Math.min(until, maxMonths) : undefined,
+      preferredSystem: f.preferredSystem === 'AUTO' ? undefined : f.preferredSystem,
     });
     onCalculated(rec, f);
-  }
-
-  function usarNoInteligente(principal: number) {
-    // leva o valor descoberto para o cálculo inteligente
-    set('principal', String(principal));
-    set('maxPayment', modalFields.parcela);
-    set('annualRate', modalFields.annualRate);
-    set('trMonthly', modalFields.trMonthly);
-    set('insuranceMonthly', modalFields.insuranceMonthly);
-    set('maxMonths', modalFields.months);
-    setModalOpen(false);
   }
 
   return (
@@ -181,61 +164,56 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setModalFields({
-                    parcela: f.maxPayment,
-                    annualRate: f.annualRate,
-                    trMonthly: f.trMonthly,
-                    insuranceMonthly: f.insuranceMonthly,
-                    months: f.maxMonths,
-                  });
-                  setModalResult(null);
-                  setModalCalculado(false);
-                  setModalOpen(true);
-                }}
+                onClick={() => setModalOpen(true)}
               >
                 <Search className="size-3.5" /> Descobrir quanto posso financiar
               </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartPrincipal">Valor financiado (R$)</Label>
-                <MoneyInput
-                id="smartPrincipal"
+               <FieldHelp htmlFor="smartPreferredSystem" label="Sistema preferido" help="Use Automático para comparar PRICE e SAC, ou preserve o sistema escolhido no cálculo de capacidade.">
+                 <Select value={f.preferredSystem} onValueChange={(value) => {
+                   if (value === 'AUTO' || value === 'PRICE' || value === 'SAC') set('preferredSystem', value);
+                 }}>
+                   <SelectTrigger id="smartPreferredSystem" aria-label="Sistema preferido" aria-describedby="smartPreferredSystem-help" className="w-full"><SelectValue /></SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="AUTO">Automático</SelectItem>
+                     <SelectItem value="PRICE">PRICE</SelectItem>
+                     <SelectItem value="SAC">SAC</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartPrincipal" label="Valor financiado do cálculo inteligente (R$)" help="Valor que você precisa financiar. O cálculo testa sistemas e prazos para essa dívida.">
+                 <MoneyInput
+                 id="smartPrincipal"
+                 aria-label="Valor financiado (R$)"
+                 aria-describedby="smartPrincipal-help"
                 value={parseBRLToNumber(f.principal)}
-                onValid={(v) => set("principal", String(v))}
+                 onValid={(v) => set("principal", numberToBRLInput(v))}
               />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartRate">Taxa a.a. (%)</Label>
+               </FieldHelp>
+              <RateField id="smartRate" label="Taxa de juros" value={parseDecimal(f.annualRate)} kind={f.annualRateKind} minEffectiveAnnual={0} onValueChange={(v) => set('annualRate', String(v))} onKindChange={(kind) => set('annualRateKind', kind)} onValidityChange={setAnnualRateValid} />
+               <FieldHelp htmlFor="smartTr" label="TR mensal do cálculo inteligente (%)" help="Correção mensal além dos juros. Informe a TR indicada pelo banco para comparar parcelas futuras.">
                 <NumericInput
-                id="smartRate"
-                value={parseDecimal(f.annualRate)}
-                parse={parseDecimal}
-                onValid={(v) => set("annualRate", String(v))}
-              />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartTr">TR mensal (%)</Label>
-                <NumericInput
-                id="smartTr"
+                 id="smartTr"
+                 aria-label="TR mensal (%)"
+                 aria-describedby="smartTr-help"
                 value={parseDecimal(f.trMonthly)}
                 parse={parseDecimal}
                 onValid={(v) => set("trMonthly", String(v))}
               />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartSeguro">Seguro (R$/mês)</Label>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartSeguro" label="Seguro do cálculo inteligente (R$/mês)" help="Custo mensal dos seguros somado à parcela e ao limite que você pode pagar.">
                 <MoneyInput
-                id="smartSeguro"
+                 id="smartSeguro"
+                 aria-label="Seguro (R$/mês)"
+                 aria-describedby="smartSeguro-help"
                 value={parseBRLToNumber(f.insuranceMonthly)}
-                onValid={(v) => set("insuranceMonthly", String(v))}
+                 onValid={(v) => set("insuranceMonthly", numberToBRLInput(v))}
               />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Banco</Label>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartBank" label="Banco do cálculo inteligente" help="Banco usado para identificar a simulação recomendada e o relatório.">
                 <Select value={f.bank} onValueChange={(v) => set('bank', String(v))}>
-                  <SelectTrigger className="w-full">
+                   <SelectTrigger id="smartBank" aria-label="Banco" aria-describedby="smartBank-help" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -246,31 +224,31 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartMaxMonths">Prazo máximo (meses)</Label>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartMaxMonths" label="Prazo máximo (meses)" help="Maior prazo que você aceita. O cálculo pode recomendar prazo menor quando couber no orçamento.">
                 <NumericInput
-                id="smartMaxMonths"
+                 id="smartMaxMonths"
+                 aria-describedby="smartMaxMonths-help"
                 value={Number(f.maxMonths)}
                 parse={parseIntStrict}
                 onValid={(v) => set("maxMonths", String(v))}
               />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartMaxPayment2">Quanto pode pagar por mês (R$)</Label>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartMaxPayment2" label="Quanto pode pagar por mês (R$)" help="Teto mensal para parcela e aporte automático juntos; valor maior pode encurtar o contrato.">
                 <MoneyInput
-                  id="smartMaxPayment2"
+                   id="smartMaxPayment2"
+                   aria-describedby="smartMaxPayment2-help"
                   value={parseBRLToNumber(f.maxPayment)}
-                  onValid={(v) => set("maxPayment", String(v))}
+                   onValid={(v) => set("maxPayment", numberToBRLInput(v))}
                 />
                 <p className="text-xs text-muted-foreground">
                   Parcela + aporte automático = sempre esse valor, até quitar.
                 </p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smartFixedUntil">Pagar esse valor por um período (opcional)</Label>
+               </FieldHelp>
+               <FieldHelp htmlFor="smartFixedUntil" label="Pagar esse valor por um período (opcional)" help="Último mês em que você consegue pagar o teto completo; depois disso fica somente a parcela contratual.">
                 <NumericInput
-                  id="smartFixedUntil"
+                   id="smartFixedUntil"
+                   aria-describedby="smartFixedUntil-help"
                   value={f.fixedUntilMonth ? Number(f.fixedUntilMonth) : undefined}
                   parse={(s) => (s.trim() === '' ? 0 : parseIntStrict(s))}
                   onValid={(v) => set('fixedUntilMonth', v > 0 ? String(v) : '')}
@@ -279,7 +257,7 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
                   Até o mês informado você paga o valor cheio; depois, volta a pagar apenas a
                   parcela do contrato.
                 </p>
-              </div>
+               </FieldHelp>
             </div>
 
             <div className="mt-auto flex justify-end">
@@ -289,136 +267,44 @@ export function SmartCalculator({ isUnlimited, onCalculated }: Props) {
             </div>
 
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           </div>
         )}
       </CardContent>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Quanto você pode financiar</DialogTitle>
+            <DialogTitle>Qual imóvel cabe no meu bolso?</DialogTitle>
             <DialogDescription>
-              Informe quanto quer pagar por mês: calculamos o valor máximo do imóvel em cada
-              modelo.
+              Considere renda, entrada, custos iniciais e condições do financiamento.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mfParcela">Quanto quer pagar por mês (R$)</Label>
-                <MoneyInput
-                  id="mfParcela"
-                  value={parseBRLToNumber(modalFields.parcela)}
-                  onValid={(v) => updateModal('parcela', String(v))}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="mfMonths">Prazo (meses)</Label>
-                  <NumericInput
-                    id="mfMonths"
-                    value={Number(modalFields.months)}
-                    parse={parseIntStrict}
-                    onValid={(v) => updateModal('months', String(v))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="mfRate">Taxa a.a. (%)</Label>
-                  <NumericInput
-                    id="mfRate"
-                    value={parseDecimal(modalFields.annualRate)}
-                    parse={parseDecimal}
-                    onValid={(v) => updateModal('annualRate', String(v))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="mfTr">TR mensal (%)</Label>
-                  <NumericInput
-                    id="mfTr"
-                    value={parseDecimal(modalFields.trMonthly)}
-                    parse={parseDecimal}
-                    onValid={(v) => updateModal('trMonthly', String(v))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="mfSeguro">Seguro (R$/mês)</Label>
-                  <MoneyInput
-                    id="mfSeguro"
-                    value={parseBRLToNumber(modalFields.insuranceMonthly)}
-                    onValid={(v) => updateModal('insuranceMonthly', String(v))}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setModalError('');
-                    const parcela = parseBRLToNumber(modalFields.parcela);
-                    const rate = parseDecimal(modalFields.annualRate);
-                    const tr = parseDecimal(modalFields.trMonthly);
-                    const seguro = parseBRLToNumber(modalFields.insuranceMonthly);
-                    const months = Number(modalFields.months);
-                    if (!(parcela > 0)) return setModalError('Informe quanto quer pagar por mês.');
-                    if (!(rate > 0)) return setModalError('Informe a taxa anual.');
-                    if (!(tr >= 0)) return setModalError('Informe a TR mensal.');
-                    if (!(seguro >= 0)) return setModalError('Informe o seguro.');
-                    if (!(months >= 1 && months <= 600)) return setModalError('Prazo entre 1 e 600 meses.');
-                    setModalCalculado(true);
-                    setModalResult(
-                      maxFinancing({
-                        maxPayment: parcela,
-                        annualRate: rate / 100,
-                        trMonthly: tr / 100,
-                        insuranceMonthly: seguro,
-                        bank: f.bank,
-                        months,
-                      })
-                    );
-                  }}
-                >
-                  <Search className="size-4" /> Calcular
-                </Button>
-              </div>
-              {modalError && <p className="text-sm text-destructive">{modalError}</p>}
-            </div>
-
-            {modalResult && (
-              <div className="flex flex-col gap-3">
-                <p className="text-sm font-semibold text-primary">
-                  Com {formatBRL(parseBRLToNumber(modalFields.parcela))}/mês, você pode financiar até:
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(['PRICE', 'SAC'] as const).map((s) => (
-                    <div key={s} className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-muted p-4 shadow-sm">
-                      <span className="text-xs text-muted-foreground">No {s}</span>
-                      <span className="text-lg font-semibold text-primary break-all">
-                        {formatBRL(modalResult[s])}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {s === 'PRICE'
-                          ? 'Parcela constante: cresce com a TR'
-                          : 'Parcela começa maior e cai'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => usarNoInteligente(Math.max(modalResult.PRICE, modalResult.SAC))}
-                  >
-                    Usar no cálculo inteligente
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  O cálculo inteligente usa o maior valor (no {modalResult.PRICE >= modalResult.SAC ? 'PRICE' : 'SAC'}) e
-                  descobre o melhor modelo, prazo e estratégia para ele.
-                </p>
-              </div>
-            )}
-          </div>
+          <AffordabilityCalculator
+            compact
+            defaults={{
+              paymentCap: parseBRLToNumber(f.maxPayment),
+              annualRate: effectiveAnnualPercent(f.annualRate, f.annualRateKind),
+              annualRateKind: 'effective-annual',
+              trMonthly: parseDecimal(f.trMonthly),
+              insuranceMonthly: parseBRLToNumber(f.insuranceMonthly),
+              bank: f.bank,
+              months: Number(f.maxMonths),
+            }}
+            onUse={(selection) => {
+              set('preferredSystem', selection.system);
+              set('principal', numberToBRLInput(selection.principal));
+              set('maxPayment', numberToBRLInput(selection.monthlyBudget));
+              set('annualRate', String(selection.annualRate));
+              set('annualRateKind', selection.annualRateKind);
+              setAnnualRateValid(true);
+              set('trMonthly', String(selection.trMonthly));
+              set('insuranceMonthly', numberToBRLInput(selection.insuranceMonthly));
+              set('bank', selection.bank);
+              set('maxMonths', String(selection.months));
+              setModalOpen(false);
+            }}
+          />
         </DialogContent>
       </Dialog>
       <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />

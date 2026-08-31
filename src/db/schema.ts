@@ -37,6 +37,13 @@ export const subscriptions = pgTable(
     uniqueIndex('subscriptions_provider_id_unique')
       .on(table.providerId)
       .where(sql`${table.providerId} IS NOT NULL`),
+    // Primeira compra: uma única assinatura por (usuário, pacote, provedor);
+    // renovações estendem a MESMA linha. Sem esse índice, dois webhooks reais
+    // em paralelo com providerIds distintos inseririam duas linhas e a segunda
+    // compra perderia os 30 dias (o providerId distinto não colide no índice
+    // parcial acima). O 23505 desse índice dispara re-leitura + extensão.
+    uniqueIndex('subscriptions_user_pack_provider_unique')
+      .on(table.userId, table.packId, table.provider),
   ]
 );
 
@@ -85,6 +92,7 @@ export const proposalComparisons = pgTable('proposal_comparisons', {
   monthlyBudget: doublePrecision('monthly_budget').notNull(),
   proposals: jsonb('proposals').notNull(),
   result: jsonb('result').notNull(),
+  // Keep migration default aligned manually; runtime writes COMPARISON_ENGINE_VERSION.
   engineVersion: text('engine_version').notNull().default('1'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

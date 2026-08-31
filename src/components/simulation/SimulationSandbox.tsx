@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
@@ -16,10 +16,12 @@ import {
   type FormState,
 } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
+import { clampStrategyUntilMonths } from '@/lib/finance/strategy-rows';
 import { saveSimulation, type SaveResult } from '@/app/(app)/simulacao/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { FieldHelp } from '@/components/ui/field-help';
 import {
   Dialog,
   DialogClose,
@@ -68,14 +70,18 @@ function loadSnapshot(): { form: FormState; strategies: Strategies; input: LoanI
   if (raw !== cachedRaw || cached === null) {
     cachedRaw = raw;
     const loaded = parseStoredForm(raw);
-    cached = { form: loaded, strategies: formToStrategies(loaded), input: null };
+    cached = {
+      form: loaded,
+      strategies: clampStrategyUntilMonths(formToStrategies(loaded), Number(loaded.months)),
+      input: null,
+    };
   }
   return cached;
 }
 
 const SERVER_SNAPSHOT = {
   form: DEFAULT_FORM,
-  strategies: formToStrategies(DEFAULT_FORM),
+  strategies: clampStrategyUntilMonths(formToStrategies(DEFAULT_FORM), Number(DEFAULT_FORM.months)),
   input: null,
 };
 
@@ -94,7 +100,7 @@ export function SimulationSandbox({
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
-  const applyAporteRef = useRef<((pct: number) => void) | null>(null);
+  const applyAporteRef = useRef<((ratio: number) => void) | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -102,6 +108,9 @@ export function SimulationSandbox({
   const [showCreditsDialog, setShowCreditsDialog] = useState(false);
   const [compareSystems, setCompareSystems] = useState(false);
   const [activeSystem, setActiveSystem] = useState<AmortSystem | null>(null);
+  const registerApplyAporte = useCallback((fn: ((ratio: number) => void) | null) => {
+    applyAporteRef.current = fn;
+  }, []);
 
   useEffect(() => {
     if (!saved || savedIdRef.current === saved.id) return;
@@ -113,7 +122,7 @@ export function SimulationSandbox({
     if (!payload?.input) return;
     cached = {
       form: parseStoredForm(null),
-      strategies: payload.strategies,
+      strategies: clampStrategyUntilMonths(payload.strategies, payload.input.months),
       input: payload.input,
     };
     listeners.forEach((l) => l());
@@ -213,24 +222,31 @@ export function SimulationSandbox({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-sm">
-        <span className="text-sm font-medium">Comparar PRICE ↔ SAC</span>
         {isUnlimited ? (
-          <Switch
-            checked={compareSystems}
-            onCheckedChange={(v) => {
-              setCompareSystems(v);
-              if (!v) setActiveSystem(null);
-            }}
-          />
+          <FieldHelp htmlFor="compareSystems" label="Comparar PRICE ↔ SAC" help="Mostra lado a lado como os mesmos valores evoluem em PRICE e SAC, sem alterar sua simulação principal.">
+            <Switch
+              id="compareSystems"
+              data-field-help-id="compareSystems"
+              aria-describedby="compareSystems-help"
+              checked={compareSystems}
+              onCheckedChange={(v) => {
+                setCompareSystems(v);
+                if (!v) setActiveSystem(null);
+              }}
+            />
+          </FieldHelp>
         ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setUpgradeOpen(true)}
-          >
-            <Lock className="size-3.5" /> Comparar PRICE × SAC: Exclusivo Ilimitado
-          </Button>
+          <>
+            <span className="text-sm font-medium">Comparar PRICE ↔ SAC</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              <Lock className="size-3.5" /> Comparar PRICE × SAC: Exclusivo Ilimitado
+            </Button>
+          </>
         )}
       </div>
 
@@ -276,7 +292,7 @@ export function SimulationSandbox({
         input={input}
         result={displayed}
         isUnlimited={isUnlimited}
-        onApplyAporte={(pct) => applyAporteRef.current?.(pct)}
+        onApplyAporte={(ratio) => applyAporteRef.current?.(ratio)}
       />
 
       <section className="flex flex-col gap-3">
@@ -300,14 +316,12 @@ export function SimulationSandbox({
           input={input}
           strategies={strategies}
           onChange={(s) => {
-            setCachedStrategies(s);
+            setCachedStrategies(clampStrategyUntilMonths(s, input.months));
             listeners.forEach((l) => l());
           }}
           base={base}
           current={displayed}
-          onApplyAporteReady={(fn) => {
-            applyAporteRef.current = fn;
-          }}
+          onApplyAporteReady={registerApplyAporte}
         />
       </section>
 

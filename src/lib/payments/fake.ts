@@ -22,10 +22,13 @@ export class FakeProvider implements PaymentProvider {
       return null;
     }
     if (!parsed.userId || !parsed.packId) return null;
+    // providerId determinístico por compra (usuário + pacote): garante
+    // idempotência e evita colisão entre compras paralelas no mesmo
+    // milissegundo (Date.now() não é único entre usuários)
     return {
       userId: parsed.userId,
       packId: parsed.packId,
-      providerId: 'fake_' + Date.now(),
+      providerId: `fake_${parsed.userId}_${parsed.packId}`,
     };
   }
 }

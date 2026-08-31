@@ -14,7 +14,7 @@ interface Props {
   result: SimulationResult;
   isUnlimited: boolean;
   /** aplica o aporte necessário adicionando uma linha de amortização (visível e removível) */
-  onApplyAporte?: (pct: number) => void;
+  onApplyAporte?: (ratio: number) => void;
 }
 
 export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: Props) {
@@ -107,6 +107,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
   const abateDesdeInicio = (be.monthsUntilAmortize ?? 1) <= 1;
   const parcelaCobre = parcelaAtual >= be.minPayment;
   const prazoOk = input.months <= be.maxMonths;
+  const aporteAplicavel = Number.isFinite(be.requiredTotalExtraPct) && be.requiredTotalExtraPct <= 1;
 
   return (
     <Card className="rounded-2xl shadow-sm">
@@ -166,18 +167,21 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
               <span className="text-lg font-semibold text-primary">
                 {formatBRL(be.requiredExtraMonthly)}
                 <span className="ml-1 text-xs font-medium text-muted-foreground">
-                  (+{(be.requiredExtraPct * 100).toFixed(1)}% da parcela)
+                  (+{(be.requiredTotalExtraPct * 100).toFixed(1)}% total da parcela)
                 </span>
               </span>
               <span className="text-xs text-muted-foreground">
-                amortize por fora todo mês e a dívida cai desde a 1ª parcela
+                {aporteAplicavel
+                  ? 'amortize por fora todo mês e a dívida cai desde a 1ª parcela'
+                  : 'aporte acima de 100%; reduza o prazo ou revise as condições do financiamento'}
               </span>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="mt-1 w-fit"
-                onClick={() => onApplyAporte?.(be.requiredExtraPct)}
+                onClick={() => onApplyAporte?.(be.requiredTotalExtraPct)}
+                disabled={!aporteAplicavel}
               >
                 <Plus className="size-3.5" /> Aplicar aporte
               </Button>

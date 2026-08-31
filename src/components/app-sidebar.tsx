@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, History, Menu, Scale, User, X } from 'lucide-react';
+import { ArrowLeftRight, Calculator, History, Home, Menu, Scale, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/portabilidade', label: 'Portabilidade', icon: ArrowLeftRight },
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
+  { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
   { href: '/perfil', label: 'Meu perfil', icon: User },
 ];
@@ -55,7 +56,7 @@ function PlanChip({ credits, isUnlimited }: { credits: number; isUnlimited: bool
   );
 }
 
-function ActionsRow({ onDone }: { onDone?: () => void }) {
+function ActionsRow() {
   return (
     <div className="flex items-center justify-between gap-2">
       <ThemeToggle />
@@ -77,9 +78,6 @@ function MobileDrawer({
   credits: number;
   isUnlimited: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -93,7 +91,7 @@ function MobileDrawer({
     };
   }, [open, onClose]);
 
-  if (!mounted || !open) return null;
+  if (!open) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex min-[1024px]:hidden" role="dialog" aria-modal="true">
@@ -125,8 +123,6 @@ function MobileDrawer({
 
 export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-  useEffect(() => setOpen(false), [pathname]);
 
   return (
     <>

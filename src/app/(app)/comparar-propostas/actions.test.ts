@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeComparisonInput, deserializeComparisonInput } from '@/lib/comparator/serialize';
+import { COMPARISON_ENGINE_VERSION, comparisonLoadVersions } from '@/lib/comparator/calculate';
 
 const input = {
   monthlyBudget: 12000,
@@ -10,6 +11,12 @@ const input = {
 };
 
 describe('serialize/deserialize comparação', () => {
+  it('responde versão atual do resultado recalculado e preserva versão armazenada', () => {
+    expect(comparisonLoadVersions('old', true)).toEqual({
+      resultEngineVersion: COMPARISON_ENGINE_VERSION,
+      storedEngineVersion: 'old',
+    });
+  });
   it('round-trip preserva entradas', () => {
     const raw = serializeComparisonInput(input);
     expect(raw).toContain('"version":1');

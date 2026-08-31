@@ -67,4 +67,71 @@ describe('validateLoanInput', () => {
     expect(() => simulate({ ...validInput, months: 1e999 })).toThrow('input inválido');
     expect(() => simulate({ ...validInput, principal: NaN })).toThrow('input inválido');
   });
+
+  it('rejeita untilMonth além do prazo do contrato (janela não pode estender silenciosamente)', () => {
+    const beyond = { ...validStrategies, extraMonthlyPct: 0.1, extraMonthlyPctUntilMonth: 361 };
+    expect(() => validateLoanInput(validInput, beyond)).toThrow('input inválido');
+    expect(() => simulate(validInput, beyond)).toThrow('input inválido');
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, fixedPayment: { amount: 5000, untilMonth: 400 } })
+    ).toThrow('input inválido');
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, recurringExtra: { amount: 3000, every: 1, startMonth: 1, untilMonth: 500 } })
+    ).toThrow('input inválido');
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, fgtsAnnual: { amount: 10000, startMonth: 12, untilMonth: 600 } })
+    ).toThrow('input inválido');
+  });
+
+  it('aceita untilMonth exatamente no fim do prazo', () => {
+    expect(() =>
+      validateLoanInput(validInput, {
+        ...validStrategies,
+        extraMonthlyPct: 0.1,
+        extraMonthlyPctUntilMonth: 360,
+      })
+    ).not.toThrow();
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, fixedPayment: { amount: 5000, untilMonth: 360 } })
+    ).not.toThrow();
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, recurringExtra: { amount: 3000, every: 1, startMonth: 1, untilMonth: 360 } })
+    ).not.toThrow();
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, fgtsAnnual: { amount: 10000, startMonth: 12, untilMonth: 360 } })
+    ).not.toThrow();
+  });
+
+  it('rejeita mês de início além do prazo (não move dinheiro para dentro do contrato)', () => {
+    const beyond: Array<Strategies> = [
+      { ...validStrategies, extraLumpSum: [{ month: 400, amount: 5000 }] },
+      { ...validStrategies, extraMonthlyPct: 0.1, extraMonthlyPctStartMonth: 400 },
+      { ...validStrategies, fgtsAnnual: { amount: 10000, startMonth: 400 } },
+      { ...validStrategies, recurringExtra: { amount: 3000, every: 1, startMonth: 400 } },
+      { ...validStrategies, fixedPayment: { amount: 12000, startMonth: 400 } },
+    ];
+    for (const s of beyond) {
+      expect(() => validateLoanInput(validInput, s)).toThrow('input inválido');
+      expect(() => simulate(validInput, s)).toThrow('input inválido');
+    }
+  });
+
+  it('aceita mês de início exatamente no fim do prazo', () => {
+    const atEnd: Array<Strategies> = [
+      { ...validStrategies, extraLumpSum: [{ month: 360, amount: 5000 }] },
+      { ...validStrategies, extraMonthlyPct: 0.1, extraMonthlyPctStartMonth: 360 },
+      { ...validStrategies, fgtsAnnual: { amount: 10000, startMonth: 360 } },
+      { ...validStrategies, recurringExtra: { amount: 3000, every: 1, startMonth: 360 } },
+      { ...validStrategies, fixedPayment: { amount: 12000, startMonth: 360 } },
+    ];
+    for (const s of atEnd) {
+      expect(() => validateLoanInput(validInput, s)).not.toThrow();
+    }
+  });
+
+  it('aceita pagamento fixo com valor zero (aporte inerte, como o pontual)', () => {
+    expect(() =>
+      validateLoanInput(validInput, { ...validStrategies, fixedPayment: { amount: 0 } })
+    ).not.toThrow();
+  });
 });

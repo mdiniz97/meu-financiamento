@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { CompareChart } from '@/components/simulation/charts/CompareChart';
 import { formatBRL } from '@/lib/utils';
-import type { ComparatorInput, ComparatorProposal } from '@/lib/comparator/types';
+import type { ComparatorInput } from '@/lib/comparator/types';
 import type { ComparatorResult, ProposalOutcome } from '@/lib/comparator/calculate';
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
@@ -19,7 +19,8 @@ function levarAoSimulador(o: ProposalOutcome) {
   const form = {
     system: best?.system ?? p.system,
     principal: String(Math.round(p.principal)),
-    annualRate: String((p.annualRate * 100).toFixed(2)),
+    annualRate: String(p.annualRate * 100),
+    annualRateKind: 'effective-annual',
     months: String(best?.months ?? p.months),
     trMonthly: String((p.trMonthly * 100).toFixed(2)),
     insuranceMonthly: String(Math.round(p.insuranceMonthly)),
@@ -179,7 +180,7 @@ export function ComparatorResultView({
                         <span className="cursor-help underline decoration-dotted underline-offset-4">CET calculado</span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Taxa efetiva total que reproduz seu fluxo (crédito líquido − tarifas marcadas "no CET") com as
+                        Taxa efetiva total que reproduz seu fluxo (crédito líquido − tarifas marcadas &quot;no CET&quot;) com as
                         parcelas. A ⚠ indica que os dados não reproduzem o CET anunciado pelo banco.
                       </TooltipContent>
                     </Tooltip>

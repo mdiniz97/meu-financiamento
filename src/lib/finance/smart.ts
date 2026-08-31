@@ -21,8 +21,10 @@ export function maxFinancing(i: MaxFinancingInput): { PRICE: number; SAC: number
   const m = convertAnnualToMonthly(i.annualRate);
   const disponivel = Math.max(0, i.maxPayment - i.insuranceMonthly);
   const price =
-    disponivel > 0 && m > 0
-      ? (disponivel * (1 - Math.pow(1 + m, -i.months))) / m
+    disponivel > 0
+      ? m > 0
+        ? (disponivel * (1 - Math.pow(1 + m, -i.months))) / m
+        : disponivel * i.months
       : 0;
   const sac = disponivel > 0 ? disponivel / (1 / i.months + m) : 0;
   return { PRICE: Math.floor(price), SAC: Math.floor(sac) };
@@ -42,6 +44,7 @@ export interface SmartInput {
   fixedUntilMonth?: number;
   minMonths?: number;
   maxMonths?: number;
+  preferredSystem?: AmortSystem;
 }
 
 export interface SmartCandidate {
@@ -115,13 +118,29 @@ function simulateCandidate(
     const until = i.fixedUntilMonth;
     strategies.fixedPayment = {
       amount: i.maxPayment,
-      ...(Number.isInteger(until) && until !== undefined && until >= 1 ? { untilMonth: until } : {}),
+      ...(Number.isInteger(until) && until !== undefined && until >= 1
+        ? { untilMonth: Math.min(until, months) }
+        : {}),
     };
   } else if (extraMonthlyPct > 0) {
     strategies.extraMonthlyPct = extraMonthlyPct;
   }
   const result = simulate(input, strategies);
   return { system, months, parcela, extraMonthlyPct, extraMonthlyAmount, result };
+}
+
+function trySimulateCandidate(
+  system: AmortSystem,
+  months: number,
+  input: SmartInput,
+  monthlyRate: number,
+  reduceMode: 'term' | 'payment'
+): SmartCandidate | null {
+  try {
+    return simulateCandidate(system, months, input, monthlyRate, reduceMode);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -178,27 +197,29 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
         mode !== 'payment' ||
         c.result.installments.every((inst) => inst.parcela - inst.extra <= i.maxPayment + 1);
       for (const n of steps) {
-        const c = simulateCandidate(system, n, i, m, mode);
-        if (candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
+        const c = trySimulateCandidate(system, n, i, m, mode);
+        if (c && candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
           bestTotal = c.result.metrics.totalPago;
           bestN = n;
         }
       }
       for (let n = Math.max(nMin, bestN - 5); n <= Math.min(maxMonths, bestN + 5); n++) {
-        const c = simulateCandidate(system, n, i, m, mode);
-        if (candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
+        const c = trySimulateCandidate(system, n, i, m, mode);
+        if (c && candidatoValido(c) && c.result.metrics.totalPago < bestTotal) {
           bestTotal = c.result.metrics.totalPago;
           bestN = n;
         }
       }
       if (Number.isFinite(bestTotal)) {
-        candidates.push(simulateCandidate(system, bestN, i, m, mode));
+        const candidate = trySimulateCandidate(system, bestN, i, m, mode);
+        if (candidate) candidates.push(candidate);
       }
     }
   }
 
   candidates.sort(
     (a, b) =>
+      (i.preferredSystem ? Number(b.system === i.preferredSystem) - Number(a.system === i.preferredSystem) : 0) ||
       a.result.metrics.totalPago - b.result.metrics.totalPago ||
       a.result.metrics.saldoZeroAt - b.result.metrics.saldoZeroAt
   );
@@ -227,7 +248,7 @@ export function recommendSmart(i: SmartInput): SmartRecommendation {
   }
   const maxTerms: SmartCandidate[] = (['PRICE', 'SAC'] as AmortSystem[])
     .filter((system) => minN[system] !== null)
-    .map((system) => simulateCandidate(system, maxMonths, i, m, bestMode));
+    .flatMap((system) => trySimulateCandidate(system, maxMonths, i, m, bestMode) ?? []);
 
   return {
     best,

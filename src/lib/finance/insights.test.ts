@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { priceBreakEven, recurringParcela, sacVsPrice } from './insights';
 import { simulate } from './engine';
+import { applyRecommendedPercent, deriveRows, rowsToStrategies } from './strategy-rows';
 import type { LoanInput } from './types';
 
 const base: LoanInput = {
@@ -53,11 +54,92 @@ describe('priceBreakEven', () => {
     expect(b.requiredExtraMonthly).toBeCloseTo(1260.08, 2);
     expect(b.requiredExtraPct).toBeCloseTo(0.1417, 3);
   });
-  it('aporte necessário reflete estratégia atual (5% extra já pago reduz o que falta)', () => {
+  it('recomendação substitui 5% existente pelo total necessário contra a parcela contratual', () => {
     const r = simulate(base, { ...noStrategy, extraMonthlyPct: 0.05 });
     const b = priceBreakEven(base, r);
     expect(b.requiredExtraMonthly).toBeCloseTo(815.33, 2);
     expect(b.requiredExtraPct).toBeCloseTo(0.0873, 3);
+    expect(b.requiredTotalExtraPct).toBeCloseTo(0.1417, 3);
+  });
+  it('aporte recomendado total faz dívida cair desde o primeiro mês', () => {
+    const initial = simulate(base, noStrategy);
+    const recommendation = priceBreakEven(base, initial);
+    const rows = applyRecommendedPercent([], recommendation.requiredTotalExtraPct);
+    const applied = simulate(base, { ...noStrategy, ...rowsToStrategies(rows) });
+
+    expect(rowsToStrategies(rows).extraMonthlyPct).toBe(0.1417);
+    expect(applied.installments[0].valorUtil).toBeGreaterThan(0);
+    expect(applied.installments[0].saldo).toBeLessThan(base.principal);
+    expect(applied.installments[0].parcela).toBeGreaterThanOrEqual(recommendation.minPayment);
+  });
+  it('substitui percentual tardio e limitado por aporte contínuo que mantém amortização útil', () => {
+    const bounded = {
+      ...noStrategy,
+      extraMonthlyPct: 0.05,
+      extraMonthlyPctStartMonth: 24,
+      extraMonthlyPctUntilMonth: 60,
+      extraMonthlyPctReduceMode: 'payment' as const,
+    };
+    const current = simulate(base, bounded);
+    const recommendation = priceBreakEven(base, current);
+    const rows = applyRecommendedPercent(deriveRows(bounded), recommendation.requiredTotalExtraPct);
+    const strategies = { ...bounded, ...rowsToStrategies(rows) };
+    const applied = simulate(base, strategies);
+
+    expect(strategies.extraMonthlyPctStartMonth).toBe(1);
+    expect(strategies.extraMonthlyPctUntilMonth).toBeUndefined();
+    expect(strategies.extraMonthlyPctReduceMode).toBe('term');
+    expect(applied.installments.every((installment) => installment.valorUtil > 0)).toBe(true);
+  });
+  it.each([
+    ['percentual existente', { extraMonthlyPct: 0.05 }],
+    ['pagamento fixo', { fixedPayment: { amount: 9500 } }],
+    ['pagar como SAC', { paySacParcela: true }],
+    ['estratégias mistas', { extraMonthlyPct: 0.05, fixedPayment: { amount: 9300 }, paySacParcela: true }],
+  ] as const)('total recomendado com %s faz valor útil do mês 1 ficar positivo', (_name, partial) => {
+    const strategies = { ...noStrategy, ...partial };
+    const current = simulate(base, strategies);
+    const recommendation = priceBreakEven(base, current);
+    const withoutPercent = simulate(base, {
+      ...strategies,
+      extraMonthlyPct: undefined,
+      extraMonthlyPctStartMonth: undefined,
+      extraMonthlyPctUntilMonth: undefined,
+      extraMonthlyPctReduceMode: undefined,
+    });
+    const rows = applyRecommendedPercent(deriveRows(strategies), recommendation.requiredTotalExtraPct);
+    const applied = simulate(base, { ...strategies, ...rowsToStrategies(rows) });
+
+    expect(applied.installments[0].valorUtil).toBeGreaterThan(0);
+    expect(applied.installments[0].saldo).toBeLessThan(base.principal);
+    expect(applied.installments[0].parcela).toBeGreaterThanOrEqual(recommendation.minPayment);
+    expect(applied.installments[0].parcela).toBeLessThanOrEqual(
+      Math.max(withoutPercent.installments[0].parcela, recommendation.minPayment) + 1
+    );
+  });
+  it('linha recomendada usa modo termo mesmo com modo global de reduzir parcela', () => {
+    const globalPayment = { ...noStrategy, reduceMode: 'payment' as const };
+    const current = simulate(base, globalPayment);
+    const recommendation = priceBreakEven(base, current);
+    const rows = applyRecommendedPercent(deriveRows(globalPayment), recommendation.requiredTotalExtraPct);
+    const strategies = { ...globalPayment, ...rowsToStrategies(rows) };
+    const applied = simulate(base, strategies);
+
+    expect(strategies.extraMonthlyPctReduceMode).toBe('term');
+    expect(applied.metrics.paymentApplied).toBe(false);
+    expect(applied.installments[0].valorUtil).toBeGreaterThan(0);
+    expect(applied.installments[0].parcela).toBeGreaterThanOrEqual(recommendation.minPayment);
+  });
+  it('pagamento fixo acima do SAC vence sem empilhar gaps na recomendação', () => {
+    const strategies = { ...noStrategy, fixedPayment: { amount: 12000 }, paySacParcela: true };
+    const current = simulate(base, strategies);
+    const recommendation = priceBreakEven(base, current);
+    const applied = simulate(base, strategies);
+
+    expect(recommendation.requiredExtraMonthly).toBe(0);
+    expect(recommendation.requiredTotalExtraPct).toBe(0);
+    expect(applied.installments[0].parcela).toBeCloseTo(12000, 2);
+    expect(applied.installments[0].parcela).toBeGreaterThanOrEqual(recommendation.minPayment);
   });
   it('prazo curto que já abate não exige aporte extra', () => {
     const curto = { ...base, months: 100 };

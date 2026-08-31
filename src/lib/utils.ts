@@ -14,6 +14,10 @@ export function parseBRLToNumber(s: string): number {
   return Number(cleaned) || 0;
 }
 
+export function numberToBRLInput(value: number): string {
+  return value.toFixed(2).replace('.', ',');
+}
+
 export function parseDecimal(s: string): number {
   return Number(s.trim().replace(',', '.'));
 }

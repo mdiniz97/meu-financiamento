@@ -210,6 +210,89 @@ describe('pagamento fixo (fixedPayment)', () => {
     const sem = simulate(input1M, base);
     expect(r.metrics.saldoZeroAt).toBeLessThan(sem.metrics.saldoZeroAt);
   });
+  it('pagamento fixo prevalece sobre pagar como SAC sem somar dois gaps', () => {
+    const fixed = simulate(input1M, { ...base, fixedPayment: { amount: 10000 } });
+    const mixed = simulate(input1M, {
+      ...base,
+      fixedPayment: { amount: 10000 },
+      paySacParcela: true,
+    });
+
+    expect(mixed.installments[0].parcela).toBeCloseTo(10000, 2);
+    expect(mixed.installments[0].extra).toBeCloseTo(fixed.installments[0].extra, 2);
+  });
+  it('pagamento fixo com modo próprio payment na fonte ativa a redução de parcela', () => {
+    const comModo = simulate(input1M, { ...base, fixedPayment: { amount: 12000, reduceMode: 'payment' } });
+    const semModo = simulate(input1M, { ...base, fixedPayment: { amount: 12000 } });
+    expect(comModo.metrics.paymentApplied).toBe(true);
+    expect(semModo.metrics.paymentApplied).toBe(false);
+  });
+  it('linha fixa modo term vs payment produzem totais distintos (seletor de modo fiel)', () => {
+    const term = simulate(input1M, {
+      ...base,
+      fixedPayment: { amount: 12000, reduceMode: 'term' },
+      extraMonthlyPct: 0.05,
+    });
+    const pay = simulate(input1M, {
+      ...base,
+      fixedPayment: { amount: 12000, reduceMode: 'payment' },
+      extraMonthlyPct: 0.05,
+    });
+    expect(term.metrics.paymentApplied).toBe(false);
+    expect(pay.metrics.paymentApplied).toBe(true);
+    expect(term.metrics.totalPago).not.toBe(pay.metrics.totalPago);
+    expect(term.metrics.saldoZeroAt).not.toBe(pay.metrics.saldoZeroAt);
+  });
+  it('fixo com valor zero não manda no modo: % extra com intent payment vence', () => {
+    const r = simulate(input1M, {
+      ...base,
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      fixedPayment: { amount: 0, reduceMode: 'term' },
+      reduceMode: 'term',
+    });
+    expect(r.metrics.paymentApplied).toBe(true);
+    const semFixo = simulate(input1M, {
+      ...base,
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      reduceMode: 'term',
+    });
+    expect(r.metrics.totalPago).toBe(semFixo.metrics.totalPago);
+  });
+  it('fixo abaixo da parcela (sem folga) não manda no modo: % extra payment vence', () => {
+    const parcela1 = simulate(input1M, base).installments[0].parcela;
+    const r = simulate(input1M, {
+      ...base,
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      fixedPayment: { amount: Math.max(0, parcela1 - 1), reduceMode: 'term' },
+      reduceMode: 'term',
+    });
+    expect(r.metrics.paymentApplied).toBe(true);
+  });
+  it('fixo com valor zero é inerte no modo termo (não adiciona extra nem quebra)', () => {
+    const r = simulate(input1M, { ...base, fixedPayment: { amount: 0 } });
+    expect(r.installments.every((i) => i.extra === 0)).toBe(true);
+    expect(r.metrics.paymentApplied).toBe(false);
+    expect(r.metrics.saldoZeroAt).toBe(simulate(input1M, base).metrics.saldoZeroAt);
+  });
+  it('FGTS e recorrente com valor zero não mandam no modo (mesma regra do fixo)', () => {
+    const comFgts = simulate(input1M, {
+      ...base,
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      fgtsAnnual: { amount: 0, reduceMode: 'term' },
+    });
+    const comRec = simulate(input1M, {
+      ...base,
+      extraMonthlyPct: 0.30,
+      extraMonthlyPctReduceMode: 'payment',
+      recurringExtra: { amount: 0, every: 1, startMonth: 1, reduceMode: 'term' },
+    });
+    expect(comFgts.metrics.paymentApplied).toBe(true);
+    expect(comRec.metrics.paymentApplied).toBe(true);
+  });
 });
 
 describe('pagar parcela do SAC no PRICE (paySacParcela)', () => {

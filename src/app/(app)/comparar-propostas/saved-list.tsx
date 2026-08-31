@@ -10,6 +10,8 @@ import { deleteComparison, type ComparisonSummary } from './actions';
 export function SavedList({ initial }: { initial: ComparisonSummary[] }) {
   const router = useRouter();
   const [items, setItems] = useState(initial);
+  // Refreshes return a new server list that replaces the deletable local view.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setItems(initial), [initial]);
   if (items.length === 0) return null;
   return (

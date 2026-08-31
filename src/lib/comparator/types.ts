@@ -12,9 +12,12 @@ export interface ComparatorProposal {
   propertyValue: number;
   downPayment: number;
   principal: number;
+  principalManual?: boolean;
   system: 'SAC' | 'PRICE';
   months: number;
   annualRate: number;
+  annualRateValue?: number;
+  annualRateKind?: RateKind;
   cetInformed: number;
   trMonthly: number;
   insuranceMonthly: number;
@@ -30,3 +33,5 @@ export interface ProposalError {
   id: string;
   message: string;
 }
+
+import type { RateKind } from '@/lib/finance/rates';

@@ -7,6 +7,7 @@ import type { SmartRecommendation } from '@/lib/finance/smart';
 import type { FormState } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { simulate } from '@/lib/finance/engine';
+import { normalizeRate } from '@/lib/finance/rates';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompareChart } from './charts/CompareChart';
@@ -127,7 +128,8 @@ export function SmartResultCard({ rec, fields }: Props) {
     const form: FormState = {
       system: c.system as FormState['system'],
       principal: fields.principal,
-      annualRate: fields.annualRate,
+      annualRate: String(normalizeRate(parseDecimal(fields.annualRate), fields.annualRateKind).effectiveAnnual * 100),
+      annualRateKind: 'effective-annual',
       months: String(c.months),
       trMonthly: fields.trMonthly,
       insuranceMonthly: fields.insuranceMonthly,
@@ -158,7 +160,7 @@ export function SmartResultCard({ rec, fields }: Props) {
     const best = rec.best;
     if (!best) return null;
     const principal = parseBRLToNumber(fields.principal);
-    const annualRate = parseDecimal(fields.annualRate) / 100;
+    const annualRate = normalizeRate(parseDecimal(fields.annualRate), fields.annualRateKind).effectiveAnnual;
     const trMonthly = parseDecimal(fields.trMonthly) / 100;
     const insuranceMonthly = parseBRLToNumber(fields.insuranceMonthly);
     const plain = simulate({
@@ -201,7 +203,7 @@ export function SmartResultCard({ rec, fields }: Props) {
           Melhor modelo <Sparkles className="size-4 text-[#820AD1]" />
         </CardTitle>
         <CardDescription>
-          Menor custo total respeitando seu orçamento de {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês.
+          {fields.preferredSystem === 'AUTO' ? 'Menor custo total' : `Melhor opção em ${fields.preferredSystem}`} respeitando seu orçamento de {formatBRL(parseBRLToNumber(fields.maxPayment))}/mês.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
