@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Coins } from 'lucide-react';
 import {
   BANKS,
   NOVA_SIMULACAO_PREFILL_KEY,
+  SIM_INPUT_KEY,
   parseStoredForm,
   type FormState,
 } from '@/lib/simulation-context';
@@ -19,7 +21,7 @@ import { FieldHelp } from '@/components/ui/field-help';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export function WizardForm() {
+export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
   const capturedPrefill = useRef<string | null | undefined>(undefined);
   const [initial, setInitial] = useState(() => ({ key: 'default', form: parseStoredForm(null) }));
 
@@ -35,10 +37,10 @@ export function WizardForm() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  return <WizardFormContent key={initial.key} initialForm={initial.form} />;
+  return <WizardFormContent key={initial.key} initialForm={initial.form} isUnlimited={isUnlimited} />;
 }
 
-function WizardFormContent({ initialForm }: { initialForm: FormState }) {
+function WizardFormContent({ initialForm, isUnlimited }: { initialForm: FormState; isUnlimited: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialForm);
   const [rateInvalid, setRateInvalid] = useState(false);
@@ -87,8 +89,8 @@ function WizardFormContent({ initialForm }: { initialForm: FormState }) {
       return;
     }
     setError('');
-    sessionStorage.setItem('sim-input', JSON.stringify(form));
-    router.push('/simulacao?name=');
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
+    router.push('/simulacao');
   }
 
   return (
@@ -217,6 +219,11 @@ function WizardFormContent({ initialForm }: { initialForm: FormState }) {
             </Badge>
             <Button type="submit" className="min-w-32">
               Simular
+              {!isUnlimited && (
+                <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-background/20 px-2 py-0.5 text-xs font-semibold">
+                  <Coins className="size-3.5" /> -1
+                </span>
+              )}
             </Button>
           </div>
         </form>

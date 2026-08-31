@@ -25,7 +25,7 @@ export async function saveSimulation(
 
   // Fast-path pre-check (UX): authoritative check happens inside the transaction.
   const { credits, isUnlimited } = await getCreditBalance(session.userId);
-  if (!isUnlimited && credits < 2) return { error: 'Créditos insuficientes' };
+  if (!isUnlimited && credits < 1) return { error: 'Créditos insuficientes' };
 
   const savedId = await db.transaction(async (tx) => {
     // Serialize saves per user: lock the users row so concurrent saves queue up.
@@ -46,15 +46,12 @@ export async function saveSimulation(
       ),
     });
     const unlimited = Boolean(sub);
-    if (!unlimited && bal.sum < 2) return null;
+    if (!unlimited && bal.sum < 1) return null;
 
     if (!unlimited) {
       await tx
         .insert(schema.creditLedger)
-        .values({ userId: session.userId, amount: -1, kind: 'spend', description: 'Simulação PRICE' });
-      await tx
-        .insert(schema.creditLedger)
-        .values({ userId: session.userId, amount: -1, kind: 'spend', description: 'Simulação SAC' });
+        .values({ userId: session.userId, amount: -1, kind: 'spend', description: 'Simulação completa' });
     }
 
     const [row] = await tx
@@ -62,10 +59,10 @@ export async function saveSimulation(
       .values({
         userId: session.userId,
         name: `Simulação ${new Date().toLocaleDateString('pt-BR')}`,
-        payload: JSON.stringify({ input, strategies }),
-        result: JSON.stringify(result),
+        payload: { input, strategies },
+        result,
         system: input.system,
-        creditsSpent: 2,
+        creditsSpent: 1,
       })
       .returning();
     return row.id;
@@ -75,13 +72,32 @@ export async function saveSimulation(
   return { id: savedId };
 }
 
+const FREE_RETENTION_MS = 6 * 60 * 60 * 1000;
+
+async function hasActiveSubscription(userId: string): Promise<boolean> {
+  const sub = await db.query.subscriptions.findFirst({
+    where: and(
+      eq(schema.subscriptions.userId, userId),
+      eq(schema.subscriptions.status, 'active'),
+      gt(schema.subscriptions.currentPeriodEnd, new Date())
+    ),
+  });
+  return Boolean(sub);
+}
+
 export async function listSimulations() {
   const session = await auth();
   if (!session?.userId) return [];
+  const retentionCut = (await hasActiveSubscription(session.userId))
+    ? null
+    : new Date(Date.now() - FREE_RETENTION_MS);
   return db
     .select()
     .from(schema.simulations)
-    .where(eq(schema.simulations.userId, session.userId))
+    .where(and(
+      eq(schema.simulations.userId, session.userId),
+      retentionCut ? gt(schema.simulations.createdAt, retentionCut) : undefined
+    ))
     .orderBy(desc(schema.simulations.createdAt))
     .limit(50);
 }
@@ -89,12 +105,16 @@ export async function listSimulations() {
 export async function loadSimulation(id: string) {
   const session = await auth();
   if (!session?.userId) return null;
-  return db.query.simulations.findFirst({
+  const row = await db.query.simulations.findFirst({
     where: and(
       eq(schema.simulations.id, id),
       eq(schema.simulations.userId, session.userId)
     ),
   });
+  if (!row) return null;
+  if (await hasActiveSubscription(session.userId)) return row;
+  if (row.createdAt.getTime() <= Date.now() - FREE_RETENTION_MS) return null;
+  return row;
 }
 
 export async function deleteSimulation(id: string) {

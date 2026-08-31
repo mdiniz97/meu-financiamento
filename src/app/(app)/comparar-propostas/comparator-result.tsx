@@ -41,7 +41,7 @@ function levarAoSimulador(o: ProposalOutcome) {
     portability: null,
   };
   sessionStorage.setItem('sim-input', JSON.stringify(form));
-  window.location.href = '/simulacao?name=comparador';
+  window.location.href = '/simulacao';
 }
 
 function modoSmart(o: ProposalOutcome): 'term' | 'payment' | null {

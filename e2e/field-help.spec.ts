@@ -133,9 +133,9 @@ test('taxa converte três tipos e persiste valor visual com significado', async 
   await page.getByRole('button', { name: 'Simular' }).click();
   await page.waitForURL(/simulacao/);
   await expect(page.getByText(/total pago/i).first()).toBeVisible();
-  const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('sim-input') ?? '{}'));
-  expect(stored.annualRate).toBe('1');
-  expect(stored.annualRateKind).toBe('effective-monthly');
+  await expect(
+    page.getByText(/Sistema PRICE · R\$\s*1\.000\.000,00 · 12\.68% a\.a\. · 360 meses · Caixa/)
+  ).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 

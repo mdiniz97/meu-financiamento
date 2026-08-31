@@ -370,7 +370,7 @@ test('editar proposta após calcular marca resultado desatualizado e bloqueia a�
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
   await page.getByRole('button', { name: 'Ver comparação lado a lado' }).click();
-  const levar = page.getByRole('button', { name: 'Levar para o simulador' });
+  const levar = page.getByRole('button', { name: 'Levar proposta para o simulador' });
   await expect(levar).toBeEnabled();
 
   const newRate = page.getByRole('textbox', { name: 'Nova taxa', exact: true });
@@ -565,7 +565,7 @@ test('banco, sistema e tipo de taxa invalidam e limpam busca independentemente',
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
   const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
-  const transfer = page.getByRole('button', { name: 'Levar para o simulador' });
+  const transfer = page.getByRole('button', { name: 'Levar proposta para o simulador' });
   const prepareSmartResult = async () => {
     await page.getByRole('button', { name: /buscar taxa ideal/i }).click();
     await expect(smart.getByText(/taxa máxima que ainda compensa portar/i)).toBeVisible();
@@ -628,26 +628,18 @@ test('banco, sistema e tipo de taxa invalidam e limpam busca independentemente',
     page.getByRole('region', { name: 'Portar para Bradesco (SAC a 9,38% a.a. efetivos)', exact: true })
   ).toBeVisible();
 
-  await Promise.all([page.waitForURL(/nova-simulacao/), transfer.click()]);
-  expect(await page.evaluate(() => sessionStorage.getItem('sim-input'))).toBeNull();
-  expect(
-    await page.evaluate(() => sessionStorage.getItem('nova-simulacao-prefill'))
-  ).toBeNull();
-  const wizard = page.locator('form').filter({
-    has: page.getByRole('button', { name: 'Simular', exact: true }),
-  });
-  expect(
-    Number(await wizard.getByRole('textbox', { name: 'Taxa de juros' }).inputValue())
-  ).toBeCloseTo(9.38069, 4);
-  await expect(wizard.getByRole('combobox', { name: 'Banco', exact: true })).toContainText('Bradesco');
-  await expect(wizard.getByRole('radio', { name: /^SAC/ })).toBeChecked();
+  await Promise.all([page.waitForURL(/\/simulacao$/), transfer.click()]);
+  await expect(
+    page.getByText(/Sistema SAC · R\$\s*900\.000,00 · 9\.38% a\.a\. · 240 meses · Bradesco/)
+  ).toBeVisible();
 });
 
 test('transfere proposta completa e bloqueia transferência suja', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
+  const parseMoney = (value: string) =>
+    Number(value.replace(/[^\d,-]/g, '').replace(',', '.'));
   await cadastrarEAssinar(page, 'port-transfer');
   await page.goto('/portabilidade');
-  const prefillKey = 'nova-simulacao-prefill';
   const genericSentinel = JSON.stringify({
     system: 'PRICE',
     principal: '432100,00',
@@ -672,10 +664,9 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
     reduceMode: 'payment',
     portability: null,
   });
-  await page.evaluate(({ genericSentinel, prefillKey }) => {
+  await page.evaluate((genericSentinel) => {
     sessionStorage.setItem('sim-input', genericSentinel);
-    sessionStorage.removeItem(prefillKey);
-  }, { genericSentinel, prefillKey });
+  }, genericSentinel);
 
   const offered = page.getByRole('region', { name: 'Proposta oferecida', exact: true });
   await page.getByRole('textbox', { name: 'Saldo devedor atual (R$)' }).fill('87654321');
@@ -692,82 +683,42 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   await compare.click();
   await page.getByRole('button', { name: 'Ver comparação lado a lado' }).click();
-  const transfer = page.getByRole('button', { name: 'Levar para o simulador' });
-  await expect(transfer).toBeEnabled();
+
+  const keepTransfer = page.getByRole('button', { name: 'Levar cenário atual para o simulador' });
+  const portedTransfer = page.getByRole('button', { name: 'Levar proposta para o simulador' });
+  await expect(portedTransfer).toBeEnabled();
+  await expect(keepTransfer).toBeEnabled();
 
   await costs.fill('2345678');
-  await expect(transfer).toBeDisabled();
-  await transfer.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(portedTransfer).toBeDisabled();
+  await expect(keepTransfer).toBeDisabled();
+  await portedTransfer.evaluate((button: HTMLButtonElement) => button.click());
   await expect(page).toHaveURL(/\/portabilidade$/);
   expect(await page.evaluate(() => sessionStorage.getItem('sim-input'))).toBe(genericSentinel);
-  expect(await page.evaluate((key) => sessionStorage.getItem(key), prefillKey)).toBeNull();
 
   await compare.click();
-  await expect(transfer).toBeEnabled();
-  await Promise.all([page.waitForURL(/\/nova-simulacao/), transfer.click()]);
+  await expect(portedTransfer).toBeEnabled();
+  await Promise.all([page.waitForURL(/\/simulacao$/), portedTransfer.click()]);
 
-  const wizard = page.locator('form').filter({
-    has: page.getByRole('button', { name: 'Simular', exact: true }),
-  });
-  const principal = wizard.getByRole('textbox', { name: 'Valor financiado (R$)' });
-  const insurance = wizard.getByRole('textbox', { name: 'Seguro (R$/mês)' });
-  const parseMoney = (value: string) =>
-    Number(value.replace(/[^\d,-]/g, '').replace(',', '.'));
-  await expect(principal).toBeVisible();
-  expect(parseMoney(await principal.inputValue())).toBe(876543.21);
-  expect(Number(await wizard.getByRole('textbox', { name: 'Taxa de juros' }).inputValue())).toBeCloseTo(
-    12.682503,
-    5
-  );
-  await expect(wizard.getByRole('combobox', { name: 'Tipo de Taxa de juros' })).toContainText(
-    'Efetiva a.a.'
-  );
-  await expect(wizard.getByRole('textbox', { name: 'Prazo (meses)' })).toHaveValue('240');
-  await expect(wizard.getByRole('textbox', { name: 'TR mensal (%)' })).toHaveValue('0.23');
-  expect(parseMoney(await insurance.inputValue())).toBe(345.67);
-  await expect(wizard.getByRole('combobox', { name: 'Banco', exact: true })).toContainText('Itaú');
-  await expect(wizard.getByRole('radio', { name: /^SAC/ })).toBeChecked();
+  await expect(page.getByRole('heading', { name: 'Simulador de financiamento' })).toBeVisible();
+  await expect(page.getByText(/Sistema SAC · R\$\s*876\.543,21/)).toBeVisible();
+  await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
 
-  expect(await page.evaluate(() => sessionStorage.getItem('sim-input'))).toBe(genericSentinel);
-  expect(await page.evaluate((key) => sessionStorage.getItem(key), prefillKey)).toBeNull();
-
-  await Promise.all([
-    page.waitForURL(/\/simulacao/),
-    wizard.getByRole('button', { name: 'Simular', exact: true }).click(),
-  ]);
-  const transferredRaw = await page.evaluate(() => sessionStorage.getItem('sim-input'));
-  expect(transferredRaw).not.toBeNull();
-  const transferred = JSON.parse(transferredRaw!) as Record<string, unknown>;
-  expect(transferred).toMatchObject({
-    principal: '876543,21',
+  const transferred = JSON.parse(
+    execSync(
+      `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select payload from simulations s join users u on u.id = s.user_id where u.email like 'port-transfer%@teste.com' order by s.created_at desc limit 1"`
+    ).toString().trim()
+  ) as { input: Record<string, unknown> };
+  expect(transferred.input).toMatchObject({
     system: 'SAC',
     bank: 'Itaú',
-    annualRateKind: 'effective-annual',
-    trMonthly: '0.23',
-    insuranceMonthly: '345,67',
-    months: '240',
-    lumpSum: [],
-    extraMonthlyPct: '0',
-    extraMonthlyPctStart: '',
-    extraMonthlyPctUntil: '',
-    fixedPaymentStart: '',
-    fgtsAnnual: '0',
-    fgtsStartMonth: '12',
-    fgtsUntilMonth: '',
-    recurringExtra: null,
-    fixedPayment: '',
-    fixedPaymentUntil: '',
-    paySacParcela: false,
-    reduceMode: 'term',
-    portability: null,
+    months: 240,
+    trMonthly: 0.0023,
+    insuranceMonthly: 345.67,
+    principal: 876543.21,
   });
-  expect(Number(transferred.annualRate)).toBeCloseTo(12.682503, 5);
-  expect(transferred).not.toHaveProperty('costs');
+  expect(transferred.input).not.toHaveProperty('costs');
 
-  await page.evaluate(({ genericSentinel, prefillKey }) => {
-    sessionStorage.setItem('sim-input', genericSentinel);
-    sessionStorage.removeItem(prefillKey);
-  }, { genericSentinel, prefillKey });
   await page.goto('/nova-simulacao');
 
   const freshWizard = page.locator('form').filter({
@@ -814,7 +765,7 @@ test('TR inválida preserva resultado e metadados do cálculo anterior', async (
   await expect(
     page.getByRole('region', { name: 'Portar para Itaú (PRICE a 9,00% a.a. efetivos)', exact: true })
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Levar para o simulador' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Levar proposta para o simulador' })).toBeDisabled();
 
   await page.getByRole('textbox', { name: 'TR mensal (%)' }).fill('0.17');
   await compare.click();

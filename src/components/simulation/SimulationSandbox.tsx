@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
-import { simulate } from '@/lib/finance/engine';
+import { simulate, validateLoanInput } from '@/lib/finance/engine';
 import { recommend } from '@/lib/finance/recommend';
 import type { AmortSystem, LoanInput, Strategies } from '@/lib/finance/types';
 import {
   DEFAULT_FORM,
+  SIM_INPUT_KEY,
   formToInput,
   formToStrategies,
   parseSimulationJson,
@@ -41,9 +43,9 @@ import { DebtInsightCard } from './DebtInsightCard';
 import { RecommendationCard } from './RecommendationCard';
 import { ScenarioCompare } from './ScenarioCompare';
 import { StrategyControls } from './StrategyControls';
+import { UpgradeBanner } from '@/components/upgrade-banner';
 
 const EMPTY: Strategies = { extraLumpSum: [], reduceMode: 'term' };
-const SIM_INPUT_KEY = 'sim-input';
 
 export interface SavedSimulation {
   id: string;
@@ -67,6 +69,9 @@ let cached: { form: FormState; strategies: Strategies; input: LoanInput | null }
 
 function loadSnapshot(): { form: FormState; strategies: Strategies; input: LoanInput | null } {
   const raw = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SIM_INPUT_KEY);
+  // Sem nova entrada (auto-save já consumiu a chave e o refresh re-renderiza),
+  // preserva o estado atual em vez de reverter para o default.
+  if (raw === null && cached !== null) return cached;
   if (raw !== cachedRaw || cached === null) {
     cachedRaw = raw;
     const loaded = parseStoredForm(raw);
@@ -98,6 +103,7 @@ export function SimulationSandbox({
   isUnlimited?: boolean;
 }) {
   const snapshot = useSyncExternalStore(subscribe, loadSnapshot, () => SERVER_SNAPSHOT);
+  const router = useRouter();
   const strategies = snapshot.strategies;
   const savedIdRef = useRef<string | null>(null);
   const applyAporteRef = useRef<((ratio: number) => void) | null>(null);
@@ -163,27 +169,52 @@ export function SimulationSandbox({
     [displayed]
   );
 
-  async function handleSave() {
-    if (!input) return;
-    setSaveState('saving');
-    setSaveError('');
+  useEffect(() => {
+    const raw = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SIM_INPUT_KEY);
+    if (!raw) return;
+
+    const form = parseStoredForm(raw);
+    const input = formToInput(form);
     try {
-      const result = {
-        price: simulate({ ...input, system: 'PRICE' }, strategies),
-        sac: simulate({ ...input, system: 'SAC' }, strategies),
-      };
-      const res: SaveResult = await saveSimulation(input, strategies, result);
-      if ('error' in res) {
-        setShowCreditsDialog(true);
-        setSaveState('idle');
-        return;
-      }
-      setSaveState('saved');
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a simulação.');
-      setSaveState('idle');
+      validateLoanInput(input, formToStrategies(form));
+    } catch {
+      return;
     }
-  }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      // Consome a chave dentro do timer: o double-mount do StrictMode (dev)
+      // cancela o primeiro timer e re-executa o effect; sem isso o primeiro
+      // efeito consumiria a chave e o segundo não salvaria nada.
+      sessionStorage.removeItem(SIM_INPUT_KEY);
+      setSaveState('saving');
+      setSaveError('');
+      try {
+        const result = {
+          price: simulate({ ...input, system: 'PRICE' }, EMPTY),
+          sac: simulate({ ...input, system: 'SAC' }, EMPTY),
+        };
+        const res: SaveResult = await saveSimulation(input, EMPTY, result);
+        if (cancelled) return;
+        if ('error' in res) {
+          setShowCreditsDialog(true);
+          setSaveState('idle');
+          return;
+        }
+        setSaveState('saved');
+        router.refresh();
+      } catch (e) {
+        if (cancelled) return;
+        setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a simulação.');
+        setSaveState('idle');
+      }
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!input || !base || !current || (compareSystems && !systemCompare) || !displayed) {
     return <div className="py-20 text-center text-muted-foreground">Carregando…</div>;
@@ -191,6 +222,7 @@ export function SimulationSandbox({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      <UpgradeBanner isUnlimited={isUnlimited} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{saved?.name ?? 'Simulador de financiamento'}</h1>
@@ -201,20 +233,20 @@ export function SimulationSandbox({
         </div>
         <div className="flex items-center gap-2">
           {saveState === 'saved' && (
-            <Link href="/minhas-simulacoes" className="text-sm font-medium text-[#820AD1]">
-              Ver minhas simulações →
-            </Link>
+            <span className="flex items-center gap-2">
+              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                Simulação salva automaticamente
+              </span>
+              <Link href="/minhas-simulacoes" className="text-sm font-medium text-[#820AD1]">
+                Ver minhas simulações →
+              </Link>
+            </span>
+          )}
+          {saveState === 'saving' && (
+            <span className="text-sm text-muted-foreground">Salvando…</span>
           )}
           {saveError && <span className="text-sm text-destructive">{saveError}</span>}
           <ExportPdfButton result={displayed} isUnlimited={isUnlimited} />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSave}
-            disabled={saveState === 'saving'}
-          >
-            {saveState === 'saving' ? 'Salvando…' : 'Salvar simulação'}
-          </Button>
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
             Nova simulação
           </Button>
@@ -332,8 +364,8 @@ export function SimulationSandbox({
           <DialogHeader>
             <DialogTitle>Créditos insuficientes</DialogTitle>
             <DialogDescription>
-              Salvar uma simulação custa 2 créditos (1 por sistema: PRICE e SAC). Adquira um pacote
-              de créditos ou assine o plano para salvar sem limites.
+              Cada simulação completa custa 1 crédito e fica salva automaticamente por 6 horas.
+              Adquira um pacote de créditos ou assine o plano para salvar sem limites.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

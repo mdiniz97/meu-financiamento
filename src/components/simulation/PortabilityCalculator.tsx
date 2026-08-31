@@ -12,7 +12,7 @@ import {
   type PortabilityResult,
 } from '@/lib/finance/portability';
 import type { AmortSystem } from '@/lib/finance/types';
-import { BANKS, DEFAULT_FORM } from '@/lib/simulation-context';
+import { BANKS } from '@/lib/simulation-context';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -696,17 +696,6 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                 portedTitle={`Portar para ${result.ported.input.bank} (${result.ported.input.system} a ${(result.ported.input.annualRate * 100).toFixed(2).replace('.', ',')}% a.a. efetivos)`}
                 costs={result.costs}
                 economiaLiquida={result.economiaLiquida}
-                prefill={{
-                  ...DEFAULT_FORM,
-                  principal: numberToBRLInput(result.ported.input.principal),
-                  system: result.ported.input.system,
-                  bank: result.ported.input.bank,
-                  annualRate: String(result.ported.input.annualRate * 100),
-                  annualRateKind: 'effective-annual',
-                  trMonthly: String(Number((result.ported.input.trMonthly * 100).toPrecision(15))),
-                  insuranceMonthly: numberToBRLInput(result.ported.input.insuranceMonthly),
-                  months: String(result.ported.input.months),
-                }}
                 disabled={resultDirty}
               />
             )}

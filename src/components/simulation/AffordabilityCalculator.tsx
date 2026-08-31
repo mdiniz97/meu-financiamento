@@ -9,7 +9,7 @@ import {
   type AffordabilityResult,
   type PaymentAffordabilityResult,
 } from '@/lib/finance/affordability';
-import { BANKS } from '@/lib/simulation-context';
+import { BANKS, SIM_INPUT_KEY } from '@/lib/simulation-context';
 import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { FieldHelp } from '@/components/ui/field-help';
@@ -159,7 +159,7 @@ export function AffordabilityCalculator({
       onUse(selection);
       return;
     }
-    sessionStorage.setItem('sim-input', JSON.stringify({
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify({
       system,
       principal: numberToBRLInput(principal),
       annualRate: String(effectiveAnnualPercent),
@@ -183,7 +183,7 @@ export function AffordabilityCalculator({
       reduceMode: 'term',
       portability: null,
     }));
-    router.push('/simulacao?name=imovel-no-bolso');
+    router.push('/simulacao');
   }
 
   function renderPanel(panelMode: AffordabilityMode) {

@@ -278,10 +278,16 @@ test('transferência direta grava valores monetários em formato BRL para /simul
   await page.getByRole('button', { name: /levar ao simulador/i }).first().click();
   await page.waitForURL(/simulacao/);
 
-  const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('sim-input') ?? '{}'));
-  expect(stored.principal).toMatch(/^\d+,\d{2}$/);
-  expect(stored.insuranceMonthly).toBe('123,45');
+  await expect(
+    page.getByText(/Sistema PRICE · R\$\s*\d{1,3}(\.\d{3})*,\d{2} ·/)
+  ).toBeVisible();
   await expect(page.getByText(/total pago/i).first()).toBeVisible();
+  await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
+
+  const payload = execSync(
+    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select payload::json->'input'->>'insuranceMonthly' from simulations where user_id = (select id from users where email='${email}') order by created_at desc limit 1"`
+  ).toString().trim();
+  expect(payload).toBe('123.45');
 });
 
 test('alternativa segura por parcela transfere principal e taxa normalizada ao Smart', async ({ page }) => {

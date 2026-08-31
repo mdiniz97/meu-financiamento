@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 import type { SmartRecommendation } from '@/lib/finance/smart';
-import type { FormState } from '@/lib/simulation-context';
+import { SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
 import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { simulate } from '@/lib/finance/engine';
 import { normalizeRate } from '@/lib/finance/rates';
@@ -149,8 +149,8 @@ export function SmartResultCard({ rec, fields }: Props) {
       reduceMode: 'term',
       portability: null,
     };
-    sessionStorage.setItem('sim-input', JSON.stringify(form));
-    router.push('/simulacao?name=melhor-modelo');
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
+    router.push('/simulacao');
   }
 
   // comparação gráfica: mesmo sistema no mesmo prazo, sem aportes (cinza)

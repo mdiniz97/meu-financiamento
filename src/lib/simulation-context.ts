@@ -11,6 +11,7 @@ const parseIntSafe = (s: string | undefined) => {
 export type ReduceMode = 'payment' | 'term';
 
 export const NOVA_SIMULACAO_PREFILL_KEY = 'nova-simulacao-prefill';
+export const SIM_INPUT_KEY = 'sim-input';
 
 export interface PortabilityForm {
   annualRate: string;

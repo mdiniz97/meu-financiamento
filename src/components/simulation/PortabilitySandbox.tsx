@@ -1,9 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import type { SimulationResult } from '@/lib/finance/types';
-import { NOVA_SIMULACAO_PREFILL_KEY, type FormState } from '@/lib/simulation-context';
-import { formatBRL } from '@/lib/utils';
+import type { SimulationResult, LoanInput } from '@/lib/finance/types';
+import {
+  DEFAULT_FORM,
+  SIM_INPUT_KEY,
+  type FormState,
+} from '@/lib/simulation-context';
+import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from './charts/BalanceChart';
@@ -16,8 +20,21 @@ interface Props {
   portedTitle: string;
   costs: number;
   economiaLiquida: number;
-  prefill?: FormState;
   disabled?: boolean;
+}
+
+function inputToPrefill(input: LoanInput): FormState {
+  return {
+    ...DEFAULT_FORM,
+    system: input.system,
+    principal: numberToBRLInput(input.principal),
+    annualRate: String(input.annualRate * 100),
+    annualRateKind: 'effective-annual',
+    trMonthly: String(Number((input.trMonthly * 100).toPrecision(15))),
+    insuranceMonthly: numberToBRLInput(input.insuranceMonthly),
+    months: String(input.months),
+    bank: input.bank,
+  };
 }
 
 function ScenarioCard({
@@ -81,13 +98,18 @@ export function PortabilitySandbox({
   portedTitle,
   costs,
   economiaLiquida,
-  prefill,
   disabled,
 }: Props) {
   const router = useRouter();
   const outcome = economiaLiquida > 0 ? 'positive' : economiaLiquida < 0 ? 'negative' : 'neutral';
+
+  function levarAoSandbox(input: LoanInput) {
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(inputToPrefill(input)));
+    router.push('/simulacao');
+  }
+
   return (
-        <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <p className="min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
         {outcome === 'positive' ? (
           <>
@@ -109,24 +131,31 @@ export function PortabilitySandbox({
         )}
       </p>
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
-        <ScenarioCard title={keepTitle} result={keep} accent={outcome === 'negative'} />
-    <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
+          <ScenarioCard title={keepTitle} result={keep} accent={outcome === 'negative'} />
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={disabled}
+            aria-label="Levar cenário atual para o simulador"
+            onClick={() => levarAoSandbox(keep.input)}
+          >
+            Levar para o simulador
+          </Button>
+        </div>
+        <div className="flex min-w-0 flex-col gap-3">
           <ScenarioCard title={portedTitle} result={ported} accent={outcome === 'positive'} costs={costs} />
-          {prefill && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={disabled}
-              onClick={() => {
-                if (disabled) return;
-                sessionStorage.setItem(NOVA_SIMULACAO_PREFILL_KEY, JSON.stringify(prefill));
-                router.push('/nova-simulacao');
-              }}
-            >
-              Levar para o simulador
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={disabled}
+            aria-label="Levar proposta para o simulador"
+            onClick={() => levarAoSandbox(ported.input)}
+          >
+            Levar para o simulador
+          </Button>
         </div>
       </div>
     </div>
