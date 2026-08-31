@@ -6,7 +6,7 @@ import { addCredits } from '@/lib/credits';
 import { auth } from '@/auth';
 import { hasFakeIdempotencyToken, recordFakeIdempotencyToken } from '@/lib/payments/fake-idempotency';
 
-const SUBSCRIPTION_DAYS = 30;
+const SUBSCRIPTION_DAYS = 365;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LEDGER_KIND = 'purchase';
 

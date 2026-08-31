@@ -2,8 +2,14 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { LoginForm } from './login-form';
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { callbackUrl } = await searchParams;
+  const target = typeof callbackUrl === 'string' && callbackUrl.startsWith('/') ? callbackUrl : null;
   const session = await auth();
-  if (session?.userId) redirect('/nova-simulacao');
-  return <LoginForm />;
+  if (session?.userId) redirect(target ?? '/nova-simulacao');
+  return <LoginForm callbackUrl={target} />;
 }

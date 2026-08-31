@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { GoogleButton } from '@/components/google-button';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl = null }: { callbackUrl?: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +28,7 @@ export function LoginForm() {
         setError('Email ou senha incorretos');
         return;
       }
-      router.push('/nova-simulacao');
+      router.push(callbackUrl ?? '/nova-simulacao');
       router.refresh();
     } catch {
       setError('Não foi possível entrar. Tente novamente.');

@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { GoogleButton } from '@/components/google-button';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 
-export function CadastroForm() {
+export function CadastroForm({ callbackUrl = null }: { callbackUrl?: string | null }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +44,7 @@ export function CadastroForm() {
         router.push('/login');
         return;
       }
-      router.push('/nova-simulacao');
+      router.push(callbackUrl ?? '/nova-simulacao');
       router.refresh();
     } catch {
       setError('Erro de conexão. Tente novamente.');

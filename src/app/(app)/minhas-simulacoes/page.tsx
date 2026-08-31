@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
+import { getCreditBalance } from '@/lib/credits';
 import { deleteSimulation, listSimulations } from '../simulacao/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UpgradeBanner } from '@/components/upgrade-banner';
 import { parseSimulationJson } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
 
@@ -12,14 +14,21 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const FREE_RETENTION_MS = 6 * 60 * 60 * 1000;
+
 export default async function MinhasSimulacoesPage() {
   const session = await auth();
   if (!session?.userId) redirect('/login');
 
+  const { isUnlimited } = await getCreditBalance(session.userId);
   const sims = await listSimulations();
+
+  const oldest = sims[sims.length - 1];
+  const expiresAt = isUnlimited || !oldest ? null : oldest.createdAt.getTime() + FREE_RETENTION_MS;
 
   return (
     <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
+      <UpgradeBanner isUnlimited={isUnlimited} expiresAt={expiresAt} sticky />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Minhas simulações</h1>

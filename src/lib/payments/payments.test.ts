@@ -11,7 +11,7 @@ describe('payments', () => {
   });
   it('fake provider devolve checkout url', async () => {
     const p = new FakeProvider();
-    const r = await p.createCheckout({ userId: 'u1', packId: 'credits10', priceCents: 1000 });
+    const r = await p.createCheckout({ userId: 'u1', packId: 'credits5', priceCents: 1000 });
     expect(r.checkoutUrl).toContain('/api/webhooks/payments');
   });
   it('gera providerId único por usuário/pacote mesmo no mesmo milissegundo', async () => {
@@ -19,7 +19,7 @@ describe('payments', () => {
     const p = new FakeProvider();
     const a = await p.verifyWebhook(JSON.stringify({ userId: 'u1', packId: 'unlimited' }), null);
     const b = await p.verifyWebhook(JSON.stringify({ userId: 'u2', packId: 'unlimited' }), null);
-    const c = await p.verifyWebhook(JSON.stringify({ userId: 'u1', packId: 'credits10' }), null);
+    const c = await p.verifyWebhook(JSON.stringify({ userId: 'u1', packId: 'credits5' }), null);
     expect(a!.providerId).not.toBe(b!.providerId);
     expect(a!.providerId).not.toBe(c!.providerId);
   });

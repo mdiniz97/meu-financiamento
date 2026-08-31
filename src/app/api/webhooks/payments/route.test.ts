@@ -35,6 +35,9 @@ vi.mock('@/lib/credits', () => ({ addCredits: vi.fn() }));
 import { GET, POST } from './route';
 import { __resetFakeIdempotencyForTests } from '@/lib/payments/fake-idempotency';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PERIOD_MS = 365 * DAY_MS;
+
 const request = (userId = 'user-1', idempotencyToken?: string) => {
   const params = new URLSearchParams({ userId, packId: 'unlimited' });
   if (idempotencyToken) params.set('idempotencyToken', idempotencyToken);
@@ -146,7 +149,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     vi.restoreAllMocks();
   });
 
-  it('primeira compra cria assinatura com currentPeriodEnd = agora + 30 dias', async () => {
+  it('primeira compra cria assinatura com currentPeriodEnd = agora + 365 dias', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-02-01T00:00:00Z'));
     mocks.findSub.mockResolvedValue(null);
 
@@ -156,7 +159,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     expect(await response.json()).toEqual({ ok: true });
     const values = mocks.insertSub.mock.results[0].value.values.mock.calls[0][0];
     expect(values.providerId).toBe('fake_user-1_unlimited');
-    expect(values.currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-03T00:00:00Z'));
+    expect(values.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
     expect(mocks.updateSub).not.toHaveBeenCalled();
   });
 
@@ -173,7 +176,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     expect(await response.json()).toEqual({ ok: true, extended: true });
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
     expect(set.status).toBe('active');
-    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-03T00:00:00Z'));
+    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
@@ -189,7 +192,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, extended: true });
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
-    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-05-01T00:00:00Z'));
+    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-04-01T00:00:00Z') + PERIOD_MS);
   });
 
   it('corrida paralela de compras duplicadas: violação única re-lê o vencedor e vira idempotente (mesmo providerId)', async () => {
@@ -228,7 +231,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
       (call: unknown[]) => call[0]
     );
     expect(setCalls).toHaveLength(2);
-    expect(setCalls[1].currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-16T00:00:00Z'));
+    expect(setCalls[1].currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-14T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
@@ -244,7 +247,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
       (call: unknown[]) => call[0]
     );
     expect(setCalls).toHaveLength(1);
-    expect(setCalls[0].currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-03T00:00:00Z'));
+    expect(setCalls[0].currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
@@ -263,7 +266,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
-  it('corrida de renovação: CAS perdeu, re-lê o fim fresco e retenta sem perder 30 dias', async () => {
+  it('corrida de renovação: CAS perdeu, re-lê o fim fresco e retenta sem perder 365 dias', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-02-01T00:00:00Z'));
     mocks.findSub
       .mockResolvedValueOnce({ id: 'sub-1', currentPeriodEnd: new Date('2026-01-15T00:00:00Z') })
@@ -278,7 +281,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
       (call: unknown[]) => call[0]
     );
     expect(setCalls).toHaveLength(2);
-    expect(setCalls[1].currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-16T00:00:00Z'));
+    expect(setCalls[1].currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-14T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
@@ -378,7 +381,7 @@ describe('POST real payment webhook', () => {
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
-  it('novo providerId real renova sem encolher o período atual (max(agora, fim atual) + 30d)', async () => {
+  it('novo providerId real renova sem encolher o período atual (max(agora, fim atual) + 365d)', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-02-01T00:00:00Z'));
     mocks.verifyWebhook.mockResolvedValue({ userId: 'user-1', packId: 'unlimited', providerId: 'stripe-2' });
     mocks.findPack.mockResolvedValue({ id: 'unlimited', isSubscription: true, credits: null });
@@ -391,7 +394,7 @@ describe('POST real payment webhook', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
-    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-05-01T00:00:00Z'));
+    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-04-01T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 
@@ -453,7 +456,7 @@ describe('POST real payment webhook', () => {
     expect(await response.json()).toEqual({ ok: true });
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
     expect(set.providerId).toBe('stripe-2');
-    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-16T00:00:00Z'));
+    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-14T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).toHaveBeenCalledTimes(1);
   });
 
@@ -496,7 +499,7 @@ describe('POST real payment webhook', () => {
     expect(await response.json()).toEqual({ ok: true });
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
     expect(set.providerId).toBe('stripe-2');
-    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-03-03T00:00:00Z'));
+    expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
     expect(mocks.insertSub).not.toHaveBeenCalled();
   });
 });

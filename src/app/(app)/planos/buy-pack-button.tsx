@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Coins, ZapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function BuyPackButton({ packId, label }: { packId: string; label: string }) {
@@ -41,7 +42,18 @@ export function BuyPackButton({ packId, label }: { packId: string; label: string
   return (
     <div className="flex flex-col gap-1.5">
       <Button onClick={buy} disabled={busy} className="w-full">
-        {busy ? 'Aguarde...' : label}
+        {busy ? (
+          'Aguarde...'
+        ) : (
+          <>
+            {packId === 'unlimited' ? (
+              <ZapIcon className="size-4" />
+            ) : (
+              <Coins className="size-4" />
+            )}
+            {label}
+          </>
+        )}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

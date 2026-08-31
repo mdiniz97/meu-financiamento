@@ -49,47 +49,55 @@ export default async function PerfilPage() {
               </span>
             </div>
           </div>
-          {isUnlimited ? (
-            <Badge variant="secondary" className="w-fit">
-              Assinatura ilimitada ativa
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="w-fit">
-              {credits} {credits === 1 ? 'crédito disponível' : 'créditos disponíveis'}
-            </Badge>
-          )}
           <div>
             <LogoutButton />
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Planos</CardTitle>
-          <CardDescription>Compre créditos avulsos ou assine o Ilimitado.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          {packs.map((pack) => (
-            <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
-              <span className="font-semibold">{pack.name}</span>
-              <span className="text-sm text-muted-foreground">
-                {pack.isSubscription
-                  ? `${formatBRL(pack.priceCents / 100)}/mês`
-                  : formatBRL(pack.priceCents / 100)}
-              </span>
-              <BuyPackButton
-                packId={pack.id}
-                label={
-                  pack.isSubscription
-                    ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/mês`
-                    : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
-                }
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {isUnlimited ? (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Plano Ilimitado</CardTitle>
+            <CardDescription>
+              Sua assinatura está ativa: simulações ilimitadas e salvas enquanto você for
+              assinante.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 text-sm">
+            <Badge variant="secondary" className="w-fit">
+              Assinatura ilimitada ativa
+            </Badge>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Planos</CardTitle>
+            <CardDescription>Compre créditos avulsos ou assine o Ilimitado.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            {packs.map((pack) => (
+              <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
+                <span className="font-semibold">{pack.name}</span>
+                <span className="text-sm text-muted-foreground">
+                  {pack.isSubscription
+                    ? `${formatBRL(pack.priceCents / 100)}/ano`
+                    : formatBRL(pack.priceCents / 100)}
+                </span>
+                <BuyPackButton
+                  packId={pack.id}
+                  label={
+                    pack.isSubscription
+                      ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`
+                      : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
+                  }
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

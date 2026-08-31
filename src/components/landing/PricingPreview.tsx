@@ -1,19 +1,22 @@
 import Link from "next/link";
-import { CheckIcon, ZapIcon } from "lucide-react";
+import { CheckIcon, Coins, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const starterFeatures = [
-  "10 simulações completas",
-  "Comparação SAC × PRICE",
+  "5 simulações completas (1 simulação = 1 crédito)",
+  "Simulação nos sistemas PRICE e SAC",
   "Simulação de amortizações extras e FGTS",
+  "Simulações salvas automaticamente por 6 horas",
+  "Créditos não expiram",
 ];
 
 const unlimitedFeatures = [
-  "Simulações ilimitadas",
+  "Simulações ilimitadas, sem consumir créditos",
   "Amortizador inteligente: menos juros e financiamento mais curto",
   "Comparação SAC × PRICE ao vivo e portabilidade",
   "Exportação do Raio X em PDF",
+  "Simulações salvas enquanto você for assinante",
 ];
 
 export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
@@ -34,7 +37,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-4xl font-bold tracking-tight">R$ 10</span>
               <span className="text-sm font-medium text-muted-foreground">
-                por 10 créditos
+                por 5 créditos
               </span>
             </div>
             <p className="text-sm font-semibold">Para tirar dúvidas pontuais</p>
@@ -47,20 +50,21 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
               ))}
             </ul>
             <Link
-              href={signedIn ? "/nova-simulacao" : "/cadastro"}
+              href={signedIn ? "/perfil" : "/cadastro"}
               className={cn(buttonVariants({ variant: "outline" }), "mt-auto h-11 text-base")}
             >
-              {signedIn ? "Ir para o simulador" : "Comprar créditos"}
+              <Coins className="size-4" />
+              Comprar créditos
             </Link>
           </div>
 
-          <div className="flex flex-col gap-5 border-t-2 border-t-primary p-7 transition-all duration-200 hover:-translate-y-1 md:border-t-0 md:border-l-2 md:border-l-primary">
+          <div className="flex flex-col gap-5 border-2 border-primary p-7 transition-all duration-200 hover:-translate-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-baseline gap-1">
-                <span className="font-mono text-4xl font-bold tracking-tight">R$ 99,90</span>
-                <span className="text-sm font-medium text-muted-foreground">/mês</span>
+                <span className="font-mono text-4xl font-bold tracking-tight">R$ 119,90</span>
+                <span className="text-sm font-medium text-muted-foreground">/ano</span>
               </div>
-              <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+              <span className="bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
                 Melhor para quem vai financiar
               </span>
             </div>
@@ -74,7 +78,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
               ))}
             </ul>
             <Link
-              href={signedIn ? "/nova-simulacao" : "/cadastro"}
+              href={signedIn ? "/assinar" : "/cadastro?callbackUrl=/assinar"}
               className={cn(
                 buttonVariants({ variant: "default" }),
                 "mt-auto h-11 items-center gap-2 text-base"
@@ -87,7 +91,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Cancele quando quiser, sem multa. Preços em reais (BRL).
+          Cancele quando quiser, sem multa. Créditos nunca expiram. Preços em reais (BRL).
         </p>
       </div>
     </section>

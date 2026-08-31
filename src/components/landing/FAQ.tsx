@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: "Preciso criar conta para usar?",
-    a: "Sim, ao criar a conta você ganha 2 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 10 simulações) ou o plano Ilimitado (R$ 99,90/mês).",
+    a: "Sim, ao criar a conta você ganha 2 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado (R$ 119,90/ano).",
   },
 ];
 
