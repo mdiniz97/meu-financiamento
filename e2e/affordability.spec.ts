@@ -39,7 +39,7 @@ test('não assinante vê gate do imóvel no bolso', async ({ page }) => {
   await expect(page.getByText(/recurso exclusivo do plano ilimitado/i)).toBeVisible();
 });
 
-test('Ilimitado calcula cenários na página e mantém modal no cálculo inteligente', async ({ page }) => {
+test('Ilimitado calcula cenários na página e mantém modal no amortizador inteligente', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'aff');
   await assinar(page, email);
@@ -61,7 +61,7 @@ test('Ilimitado calcula cenários na página e mantém modal no cálculo intelig
   await expect(page.getByRole('dialog').getByText('Recomendado', { exact: true })).toBeVisible();
 });
 
-test('cálculo inteligente usa rótulos simples e mantém trilha de cabeçalho alinhada', async ({ page }) => {
+test('amortizador inteligente usa rótulos simples e mantém trilha de cabeçalho alinhada', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'smart-labels');
   await assinar(page, email);
@@ -75,7 +75,7 @@ test('cálculo inteligente usa rótulos simples e mantém trilha de cabeçalho a
   ] as const) {
     await expect(page.locator(`[data-field-help-header="${id}"]`).getByText(label, { exact: true })).toBeVisible();
   }
-  await expect(page.getByText(/do cálculo inteligente/i)).toHaveCount(0);
+  await expect(page.getByText(/cálculo inteligente/i)).toHaveCount(0);
 
   const principal = page.locator('#smartPrincipal');
   const preferredSystem = page.getByRole('combobox', { name: 'Sistema preferido' });
@@ -320,7 +320,7 @@ test('modal de affordability permanece rolável em viewport mobile', async ({ pa
   expect(await dialog.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 });
 
-test('taxa com texto inválido bloqueia affordability e cálculo inteligente', async ({ page }) => {
+test('taxa com texto inválido bloqueia affordability e amortizador inteligente', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'aff-rate');
   await assinar(page, email);

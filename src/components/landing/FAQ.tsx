@@ -19,7 +19,7 @@ const faqs = [
     a: "É uma análise que mostra em que mês a sua dívida começa a cair de verdade, a parcela mínima que ainda abate o saldo e o prazo ideal para o seu financiamento. Com ela você entende se a sua parcela atual está pagando a dívida ou só os juros.",
   },
   {
-    q: "O que é o cálculo inteligente?",
+    q: "O que é o amortizador inteligente?",
     a: "Você informa quanto pode pagar por mês e o sistema descobre o melhor modelo (SAC ou PRICE), o melhor prazo e o melhor aporte mensal para o seu orçamento, minimizando o total pago.",
   },
   {

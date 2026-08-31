@@ -67,7 +67,7 @@ interface Props {
 
 export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed }: Props) {
   const search = useSearchParams();
-  // prefill vindo da portabilidade: /nova-simulacao?principal=&taxa=&prazo=
+  // Prefill pode vir da portabilidade para qualquer tela que hospede o amortizador.
   const [f, setF] = useState<SmartCalcFields>(() => {
     const principal = search.get('principal');
     const taxa = search.get('taxa');
@@ -132,8 +132,8 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
   return (
     <Card className="flex h-full w-full flex-col rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          Cálculo inteligente <Sparkles className="size-5 text-[#820AD1]" />
+        <CardTitle role="heading" aria-level={1} className="flex items-center gap-2 text-xl">
+          Amortizador Inteligente <Sparkles className="size-5 text-[#820AD1]" />
         </CardTitle>
         <CardDescription>
           Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia.
@@ -145,7 +145,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
             <Lock className="mx-auto size-8 text-[#820AD1]" />
             <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
             <p className="text-sm text-muted-foreground">
-              Cálculo inteligente: descubra o melhor modelo e prazo pelo seu orçamento.
+              Amortizador inteligente: descubra o melhor modelo e prazo pelo seu orçamento.
             </p>
             <Button
               type="button"

@@ -25,7 +25,7 @@ const steps = [
   {
     icon: SparklesIcon,
     step: "04",
-    title: "Ou deixe o cálculo inteligente decidir",
+    title: "Ou deixe o amortizador inteligente decidir",
     description:
       "Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e aporte para o seu orçamento.",
   },

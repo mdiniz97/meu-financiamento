@@ -144,7 +144,7 @@ function trySimulateCandidate(
 }
 
 /**
- * Cálculo inteligente: dado o orçamento mensal, encontra o melhor
+ * Amortizador inteligente: dado o orçamento mensal, encontra o melhor
  * (sistema × prazo) que caiba no orçamento, usando a diferença
  * (orçamento − parcela) como aporte mensal, minimizando o total pago.
  */

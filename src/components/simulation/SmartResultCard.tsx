@@ -259,7 +259,7 @@ export function SmartResultCard({ rec, fields }: Props) {
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">E o aporte: reduzir o prazo ou a parcela?</p>
           <p className="text-xs text-muted-foreground">
-            O cálculo inteligente avalia os dois e recomenda o de menor custo total. A alternativa
+            O amortizador inteligente avalia os dois e recomenda o de menor custo total. A alternativa
             também aparece, caso você prefira outro perfil.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">

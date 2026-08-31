@@ -40,7 +40,7 @@ export function UpgradeDialog({
           <div className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4 ring-2 ring-[#820AD1]">
             <span className="font-semibold">Plano Ilimitado</span>
             <span className="text-sm text-muted-foreground">
-              R$ 99,90/mês. Simulações ilimitadas, raio X, PDF, cálculo inteligente e portabilidade.
+              R$ 99,90/mês. Simulações ilimitadas, raio X, PDF, amortizador inteligente e portabilidade.
             </span>
             <BuyPackButton packId="unlimited" label="Assinar Ilimitado – R$ 99,90/mês" />
           </div>
