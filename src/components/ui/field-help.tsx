@@ -34,7 +34,7 @@ export function FieldHelp({
         onFocus={(event) => {
           if (event.currentTarget.matches(':focus-visible')) setOpen(true);
         }}
-        className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <CircleHelp aria-hidden className="size-3.5" />
       </Popover.Trigger>
@@ -62,12 +62,20 @@ export function FieldHelp({
         aria-describedby={descriptionId}
         className="flex min-w-0 flex-col gap-1.5"
       >
-        <legend className="float-left text-sm font-medium leading-none">{label}</legend>
-        <div className="float-left ml-1.5 inline-flex">{helpTrigger}</div>
+        <legend className="sr-only">{label}</legend>
         <span id={descriptionId} data-field-help-description={htmlFor} className="sr-only">
           {help}
         </span>
-        <div className="clear-both contents">{children}</div>
+        <div
+          data-field-help-header={htmlFor}
+          className="flex h-10 shrink-0 items-start gap-1.5 overflow-hidden"
+        >
+          <span data-field-help-label={htmlFor} aria-hidden className="min-w-0 line-clamp-2 text-sm font-medium leading-5">
+            {label}
+          </span>
+          {helpTrigger}
+        </div>
+        {children}
       </fieldset>
     );
   }
@@ -77,8 +85,8 @@ export function FieldHelp({
       <span id={descriptionId} data-field-help-description={htmlFor} className="sr-only">
         {help}
       </span>
-      <div className="flex items-center gap-1.5">
-        <Label htmlFor={htmlFor}>{label}</Label>
+      <div data-field-help-header={htmlFor} className="flex h-10 shrink-0 items-start gap-1.5 overflow-hidden">
+        <Label data-field-help-label={htmlFor} htmlFor={htmlFor} className="min-w-0 line-clamp-2 leading-5">{label}</Label>
         {helpTrigger}
       </div>
       {children}

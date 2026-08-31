@@ -28,7 +28,7 @@ async function assinar(page: Page, email: string) {
     .toString()
     .trim();
   const res = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
+    `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(res.ok()).toBeTruthy();
 }

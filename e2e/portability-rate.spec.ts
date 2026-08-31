@@ -14,7 +14,7 @@ async function cadastrarEAssinar(page: Page) {
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(`psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`).toString().trim();
-  const response = await page.request.get(`http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
+  const response = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(response.ok()).toBeTruthy();
 }
 

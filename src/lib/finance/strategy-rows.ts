@@ -12,6 +12,15 @@ export interface AporteRow {
   mode?: 'term' | 'payment';
 }
 
+export function normalizeAporteRowType(row: AporteRow, tipo: AporteTipo): AporteRow {
+  if (tipo === 'pontual' || tipo === 'sac') {
+    const next = { ...row };
+    delete next.untilMonth;
+    return { ...next, tipo };
+  }
+  return { ...row, tipo };
+}
+
 /** remove linhas cujo mês de início passa do prazo (o aporte nunca dispararia dentro do contrato; não move dinheiro para o último mês); clampa `untilMonth` no prazo */
 export function clampUntilMonths(rows: AporteRow[], months: number): AporteRow[] {
   if (!(months >= 1)) return rows;

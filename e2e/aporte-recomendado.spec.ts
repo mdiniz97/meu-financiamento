@@ -17,7 +17,7 @@ async function cadastrarIlimitado(page: Page) {
   await page.waitForURL(/nova-simulacao/);
 
   const response = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
+    `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(response.ok()).toBeTruthy();
   return uid!;
@@ -25,17 +25,17 @@ async function cadastrarIlimitado(page: Page) {
 
 test('webhook fake exige sessão e impede aprovação para outra conta', async ({ page }) => {
   const unauthenticated = await page.request.get(
-    'http://localhost:3000/api/webhooks/payments?userId=arbitrary&packId=unlimited'
+    '/api/webhooks/payments?userId=arbitrary&packId=unlimited'
   );
   expect(unauthenticated.status()).toBe(401);
 
   const ownUserId = await cadastrarIlimitado(page);
   const own = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?userId=${ownUserId}&packId=unlimited`
+    `/api/webhooks/payments?userId=${ownUserId}&packId=unlimited`
   );
   expect(own.ok()).toBeTruthy();
 
-  const otherSignup = await page.request.post('http://localhost:3000/api/signup', {
+  const otherSignup = await page.request.post('/api/signup', {
     data: {
       name: 'Outra conta',
       email: `other-${Date.now()}-${crypto.randomUUID()}@teste.com`,
@@ -45,7 +45,7 @@ test('webhook fake exige sessão e impede aprovação para outra conta', async (
   expect(otherSignup.ok()).toBeTruthy();
   const { id: otherUserId } = await otherSignup.json() as { id: string };
   const mismatched = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?userId=${otherUserId}&packId=unlimited`
+    `/api/webhooks/payments?userId=${otherUserId}&packId=unlimited`
   );
   expect(mismatched.status()).toBe(403);
 });
@@ -164,4 +164,50 @@ test('linha com valor zero mostra estado inativo com dica e segue removível', a
 
   await page.getByRole('button', { name: 'Remover' }).click();
   await expect(page.getByText(/nenhuma amortização definida/i)).toBeVisible();
+});
+
+test('aporte pontual comunica pagamento único, oculta janela e alinha controles', async ({ page }) => {
+  await cadastrarIlimitado(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/nova-simulacao');
+  await page.getByRole('button', { name: 'Simular', exact: true }).click();
+  await page.waitForURL(/simulacao/);
+
+  await page.getByRole('button', { name: 'Adicionar amortização' }).click();
+
+  const type = page.getByRole('combobox', { name: 'Tipo de amortização' });
+  const amount = page.getByRole('textbox', { name: 'Valor (R$)' });
+  const month = page.getByRole('textbox', { name: 'Mês do aporte' });
+  await expect(type).toContainText('Pontual');
+  await expect(page.getByRole('textbox', { name: 'Até o mês (opcional)' })).toHaveCount(0);
+  await expect(page.getByText(/pontual.*uma (?:única )?vez|uma vez.*mês/i).first()).toBeVisible();
+
+  const boxes = await Promise.all([type, amount, month].map((control) => control.boundingBox()));
+  expect(boxes.every(Boolean)).toBe(true);
+  for (const box of boxes) {
+    expect(box!.height).toBeCloseTo(32, 0);
+    expect(Math.abs(box!.y + box!.height - (boxes[0]!.y + boxes[0]!.height))).toBeLessThanOrEqual(1);
+  }
+});
+
+test('trocar aporte com janela para pontual descarta o limite oculto', async ({ page }) => {
+  await cadastrarIlimitado(page);
+  await page.goto('/nova-simulacao');
+  await page.getByRole('button', { name: 'Simular', exact: true }).click();
+  await page.waitForURL(/simulacao/);
+  await page.getByRole('button', { name: 'Adicionar amortização' }).click();
+
+  const type = page.getByRole('combobox', { name: 'Tipo de amortização' });
+  await type.click();
+  await page.getByRole('option', { name: 'Mensal (total fixo)', exact: true }).click();
+  const until = page.getByRole('textbox', { name: 'Até o mês (opcional)' });
+  await until.fill('10');
+
+  await type.click();
+  await page.getByRole('option', { name: 'Pontual', exact: true }).click();
+  await expect(until).toHaveCount(0);
+
+  await type.click();
+  await page.getByRole('option', { name: 'Recorrente', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Até o mês (opcional)' })).toHaveValue('');
 });

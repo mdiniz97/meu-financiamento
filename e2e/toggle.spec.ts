@@ -21,7 +21,7 @@ test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ p
   await page.waitForURL(/nova-simulacao/);
 
   const uid = execSync(`psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`).toString().trim();
-  const res = await page.request.get(`http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
+  const res = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(res.ok()).toBeTruthy();
 
   await page.goto('/nova-simulacao');

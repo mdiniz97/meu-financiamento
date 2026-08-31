@@ -22,7 +22,7 @@ async function cadastrarIlimitado(page: Page) {
     `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
+    `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(response.ok()).toBeTruthy();
 }
@@ -149,11 +149,11 @@ const ROUTES: Array<{ route: string; concepts: Concept[] }> = [
       { id: 'insuranceMonthly', label: 'Seguro (R$/mês)' },
       { id: 'bank', label: 'Banco' },
       { id: 'system', label: 'Sistema' },
-      { id: 'smartPrincipal', label: 'Valor financiado do cálculo inteligente (R$)' },
+      { id: 'smartPrincipal', label: 'Valor financiado (R$)' },
       { id: 'smartRate', label: 'Taxa de juros' },
-      { id: 'smartTr', label: 'TR mensal do cálculo inteligente (%)' },
-      { id: 'smartSeguro', label: 'Seguro do cálculo inteligente (R$/mês)' },
-      { id: 'smartBank', label: 'Banco do cálculo inteligente' },
+      { id: 'smartTr', label: 'TR mensal (%)' },
+      { id: 'smartSeguro', label: 'Seguro (R$/mês)' },
+      { id: 'smartBank', label: 'Banco' },
       { id: 'smartMaxMonths', label: 'Prazo máximo (meses)' },
       { id: 'smartMaxPayment2', label: 'Quanto pode pagar por mês (R$)' },
       { id: 'smartFixedUntil', label: 'Pagar esse valor por um período (opcional)' },
@@ -236,7 +236,7 @@ for (const screen of ROUTES) {
     await auditVisibleEditableControls(page);
 
     const representative = screen.concepts[0];
-    await page.getByRole('button', { name: `Ajuda sobre ${representative.label}`, exact: true }).click();
+    await page.locator(`#${escapeId(representative.id)}-help-trigger`).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();

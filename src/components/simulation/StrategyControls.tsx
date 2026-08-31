@@ -12,6 +12,7 @@ import {
   dedupePctRows,
   deriveRows,
   nextAporteId,
+  normalizeAporteRowType,
   reconcileStrategyRows,
   rowStrategiesFingerprint,
   rowsToStrategies,
@@ -207,14 +208,16 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
           {rows.map((r, ri) => (
             <div
               key={r.id}
-              className={`flex flex-wrap items-end gap-2 ${r.amount <= 0 && r.tipo !== 'sac' ? 'opacity-60' : ''}`}
+              className={`flex flex-wrap items-start gap-2 ${r.amount <= 0 && r.tipo !== 'sac' ? 'opacity-60' : ''}`}
             >
               <div className="w-32">
                 <FieldHelp htmlFor={`apType${r.id}`} label="Tipo de amortização" help="Escolha se o aporte acontece uma vez, todo mês, por percentual, em intervalos ou anualmente com FGTS.">
                 <Select
                   value={r.tipo}
                   onValueChange={(v) =>
-                    updateRows(rows.map((x) => (x.id === r.id ? { ...x, tipo: v as AporteTipo } : x)))
+                    updateRows(rows.map((x) =>
+                      x.id === r.id ? normalizeAporteRowType(x, v as AporteTipo) : x
+                    ))
                   }
                 >
                   <SelectTrigger id={`apType${r.id}`} aria-describedby={`apType${r.id}-help`} className="w-full" size="sm">
@@ -244,7 +247,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                 <FieldHelp
                   htmlFor={`apAmount${r.id}`}
                   label={r.tipo === 'pct' ? 'Percentual (%)' : 'Valor (R$)'}
-                  help={r.tipo === 'pct' ? 'Percentual adicional da parcela aplicado todo mês; 14,17 significa 14,17%.' : 'Valor em reais que será pago além da parcela para reduzir saldo, prazo ou prestação.'}
+                  help={r.tipo === 'pct' ? 'Percentual adicional da parcela aplicado todo mês; 14,17 significa 14,17%.' : r.tipo === 'pontual' ? 'Valor pago uma única vez, no mês selecionado, além da parcela.' : 'Valor em reais que será pago além da parcela para reduzir saldo, prazo ou prestação.'}
                 >
                   {r.tipo === 'pct' ? (
                     <NumericInput
@@ -301,7 +304,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
                   </FieldHelp>
                 </div>
               )}
-              {r.tipo !== 'sac' && (
+              {r.tipo !== 'sac' && r.tipo !== 'pontual' && (
               <div className="w-24">
                 <FieldHelp htmlFor={`apUntil${r.id}`} label="Até o mês (opcional)" help="Último mês que recebe este aporte. Deixe vazio para continuar até quitar o financiamento.">
                 <NumericInput
@@ -349,6 +352,7 @@ export function StrategyControls({ input, strategies, onChange, base, current, o
               <Button
                 variant="outline"
                 size="icon"
+                className="mt-[46px]"
                 aria-label="Remover"
                 onClick={() => updateRows(rows.filter((x) => x.id !== r.id))}
               >

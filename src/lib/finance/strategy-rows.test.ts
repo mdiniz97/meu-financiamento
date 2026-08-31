@@ -6,6 +6,7 @@ import {
   dedupePctRows,
   deriveRows,
   nextAporteId,
+  normalizeAporteRowType,
   addPendingFingerprint,
   ratioToPercentPoints,
   reconcileStrategyRows,
@@ -18,6 +19,23 @@ import type { Strategies } from './types';
 const EMPTY: Strategies = { extraLumpSum: [], reduceMode: 'term' };
 
 describe('strategy row adapter', () => {
+  it.each(['pontual', 'sac'] as const)(
+    'descarta janela ao mudar para tipo %s e não a restaura em tipo recorrente',
+    (destination) => {
+      const monthly: AporteRow = {
+        id: 1,
+        tipo: 'mensal',
+        amount: 5000,
+        month: 1,
+        every: 1,
+        untilMonth: 10,
+      };
+
+      const normalized = normalizeAporteRowType(monthly, destination);
+      expect(normalized).toEqual({ id: 1, tipo: destination, amount: 5000, month: 1, every: 1 });
+      expect(normalizeAporteRowType(normalized, 'recorrente').untilMonth).toBeUndefined();
+    }
+  );
   it('converte razão para pontos percentuais com duas casas', () => {
     expect(ratioToPercentPoints(0.1417)).toBe(14.17);
     expect(ratioToPercentPoints(0.141701)).toBe(14.18);

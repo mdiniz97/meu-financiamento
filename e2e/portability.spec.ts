@@ -23,7 +23,7 @@ async function cadastrarEAssinar(page: Page, prefix: string) {
     `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
+    `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(response.ok()).toBeTruthy();
 }
@@ -31,6 +31,30 @@ async function cadastrarEAssinar(page: Page, prefix: string) {
 async function selecionarOpcao(page: Page, campo: string, opcao: string) {
   await page.getByRole('combobox', { name: campo, exact: true }).click();
   await page.getByRole('option', { name: opcao, exact: true }).click();
+}
+
+function computedColorIsTransparent(color: string) {
+  if (color === 'transparent') return true;
+  const alpha = color.match(/rgba?\([^)]*[,/]\s*(\d*\.?\d+%?)\s*\)$/)?.[1];
+  if (alpha === undefined) return false;
+  return alpha.endsWith('%') ? Number(alpha.slice(0, -1)) === 0 : Number(alpha) === 0;
+}
+
+async function expectCompleteBorder(locator: ReturnType<Page['getByRole']>) {
+  const styles = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      widths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth],
+      styles: [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle],
+      colors: [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor],
+      boxShadow: style.boxShadow,
+    };
+  });
+  expect(new Set(styles.widths)).toEqual(new Set(['1px']));
+  expect(new Set(styles.styles)).toEqual(new Set(['solid']));
+  expect(new Set(styles.colors).size).toBe(1);
+  expect(computedColorIsTransparent(styles.colors[0])).toBe(false);
+  expect(styles.boxShadow).toBe('none');
 }
 
 test('desktop mostra dados acima e painéis lado a lado', async ({ page }) => {
@@ -56,6 +80,86 @@ test('desktop mostra dados acima e painéis lado a lado', async ({ page }) => {
   await expect(currentResult).toBeVisible();
   expect(Math.abs((await currentResult.boundingBox())!.y - (await offeredResult.boundingBox())!.y)).toBeLessThan(2);
   expect((await currentResult.boundingBox())!.x).toBeLessThan((await offeredResult.boundingBox())!.x);
+});
+
+test('controles e painéis de portabilidade têm geometria consistente no desktop', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  await cadastrarEAssinar(page, 'port-geometry');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/portabilidade');
+
+  const current = page.getByRole('region', { name: 'Contrato atual', exact: true });
+  const offered = page.getByRole('region', { name: 'Proposta oferecida', exact: true });
+  const rateInput = page.getByRole('textbox', { name: 'Taxa atual', exact: true });
+  const rateKind = page.getByRole('combobox', { name: 'Tipo de Taxa atual', exact: true });
+  const [inputBox, selectBox] = await Promise.all([rateInput.boundingBox(), rateKind.boundingBox()]);
+  expect(inputBox).not.toBeNull();
+  expect(selectBox).not.toBeNull();
+  expect(inputBox!.height).toBeCloseTo(32, 0);
+  expect(selectBox!.height).toBeCloseTo(inputBox!.height, 0);
+  expect(Math.abs(inputBox!.y + inputBox!.height - (selectBox!.y + selectBox!.height))).toBeLessThanOrEqual(1);
+
+  const data = page.getByRole('region', { name: 'Dados do financiamento' });
+  const principalBox = await data.getByRole('textbox', { name: 'Saldo devedor atual (R$)' }).boundingBox();
+  const monthsBox = await data.getByRole('textbox', { name: 'Parcelas restantes' }).boundingBox();
+  const trBox = await data.getByRole('textbox', { name: 'TR mensal (%)' }).boundingBox();
+  expect(Math.max(principalBox!.y, monthsBox!.y, trBox!.y) - Math.min(principalBox!.y, monthsBox!.y, trBox!.y)).toBeLessThanOrEqual(1);
+
+  for (const id of ['portCurrentSystem', 'portNewSystem']) {
+    const header = page.locator(`[data-field-help-header="${id}"]`);
+    const label = header.locator(`[data-field-help-label="${id}"]`);
+    const help = page.locator(`[data-field-help-trigger="${id}"]`);
+    const [headerBox, labelBox, helpBox] = await Promise.all([
+      header.boundingBox(),
+      label.boundingBox(),
+      help.boundingBox(),
+    ]);
+    expect(headerBox!.height).toBeCloseTo(40, 0);
+    expect(Math.abs(labelBox!.y - helpBox!.y)).toBeLessThanOrEqual(1);
+    expect(helpBox!.y + helpBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height);
+    const fieldset = page.locator(`fieldset[data-field-help-group="${id}"]`);
+    await expect(fieldset).toHaveAccessibleName(id === 'portCurrentSystem' ? 'Sistema atual' : 'Novo sistema');
+    const radioGroup = fieldset.getByRole('radiogroup');
+    await expect(radioGroup).not.toHaveAttribute('aria-label');
+  }
+
+  const currentSystem = current.getByRole('radiogroup');
+  const newSystem = offered.getByRole('radiogroup');
+  const [currentSystemBox, newSystemBox] = await Promise.all([
+    currentSystem.boundingBox(),
+    newSystem.boundingBox(),
+  ]);
+  expect(Math.abs(currentSystemBox!.y - newSystemBox!.y)).toBeLessThanOrEqual(1);
+
+  await expectCompleteBorder(current);
+  await expectCompleteBorder(offered);
+
+  await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
+  await expectCompleteBorder(page.getByRole('region', { name: 'Resultado do contrato atual' }));
+  await expectCompleteBorder(page.getByRole('region', { name: 'Resultado da proposta oferecida' }));
+});
+
+test('painéis de portabilidade mantêm borda completa no mobile', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  await cadastrarEAssinar(page, 'port-border-mobile');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/portabilidade');
+
+  await expectCompleteBorder(page.getByRole('region', { name: 'Contrato atual', exact: true }));
+  await expectCompleteBorder(page.getByRole('region', { name: 'Proposta oferecida', exact: true }));
+  await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
+  await expectCompleteBorder(page.getByRole('region', { name: 'Resultado do contrato atual' }));
+  await expectCompleteBorder(page.getByRole('region', { name: 'Resultado da proposta oferecida' }));
+});
+
+test('detector de borda transparente cobre sintaxes CSS legada e moderna', () => {
+  expect(computedColorIsTransparent('transparent')).toBe(true);
+  expect(computedColorIsTransparent('rgba(0, 0, 0, 0)')).toBe(true);
+  expect(computedColorIsTransparent('rgb(0 0 0 / 0)')).toBe(true);
+  expect(computedColorIsTransparent('rgb(0 0 0 / 0%)')).toBe(true);
+  expect(computedColorIsTransparent('rgba(0, 0, 0, 0.25)')).toBe(false);
+  expect(computedColorIsTransparent('rgb(0 0 0 / 25%)')).toBe(false);
+  expect(computedColorIsTransparent('oklab(0.5 0 0)')).toBe(false);
 });
 
 test('mobile empilha dados, contrato atual e proposta sem overflow horizontal', async ({ page }) => {
@@ -128,7 +232,10 @@ test('erro de validação aparece na seção do campo inválido', async ({ page 
   const currentRate = page.getByRole('textbox', { name: 'Taxa atual', exact: true });
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
 
-  await currentRate.fill('-');
+  await expect(async () => {
+    await currentRate.fill('-');
+    await expect(currentRate).toHaveAttribute('aria-invalid', 'true');
+  }).toPass();
   await compare.evaluate((button: HTMLButtonElement) => button.click());
   await expect(currentSection.getByText('Informe uma taxa atual válida.')).toBeVisible();
   await expect(dataSection.getByText('Informe uma taxa atual válida.')).toHaveCount(0);

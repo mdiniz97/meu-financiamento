@@ -27,7 +27,7 @@ async function assinar(page: Page, email: string) {
     `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
-    `http://localhost:3000/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
+    `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(response.ok()).toBeTruthy();
 }
@@ -59,6 +59,41 @@ test('Ilimitado calcula cenários na página e mantém modal no cálculo intelig
   await expect(page.getByRole('dialog')).toContainText('Qual imóvel cabe no meu bolso?');
   await page.getByRole('dialog').getByRole('button', { name: /calcular imóvel máximo/i }).click();
   await expect(page.getByRole('dialog').getByText('Recomendado', { exact: true })).toBeVisible();
+});
+
+test('cálculo inteligente usa rótulos simples e mantém trilha de cabeçalho alinhada', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  const email = await cadastrar(page, 'smart-labels');
+  await assinar(page, email);
+  await page.goto('/nova-simulacao');
+
+  for (const [id, label] of [
+    ['smartPrincipal', 'Valor financiado (R$)'],
+    ['smartTr', 'TR mensal (%)'],
+    ['smartSeguro', 'Seguro (R$/mês)'],
+    ['smartBank', 'Banco'],
+  ] as const) {
+    await expect(page.locator(`[data-field-help-header="${id}"]`).getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText(/do cálculo inteligente/i)).toHaveCount(0);
+
+  const principal = page.locator('#smartPrincipal');
+  const preferredSystem = page.getByRole('combobox', { name: 'Sistema preferido' });
+  const rate = page.locator('#smartRate');
+  const tr = page.locator('#smartTr');
+  const headers = page.locator('[data-field-help-header="smartPrincipal"], [data-field-help-header="smartPreferredSystem"], [data-field-help-header="smartRate"], [data-field-help-header="smartTr"]');
+  await expect(headers).toHaveCount(4);
+  for (let index = 0; index < 4; index += 1) {
+    expect((await headers.nth(index).boundingBox())!.height).toBeCloseTo(40, 0);
+  }
+  const [principalBox, preferredBox, rateBox, trBox] = await Promise.all([
+    principal.boundingBox(),
+    preferredSystem.boundingBox(),
+    rate.boundingBox(),
+    tr.boundingBox(),
+  ]);
+  expect(Math.abs(principalBox!.y - preferredBox!.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(rateBox!.y - trBox!.y)).toBeLessThanOrEqual(1);
 });
 
 test('Ilimitado calcula valor financiável diretamente pela parcela na página e no modal', async ({ page }) => {

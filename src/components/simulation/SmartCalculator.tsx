@@ -182,7 +182,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
                    </SelectContent>
                  </Select>
                </FieldHelp>
-               <FieldHelp htmlFor="smartPrincipal" label="Valor financiado do cálculo inteligente (R$)" help="Valor que você precisa financiar. O cálculo testa sistemas e prazos para essa dívida.">
+               <FieldHelp htmlFor="smartPrincipal" label="Valor financiado (R$)" help="Valor que você precisa financiar. O cálculo testa sistemas e prazos para essa dívida.">
                  <MoneyInput
                  id="smartPrincipal"
                  aria-label="Valor financiado (R$)"
@@ -192,7 +192,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
               />
                </FieldHelp>
               <RateField id="smartRate" label="Taxa de juros" value={parseDecimal(f.annualRate)} kind={f.annualRateKind} minEffectiveAnnual={0} onValueChange={(v) => set('annualRate', String(v))} onKindChange={(kind) => set('annualRateKind', kind)} onValidityChange={setAnnualRateValid} />
-               <FieldHelp htmlFor="smartTr" label="TR mensal do cálculo inteligente (%)" help="Correção mensal além dos juros. Informe a TR indicada pelo banco para comparar parcelas futuras.">
+               <FieldHelp htmlFor="smartTr" label="TR mensal (%)" help="Correção mensal além dos juros. Informe a TR indicada pelo banco para comparar parcelas futuras.">
                 <NumericInput
                  id="smartTr"
                  aria-label="TR mensal (%)"
@@ -202,7 +202,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
                 onValid={(v) => set("trMonthly", String(v))}
               />
                </FieldHelp>
-               <FieldHelp htmlFor="smartSeguro" label="Seguro do cálculo inteligente (R$/mês)" help="Custo mensal dos seguros somado à parcela e ao limite que você pode pagar.">
+               <FieldHelp htmlFor="smartSeguro" label="Seguro (R$/mês)" help="Custo mensal dos seguros somado à parcela e ao limite que você pode pagar.">
                 <MoneyInput
                  id="smartSeguro"
                  aria-label="Seguro (R$/mês)"
@@ -211,7 +211,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
                  onValid={(v) => set("insuranceMonthly", numberToBRLInput(v))}
               />
                </FieldHelp>
-               <FieldHelp htmlFor="smartBank" label="Banco do cálculo inteligente" help="Banco usado para identificar a simulação recomendada e o relatório.">
+               <FieldHelp htmlFor="smartBank" label="Banco" help="Banco usado para identificar a simulação recomendada e o relatório.">
                 <Select value={f.bank} onValueChange={(v) => set('bank', String(v))}>
                    <SelectTrigger id="smartBank" aria-label="Banco" aria-describedby="smartBank-help" className="w-full">
                     <SelectValue />

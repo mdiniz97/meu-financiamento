@@ -15,6 +15,54 @@ test.beforeEach(async ({ page }) => {
   await cadastrar(page);
 });
 
+test('wizard alinha campos na mesma linha e selects não recortam conteúdo', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.locator('form').evaluate((form) => {
+    (form.closest('[data-slot="card"]') as HTMLElement).style.width = '300px';
+  });
+  const principal = page.getByRole('textbox', { name: 'Valor financiado (R$)' });
+  const rate = page.getByRole('textbox', { name: 'Taxa de juros' });
+  const rateKind = page.getByRole('combobox', { name: 'Tipo de Taxa de juros' });
+  const bank = page.getByRole('combobox', { name: 'Banco', exact: true });
+
+  const [principalBox, rateBox] = await Promise.all([principal.boundingBox(), rate.boundingBox()]);
+  expect(Math.abs(principalBox!.y - rateBox!.y)).toBeLessThanOrEqual(1);
+  const headers = page.locator('[data-field-help-header="principal"], [data-field-help-header="annualRate"]');
+  await expect(headers).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    expect((await headers.nth(index).boundingBox())!.height).toBeCloseTo(40, 0);
+  }
+  const principalHeader = page.locator('[data-field-help-header="principal"]');
+  const principalLabel = principalHeader.locator('[data-field-help-label="principal"]');
+  const principalHelp = page.locator('[data-field-help-trigger="principal"]');
+  expect(await principalLabel.evaluate((element) => getComputedStyle(element).minWidth)).toBe('0px');
+  expect(await principalLabel.evaluate((element) => getComputedStyle(element).webkitLineClamp)).toBe('2');
+  expect(await principalHelp.evaluate((element) => getComputedStyle(element).flexShrink)).toBe('0');
+  expect(await principalHeader.evaluate((element) => getComputedStyle(element).flexShrink)).toBe('0');
+  const [headerBox, helpBox] = await Promise.all([principalHeader.boundingBox(), principalHelp.boundingBox()]);
+  expect(helpBox!.width).toBeGreaterThan(0);
+  expect(helpBox!.x + helpBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
+
+  for (const trigger of [rateKind, bank]) {
+    const geometry = await trigger.evaluate((element) => {
+      const outer = element.getBoundingClientRect();
+      const value = element.querySelector('[data-slot="select-value"]')!.getBoundingClientRect();
+      const icon = element.querySelector('svg')!.getBoundingClientRect();
+      return {
+        outer: { top: outer.top, bottom: outer.bottom, height: outer.height, center: outer.top + outer.height / 2 },
+        value: { top: value.top, bottom: value.bottom, center: value.top + value.height / 2 },
+        icon: { top: icon.top, bottom: icon.bottom, center: icon.top + icon.height / 2 },
+      };
+    });
+    expect(geometry.outer.height).toBeCloseTo(32, 0);
+    for (const inner of [geometry.value, geometry.icon]) {
+      expect(inner.top).toBeGreaterThanOrEqual(geometry.outer.top);
+      expect(inner.bottom).toBeLessThanOrEqual(geometry.outer.bottom);
+      expect(Math.abs(inner.center - geometry.outer.center)).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
 test('ajuda da taxa funciona por clique, foco, hover e Escape', async ({ page }) => {
   const field = page.getByRole('textbox', { name: 'Taxa de juros' });
   const help = page.getByRole('button', { name: 'Ajuda sobre Taxa de juros' });

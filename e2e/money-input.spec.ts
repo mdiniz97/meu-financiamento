@@ -11,9 +11,9 @@ async function cadastrar(page: Page) {
   await page.waitForURL(/nova-simulacao/);
 }
 
-test('MoneyInput não reaproveita zeros da máscara', async ({ context, page }) => {
+test('MoneyInput não reaproveita zeros da máscara', async ({ baseURL, context, page }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
-    origin: 'http://localhost:3000',
+    origin: baseURL,
   });
   await cadastrar(page);
 
@@ -62,9 +62,9 @@ test('MoneyInput não reaproveita zeros da máscara', async ({ context, page }) 
   await expect(input).toHaveValue('56,78');
 });
 
-test('MoneyInput rejeita teclado e paste acima de 13 dígitos sem truncar valor válido', async ({ context, page }) => {
+test('MoneyInput rejeita teclado e paste acima de 13 dígitos sem truncar valor válido', async ({ baseURL, context, page }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
-    origin: 'http://localhost:3000',
+    origin: baseURL,
   });
   await cadastrar(page);
   const input = page.getByRole('textbox', { name: /valor financiado/i });
