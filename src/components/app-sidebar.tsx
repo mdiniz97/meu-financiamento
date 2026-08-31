@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, History, Home, Menu, Percent, Scale, Sparkles, User, X } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, History, Home, Menu, Percent, Scale, Sparkles, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -52,8 +52,15 @@ function NavLinks({ compact = false, onNavigate }: { compact?: boolean; onNaviga
 
 function PlanChip({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
   return (
-    <span className="rounded-lg bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
-      {isUnlimited ? 'Plano Ilimitado' : `${credits} ${credits === 1 ? 'crédito' : 'créditos'}`}
+    <span className="flex items-center justify-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+      {isUnlimited ? (
+        'Plano Ilimitado'
+      ) : (
+        <>
+          <Coins className="size-3.5 shrink-0" />
+          {credits} {credits === 1 ? 'crédito' : 'créditos'}
+        </>
+      )}
     </span>
   );
 }

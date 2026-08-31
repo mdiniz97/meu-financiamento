@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('toggle de tema aplica/remove .dark no <html> e não vaza para o app autenticado', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const html = page.locator('html');
   await expect(html).not.toHaveClass(/dark/);
@@ -19,6 +20,7 @@ test('elementos com borda na landing usam border-radius 0', async ({ page }) => 
 });
 
 test('tema escuro persiste da landing para as rotas autenticadas em (app)', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const html = page.locator('html');
   await page.getByRole('button', { name: /ativar tema escuro/i }).click();
