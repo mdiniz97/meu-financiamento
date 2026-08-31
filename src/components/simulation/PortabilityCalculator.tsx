@@ -247,7 +247,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
           <div className="flex flex-col gap-4">
             <section
               aria-label="Dados do financiamento"
-              className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5"
+              className="flex flex-col gap-4 rounded-2xl border border-muted-foreground/40 bg-card p-4 sm:p-5"
             >
               <h2 className="text-sm font-semibold">Dados do financiamento</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -271,7 +271,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
             <div className="grid gap-4 md:grid-cols-2">
               <section
                 aria-label="Contrato atual"
-                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5"
+                className="flex flex-col gap-4 rounded-2xl border border-muted-foreground/40 bg-card p-4 sm:p-5"
               >
                 <h2 className="text-sm font-semibold">Contrato atual</h2>
                 <FieldHelp htmlFor="portBank" label="Banco atual" help="Instituição onde o financiamento está hoje; identifica o cenário que será mantido.">
@@ -327,7 +327,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
 
               <section
                 aria-label="Proposta oferecida"
-                className="flex flex-col gap-4 rounded-2xl border border-border bg-primary/[0.03] p-4 sm:p-5"
+                className="flex flex-col gap-4 rounded-2xl border border-muted-foreground/40 bg-primary/[0.03] p-4 sm:p-5"
               >
                 <h2 className="text-sm font-semibold">Proposta oferecida</h2>
                 <FieldHelp htmlFor="portNewBank" label="Novo banco" help="Instituição que fez a oferta de portabilidade; identifica o novo cenário.">
@@ -385,7 +385,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </section>
             </div>
 
-            <section aria-label="Busca inteligente" className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/50 p-4">
+            <section aria-label="Busca inteligente" className="flex flex-col gap-3 rounded-2xl border border-muted-foreground/40 bg-muted/50 p-4">
               <h2 className="text-sm font-semibold">Busca inteligente</h2>
               <FieldHelp htmlFor="portSmartMode" label="Busca inteligente" help="Ative para calcular a maior taxa da nova proposta que ainda gera economia após os custos da portabilidade.">
                 <Switch
@@ -427,7 +427,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                     </p>
                   )}
                   {f.smartResult && (
-                    <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3 text-xs">
+                    <div className="flex flex-col gap-2 rounded-xl border border-muted-foreground/40 bg-muted p-3 text-xs">
                       {f.smartResult.maxWorthwhileRate !== null ? (
                         <p>
                           <strong>Taxa máxima que ainda compensa portar:</strong>{' '}
@@ -586,7 +586,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                 <div className="grid min-w-0 gap-3 md:grid-cols-2">
                   <section
                     aria-label="Resultado do contrato atual"
-                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-4 [overflow-wrap:anywhere]"
+                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-muted-foreground/40 bg-card p-4 [overflow-wrap:anywhere]"
                   >
                     <h3 className="text-sm font-semibold">Contrato atual</h3>
                     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -623,7 +623,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   </section>
                   <section
                     aria-label="Resultado da proposta oferecida"
-                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-primary/[0.03] p-4 [overflow-wrap:anywhere]"
+                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-muted-foreground/40 bg-primary/[0.03] p-4 [overflow-wrap:anywhere]"
                   >
                     <h3 className="text-sm font-semibold">Proposta oferecida</h3>
                     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">

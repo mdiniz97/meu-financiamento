@@ -221,6 +221,31 @@ test('cálculo continua funcional após reorganização', async ({ page }) => {
   await expect(page.getByText(/vale a pena|não vale a pena/i).first()).toBeVisible();
 });
 
+test('comparação lado a lado da portabilidade tem borda completa nos cenários', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  await cadastrarEAssinar(page, 'port-sandbox-border');
+  await page.goto('/portabilidade');
+
+  await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
+  await page.getByRole('button', { name: 'Ver comparação lado a lado' }).click();
+  await expect(page.getByRole('region', { name: /manter no/i })).toBeVisible();
+  await expect(page.getByRole('region', { name: /portar para/i })).toBeVisible();
+
+  for (const name of [/manter no/i, /portar para/i]) {
+    const styles = await page.getByRole('region', { name }).evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        widths: [computed.borderTopWidth, computed.borderRightWidth, computed.borderBottomWidth, computed.borderLeftWidth],
+        styles: [computed.borderTopStyle, computed.borderRightStyle, computed.borderBottomStyle, computed.borderLeftStyle],
+        colors: [computed.borderTopColor, computed.borderRightColor, computed.borderBottomColor, computed.borderLeftColor],
+      };
+    });
+    expect(new Set(styles.widths)).toEqual(new Set(['1px']));
+    expect(new Set(styles.styles)).toEqual(new Set(['solid']));
+    expect(computedColorIsTransparent(styles.colors[0])).toBe(false);
+  }
+});
+
 test('erro de validação aparece na seção do campo inválido', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-validation');

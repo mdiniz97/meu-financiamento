@@ -66,7 +66,7 @@ export function ScenarioCompare({ input, base, current }: Props) {
   ];
 
   return (
-    <div className="rounded-2xl bg-card p-4 shadow-sm">
+    <div className="rounded-2xl border border-muted-foreground/40 bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-base font-semibold">Comparação de cenários</h3>
         <Badge>Melhor caminho: cenário {bestIdx === 0 ? 'sem' : 'com'} estratégia</Badge>

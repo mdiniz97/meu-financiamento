@@ -28,15 +28,17 @@ export function ExportPdfButton({
       <>
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Exportar PDF (exclusivo do plano Ilimitado)"
-                onClick={() => setUpgradeOpen(true)}
-              >
-                Exportar PDF <Lock className="size-3.5" />
-              </Button>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Exportar PDF (exclusivo do plano Ilimitado)"
+                  onClick={() => setUpgradeOpen(true)}
+                />
+              }
+            >
+              Exportar PDF <Lock className="size-3.5" />
             </TooltipTrigger>
             <TooltipContent>Exclusivo do plano Ilimitado</TooltipContent>
           </Tooltip>

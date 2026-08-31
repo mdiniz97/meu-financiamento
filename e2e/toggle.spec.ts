@@ -32,4 +32,19 @@ test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ p
   await expect(page.locator('#comparacao-sistemas')).toBeVisible();
   await expect(page.locator('#comparacao-sistemas').getByText(/PRICE/).first()).toBeVisible();
   await expect(page.locator('#comparacao-sistemas').getByText(/SAC/).first()).toBeVisible();
+
+  const panels = page.locator('#comparacao-sistemas button');
+  for (let index = 0; index < (await panels.count()); index += 1) {
+    const style = await panels.nth(index).evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        width: computed.borderTopWidth,
+        style: computed.borderTopStyle,
+        color: computed.borderTopColor,
+      };
+    });
+    expect(style.width).toBe('1px');
+    expect(style.style).toBe('solid');
+    expect(style.color).not.toBe('transparent');
+  }
 });

@@ -262,7 +262,7 @@ export function SimulationSandbox({
                 key={system}
                 type="button"
                 onClick={() => setActiveSystem(system)}
-                className={`flex flex-col gap-1 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors ${
+                className={`flex flex-col gap-1 rounded-2xl border border-muted-foreground/40 bg-card p-4 text-left shadow-sm transition-colors ${
                   isPrimary ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : 'hover:ring-1 hover:ring-[#820AD1] dark:ring-[#a44ce0]/40'
                 }`}
               >

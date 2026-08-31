@@ -35,7 +35,7 @@ function ScenarioCard({
     <Card
       role="region"
       aria-label={title}
-      className={`min-w-0 overflow-hidden rounded-2xl shadow-sm [overflow-wrap:anywhere] ${accent ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}
+      className={`min-w-0 overflow-hidden rounded-2xl border border-muted-foreground/40 shadow-sm [overflow-wrap:anywhere] ${accent ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}
     >
       <CardHeader>
         <CardTitle className={`text-lg ${accent ? 'text-[#820AD1]' : ''}`}>{title}</CardTitle>
@@ -87,7 +87,7 @@ export function PortabilitySandbox({
   const router = useRouter();
   const outcome = economiaLiquida > 0 ? 'positive' : economiaLiquida < 0 ? 'negative' : 'neutral';
   return (
-    <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
+        <div className="flex min-w-0 flex-col gap-3">
       <p className="min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
         {outcome === 'positive' ? (
           <>
@@ -110,7 +110,7 @@ export function PortabilitySandbox({
       </p>
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
         <ScenarioCard title={keepTitle} result={keep} accent={outcome === 'negative'} />
-        <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
+    <div className="flex min-w-0 flex-col gap-3">
           <ScenarioCard title={portedTitle} result={ported} accent={outcome === 'positive'} costs={costs} />
           {prefill && (
             <Button
