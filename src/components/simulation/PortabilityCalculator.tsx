@@ -327,7 +327,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
 
               <section
                 aria-label="Proposta oferecida"
-                className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/[0.03] p-4 sm:p-5"
+                className="flex flex-col gap-4 rounded-2xl border border-border bg-primary/[0.03] p-4 sm:p-5"
               >
                 <h2 className="text-sm font-semibold">Proposta oferecida</h2>
                 <FieldHelp htmlFor="portNewBank" label="Novo banco" help="Instituição que fez a oferta de portabilidade; identifica o novo cenário.">
@@ -385,7 +385,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               </section>
             </div>
 
-            <section aria-label="Busca inteligente" className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-4">
+            <section aria-label="Busca inteligente" className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/50 p-4">
               <h2 className="text-sm font-semibold">Busca inteligente</h2>
               <FieldHelp htmlFor="portSmartMode" label="Busca inteligente" help="Ative para calcular a maior taxa da nova proposta que ainda gera economia após os custos da portabilidade.">
                 <Switch
@@ -623,7 +623,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                   </section>
                   <section
                     aria-label="Resultado da proposta oferecida"
-                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.03] p-4 [overflow-wrap:anywhere]"
+                    className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-primary/[0.03] p-4 [overflow-wrap:anywhere]"
                   >
                     <h3 className="text-sm font-semibold">Proposta oferecida</h3>
                     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">

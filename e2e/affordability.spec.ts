@@ -292,7 +292,8 @@ test('alternativa segura por parcela transfere principal e taxa normalizada ao S
   await page.getByRole('button', { name: /descobrir quanto posso financiar/i }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('tab', { name: /por parcela/i }).click();
-  await dialog.getByRole('combobox', { name: /tipo de taxa de juros/i }).click();
+  const paymentPanel = dialog.getByRole('tabpanel', { name: 'Por parcela' });
+  await paymentPanel.getByRole('combobox', { name: /tipo de taxa de juros/i }).click();
   await page.getByRole('option', { name: 'Nominal a.a.', exact: true }).click();
   await dialog.getByRole('button', { name: /calcular valor financiável/i }).click();
   const safe = dialog.getByText('Máximo seguro no contrato', { exact: true }).first().locator('..');

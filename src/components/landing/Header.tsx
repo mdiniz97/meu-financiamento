@@ -16,7 +16,15 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
           </span>
         </Link>
         <nav className="flex items-center gap-2">
-          <ThemeToggle />
+          <Link
+            href="/juros"
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "hidden px-4 text-sm sm:inline-flex"
+            )}
+          >
+            Juros de mercado
+          </Link>
           {signedIn ? (
             <>
               <Link
@@ -54,6 +62,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
               </Link>
             </>
           )}
+          <ThemeToggle />
         </nav>
       </div>
     </header>
