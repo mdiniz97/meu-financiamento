@@ -27,6 +27,7 @@ const DEFAULTS = {
   financedDown: false,
   downKnow: 'calcular' as 'parcela' | 'calcular',
   downParcela: '0,00',
+  downAvista: '0,00',
   downAmount: '0,00',
   downMonths: '24',
   downHasJuros: false,
@@ -111,7 +112,17 @@ export function ObraCalculator({
       form.downKnow === 'calcular' &&
       !(downPaymentFinancedAmount > 0)
     )
-      return setError('Informe o valor da entrada parcelado.');
+      return setError('Informe o valor parcelado da entrada.');
+    const downPaymentAvista = form.financedDown ? parseBRLToNumber(form.downAvista) : 0;
+    const entradaTotal = propertyValue * (downPaymentPct / 100);
+    if (
+      form.financedDown &&
+      form.downKnow === 'calcular' &&
+      Math.abs(downPaymentAvista + downPaymentFinancedAmount - entradaTotal) > 1
+    )
+      return setError(
+        `A entrada à vista + o valor parcelado deve somar a entrada de ${formatBRL(entradaTotal)}.`
+      );
     const downPaymentMonths = form.financedDown ? Number(form.downMonths) : undefined;
     if (form.financedDown && !(downPaymentMonths! >= 1 && downPaymentMonths! <= 120))
       return setError('Quantidade de parcelas da entrada deve ficar entre 1 e 120.');
@@ -301,6 +312,14 @@ export function ObraCalculator({
                     </>
                   ) : (
                     <>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Entrada à vista (R$)</span>
+                        <MoneyInput
+                          aria-label="Entrada à vista (R$)"
+                          value={parseBRLToNumber(form.downAvista)}
+                          onValid={(v) => set('downAvista', numberToBRLInput(v))}
+                        />
+                      </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">Valor parcelado (R$)</span>
                         <MoneyInput

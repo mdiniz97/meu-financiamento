@@ -85,11 +85,13 @@ test('toggle Financiei a entrada abre campos e inclui a entrada no resultado', a
   await page.goto('/comprar-na-planta');
 
   await page.getByRole('switch', { name: /financiei a entrada/i }).click();
+  await expect(page.getByRole('textbox', { name: 'Entrada à vista (R$)' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Valor da entrada parcelado (R$)' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Quantidade de parcelas' })).toHaveValue('24');
   await expect(page.getByText('Tem juros?', { exact: true })).toBeVisible();
 
-  await page.getByRole('textbox', { name: 'Valor da entrada parcelado (R$)' }).fill('10000000');
+  await page.getByRole('textbox', { name: 'Entrada à vista (R$)' }).fill('5000000');
+  await page.getByRole('textbox', { name: 'Valor da entrada parcelado (R$)' }).fill('5000000');
   await page.getByRole('radio', { name: 'Sim', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Taxa da entrada (%)' })).toBeVisible();
 
