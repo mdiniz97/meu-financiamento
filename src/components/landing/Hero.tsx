@@ -81,7 +81,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={price.installments[0].parcela}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
               </span>
@@ -89,7 +89,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={sac.installments[0].parcela}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
@@ -97,7 +97,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={smart.installments[0].parcela}
                   format="brl"
-                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                  className="font-mono text-lg font-bold font-mono tabular-nums text-primary"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">
                   amortizador inteligente
@@ -110,7 +110,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={price.installments[0].amortizacao}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
               </span>
@@ -118,7 +118,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={sac.installments[0].amortizacao}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
@@ -126,7 +126,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={smart.installments[0].amortizacao}
                   format="brl"
-                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                  className="font-mono text-lg font-bold font-mono tabular-nums text-primary"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">
                   amortizador inteligente
@@ -139,7 +139,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={price.metrics.totalJuros}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">PRICE</span>
               </span>
@@ -147,7 +147,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={sac.metrics.totalJuros}
                   format="brl"
-                  className="font-mono text-lg font-semibold tabular-nums"
+                  className="font-mono text-lg font-semibold font-mono tabular-nums"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">SAC</span>
               </span>
@@ -155,7 +155,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
                 <AnimatedNumber
                   value={smart.metrics.totalJuros}
                   format="brl"
-                  className="font-mono text-lg font-bold tabular-nums text-primary"
+                  className="font-mono text-lg font-bold font-mono tabular-nums text-primary"
                 />
                 <span className="font-sans text-xs font-normal text-muted-foreground">
                   amortizador inteligente
@@ -167,7 +167,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
               <AnimatedNumber
                 value={price.metrics.totalJuros - sac.metrics.totalJuros}
                 format="brl"
-                className="font-mono text-lg font-semibold tabular-nums text-emerald-600"
+                className="font-mono text-lg font-semibold font-mono tabular-nums text-emerald-600"
               />
               <span className="text-xs text-muted-foreground">
                 de economia escolhendo certo
@@ -175,7 +175,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
               <AnimatedNumber
                 value={price.metrics.totalJuros - smart.metrics.totalJuros}
                 format="brl"
-                className="font-mono text-lg font-bold tabular-nums text-primary"
+                className="font-mono text-lg font-bold font-mono tabular-nums text-primary"
               />
               <span className="text-xs text-muted-foreground">
                 a mais com o amortizador inteligente

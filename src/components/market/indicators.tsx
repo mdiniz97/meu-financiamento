@@ -26,7 +26,7 @@ function IndicatorCard({
       </div>
       {indicator ? (
         <>
-          <span className="mt-2 text-3xl font-bold tracking-tight">
+          <span className="font-mono tabular-nums mt-2 text-3xl font-bold tracking-tight">
             {formatRate(indicator.value)}
             <span className="ml-1 text-sm font-normal text-muted-foreground">{indicator.unit}</span>
           </span>
@@ -35,12 +35,12 @@ function IndicatorCard({
             {indicator.annualRate !== null && (
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-muted-foreground">Taxa anual (a.a.)</dt>
-                <dd className="font-semibold tabular-nums">{formatRate(indicator.annualRate)}%</dd>
+                <dd className="font-semibold font-mono tabular-nums">{formatRate(indicator.annualRate)}%</dd>
               </div>
             )}
             <div className="flex items-center justify-between gap-2">
               <dt className="text-muted-foreground">Acumulado no ano</dt>
-              <dd className="font-semibold tabular-nums">
+              <dd className="font-semibold font-mono tabular-nums">
                 {indicator.accumulatedYear === null
                   ? '-'
                   : `${formatRate(indicator.accumulatedYear)}%`}
@@ -48,7 +48,7 @@ function IndicatorCard({
             </div>
             <div className="flex items-center justify-between gap-2">
               <dt className="text-muted-foreground">Acumulado 12 meses</dt>
-              <dd className="font-semibold tabular-nums">
+              <dd className="font-semibold font-mono tabular-nums">
                 {indicator.accumulated12Months === null
                   ? '-'
                   : `${formatRate(indicator.accumulated12Months)}%`}

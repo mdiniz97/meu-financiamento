@@ -11,7 +11,7 @@ export function InvestExplain({ signedIn = false }: { signedIn?: boolean }) {
           <span className="mx-auto flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.04] px-3 py-1 text-xs font-semibold text-[#820AD1]">
             <Scale className="size-3.5" /> Investir ou amortizar
           </span>
-          <h2 className="mt-4 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="font-display mt-4 font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Com R$ 100 mil, vale investir ou amortizar?
           </h2>
           <p className="mt-3 text-lg text-muted-foreground">

@@ -15,7 +15,7 @@ export default async function QualImovelPage() {
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-4 sm:p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Qual imóvel cabe no meu bolso?</h1>
+        <h1 className="font-display text-xl font-semibold">Qual imóvel cabe no meu bolso?</h1>
         <p className="text-sm text-muted-foreground">
           Descubra o valor máximo do imóvel sem comprometer demais sua renda.
         </p>

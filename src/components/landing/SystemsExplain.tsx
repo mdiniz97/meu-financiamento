@@ -148,17 +148,17 @@ export function SystemsExplain() {
                 <AnimatedNumber
                   value={row.priceValue}
                   format={row.format}
-                  className="text-right font-mono font-medium tabular-nums"
+                  className="text-right font-mono font-medium font-mono tabular-nums"
                 />
                 <AnimatedNumber
                   value={row.sacValue}
                   format={row.format}
-                  className="text-right font-mono font-semibold tabular-nums"
+                  className="text-right font-mono font-semibold font-mono tabular-nums"
                 />
                 <AnimatedNumber
                   value={row.smartValue}
                   format={row.format}
-                  className="text-right font-mono font-bold tabular-nums text-primary"
+                  className="text-right font-mono font-bold font-mono tabular-nums text-primary"
                 />
               </div>
             ))}

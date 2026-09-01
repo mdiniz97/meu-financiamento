@@ -29,7 +29,7 @@ export function MetricsGrid({ metrics }: { metrics: SimulationMetrics }) {
       {items.map((it) => (
         <div
           key={it.label}
-          className="flex flex-col gap-1 rounded-2xl bg-card p-4 shadow-sm"
+          className="flex flex-col gap-1 rounded-2xl bg-card p-4 font-mono tabular-nums shadow-sm"
         >
           <span className="text-xs text-muted-foreground">{it.label}</span>
           <span

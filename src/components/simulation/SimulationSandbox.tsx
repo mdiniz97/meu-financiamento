@@ -225,7 +225,7 @@ export function SimulationSandbox({
       <UpgradeBanner isUnlimited={isUnlimited} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{saved?.name ?? 'Simulador de financiamento'}</h1>
+          <h1 className="font-display text-xl font-semibold">{saved?.name ?? 'Simulador de financiamento'}</h1>
           <p className="text-sm text-muted-foreground">
             {input.system === 'PRICE' ? 'Sistema PRICE' : 'Sistema SAC'} · {formatBRL(input.principal)} ·{' '}
             {(input.annualRate * 100).toFixed(2)}% a.a. · {input.months} meses · {input.bank}
@@ -316,7 +316,7 @@ export function SimulationSandbox({
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Métricas</h2>
+        <h2 className="font-display text-lg font-semibold">Métricas</h2>
         <MetricsGrid metrics={displayed.metrics} />
       </section>
 
@@ -328,7 +328,7 @@ export function SimulationSandbox({
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Gráficos</h2>
+        <h2 className="font-display text-lg font-semibold">Gráficos</h2>
         <div className="grid gap-3 lg:grid-cols-2">
           <BalanceChart data={balanceData} />
           <InterestAmortChart installments={displayed.installments} />
@@ -339,7 +339,7 @@ export function SimulationSandbox({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Tabela de parcelas</h2>
+        <h2 className="font-display text-lg font-semibold">Tabela de parcelas</h2>
         <InstallmentTable installments={displayed.installments} />
       </section>
 

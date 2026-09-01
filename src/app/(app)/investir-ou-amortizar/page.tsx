@@ -13,7 +13,7 @@ export default async function InvestirOuAmortizarPage() {
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-4 sm:p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Investir ou amortizar?</h1>
+        <h1 className="font-display text-xl font-semibold">Investir ou amortizar?</h1>
         <p className="text-sm text-muted-foreground">
           Tem dinheiro disponível? Compare investir na Selic atual com amortizar o
           financiamento, e descubra o que rende mais para o seu caso.

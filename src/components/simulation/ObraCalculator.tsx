@@ -446,7 +446,7 @@ export function ObraCalculator({
               ].map((item) => (
                 <div key={item.label} className="flex flex-col gap-1 rounded-2xl border border-border bg-muted/50 p-4">
                   <span className="text-xs text-muted-foreground">{item.label}</span>
-                  <span className="text-lg font-semibold tabular-nums">{item.value}</span>
+                  <span className="text-lg font-semibold font-mono tabular-nums">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -469,13 +469,13 @@ export function ObraCalculator({
                   {result.monthly.map((m) => (
                     <tr key={m.month} className="border-b border-border/60 last:border-0">
                       <td className="px-4 py-2">{m.month}</td>
-                      <td className="px-4 py-2 tabular-nums">{monthDate(m.month)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{m.progressPct.toFixed(1)}%</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.saldoLiberado)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.juros)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.seguro)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{m.entradaParcela > 0 ? formatBRL(m.entradaParcela) : '-'}</td>
-                      <td className="px-4 py-2 text-right font-semibold tabular-nums text-[#820AD1] dark:text-[#a44ce0]">{formatBRL(m.total)}</td>
+                      <td className="px-4 py-2 font-mono tabular-nums">{monthDate(m.month)}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{m.progressPct.toFixed(1)}%</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{formatBRL(m.saldoLiberado)}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{formatBRL(m.juros)}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{formatBRL(m.seguro)}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{m.entradaParcela > 0 ? formatBRL(m.entradaParcela) : '-'}</td>
+                      <td className="px-4 py-2 text-right font-semibold font-mono tabular-nums text-[#820AD1] dark:text-[#a44ce0]">{formatBRL(m.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -521,21 +521,21 @@ export function ObraCalculator({
                     <CardContent className="flex flex-col gap-3 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Juros de obra até a entrega</span>
-                        <span className="font-semibold tabular-nums">
+                        <span className="font-semibold font-mono tabular-nums">
                           {formatBRL(result.totalJuros + result.totalSeguro)}
                         </span>
                       </div>
                       {sobrecustoEntrada > 0 && (
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-muted-foreground">Custo extra da entrada parcelada</span>
-                          <span className="font-semibold tabular-nums">
+                          <span className="font-semibold font-mono tabular-nums">
                             {formatBRL(sobrecustoEntrada)}
                           </span>
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Entrada total (à vista + parcelas)</span>
-                        <span className="font-semibold tabular-nums">
+                        <span className="font-semibold font-mono tabular-nums">
                           {formatBRL(result.totalEntrada)}
                         </span>
                       </div>
@@ -543,7 +543,7 @@ export function ObraCalculator({
                         <span className="text-xs text-muted-foreground">
                           Custo total de comprar até a entrega
                         </span>
-                        <span className="block text-lg font-semibold tabular-nums">
+                        <span className="block text-lg font-semibold font-mono tabular-nums">
                           {formatBRL(custoTotalCompra)}
                         </span>
                       </div>
@@ -569,11 +569,11 @@ export function ObraCalculator({
                     <CardContent className="flex flex-col gap-3 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Na entrega você tem (entrada + rendimento)</span>
-                        <span className="font-semibold tabular-nums">{formatBRL(plantaInvest.entradaFinal)}</span>
+                        <span className="font-semibold font-mono tabular-nums">{formatBRL(plantaInvest.entradaFinal)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Rendimento líquido (após IR)</span>
-                        <span className="font-semibold tabular-nums">{formatBRL(plantaInvest.rendimentoLiquido)}</span>
+                        <span className="font-semibold font-mono tabular-nums">{formatBRL(plantaInvest.rendimentoLiquido)}</span>
                       </div>
                     </CardContent>
                   </Card>

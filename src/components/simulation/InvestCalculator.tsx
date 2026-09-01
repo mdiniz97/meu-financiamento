@@ -326,7 +326,7 @@ export function InvestCalculator({
                     <CardContent className="flex flex-col gap-3 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Quita a dívida em</span>
-                        <span className="font-semibold tabular-nums">
+                        <span className="font-semibold font-mono tabular-nums">
                           {c.quitaEmMeses === null
                             ? 'mais de 600 meses'
                             : `${c.quitaEmMeses} ${c.quitaEmMeses === 1 ? 'mês' : 'meses'}`}
@@ -334,14 +334,14 @@ export function InvestCalculator({
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Juros totais do contrato</span>
-                        <span className="font-semibold tabular-nums">{formatBRL(c.jurosTotais)}</span>
+                        <span className="font-semibold font-mono tabular-nums">{formatBRL(c.jurosTotais)}</span>
                       </div>
                       {c.mantemPrincipal && (
                         <div className="rounded-xl border border-[#820AD1]/40 bg-primary/[0.04] px-3 py-2">
                           <span className="text-xs text-muted-foreground">
                             No fim das contas, você ainda tem
                           </span>
-                          <span className="block text-xl font-bold tabular-nums text-[#820AD1] dark:text-[#a44ce0]">
+                          <span className="block text-xl font-bold font-mono tabular-nums text-[#820AD1] dark:text-[#a44ce0]">
                             {formatBRL(parseBRLToNumber(rf.valorDisponivel))} no bolso
                           </span>
                           <span className="text-xs text-muted-foreground">
@@ -353,7 +353,7 @@ export function InvestCalculator({
                         <span className="text-xs text-muted-foreground">
                           Economia de juros até quitar
                         </span>
-                        <span className="block text-2xl font-bold tabular-nums text-[#820AD1] dark:text-[#a44ce0]">
+                        <span className="block text-2xl font-bold font-mono tabular-nums text-[#820AD1] dark:text-[#a44ce0]">
                           {formatBRL(c.economiaJuros)}
                         </span>
                         <span className="text-xs text-muted-foreground">

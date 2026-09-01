@@ -132,7 +132,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
   return (
     <Card className="flex h-full w-full flex-col rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle role="heading" aria-level={1} className="flex items-center gap-2 text-xl">
+        <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
           Amortizador Inteligente <Sparkles className="size-5 text-[#820AD1]" />
         </CardTitle>
         <CardDescription>

@@ -37,7 +37,7 @@ function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
           <span className="text-muted-foreground">{row.label}</span>
           <span className="text-right font-mono tabular-nums">{row.price}</span>
           <span className="text-right font-mono tabular-nums">{row.sac}</span>
-          <span className="text-right font-mono font-bold tabular-nums text-primary">{row.smart}</span>
+          <span className="text-right font-mono font-bold font-mono tabular-nums text-primary">{row.smart}</span>
         </div>
       ))}
     </div>
@@ -83,16 +83,16 @@ export function DashboardTabs({
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Parcela inicial PRICE</span>
-                <span className="font-mono text-lg font-semibold tabular-nums">{parcelaInicialPrice}</span>
+                <span className="font-mono text-lg font-semibold font-mono tabular-nums">{parcelaInicialPrice}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Parcela inicial SAC</span>
-                <span className="font-mono text-lg font-semibold tabular-nums">{parcelaInicialSac}</span>
+                <span className="font-mono text-lg font-semibold font-mono tabular-nums">{parcelaInicialSac}</span>
               </div>
             </div>
             <div className="flex flex-col gap-1 border-t border-border pt-4">
               <span className="text-xs text-muted-foreground">Economia total escolhendo certo</span>
-              <span className="font-mono text-2xl font-bold tabular-nums text-emerald-600">{economiaTotal}</span>
+              <span className="font-mono text-2xl font-bold font-mono tabular-nums text-emerald-600">{economiaTotal}</span>
             </div>
           </div>
         )}

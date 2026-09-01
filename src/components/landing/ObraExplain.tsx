@@ -79,7 +79,7 @@ export function ObraExplain({ signedIn = false }: { signedIn?: boolean }) {
                 <span className="block text-xs text-muted-foreground">
                   Primeira parcela após entrega (PRICE 360m)
                 </span>
-                <span className="text-xl font-bold tabular-nums">R$ 3.518/mês</span>
+                <span className="text-xl font-bold font-mono tabular-nums">R$ 3.518/mês</span>
               </div>
             </div>
           </div>

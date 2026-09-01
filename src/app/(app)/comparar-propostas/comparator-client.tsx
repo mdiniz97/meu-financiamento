@@ -244,7 +244,7 @@ export function ComparatorClient({
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Comparar propostas</h1>
+        <h1 className="font-display text-xl font-semibold">Comparar propostas</h1>
         <p className="text-sm text-muted-foreground">
           Até 3 propostas bancárias lado a lado. Exclusivo do plano Ilimitado.
         </p>

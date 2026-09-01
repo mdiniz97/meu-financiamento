@@ -14,7 +14,7 @@ export function HistoryChart({ data }: { data: HistoryPoint[] }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Evolução dos indicadores</h3>
+        <h3 className="font-display text-sm font-semibold">Evolução dos indicadores</h3>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
           Fonte: BACEN
         </span>

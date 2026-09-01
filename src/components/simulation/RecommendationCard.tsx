@@ -29,11 +29,11 @@ export function RecommendationCard({ base, best }: Props) {
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Total pago</span>
-            <span className="text-lg font-semibold">{formatBRL(best.metrics.totalPago)}</span>
+            <span className="font-mono tabular-nums text-lg font-semibold">{formatBRL(best.metrics.totalPago)}</span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Economia total</span>
-            <span className="text-lg font-semibold text-[#820AD1]">
+            <span className="font-mono tabular-nums text-lg font-semibold text-[#820AD1]">
               {formatBRL(economy)}
             </span>
           </div>
@@ -49,7 +49,7 @@ export function RecommendationCard({ base, best }: Props) {
           <span className="text-xs text-muted-foreground">
             Sem estratégia aplicada, o cenário atual já é o mais econômico.
           </span>
-          <span className="text-lg font-semibold">{formatBRL(best.metrics.totalPago)}</span>
+          <span className="font-mono tabular-nums text-lg font-semibold">{formatBRL(best.metrics.totalPago)}</span>
         </div>
       )}
     </div>

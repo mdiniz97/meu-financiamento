@@ -44,7 +44,7 @@ export function MarketContent({
         <>
           <section aria-labelledby="juros-indicadores">
               <div className="mb-4">
-                <h2 id="juros-indicadores" className="text-xl font-semibold">
+                <h2 id="juros-indicadores" className="font-display text-xl font-semibold">
                   Indicadores do mês
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -57,7 +57,7 @@ export function MarketContent({
 
             <section aria-labelledby="juros-historico">
               <div className="mb-4">
-                <h2 id="juros-historico" className="text-xl font-semibold">
+                <h2 id="juros-historico" className="font-display text-xl font-semibold">
                   Histórico de 12 meses
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -75,7 +75,7 @@ export function MarketContent({
 
             <section aria-labelledby="juros-imobiliarios">
               <div className="mb-4">
-                <h2 id="juros-imobiliarios" className="text-xl font-semibold">
+                <h2 id="juros-imobiliarios" className="font-display text-xl font-semibold">
                   Taxas imobiliárias por instituição
                 </h2>
                 <p className="text-sm text-muted-foreground">

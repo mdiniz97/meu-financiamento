@@ -24,7 +24,7 @@ export function InterestAmortChart({ installments }: { installments: Installment
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm">
-      <h3 className="text-sm font-semibold">Juros vs Amortização (acumulado)</h3>
+      <h3 className="font-display text-sm font-semibold">Juros vs Amortização (acumulado)</h3>
       <ResponsiveContainer width="100%" height={260}>
         <AreaChart data={data}>
           <XAxis dataKey="month" tickFormatter={(m) => `m${m}`} />

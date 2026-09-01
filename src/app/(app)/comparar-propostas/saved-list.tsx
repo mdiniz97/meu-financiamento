@@ -17,7 +17,7 @@ export function SavedList({ initial }: { initial: ComparisonSummary[] }) {
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardContent className="flex flex-col gap-2 pt-6">
-        <h2 className="text-base font-semibold">Comparações salvas</h2>
+        <h2 className="font-display text-base font-semibold">Comparações salvas</h2>
         {items.map((c) => (
           <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 p-3 text-sm">
             <div className="flex flex-col">

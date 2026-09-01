@@ -7,7 +7,7 @@ const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium 
 export function InstallmentTable({ installments, height = 'h-[480px]', showAporte = true, minimal = false }: { installments: Installment[]; height?: string; showAporte?: boolean; minimal?: boolean }) {
   return (
     <div className={`${height} overflow-auto rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10`}>
-      <table className="w-full caption-bottom border-separate border-spacing-0 text-sm">
+      <table className="w-full caption-bottom border-separate border-spacing-0 font-mono tabular-nums text-sm">
         <TableHeader>
           <TableRow>
             <TableHead className={`${HEAD_BASE} sticky left-0 z-20 border-r border-border`}>

@@ -31,7 +31,7 @@ export default async function MinhasSimulacoesPage() {
       <UpgradeBanner isUnlimited={isUnlimited} expiresAt={expiresAt} sticky />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Minhas simulações</h1>
+          <h1 className="font-display text-xl font-semibold">Minhas simulações</h1>
           <p className="text-sm text-muted-foreground">
             {sims.length === 0
               ? 'Nenhuma simulação salva ainda.'

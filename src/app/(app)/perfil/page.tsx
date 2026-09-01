@@ -21,7 +21,7 @@ export default async function PerfilPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
-      <h1 className="text-xl font-semibold">Meu perfil</h1>
+      <h1 className="font-display text-xl font-semibold">Meu perfil</h1>
 
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>

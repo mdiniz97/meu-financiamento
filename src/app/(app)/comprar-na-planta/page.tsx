@@ -13,7 +13,7 @@ export default async function ComprarNaPlantaPage() {
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-4 sm:p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Comprar na planta</h1>
+        <h1 className="font-display text-xl font-semibold">Comprar na planta</h1>
         <p className="text-sm text-muted-foreground">
           Entenda o que você paga enquanto a obra não é entregue: juros de obra, seguro e a
           primeira parcela depois da entrega.

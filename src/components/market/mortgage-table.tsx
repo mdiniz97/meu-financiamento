@@ -31,7 +31,7 @@ export function MortgageTable({ institutions }: { institutions: MortgageInstitut
       </div>
       {institutions.map((institution) => (
         <div key={institution.institution} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <h3 className="border-b border-border px-4 py-3 text-sm font-semibold">
+          <h3 className="font-display border-b border-border px-4 py-3 text-sm font-semibold">
             {institution.institution}
           </h3>
           <table className="w-full text-sm">
@@ -46,10 +46,10 @@ export function MortgageTable({ institutions }: { institutions: MortgageInstitut
               {institution.products.map((product) => (
                 <tr key={product.code} className="border-t border-border/60">
                   <td className="px-4 py-2.5">{productLabel(product)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
+                  <td className="px-4 py-2.5 text-right font-mono tabular-nums">
                     {formatRate(product.rateMonth)}%
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
+                  <td className="px-4 py-2.5 text-right font-mono tabular-nums">
                     {formatRate(product.rateYear)}%
                   </td>
                 </tr>
