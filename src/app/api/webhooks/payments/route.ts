@@ -63,10 +63,16 @@ export async function GET(req: Request) {
   // tratada como entrega duplicada (que fica idempotente no fluxo POST real).
   // `idempotencyToken` é opcional e dev-only: deduplica chamadas repetidas do
   // GET fake para testes determinísticos (ver processPayment).
-  return processPayment(result, {
+  const response = await processPayment(result, {
     extendOnRepeatedProviderId: true,
     idempotencyToken: searchParams.get('idempotencyToken') ?? undefined,
   });
+  // No fake, a compra é aprovada em tela cheia: devolve o usuário ao perfil
+  // com o saldo/plano já atualizado, em vez de uma página de JSON cru.
+  if (response.status === 200) {
+    return NextResponse.redirect(new URL('/perfil', req.url));
+  }
+  return response;
 }
 
 function isUniqueViolation(e: unknown): boolean {

@@ -38,6 +38,11 @@ import { __resetFakeIdempotencyForTests } from '@/lib/payments/fake-idempotency'
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PERIOD_MS = 365 * DAY_MS;
 
+async function expectRedirect(response: Response) {
+  expect(response.status).toBe(307);
+  expect(response.headers.get('location')).toContain('/perfil');
+}
+
 const request = (userId = 'user-1', idempotencyToken?: string) => {
   const params = new URLSearchParams({ userId, packId: 'unlimited' });
   if (idempotencyToken) params.set('idempotencyToken', idempotencyToken);
@@ -121,8 +126,7 @@ describe('GET fake payment webhook security', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    await expectRedirect(response);
   });
 });
 
@@ -155,8 +159,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    await expectRedirect(response);
     const values = mocks.insertSub.mock.results[0].value.values.mock.calls[0][0];
     expect(values.providerId).toBe('fake_user-1_unlimited');
     expect(values.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
@@ -172,8 +175,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(response);
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
     expect(set.status).toBe('active');
     expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-02-01T00:00:00Z') + PERIOD_MS);
@@ -189,8 +191,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(response);
     const set = mocks.updateSub.mock.results[0].value.set.mock.calls[0][0];
     expect(set.currentPeriodEnd.getTime()).toBe(Date.parse('2026-04-01T00:00:00Z') + PERIOD_MS);
   });
@@ -210,8 +211,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, idempotent: true });
+    await expectRedirect(response);
     expect(mocks.updateSub).not.toHaveBeenCalled();
     expect(mocks.insertSub).toHaveBeenCalledTimes(1);
   });
@@ -225,8 +225,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(response);
     const setCalls = mocks.updateSub.mock.results[0].value.set.mock.calls.map(
       (call: unknown[]) => call[0]
     );
@@ -241,8 +240,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(response);
     const setCalls = mocks.updateSub.mock.results[0].value.set.mock.calls.map(
       (call: unknown[]) => call[0]
     );
@@ -275,8 +273,7 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
 
     const response = await GET(request());
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(response);
     const setCalls = mocks.updateSub.mock.results[0].value.set.mock.calls.map(
       (call: unknown[]) => call[0]
     );
@@ -305,13 +302,11 @@ describe('renovação de assinatura no webhook fake (GET)', () => {
     mocks.findSub.mockResolvedValue({ id: 'sub-1', currentPeriodEnd: new Date('2026-01-15T00:00:00Z') });
 
     const first = await GET(request('user-1', 'tok-abc'));
-    expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ ok: true, extended: true });
+    await expectRedirect(first);
     expect(mocks.updateSub).toHaveBeenCalledTimes(1);
 
     const second = await GET(request('user-1', 'tok-abc'));
-    expect(second.status).toBe(200);
-    expect(await second.json()).toEqual({ ok: true, idempotent: true });
+    await expectRedirect(second);
     expect(mocks.updateSub).toHaveBeenCalledTimes(1);
   });
 });

@@ -31,8 +31,7 @@ test('cadastro → simular (auto-save 1 crédito) → comprar créditos', async 
 
   await page.goto('/perfil');
   await page.getByRole('button', { name: /5 créditos/i }).click();
-  await expect(page).toHaveURL(/webhooks\/payments/);
-  await page.goto('/perfil');
+  await page.waitForURL(/\/perfil/);
   await expect(page.getByText('Saldo de créditos').locator('..').getByText('6', { exact: true })).toBeVisible();
 });
 
@@ -179,9 +178,6 @@ test('assinar pela landing: não logado cai no login e depois no checkout do Ili
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await page.waitForURL(/webhooks\/payments/);
-  await expect(page).toHaveURL(/packId=unlimited/);
-
-  await page.goto('/perfil');
+  await page.waitForURL(/\/perfil/);
   await expect(page.getByText('Assinatura ilimitada ativa')).toBeVisible();
 });
