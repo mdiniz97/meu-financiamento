@@ -145,6 +145,31 @@ describe('calcularJurosDeObra', () => {
     expect(r.totalEntrada).toBe(72000);
   });
 
+  it('entrada parcelada com parcela conhecida e parte à vista informada', () => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      downPaymentFinancedAmount: 0,
+      downPaymentParcela: 4500,
+      downPaymentAvista: 50000,
+      downPaymentMonths: 12,
+    });
+    expect(r.monthly[0].entradaParcela).toBe(4500);
+    // à vista 50.000 + 12 parcelas de 4.500 = 104.000 (com juros embutidos)
+    expect(r.totalEntrada).toBe(104000);
+  });
+
+  it('rejeita entrada parcelada que não cobre o total informado', () => {
+    expect(() =>
+      calcularJurosDeObra({
+        ...BASE,
+        downPaymentFinancedAmount: 0,
+        downPaymentParcela: 1000,
+        downPaymentAvista: 10000,
+        downPaymentMonths: 12,
+      })
+    ).toThrow();
+  });
+
   it('rejeita valor parcelado acima da entrada', () => {
     expect(() =>
       calcularJurosDeObra({ ...BASE, downPaymentFinancedAmount: 60001, downPaymentMonths: 12 })

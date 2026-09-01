@@ -98,12 +98,22 @@ export function ObraCalculator({
     if (!form.deliveryDate) return setError('Informe a data prevista de entrega.');
     if (!(insuranceMonthly >= 0)) return setError('Informe o seguro mensal válido.');
 
+    const entradaTotal = propertyValue * (downPaymentPct / 100);
+    const downPaymentAvista = form.financedDown ? parseBRLToNumber(form.downAvista) : 0;
     const downPaymentParcela =
       form.financedDown && form.downKnow === 'parcela'
         ? parseBRLToNumber(form.downParcela)
         : undefined;
     if (form.financedDown && form.downKnow === 'parcela' && !(downPaymentParcela! > 0))
       return setError('Informe o valor da parcela da entrada.');
+    if (
+      form.financedDown &&
+      form.downKnow === 'parcela' &&
+      downPaymentAvista + downPaymentParcela! * Number(form.downMonths) < entradaTotal - 1
+    )
+      return setError(
+        `Entrada à vista + parcelas deve cobrir a entrada de ${formatBRL(entradaTotal)}.`
+      );
     const downPaymentFinancedAmount = form.financedDown
       ? parseBRLToNumber(form.downAmount)
       : 0;
@@ -113,8 +123,6 @@ export function ObraCalculator({
       !(downPaymentFinancedAmount > 0)
     )
       return setError('Informe o valor parcelado da entrada.');
-    const downPaymentAvista = form.financedDown ? parseBRLToNumber(form.downAvista) : 0;
-    const entradaTotal = propertyValue * (downPaymentPct / 100);
     if (
       form.financedDown &&
       form.downKnow === 'calcular' &&
@@ -156,6 +164,7 @@ export function ObraCalculator({
         downPaymentMonths,
         downPaymentAnnualRate,
         downPaymentParcela,
+        downPaymentAvista,
       });
       setResult(obraResult);
       setResultForm(form);
@@ -292,6 +301,14 @@ export function ObraCalculator({
                 <div className="flex flex-wrap items-end gap-4">
                   {form.downKnow === 'parcela' ? (
                     <>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Entrada à vista (R$)</span>
+                        <MoneyInput
+                          aria-label="Entrada à vista (R$)"
+                          value={parseBRLToNumber(form.downAvista)}
+                          onValid={(v) => set('downAvista', numberToBRLInput(v))}
+                        />
+                      </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">Valor da parcela (R$)</span>
                         <MoneyInput

@@ -9,6 +9,7 @@ export interface ObraInput {
   downPaymentMonths?: number;
   downPaymentAnnualRate?: number;
   downPaymentParcela?: number;
+  downPaymentAvista?: number;
 }
 
 export interface ObraMonth {
@@ -74,13 +75,19 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
         : financedAmount / monthsEntrada;
     entradaParceladaTotal = entradaParcela * monthsEntrada;
   }
+  const avistaInformado =
+    input.downPaymentParcela && input.downPaymentParcela > 0 && input.downPaymentAvista !== undefined;
+  if (avistaInformado && input.downPaymentAvista! + entradaParceladaTotal < entrada - 1)
+    throw new Error('Entrada à vista + parcelas não cobre a entrada.');
   // O que não cabe nas parcelas é pago à vista na assinatura. No modo "parcela
-  // conhecida", o valor principal parcelado é desconhecido: se as parcelas
-  // somam menos que a entrada, o restante é à vista (total = entrada).
+  // conhecida" sem à vista informado, se as parcelas somam menos que a
+  // entrada, o restante é à vista (total = entrada).
   const totalEntrada =
-    input.downPaymentParcela && input.downPaymentParcela > 0
-      ? Math.max(entrada, entradaParceladaTotal)
-      : (entrada - financedAmount) + entradaParceladaTotal;
+    avistaInformado
+      ? input.downPaymentAvista! + entradaParceladaTotal
+      : input.downPaymentParcela && input.downPaymentParcela > 0
+        ? Math.max(entrada, entradaParceladaTotal)
+        : (entrada - financedAmount) + entradaParceladaTotal;
 
   const monthly: ObraMonth[] = [];
   for (let m = 1; m <= input.monthsUntilDelivery; m += 1) {

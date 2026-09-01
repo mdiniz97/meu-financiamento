@@ -101,6 +101,22 @@ test('toggle Financiei a entrada abre campos e inclui a entrada no resultado', a
   await expect(page.getByText('Primeira parcela após entrega (SAC 360m)', { exact: true })).toBeVisible();
 });
 
+test('modo sei o valor da parcela aceita parte à vista e calcula', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  await cadastrar(page);
+  await page.goto('/comprar-na-planta');
+
+  await page.getByRole('switch', { name: /financiei a entrada/i }).click();
+  await page.getByRole('radio', { name: /sei o valor da parcela/i }).click();
+  await expect(page.getByRole('textbox', { name: 'Entrada à vista (R$)' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Valor da parcela da entrada (R$)' })).toBeVisible();
+
+  await page.getByRole('textbox', { name: 'Entrada à vista (R$)' }).fill('5000000');
+  await page.getByRole('textbox', { name: 'Valor da parcela da entrada (R$)' }).fill('450000');
+  await page.getByRole('button', { name: /calcular juros de obra/i }).click();
+  await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
+});
+
 test('landing tem seção educativa de comprar na planta com CTA', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /como funciona comprar na planta/i })).toBeVisible();
