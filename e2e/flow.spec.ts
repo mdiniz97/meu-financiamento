@@ -33,6 +33,10 @@ test('cadastro → simular (auto-save 1 crédito) → comprar créditos', async 
   await page.getByRole('button', { name: /5 créditos/i }).click();
   await page.waitForURL(/\/perfil/);
   await expect(page.getByText('Saldo de créditos').locator('..').getByText('6', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: /5 créditos/i }).click();
+  await page.waitForURL(/\/perfil/);
+  await expect(page.getByText('Saldo de créditos').locator('..').getByText('11', { exact: true })).toBeVisible();
 });
 
 test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {

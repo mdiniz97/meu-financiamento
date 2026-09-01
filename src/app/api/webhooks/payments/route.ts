@@ -66,6 +66,7 @@ export async function GET(req: Request) {
   const response = await processPayment(result, {
     extendOnRepeatedProviderId: true,
     idempotencyToken: searchParams.get('idempotencyToken') ?? undefined,
+    fakeCreditsAlwaysGrant: true,
   });
   // No fake, a compra é aprovada em tela cheia: devolve o usuário ao perfil
   // com o saldo/plano já atualizado, em vez de uma página de JSON cru.
@@ -159,7 +160,11 @@ async function extendSubscription(
 
 async function processPayment(
   result: { userId: string; packId: string; providerId: string },
-  opts: { extendOnRepeatedProviderId?: boolean; idempotencyToken?: string } = {}
+  opts: {
+    extendOnRepeatedProviderId?: boolean;
+    idempotencyToken?: string;
+    fakeCreditsAlwaysGrant?: boolean;
+  } = {}
 ) {
   const pack = await db.query.packs.findFirst({
     where: eq(schema.packs.id, result.packId),
@@ -262,23 +267,24 @@ async function processPayment(
   }
 
   if (pack.credits && pack.credits > 0) {
-    // NOTA (fix 4/5): recompra de CRÉDITOS continua FORA do escopo. O
-    // providerId estável do fake (`fake_<userId>_<creditsN>`) gera description
-    // idêntica no ledger, então repetir a compra devolve idempotente sem
-    // conceder créditos de novo — mesmo padrão do bug de assinatura corrigido
-    // acima. TODO: decidir se recompra de créditos deve conceder novamente e,
-    // se sim, adotar o mesmo fluxo CAS/extensão do subscription (requer
-    // repensar o ledger: descrição atual não distingue compras sequenciais).
-    const description = `Compra créditos (providerId ${result.providerId})`;
-    const alreadyProcessed = await db.query.creditLedger.findFirst({
-      where: and(
-        eq(schema.creditLedger.userId, result.userId),
-        eq(schema.creditLedger.kind, LEDGER_KIND),
-        eq(schema.creditLedger.description, description)
-      ),
-    });
-    if (alreadyProcessed) {
-      return idempotent();
+    // No fake, cada clique do usuário é uma compra nova: description única por
+    // chamada (com timestamp) para o ledger nunca travar a recompra como
+    // idempotente. Em produção (POST), o providerId é único por pagamento e a
+    // description estável garante a idempotência contra webhooks duplicados.
+    const description = opts.fakeCreditsAlwaysGrant
+      ? `Compra créditos (providerId ${result.providerId}) #${crypto.randomUUID()}`
+      : `Compra créditos (providerId ${result.providerId})`;
+    if (!opts.fakeCreditsAlwaysGrant) {
+      const alreadyProcessed = await db.query.creditLedger.findFirst({
+        where: and(
+          eq(schema.creditLedger.userId, result.userId),
+          eq(schema.creditLedger.kind, LEDGER_KIND),
+          eq(schema.creditLedger.description, description)
+        ),
+      });
+      if (alreadyProcessed) {
+        return idempotent();
+      }
     }
     try {
       await addCredits(result.userId, pack.credits, LEDGER_KIND, description);

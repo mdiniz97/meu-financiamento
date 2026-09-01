@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   findSub: vi.fn(),
   insertSub: vi.fn(),
   updateSub: vi.fn(),
+  addCredits: vi.fn(),
 }));
 
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
@@ -30,7 +31,7 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/payments', () => ({
   getPaymentProvider: () => ({ verifyWebhook: mocks.verifyWebhook }),
 }));
-vi.mock('@/lib/credits', () => ({ addCredits: vi.fn() }));
+vi.mock('@/lib/credits', () => ({ addCredits: mocks.addCredits }));
 
 import { GET, POST } from './route';
 import { __resetFakeIdempotencyForTests } from '@/lib/payments/fake-idempotency';
@@ -127,6 +128,22 @@ describe('GET fake payment webhook security', () => {
     const response = await GET(request());
 
     await expectRedirect(response);
+  });
+
+  it('recompra de créditos no fake concede novamente a cada clique', async () => {
+    mocks.auth.mockResolvedValue({ userId: 'user-1' });
+    mocks.verifyWebhook.mockResolvedValue({
+      userId: 'user-1', packId: 'credits5', providerId: 'fake_user-1_credits5',
+    });
+    mocks.findPack.mockResolvedValue({ id: 'credits5', isSubscription: false, credits: 5 });
+
+    await expectRedirect(await GET(request()));
+    await expectRedirect(await GET(request()));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(2);
+    const descriptions = mocks.addCredits.mock.calls.map((call) => call[3]);
+    expect(descriptions[0]).not.toBe(descriptions[1]);
+    expect(descriptions.every((d) => d.includes('credits5'))).toBe(true);
   });
 });
 
