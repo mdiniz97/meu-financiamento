@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { Coins, Hammer, Info, TrendingUp } from 'lucide-react';
 import { calcularJurosDeObra, type ObraResult } from '@/lib/finance/obra';
 import { compararPlantaOuInvestir, type PlantaInvestResult } from '@/lib/finance/invest-ou-amortizar';
@@ -16,7 +15,7 @@ import { RateField } from '@/components/ui/rate-field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
-import { consumeCalcCredit } from '@/app/(app)/comprar-na-planta/actions';
+import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
   propertyValue: '500000,00',
@@ -52,7 +51,6 @@ export function ObraCalculator({
   isUnlimited: boolean;
   selicAnnual: number | null;
 }) {
-  const router = useRouter();
   const [form, setForm] = useState({
     ...DEFAULTS,
     deliveryDate: defaultDeliveryDate(),
@@ -70,6 +68,37 @@ export function ObraCalculator({
     ? Math.max(0, result.totalEntrada - (parseBRLToNumber(rf.propertyValue) * parseDecimal(rf.downPaymentPct)) / 100)
     : 0;
   const custoTotalCompra = result ? result.totalJuros + result.totalSeguro + sobrecustoEntrada : 0;
+
+  // Auto-save: cada cálculo válido é salvo automaticamente em "Minhas simulações"
+  // (1 crédito para quem não é Ilimitado). O fingerprint na sessionStorage evita
+  // duplicar em reload; um novo cálculo (form diferente) salva de novo.
+  const obraSavedFpRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!result || !resultForm) return;
+    if (obraSavedFpRef.current === null) {
+      obraSavedFpRef.current =
+        typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem('obra-saved-fp');
+    }
+    const fp = JSON.stringify(resultForm);
+    if (obraSavedFpRef.current === fp) return;
+    obraSavedFpRef.current = fp;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('obra-saved-fp', fp);
+    }
+    (async () => {
+      const res = await saveToolSimulation({
+        name: `Juros de obra ${new Date().toLocaleDateString('pt-BR')}`,
+        system: 'Comprar na planta',
+        payload: { input: resultForm },
+        result: { obra: result, planta: plantaInvest },
+        charge: true,
+      });
+      if ('error' in res) {
+        setUpgradeOpen(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   function monthDate(m: number): string {
     const d = new Date();
@@ -148,11 +177,6 @@ export function ObraCalculator({
 
     setBusy(true);
     try {
-      const res = await consumeCalcCredit('Juros de obra');
-      if (!res.ok) {
-        setUpgradeOpen(true);
-        return;
-      }
       const obraResult = calcularJurosDeObra({
         propertyValue,
         downPaymentPct,
@@ -179,8 +203,6 @@ export function ObraCalculator({
           selicAnual: (selicAnnual ?? 0) / 100,
         })
       );
-      // Atualiza o saldo de créditos exibido na sidebar/layout.
-      router.refresh();
     } catch {
       setError('Erro ao calcular. Tente novamente.');
     } finally {

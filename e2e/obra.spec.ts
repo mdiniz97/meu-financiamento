@@ -48,6 +48,24 @@ test('página de juros de obra mostra disclaimers e calcula com 1 crédito', asy
 
   await page.goto('/perfil');
   await expect(page.getByText('Saldo de créditos').locator('..').getByText('1', { exact: true })).toBeVisible();
+
+  await page.goto('/minhas-simulacoes');
+  await expect(page.getByText(/Juros de obra/).first()).toBeVisible();
+});
+
+test('portabilidade calculada aparece em minhas simulações', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  const email = await cadastrar(page);
+  const uid = execSync(
+    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+  ).toString().trim();
+  await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
+  await page.goto('/portabilidade');
+  await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
+  await expect(page.getByText(/vale a pena|não vale a pena/i).first()).toBeVisible();
+
+  await page.goto('/minhas-simulacoes');
+  await expect(page.getByText('Portabilidade', { exact: true }).first()).toBeVisible();
 });
 
 test('sem créditos abre o modal de upgrade', async ({ page }) => {
@@ -56,12 +74,16 @@ test('sem créditos abre o modal de upgrade', async ({ page }) => {
   await page.goto('/comprar-na-planta');
 
   const calcular = page.getByRole('button', { name: /calcular juros de obra/i });
+  const seguro = page.getByRole('textbox', { name: 'Seguro de obra (R$/mês)' });
+
   await calcular.click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
   await page.getByRole('button', { name: /nova simulação/i }).click();
+  await seguro.fill('100000');
   await calcular.click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
   await page.getByRole('button', { name: /nova simulação/i }).click();
+  await seguro.fill('200000');
   await calcular.click();
   await expect(page.getByRole('dialog')).toContainText('Recurso exclusivo do plano Ilimitado');
   await expect(page.getByRole('dialog')).toContainText('5 créditos');

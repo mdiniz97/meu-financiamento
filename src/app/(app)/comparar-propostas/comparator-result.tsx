@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Download, Save } from 'lucide-react';
+import { ArrowRight, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -109,11 +109,9 @@ function SmartPlanCard({ o }: { o: ProposalOutcome }) {
 export function ComparatorResultView({
   result,
   input,
-  onSave,
 }: {
   result: ComparatorResult;
   input: ComparatorInput;
-  onSave: () => void;
 }) {
   const { ranked, best, smartRanked, outcomes } = result.v1;
   if (!best) return null;
@@ -249,9 +247,6 @@ export function ComparatorResultView({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={onSave}>
-              <Save className="size-4" /> Salvar comparação
-            </Button>
             <Button
               type="button"
               variant="outline"

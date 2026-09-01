@@ -57,6 +57,7 @@ export async function saveComparison(input: ComparatorInput, name: string): Prom
       })
       .returning();
     revalidatePath('/comparar-propostas');
+    revalidatePath('/minhas-simulacoes');
     return { id: row.id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erro ao salvar' };
@@ -137,16 +138,16 @@ export async function recalculateComparison(
   }
 }
 
-export async function deleteComparison(id: string): Promise<{ ok: true } | { error: string }> {
+export async function deleteComparison(id: string): Promise<void> {
   try {
     const session = await auth();
-    if (!session?.userId) return { error: 'Não autenticado' };
+    if (!session?.userId) return;
     await db
       .delete(schema.proposalComparisons)
       .where(and(eq(schema.proposalComparisons.id, id), eq(schema.proposalComparisons.userId, session.userId)));
     revalidatePath('/comparar-propostas');
-    return { ok: true };
+    revalidatePath('/minhas-simulacoes');
   } catch {
-    return { error: 'Erro ao excluir' };
+    // exclusão silenciosa em caso de erro de sessão/rede
   }
 }

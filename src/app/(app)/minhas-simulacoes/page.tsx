@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { deleteSimulation, listSimulations } from '../simulacao/actions';
+import { deleteComparison, listComparisons } from '../comparar-propostas/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UpgradeBanner } from '@/components/upgrade-banner';
+import { Countdown } from '@/components/countdown';
 import { parseSimulationJson } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
 
@@ -16,26 +18,115 @@ function formatDate(d: Date): string {
 
 const FREE_RETENTION_MS = 6 * 60 * 60 * 1000;
 
+type Sim = {
+  id: string;
+  name: string;
+  system: string;
+  payload: unknown;
+  result: unknown;
+  createdAt: Date;
+};
+
+function SimulationCard({ sim, isUnlimited }: { sim: Sim; isUnlimited: boolean }) {
+  const payload = parseSimulationJson<{ input?: { system?: string; principal?: number } }>(
+    sim.payload
+  );
+  const result = parseSimulationJson<{
+    price?: { metrics?: { totalPago?: number } };
+    sac?: { metrics?: { totalPago?: number } };
+  }>(sim.result);
+  const toolRoute =
+    sim.system === 'Portabilidade'
+      ? '/portabilidade'
+      : sim.system === 'Comprar na planta'
+        ? '/comprar-na-planta'
+        : null;
+
+  return (
+    <Card className="flex flex-col gap-3 rounded-2xl shadow-sm">
+      <CardHeader className="gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="secondary" className="text-xs">
+            {sim.system}
+          </Badge>
+          <span className="text-xs text-muted-foreground">{formatDate(sim.createdAt)}</span>
+        </div>
+        <CardTitle className="text-sm">{sim.name}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {toolRoute === null && payload?.input?.principal != null && (
+          <p className="text-xs text-muted-foreground">
+            Valor financiado {formatBRL(payload.input.principal)}
+          </p>
+        )}
+        {toolRoute === null && (
+          <div className="flex flex-col gap-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total pago PRICE</span>
+              <span className="font-mono tabular-nums font-medium">
+                {formatBRL(result?.price?.metrics?.totalPago ?? 0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total pago SAC</span>
+              <span className="font-mono tabular-nums font-medium">
+                {formatBRL(result?.sac?.metrics?.totalPago ?? 0)}
+              </span>
+            </div>
+          </div>
+        )}
+        {toolRoute !== null && (
+          <p className="text-xs text-muted-foreground">
+            {sim.system === 'Portabilidade'
+              ? 'Comparação de portabilidade.'
+              : 'Simulação de juros de obra.'}
+          </p>
+        )}
+        {!isUnlimited && (
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+            <span className="text-xs text-muted-foreground">Salva por 6 horas</span>
+            <Countdown expiresAt={sim.createdAt.getTime() + FREE_RETENTION_MS} />
+          </div>
+        )}
+      </CardContent>
+      <div className="mt-auto flex items-center justify-between gap-2 px-4 pb-4">
+        <Button size="sm" nativeButton={false} render={<Link href={toolRoute ?? `/simulacao?id=${sim.id}`} />}>
+          Abrir
+        </Button>
+        <form action={deleteSimulation.bind(null, sim.id)}>
+          <Button type="submit" size="sm" variant="destructive">
+            Remover
+          </Button>
+        </form>
+      </div>
+    </Card>
+  );
+}
+
 export default async function MinhasSimulacoesPage() {
   const session = await auth();
   if (!session?.userId) redirect('/login');
 
   const { isUnlimited } = await getCreditBalance(session.userId);
   const sims = await listSimulations();
+  const comparisons = await listComparisons();
 
-  const oldest = sims[sims.length - 1];
-  const expiresAt = isUnlimited || !oldest ? null : oldest.createdAt.getTime() + FREE_RETENTION_MS;
+  const normais = sims.filter(
+    (s) => s.system !== 'Portabilidade' && s.system !== 'Comprar na planta'
+  );
+  const portabilidades = sims.filter((s) => s.system === 'Portabilidade');
+  const obras = sims.filter((s) => s.system === 'Comprar na planta');
 
   return (
     <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
-      <UpgradeBanner isUnlimited={isUnlimited} expiresAt={expiresAt} sticky />
+      <UpgradeBanner isUnlimited={isUnlimited} sticky />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">Minhas simulações</h1>
           <p className="text-sm text-muted-foreground">
             {sims.length === 0
               ? 'Nenhuma simulação salva ainda.'
-              : `${sims.length} simulação${sims.length === 1 ? '' : 'ões'} salva${sims.length === 1 ? '' : 's'}`}
+              : `${sims.length} item${sims.length === 1 ? '' : 's'} salvo${sims.length === 1 ? '' : 's'}`}
           </p>
         </div>
         <Button size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
@@ -43,74 +134,84 @@ export default async function MinhasSimulacoesPage() {
         </Button>
       </div>
 
-      {sims.length === 0 ? (
-        <Card className="rounded-2xl p-10 text-center shadow-sm">
-          <p className="text-muted-foreground">
-            Simule um financiamento e salve para comparar depois.
-          </p>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sims.map((sim) => {
-            const payload = parseSimulationJson<{ input?: { system?: string; principal?: number } }>(
-              sim.payload
-            );
-            const result = parseSimulationJson<{
-              price?: { metrics?: { totalPago?: number } };
-              sac?: { metrics?: { totalPago?: number } };
-            }>(sim.result);
-            return (
-              <Card key={sim.id} className="flex flex-col gap-3 rounded-2xl shadow-sm">
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg font-semibold">Simulações</h2>
+        {normais.length === 0 ? (
+          <Card className="rounded-2xl p-10 text-center shadow-sm">
+            <p className="text-muted-foreground">
+              Simule um financiamento e salve para comparar depois.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {normais.map((sim) => (
+              <SimulationCard key={sim.id} sim={sim} isUnlimited={isUnlimited} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {portabilidades.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold">Portabilidade</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {portabilidades.map((sim) => (
+              <SimulationCard key={sim.id} sim={sim} isUnlimited={isUnlimited} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {obras.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold">Comprar na planta</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {obras.map((sim) => (
+              <SimulationCard key={sim.id} sim={sim} isUnlimited={isUnlimited} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {comparisons.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold">Comparações de propostas</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {comparisons.map((c) => (
+              <Card key={c.id} className="flex flex-col gap-3 rounded-2xl shadow-sm">
                 <CardHeader className="gap-1">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {sim.system}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(sim.createdAt)}
-                    </span>
+                    <Badge variant="secondary" className="text-xs">Comparação</Badge>
+                    <span className="text-xs text-muted-foreground">{formatDate(c.createdAt)}</span>
                   </div>
-                  <CardTitle className="text-sm">{sim.name}</CardTitle>
+                  <CardTitle className="text-sm">{c.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
-                  {payload?.input?.principal != null && (
-                    <p className="text-xs text-muted-foreground">
-                      Valor financiado {formatBRL(payload.input.principal)}
-                    </p>
-                  )}
-                  <div className="flex flex-col gap-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total pago PRICE</span>
-                      <span className="font-medium">
-                        {formatBRL(result?.price?.metrics?.totalPago ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total pago SAC</span>
-                      <span className="font-medium">
-                        {formatBRL(result?.sac?.metrics?.totalPago ?? 0)}
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Melhor proposta: {c.bestBank ?? 'não calculada'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Salva automaticamente, disponível enquanto você for assinante.
+                  </p>
                 </CardContent>
                 <div className="mt-auto flex items-center justify-between gap-2 px-4 pb-4">
                   <Button
                     size="sm"
                     nativeButton={false}
-                    render={<Link href={`/simulacao?id=${sim.id}`} />}
+                    render={<Link href={`/comparar-propostas?id=${c.id}`} />}
                   >
                     Abrir
                   </Button>
-                  <form action={deleteSimulation.bind(null, sim.id)}>
+                  <form action={deleteComparison.bind(null, c.id)}>
                     <Button type="submit" size="sm" variant="destructive">
                       Remover
                     </Button>
                   </form>
                 </div>
               </Card>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

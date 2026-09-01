@@ -72,12 +72,11 @@ test('ilimitado compara 2 propostas, adiciona 3ª, vê ranking + alerta CET, sal
   await expect(page.getByText(/custo total da aquisição/i)).toBeVisible();
   await expect(page.getByText(/alerta de cet/i)).toBeVisible();
   await expect(page.getByText(/amortizador inteligente/i).first()).toBeVisible();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeVisible({ timeout: 15000 });
 
-  await page.getByRole('button', { name: /salvar comparação/i }).click();
-  await expect(page.getByText(/comparações salvas/i)).toBeVisible();
+  await page.goto('/minhas-simulacoes');
   await expect(page.getByText(/caixa vs itaú/i)).toBeVisible();
-
-  await page.getByRole('button', { name: 'Abrir', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir', exact: true }).first().click();
   await page.waitForURL(/id=/);
   await page.reload();
   await expect(page.getByText(/melhor proposta/i)).toBeVisible();
@@ -112,8 +111,9 @@ test('preserva taxas nominal e mensal ao salvar, reabrir e transferir canônico'
 
   await page.getByRole('button', { name: /comparar propostas/i }).click();
   await expect(page.getByText(/melhor proposta/i)).toBeVisible();
-  await page.getByRole('button', { name: /salvar comparação/i }).click();
-  await page.getByRole('button', { name: 'Abrir', exact: true }).click();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeVisible({ timeout: 15000 });
+  await page.goto('/minhas-simulacoes');
+  await page.getByRole('button', { name: 'Abrir', exact: true }).first().click();
   await page.waitForURL(/id=/);
   await page.reload();
 
@@ -148,8 +148,9 @@ test('preserva principal manual ao comparar, salvar, reabrir, gerar PDF e transf
 
   await page.getByRole('button', { name: /comparar propostas/i }).click();
   await expect(page.getByText(/melhor proposta: caixa/i)).toBeVisible();
-  await page.getByRole('button', { name: /salvar comparação/i }).click();
-  await page.getByRole('button', { name: 'Abrir', exact: true }).click();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeVisible({ timeout: 15000 });
+  await page.goto('/minhas-simulacoes');
+  await page.getByRole('button', { name: 'Abrir', exact: true }).first().click();
   await page.waitForURL(/id=/);
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Valor financiado (R$)' }).first()).toHaveValue(/^R\$\s610\.000,00$/);
@@ -187,13 +188,12 @@ test('tentativa inválida não mantém resultado nem permite salvar input novo',
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
   await page.getByRole('button', { name: /comparar propostas/i }).click();
-  await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeVisible();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('textbox', { name: 'Prazo (meses)' }).first().fill('0');
-  await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeHidden();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeHidden();
   await page.getByRole('button', { name: /comparar propostas/i }).click();
   await expect(page.getByText(/prazo deve ser inteiro entre 1 e 600/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeHidden();
   await expect(page.getByText(/melhor proposta:/i)).toBeHidden();
 });
 
@@ -239,15 +239,14 @@ test('sintaxe inválida de prazo, CET e TR remove resultado e recupera', async (
   for (const item of cases) {
     await test.step(item.name, async () => {
       await page.getByRole('button', { name: /comparar propostas/i }).click();
-      await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeVisible();
+      await expect(page.getByText(/melhor proposta:/i)).toBeVisible();
       await item.field.fill('-');
-      await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeHidden();
       await expect(page.getByRole('button', { name: /comparar propostas/i })).toBeDisabled();
       await expect(page.getByText(/melhor proposta:/i)).toBeHidden();
       await item.field.fill(item.valid);
       await expect(page.getByRole('button', { name: /comparar propostas/i })).toBeEnabled();
       await page.getByRole('button', { name: /comparar propostas/i }).click();
-      await expect(page.getByRole('button', { name: /salvar comparação/i })).toBeVisible();
+      await expect(page.getByText(/melhor proposta:/i)).toBeVisible();
     });
   }
 });
@@ -370,10 +369,9 @@ test('após carregar comparação salva reutiliza primeiro ID livre ao remover p
   await page.getByRole('button', { name: /adicionar terceira proposta/i }).click();
   await preencherProposta(page, 2, 'Santander', '27000000');
   await page.getByRole('button', { name: /comparar propostas/i }).click();
-  await page.getByRole('button', { name: /salvar comparação/i }).click();
-  await expect(page.getByText('Comparação salva.')).toBeVisible();
-  await page.reload();
-  await page.getByRole('button', { name: 'Abrir', exact: true }).click();
+  await expect(page.getByText(/comparação salva automaticamente/i)).toBeVisible({ timeout: 15000 });
+  await page.goto('/minhas-simulacoes');
+  await page.getByRole('button', { name: 'Abrir', exact: true }).first().click();
   await page.waitForURL(/id=/);
   await page.reload();
 

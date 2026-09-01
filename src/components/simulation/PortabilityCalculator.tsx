@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, Sparkles, Lock } from 'lucide-react';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
+import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 import {
   comparePortability,
   portabilityBreakEven,
@@ -81,6 +82,34 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
     setF((p) => ({ ...p, [k]: v, smartResult: null }));
     if (result !== null) setResultDirty(true);
   };
+
+  // Auto-save: cada comparação calculada é salva automaticamente em
+  // "Minhas simulações" (recurso Ilimitado, sem custo). O fingerprint evita
+  // duplicar em reload; recalcular com valores diferentes salva de novo.
+  const portSavedFpRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!result) return;
+    if (portSavedFpRef.current === null) {
+      portSavedFpRef.current =
+        typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem('portability-saved-fp');
+    }
+    const fp = JSON.stringify({ f, result: result.economiaLiquida });
+    if (portSavedFpRef.current === fp) return;
+    portSavedFpRef.current = fp;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('portability-saved-fp', fp);
+    }
+    (async () => {
+      await saveToolSimulation({
+        name: `Portabilidade ${new Date().toLocaleDateString('pt-BR')}`,
+        system: 'Portabilidade',
+        payload: { form: f },
+        result,
+        charge: false,
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   const setSmart = (smartResult: SmartBreakEven | null) => setF((p) => ({ ...p, smartResult }));
 

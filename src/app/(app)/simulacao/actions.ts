@@ -125,3 +125,55 @@ export async function deleteSimulation(id: string) {
     .where(and(eq(schema.simulations.id, id), eq(schema.simulations.userId, session.userId)));
   revalidatePath('/minhas-simulacoes');
 }
+
+export async function saveToolSimulation(input: {
+  name: string;
+  system: string;
+  payload: unknown;
+  result: unknown;
+  charge: boolean;
+}): Promise<SaveResult> {
+  const session = await auth();
+  if (!session?.userId) throw new Error('Não autenticado');
+  const { name, system, payload, result, charge } = input;
+
+  const savedId = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${session.userId} FOR UPDATE`);
+    const [bal] = await tx
+      .select({
+        sum: sql<number>`coalesce(sum(${schema.creditLedger.amount}), 0)::int`,
+      })
+      .from(schema.creditLedger)
+      .where(eq(schema.creditLedger.userId, session.userId));
+    const sub = await tx.query.subscriptions.findFirst({
+      where: and(
+        eq(schema.subscriptions.userId, session.userId),
+        eq(schema.subscriptions.status, 'active'),
+        gt(schema.subscriptions.currentPeriodEnd, new Date())
+      ),
+    });
+    const unlimited = Boolean(sub);
+    if (charge && !unlimited) {
+      if (bal.sum < 1) return null;
+      await tx
+        .insert(schema.creditLedger)
+        .values({ userId: session.userId, amount: -1, kind: 'spend', description: system });
+    }
+    const [row] = await tx
+      .insert(schema.simulations)
+      .values({
+        userId: session.userId,
+        name,
+        payload,
+        result,
+        system,
+        creditsSpent: charge && !unlimited ? 1 : 0,
+      })
+      .returning();
+    return row.id;
+  });
+
+  if (savedId == null) return { error: 'Créditos insuficientes' };
+  revalidatePath('/minhas-simulacoes');
+  return { id: savedId };
+}

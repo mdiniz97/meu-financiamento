@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +14,7 @@ import { numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { ProposalCard } from './proposal-card';
 import { normalizeRate, type RateKind } from '@/lib/finance/rates';
 import { ComparatorResultView } from './comparator-result';
-import { SavedList } from './saved-list';
-import { saveComparison, type ComparisonSummary } from './actions';
+import { saveComparison } from './actions';
 import { nextProposalId } from './proposal-id';
 
 export interface RawProposal {
@@ -129,14 +127,11 @@ function rawToInput(proposals: RawProposal[], budget: string): ComparatorInput {
 
 export function ComparatorClient({
   locked,
-  initialComparisons,
   saved,
 }: {
   locked: boolean;
-  initialComparisons: ComparisonSummary[];
   saved: { input: ComparatorInput; result: ComparatorResult; name: string; resultEngineVersion: string; storedEngineVersion: string; recalculated: boolean } | null;
 }) {
-  const router = useRouter();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [proposals, setProposals] = useState<RawProposal[]>(() => {
     if (saved) {
@@ -177,6 +172,41 @@ export function ComparatorClient({
   };
 
   const input = useMemo(() => rawToInput(proposals, budget), [proposals, budget]);
+
+  // Auto-save: cada comparação válida é salva automaticamente uma vez por input.
+  // A sessionStorage guarda o fingerprint do último input salvo para não duplicar
+  // em reload; um novo cálculo (input diferente) salva de novo.
+  const savedFpRef = useRef<string | null>(null);
+  const resultRef = useRef(result);
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
+  useEffect(() => {
+    if (!result) return;
+    if (savedFpRef.current === null) {
+      savedFpRef.current =
+        typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem('comparison-saved-fp');
+    }
+    const fp = JSON.stringify(input);
+    if (savedFpRef.current === fp) return;
+    savedFpRef.current = fp;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('comparison-saved-fp', fp);
+    }
+    (async () => {
+      const res = await saveComparison(
+        input,
+        proposals.map((p) => p.bank).filter(Boolean).join(' vs ')
+      );
+      if (resultRef.current !== result) return;
+      if ('error' in res) {
+        setSaveMsg(res.error);
+        return;
+      }
+      setSaveMsg('Comparação salva automaticamente.');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   if (locked) {
     return (
@@ -230,17 +260,6 @@ export function ComparatorClient({
     setResult(computeComparator(input));
   }
 
-  async function salvar() {
-    if (!result) return;
-    const res = await saveComparison(input, proposals.map((p) => p.bank).filter(Boolean).join(' vs '));
-    if ('error' in res) {
-      setSaveMsg(res.error);
-      return;
-    }
-    setSaveMsg('Comparação salva.');
-    router.refresh();
-  }
-
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-6">
       <div className="flex flex-col gap-1">
@@ -278,6 +297,7 @@ export function ComparatorClient({
                   setInvalidFields(next);
                   if (!valid) {
                     setResult(null);
+                    setSaveMsg('');
                     setGlobalError('Corrija os campos numéricos inválidos para comparar.');
                     setErrors((current) => ({ ...current, [p.id]: `${NUMERIC_FIELD_LABELS[field]}: informe um número válido.` }));
                   } else if (!Object.keys(next).some((invalidKey) => invalidKey.startsWith(`${p.id}:`))) {
@@ -332,9 +352,7 @@ export function ComparatorClient({
         </CardContent>
       </Card>
 
-      {result && <ComparatorResultView result={result} input={input} onSave={salvar} />}
-
-      <SavedList initial={initialComparisons} />
+      {result && <ComparatorResultView result={result} input={input} />}
     </div>
   );
 }

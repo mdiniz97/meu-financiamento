@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { ComparatorClient } from './comparator-client';
-import { listComparisons, loadComparison } from './actions';
+import { loadComparison } from './actions';
 
 export default async function CompararPropostasPage({
   searchParams,
@@ -14,14 +14,8 @@ export default async function CompararPropostasPage({
   if (!session?.userId) redirect('/login');
   const { isUnlimited } = await getCreditBalance(session.userId);
   if (!isUnlimited) {
-    return <ComparatorClient locked initialComparisons={[]} saved={null} />;
+    return <ComparatorClient locked saved={null} />;
   }
   const saved = typeof id === 'string' && id ? await loadComparison(id) : null;
-  return (
-    <ComparatorClient
-      locked={false}
-      initialComparisons={await listComparisons()}
-      saved={saved}
-    />
-  );
+  return <ComparatorClient locked={false} saved={saved} />;
 }
