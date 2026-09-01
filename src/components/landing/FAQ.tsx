@@ -27,8 +27,12 @@ const faqs = [
     a: "Portabilidade é trocar o financiamento de banco por uma taxa menor. O simulador compara manter o contrato atual com portar para a nova taxa, mostra a economia total, a diferença de parcela e o mês em que os custos da portabilidade se pagam.",
   },
   {
+    q: "Vale mais investir ou amortizar o financiamento?",
+    a: "Depende das taxas: amortizar é retorno garantido da taxa do seu contrato; investir rende a Selic menos o Imposto de Renda. Se a Selic líquida superar a taxa do financiamento, investir tende a valer mais, e a calculadora mostra o mês em que uma opção passa a superar a outra.",
+  },
+  {
     q: "O que é juros de obra?",
-    a: "Quem compra na planta paga, durante a construção, apenas os juros sobre o valor que o banco já liberou — sem amortizar o saldo — além do seguro de obra. Só depois da entrega a parcela vira a cheia (juros + amortização).",
+    a: "Quem compra na planta paga, durante a construção, apenas os juros sobre o valor que o banco já liberou, sem amortizar o saldo, além do seguro de obra. Só depois da entrega a parcela vira a cheia (juros + amortização).",
   },
   {
     q: "Preciso criar conta para usar?",

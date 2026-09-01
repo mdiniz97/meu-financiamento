@@ -201,6 +201,10 @@ export function lastPoint(points: MarketPoint[], annualRate: number | null = nul
   };
 }
 
+export async function getSelicAnnual(): Promise<number | null> {
+  return fetchSgsLatest(432);
+}
+
 export async function getMarketOverview(): Promise<MarketOverview> {
   const [selic, ipca, tr, selicAnnual, mortgage] = await Promise.all([
     fetchSgsSeries(4390, 13),

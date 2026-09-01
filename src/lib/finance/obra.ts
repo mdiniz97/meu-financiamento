@@ -8,6 +8,7 @@ export interface ObraInput {
   downPaymentFinancedAmount: number;
   downPaymentMonths?: number;
   downPaymentAnnualRate?: number;
+  downPaymentParcela?: number;
 }
 
 export interface ObraMonth {
@@ -53,21 +54,33 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
   if (!(financedAmount >= 0 && financedAmount <= entrada + 1e-6))
     throw new Error('Valor parcelado da entrada inválido.');
 
+  const monthsEntrada = input.downPaymentMonths ?? input.monthsUntilDelivery;
+  if (!(monthsEntrada >= 1 && monthsEntrada <= 120))
+    throw new Error('Parcelas da entrada devem ficar entre 1 e 120.');
+
   let entradaParcela = 0;
-  if (financedAmount > 0) {
-    const months = input.downPaymentMonths ?? input.monthsUntilDelivery;
-    if (!(months >= 1 && months <= 120)) throw new Error('Parcelas da entrada devem ficar entre 1 e 120.');
+  let entradaParceladaTotal = 0;
+  if (input.downPaymentParcela && input.downPaymentParcela > 0) {
+    // A pessoa já sabe quanto paga por mês (ex.: com juros embutidos da maquininha).
+    entradaParcela = input.downPaymentParcela;
+    entradaParceladaTotal = entradaParcela * monthsEntrada;
+  } else if (financedAmount > 0) {
     const rate = (input.downPaymentAnnualRate ?? 0) > 0
       ? Math.pow(1 + (input.downPaymentAnnualRate ?? 0), 1 / 12) - 1
       : 0;
     entradaParcela =
       rate > 0
-        ? (financedAmount * rate) / (1 - Math.pow(1 + rate, -months))
-        : financedAmount / months;
+        ? (financedAmount * rate) / (1 - Math.pow(1 + rate, -monthsEntrada))
+        : financedAmount / monthsEntrada;
+    entradaParceladaTotal = entradaParcela * monthsEntrada;
   }
+  // O que não cabe nas parcelas é pago à vista na assinatura. No modo "parcela
+  // conhecida", o valor principal parcelado é desconhecido: se as parcelas
+  // somam menos que a entrada, o restante é à vista (total = entrada).
   const totalEntrada =
-    (entrada - financedAmount) +
-    entradaParcela * (input.downPaymentMonths ?? input.monthsUntilDelivery);
+    input.downPaymentParcela && input.downPaymentParcela > 0
+      ? Math.max(entrada, entradaParceladaTotal)
+      : (entrada - financedAmount) + entradaParceladaTotal;
 
   const monthly: ObraMonth[] = [];
   for (let m = 1; m <= input.monthsUntilDelivery; m += 1) {

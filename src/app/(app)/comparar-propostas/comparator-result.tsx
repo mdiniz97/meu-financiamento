@@ -63,7 +63,7 @@ function SmartPlanCard({ o }: { o: ProposalOutcome }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4 text-xs">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold">{o.proposal.bank} — amortizador inteligente</span>
+        <span className="font-semibold">{o.proposal.bank}, amortizador inteligente</span>
         <Badge variant="secondary" className="text-[10px]">
           {best.system}
         </Badge>
@@ -153,7 +153,7 @@ export function ComparatorResultView({
                 </TooltipTrigger>
                 <TooltipContent>
                   Custo do financiamento (parcelas + seguro + tarifas, sem a entrada) proporcional a cada
-                  R$ 100 mil financiados — útil para comparar propostas com valores diferentes.
+                  R$ 100 mil financiados, útil para comparar propostas com valores diferentes.
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -210,7 +210,7 @@ export function ComparatorResultView({
                           </TooltipTrigger>
                           <TooltipContent>
                             O CET informado ({pct(o.proposal.cetInformed)}) difere do calculado ({pct(o.cetCalculated)}).
-                            Revise taxas, seguros e tarifas — ou o banco anunciou um CET que os números não reproduzem.
+                            Revise taxas, seguros e tarifas, ou o banco anunciou um CET que os números não reproduzem.
                           </TooltipContent>
                         </Tooltip>
                       )}

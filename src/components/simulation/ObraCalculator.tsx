@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Hammer, Info } from 'lucide-react';
+import { Coins, Hammer, Info, TrendingUp } from 'lucide-react';
 import { calcularJurosDeObra, type ObraResult } from '@/lib/finance/obra';
+import { compararPlantaOuInvestir, type PlantaInvestResult } from '@/lib/finance/invest-ou-amortizar';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -14,7 +16,7 @@ import { RateField } from '@/components/ui/rate-field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
-import { consumeObraCredit } from '@/app/(app)/comprar-na-planta/actions';
+import { consumeCalcCredit } from '@/app/(app)/comprar-na-planta/actions';
 
 const DEFAULTS = {
   propertyValue: '500000,00',
@@ -23,6 +25,8 @@ const DEFAULTS = {
   progressPct: '0',
   insuranceMonthly: '0,00',
   financedDown: false,
+  downKnow: 'calcular' as 'parcela' | 'calcular',
+  downParcela: '0,00',
   downAmount: '0,00',
   downMonths: '24',
   downHasJuros: false,
@@ -40,17 +44,31 @@ function monthsUntil(date: string): number {
   return Math.max(1, Math.round((target.getTime() - Date.now()) / (30.44 * 24 * 60 * 60 * 1000)));
 }
 
-export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
+export function ObraCalculator({
+  isUnlimited,
+  selicAnnual,
+}: {
+  isUnlimited: boolean;
+  selicAnnual: number | null;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     ...DEFAULTS,
     deliveryDate: defaultDeliveryDate(),
   });
   const [result, setResult] = useState<ObraResult | null>(null);
+  const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [rateValid, setRateValid] = useState(true);
+  const [plantaInvest, setPlantaInvest] = useState<PlantaInvestResult | null>(null);
+
+  const rf = resultForm ?? form;
+  const sobrecustoEntrada = result
+    ? Math.max(0, result.totalEntrada - (parseBRLToNumber(rf.propertyValue) * parseDecimal(rf.downPaymentPct)) / 100)
+    : 0;
+  const custoTotalCompra = result ? result.totalJuros + result.totalSeguro + sobrecustoEntrada : 0;
 
   function monthDate(m: number): string {
     const d = new Date();
@@ -79,19 +97,31 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
     if (!form.deliveryDate) return setError('Informe a data prevista de entrega.');
     if (!(insuranceMonthly >= 0)) return setError('Informe o seguro mensal válido.');
 
+    const downPaymentParcela =
+      form.financedDown && form.downKnow === 'parcela'
+        ? parseBRLToNumber(form.downParcela)
+        : undefined;
+    if (form.financedDown && form.downKnow === 'parcela' && !(downPaymentParcela! > 0))
+      return setError('Informe o valor da parcela da entrada.');
     const downPaymentFinancedAmount = form.financedDown
       ? parseBRLToNumber(form.downAmount)
       : 0;
-    if (form.financedDown && !(downPaymentFinancedAmount > 0))
+    if (
+      form.financedDown &&
+      form.downKnow === 'calcular' &&
+      !(downPaymentFinancedAmount > 0)
+    )
       return setError('Informe o valor da entrada parcelado.');
     const downPaymentMonths = form.financedDown ? Number(form.downMonths) : undefined;
     if (form.financedDown && !(downPaymentMonths! >= 1 && downPaymentMonths! <= 120))
       return setError('Quantidade de parcelas da entrada deve ficar entre 1 e 120.');
-    const downPaymentAnnualRate = form.financedDown && form.downHasJuros
-      ? parseDecimal(form.downRate) / 100
-      : undefined;
+    const downPaymentAnnualRate =
+      form.financedDown && form.downKnow === 'calcular' && form.downHasJuros
+        ? parseDecimal(form.downRate) / 100
+        : undefined;
     if (
       form.financedDown &&
+      form.downKnow === 'calcular' &&
       form.downHasJuros &&
       !(downPaymentAnnualRate! >= 0)
     )
@@ -99,22 +129,34 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
 
     setBusy(true);
     try {
-      const res = await consumeObraCredit();
+      const res = await consumeCalcCredit('Juros de obra');
       if (!res.ok) {
         setUpgradeOpen(true);
         return;
       }
-      setResult(
-        calcularJurosDeObra({
-          propertyValue,
-          downPaymentPct,
-          annualRate: annualRate / 100,
-          monthsUntilDelivery,
-          progressPct,
-          insuranceMonthly,
-          downPaymentFinancedAmount,
-          downPaymentMonths,
-          downPaymentAnnualRate,
+      const obraResult = calcularJurosDeObra({
+        propertyValue,
+        downPaymentPct,
+        annualRate: annualRate / 100,
+        monthsUntilDelivery,
+        progressPct,
+        insuranceMonthly,
+        downPaymentFinancedAmount,
+        downPaymentMonths,
+        downPaymentAnnualRate,
+        downPaymentParcela,
+      });
+      setResult(obraResult);
+      setResultForm(form);
+      const entrada = propertyValue * (downPaymentPct / 100);
+      const sobrecustoEntrada = Math.max(0, obraResult.totalEntrada - entrada);
+      setPlantaInvest(
+        compararPlantaOuInvestir({
+          entrada,
+          mesesAteEntrega: monthsUntil(form.deliveryDate),
+          custoJurosDeObra:
+            obraResult.totalJuros + obraResult.totalSeguro + sobrecustoEntrada,
+          selicAnual: (selicAnnual ?? 0) / 100,
         })
       );
       // Atualiza o saldo de créditos exibido na sidebar/layout.
@@ -219,70 +261,120 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
               />
             </label>
             {form.financedDown && (
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Valor parcelado (R$)</span>
-                  <MoneyInput
-                    aria-label="Valor da entrada parcelado (R$)"
-                    value={parseBRLToNumber(form.downAmount)}
-                    onValid={(v) => set('downAmount', numberToBRLInput(v))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Parcelas</span>
-                  <NumericInput
-                    aria-label="Quantidade de parcelas da entrada"
-                    value={Number(form.downMonths)}
-                    parse={(s) => (s.trim() === '' ? 0 : Number(s.replace(/\D/g, '')))}
-                    onValid={(v) => set('downMonths', String(v))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Tem juros?</span>
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-medium">Como você informa o valor?</span>
                   <RadioGroup
-                    value={String(form.downHasJuros)}
-                    onValueChange={(v) => set('downHasJuros', v === 'true')}
-                    className="flex h-8 items-center gap-4"
+                    value={form.downKnow}
+                    onValueChange={(v) => set('downKnow', v as 'parcela' | 'calcular')}
+                    className="flex items-center gap-4"
                   >
                     <label className="flex items-center gap-1.5 text-sm">
-                      <RadioGroupItem value="true" /> Sim
+                      <RadioGroupItem value="parcela" /> Sei o valor da parcela
                     </label>
                     <label className="flex items-center gap-1.5 text-sm">
-                      <RadioGroupItem value="false" /> Não
+                      <RadioGroupItem value="calcular" /> Não sei, calcular
                     </label>
                   </RadioGroup>
                 </div>
-                {form.downHasJuros && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">Taxa (%)</span>
-                    <NumericInput
-                      aria-label="Taxa da entrada (%)"
-                      value={parseDecimal(form.downRate)}
-                      parse={parseDecimal}
-                      onValid={(v) => set('downRate', String(v))}
-                    />
-                  </div>
-                )}
-              </div>
+
+                <div className="flex flex-wrap items-end gap-4">
+                  {form.downKnow === 'parcela' ? (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Valor da parcela (R$)</span>
+                        <MoneyInput
+                          aria-label="Valor da parcela da entrada (R$)"
+                          value={parseBRLToNumber(form.downParcela)}
+                          onValid={(v) => set('downParcela', numberToBRLInput(v))}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Parcelas</span>
+                        <NumericInput
+                          aria-label="Quantidade de parcelas da entrada"
+                          value={Number(form.downMonths)}
+                          parse={(s) => (s.trim() === '' ? 0 : Number(s.replace(/\D/g, '')))}
+                          onValid={(v) => set('downMonths', String(v))}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Valor parcelado (R$)</span>
+                        <MoneyInput
+                          aria-label="Valor da entrada parcelado (R$)"
+                          value={parseBRLToNumber(form.downAmount)}
+                          onValid={(v) => set('downAmount', numberToBRLInput(v))}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Parcelas</span>
+                        <NumericInput
+                          aria-label="Quantidade de parcelas da entrada"
+                          value={Number(form.downMonths)}
+                          parse={(s) => (s.trim() === '' ? 0 : Number(s.replace(/\D/g, '')))}
+                          onValid={(v) => set('downMonths', String(v))}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Tem juros?</span>
+                        <RadioGroup
+                          value={String(form.downHasJuros)}
+                          onValueChange={(v) => set('downHasJuros', v === 'true')}
+                          className="flex h-8 items-center gap-4"
+                        >
+                          <label className="flex items-center gap-1.5 text-sm">
+                            <RadioGroupItem value="true" /> Sim
+                          </label>
+                          <label className="flex items-center gap-1.5 text-sm">
+                            <RadioGroupItem value="false" /> Não
+                          </label>
+                        </RadioGroup>
+                      </div>
+                      {form.downHasJuros && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Taxa (%)</span>
+                          <NumericInput
+                            aria-label="Taxa da entrada (%)"
+                            value={parseDecimal(form.downRate)}
+                            parse={parseDecimal}
+                            onValid={(v) => set('downRate', String(v))}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="ml-auto flex items-center gap-2">
-              {result && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setResult(null)}>
+              {result ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setResult(null);
+                    setResultForm(null);
+                    setPlantaInvest(null);
+                  }}
+                >
                   Nova simulação
                 </Button>
+              ) : (
+                <Button type="button" onClick={calcular} disabled={busy}>
+                  {busy ? 'Calculando…' : 'Calcular juros de obra'}
+                  {!isUnlimited && (
+                    <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
+                      <Coins className="size-3.5" /> -1
+                    </span>
+                  )}
+                </Button>
               )}
-              <Button type="button" onClick={calcular} disabled={busy}>
-                {busy ? 'Calculando…' : 'Calcular juros de obra'}
-                {!isUnlimited && (
-                  <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                    <Coins className="size-3.5" /> -1
-                  </span>
-                )}
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -293,8 +385,8 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">Resultado da simulação</CardTitle>
             <CardDescription>
-              Considerando obra concluída hoje em {parseDecimal(form.progressPct)}% e entrega
-              em ~{monthsUntil(form.deliveryDate)} meses.
+              Considerando obra concluída hoje em {parseDecimal(rf.progressPct)}% e entrega
+              em ~{monthsUntil(rf.deliveryDate)} meses.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -346,7 +438,7 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
                       <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.saldoLiberado)}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.juros)}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{formatBRL(m.seguro)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{m.entradaParcela > 0 ? formatBRL(m.entradaParcela) : '—'}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{m.entradaParcela > 0 ? formatBRL(m.entradaParcela) : '-'}</td>
                       <td className="px-4 py-2 text-right font-semibold tabular-nums text-[#820AD1] dark:text-[#a44ce0]">{formatBRL(m.total)}</td>
                     </tr>
                   ))}
@@ -357,6 +449,129 @@ export function ObraCalculator({ isUnlimited }: { isUnlimited: boolean }) {
               O &quot;Você paga neste mês&quot; é juros + seguro do mês. Durante a obra esse valor não
               reduz sua dívida: é o custo financeiro até a entrega das chaves.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {result && plantaInvest && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-lg">
+              <TrendingUp className="size-5 text-[#820AD1]" /> Planta ou investir?
+            </CardTitle>
+            <CardDescription>
+              Compare os juros de obra com o rendimento da sua entrada investida na Selic até
+              a entrega{selicAnnual !== null ? ` (${selicAnnual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.)` : ''}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card className="rounded-2xl shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Comprar na planta
+                        {plantaInvest.veredito === 'comprar' && (
+                          <Badge variant="secondary" className="ml-2 text-xs">Pesa menos</Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        Você paga a entrada de{' '}
+                        {formatBRL(parseBRLToNumber(rf.propertyValue) * (parseDecimal(rf.downPaymentPct) / 100))}{' '}
+                        (à vista ou parcelada){sobrecustoEntrada > 0 ? ' com juros' : ''} e os
+                        juros de obra mês a mês até a entrega.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Juros de obra até a entrega</span>
+                        <span className="font-semibold tabular-nums">
+                          {formatBRL(result.totalJuros + result.totalSeguro)}
+                        </span>
+                      </div>
+                      {sobrecustoEntrada > 0 && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Custo extra da entrada parcelada</span>
+                          <span className="font-semibold tabular-nums">
+                            {formatBRL(sobrecustoEntrada)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Entrada total (à vista + parcelas)</span>
+                        <span className="font-semibold tabular-nums">
+                          {formatBRL(result.totalEntrada)}
+                        </span>
+                      </div>
+                      <div className="border-t border-border pt-2">
+                        <span className="text-xs text-muted-foreground">
+                          Custo total de comprar até a entrega
+                        </span>
+                        <span className="block text-lg font-semibold tabular-nums">
+                          {formatBRL(custoTotalCompra)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Investir até a entrega
+                        {plantaInvest.veredito === 'investir' && (
+                          <Badge variant="secondary" className="ml-2 text-xs">Rende mais</Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        Você mantém a entrada investida na Selic
+                        {selicAnnual !== null
+                          ? ` (${selicAnnual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.)`
+                          : ''}{' '}
+                        e, na entrega, tem o dinheiro inteiro no bolso.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Na entrega você tem (entrada + rendimento)</span>
+                        <span className="font-semibold tabular-nums">{formatBRL(plantaInvest.entradaFinal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Rendimento líquido (após IR)</span>
+                        <span className="font-semibold tabular-nums">{formatBRL(plantaInvest.rendimentoLiquido)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="rounded-2xl border border-[#820AD1]/30 bg-primary/[0.04] p-4">
+                  <p className="text-sm">
+                    {plantaInvest.veredito === 'investir' ? (
+                      <>
+                        <strong className="text-[#820AD1]">Vale investir até a entrega:</strong>{' '}
+                        o rendimento ({formatBRL(plantaInvest.rendimentoLiquido)}) supera o
+                        custo de comprar até a entrega ({formatBRL(custoTotalCompra)}
+                        {sobrecustoEntrada > 0 ? ', com a entrada parcelada' : ''}), e você
+                        ainda fica com a entrada inteira no bolso.
+                      </>
+                    ) : (
+                      <>
+                        <strong className="text-[#820AD1]">Comprar na planta pesa menos:</strong>{' '}
+                        o rendimento ({formatBRL(plantaInvest.rendimentoLiquido)}) cobre apenas{' '}
+                        {plantaInvest.coberturaPct.toFixed(0)}% do custo até a entrega (
+                        {formatBRL(custoTotalCompra)}
+                        {sobrecustoEntrada > 0 ? ', com a entrada parcelada' : ''}).
+                      </>
+                    )}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    <strong className="text-foreground">O que você pode fazer:</strong> se
+                    investir, na entrega você tem a entrada + rendimento, pode pagar a entrada
+                    da unidade na planta depois, dar de entrada num imóvel pronto, ou abater o
+                    saldo. Comprando agora, a entrada sai do bolso hoje e os juros de obra são
+                    pagos mês a mês.
+                  </p>
+                </div>
+              </div>
           </CardContent>
         </Card>
       )}

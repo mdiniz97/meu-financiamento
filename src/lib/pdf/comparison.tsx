@@ -74,7 +74,7 @@ export function buildComparisonPdf(input: ComparatorInput) {
             <Text style={styles.label}>{o.proposal.bank}</Text>
             <Text style={styles.value}>
               {o.smart?.feasible
-                ? `Quita em ${o.smart.recommended.best?.result.metrics.saldoZeroAt ?? '—'} meses com aporte de ${brl(o.smart.recommended.best?.extraMonthlyAmount ?? 0)}/mês`
+                ? `Quita em ${o.smart.recommended.best?.result.metrics.saldoZeroAt ?? '-'} meses com aporte de ${brl(o.smart.recommended.best?.extraMonthlyAmount ?? 0)}/mês`
                 : `Não cabe no orçamento: mínimo de ${brl(o.smart?.minBudget ?? 0)}/mês`}
             </Text>
           </View>

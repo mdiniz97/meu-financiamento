@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
+import { getSelicAnnual } from '@/lib/market/bacen';
 import { ObraCalculator } from '@/components/simulation/ObraCalculator';
 
 export default async function ComprarNaPlantaPage() {
   const session = await auth();
   if (!session?.userId) redirect('/login');
   const { isUnlimited } = await getCreditBalance(session.userId);
+  const selicAnnual = await getSelicAnnual();
 
   return (
     <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-4 sm:p-6">
@@ -22,7 +24,7 @@ export default async function ComprarNaPlantaPage() {
         {[
           {
             title: 'Juros de obra',
-            text: 'Enquanto a obra é construída, você paga apenas os juros sobre o valor que o banco já liberou — sem amortizar o saldo.',
+            text: 'Enquanto a obra é construída, você paga apenas os juros sobre o valor que o banco já liberou, sem amortizar o saldo.',
           },
           {
             title: 'Seguro de obra',
@@ -40,7 +42,7 @@ export default async function ComprarNaPlantaPage() {
         ))}
       </div>
 
-      <ObraCalculator isUnlimited={isUnlimited} />
+      <ObraCalculator isUnlimited={isUnlimited} selicAnnual={selicAnnual} />
     </div>
   );
 }

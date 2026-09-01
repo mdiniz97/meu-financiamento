@@ -58,8 +58,10 @@ test('sem créditos abre o modal de upgrade', async ({ page }) => {
   const calcular = page.getByRole('button', { name: /calcular juros de obra/i });
   await calcular.click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
+  await page.getByRole('button', { name: /nova simulação/i }).click();
   await calcular.click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
+  await page.getByRole('button', { name: /nova simulação/i }).click();
   await calcular.click();
   await expect(page.getByRole('dialog')).toContainText('Recurso exclusivo do plano Ilimitado');
   await expect(page.getByRole('dialog')).toContainText('5 créditos');

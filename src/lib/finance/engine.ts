@@ -149,7 +149,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       bs = Math.max(0, bs - a + corr);
     }
   }
-  // cronograma de parcelas do PRICE base (sem estratégias) — no modo termo a
+  // cronograma de parcelas do PRICE base (sem estratégias), no modo termo a
   // parcela segue esse cronograma contratual, imune a aportes (evita drift:
   // amortização extra não pode aumentar o total pago)
   const basePriceParcela: number[] = [];
@@ -174,7 +174,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   // A janela desse aporte termina no mês do contrato: o array só cobre
   // `input.months`, então após o prazo (impossível na prática: a opção quita
   // antes do contrato) o gap SAC não se aplica e a dívida volta a ser paga
-  // como PRICE puro — a janela nunca estende o contrato silenciosamente.
+  // como PRICE puro, a janela nunca estende o contrato silenciosamente.
   const sacParcelas: number[] = [];
   if (input.system === 'PRICE' && strategies.paySacParcela) {
     let bs = input.principal;
@@ -218,11 +218,11 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       amortizacaoFixada = 0;
       // reset do flag: sem ele, o revert deixa paymentViaAporte preso em true e
       // um aporte pontual posterior reentra em modo payment "sem cobertura"
-      // (armadilha de estado obsoleto) — o modo só volta a valer se uma fonte
+      // (armadilha de estado obsoleto), o modo só volta a valer se uma fonte
       // mensal garantida existir de novo
       paymentViaAporte = false;
       // SAC: a partir daqui a amortização NÃO pode voltar ao cronograma base
-      // indexado por mês absoluto — ele foi dimensionado sobre o saldo
+      // indexado por mês absoluto, ele foi dimensionado sobre o saldo
       // "inflado" (sem os aportes da janela) e ficaria pequeno demais para o
       // saldo real, esticando a dívida para além do prazo (e estourando o
       // array baseSacAmort em NaN); re-ancora no saldo real restante
@@ -250,7 +250,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       // modo termo: mantém a amortização do cronograma contratual: aportes
       // encurtam o prazo; modo payment: amortização fixa que cobre a TR; após
       // o revert da janela (sacReancorado), amortização = (saldo + correção)
-      // / meses restantes — quita exatamente no prazo do contrato
+      // / meses restantes, quita exatamente no prazo do contrato
       amortizacao = modoPayment
         ? amortizacaoFixada
         : month === 1
@@ -379,7 +379,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   // cronograma lixo passar; Infinity também não é finito) e saldo não
   // amortizado dentro do limite de prazo
   if (!Number.isFinite(saldo)) {
-    throw new Error('contrato não amortiza: saldo não finito (NaN ou Infinity) no encerramento — revise aportes e janelas');
+    throw new Error('contrato não amortiza: saldo não finito (NaN ou Infinity) no encerramento, revise aportes e janelas');
   }
   if (saldo > 0.005) {
     throw new Error('contrato não amortiza completamente dentro do limite de prazo');

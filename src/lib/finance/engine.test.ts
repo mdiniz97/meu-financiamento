@@ -213,7 +213,7 @@ describe('SAC: fim da janela de aporte re-ancora a amortização no saldo real',
     }
   });
 
-  it('paySacParcela: a janela do gap SAC termina no prazo do contrato — nenhuma parcela além do mês do contrato', () => {
+  it('paySacParcela: a janela do gap SAC termina no prazo do contrato, nenhuma parcela além do mês do contrato', () => {
     const r = simulate({ ...input, system: 'PRICE' }, {
       extraLumpSum: [],
       reduceMode: 'payment',

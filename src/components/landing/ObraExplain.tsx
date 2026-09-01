@@ -37,7 +37,7 @@ export function ObraExplain({ signedIn = false }: { signedIn?: boolean }) {
             </ul>
             <p className="text-sm text-muted-foreground">
               Exemplo: imóvel de R$ 500 mil com 20% de entrada, 10,5% a.a. e obra de 24 meses
-              soma cerca de R$ 42 mil em juros e seguro antes da entrega. Simule o seu caso —
+              soma cerca de R$ 42 mil em juros e seguro antes da entrega. Simule o seu caso,
               inclusive se a obra já está em andamento.
             </p>
             <Link

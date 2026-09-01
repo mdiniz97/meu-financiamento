@@ -5,9 +5,9 @@ import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
 
-export type ConsumeObraResult = { ok: true } | { ok: false; error: string };
+export type ConsumeCalcResult = { ok: true } | { ok: false; error: string };
 
-export async function consumeObraCredit(): Promise<ConsumeObraResult> {
+export async function consumeCalcCredit(description: string): Promise<ConsumeCalcResult> {
   const session = await auth();
   if (!session?.userId) return { ok: false, error: 'Não autenticado' };
 
@@ -34,7 +34,7 @@ export async function consumeObraCredit(): Promise<ConsumeObraResult> {
     if (bal.sum < 1) return { ok: false as const, error: 'Créditos insuficientes' };
     await tx
       .insert(schema.creditLedger)
-      .values({ userId: session.userId, amount: -1, kind: 'spend', description: 'Juros de obra' });
+      .values({ userId: session.userId, amount: -1, kind: 'spend', description });
     return { ok: true as const };
   });
 

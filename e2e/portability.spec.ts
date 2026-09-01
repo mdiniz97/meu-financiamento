@@ -375,8 +375,8 @@ test('editar proposta após calcular marca resultado desatualizado e bloqueia a�
 
   const newRate = page.getByRole('textbox', { name: 'Nova taxa', exact: true });
   await newRate.fill('-');
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
-  await expect(warning).toHaveText('Dados alterados — calcule novamente');
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
+  await expect(warning).toHaveText('Dados alterados, calcule novamente');
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
   await expect(levar).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Ocultar comparação' })).toBeDisabled();
@@ -385,7 +385,7 @@ test('editar proposta após calcular marca resultado desatualizado e bloqueia a�
     (button: HTMLButtonElement) => button.click()
   );
   await expect(page.getByText('Informe uma nova taxa válida.')).toBeVisible();
-  await expect(warning).toHaveText('Dados alterados — calcule novamente');
+  await expect(warning).toHaveText('Dados alterados, calcule novamente');
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
   await expect(levar).toBeDisabled();
 
@@ -412,7 +412,7 @@ test('edições não-taxa e da busca inteligente invalidam comparação e busca 
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
   await expect(warning).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ver comparação lado a lado' })).toBeDisabled();
 
@@ -443,7 +443,7 @@ test('sintaxe inválida em prazo e TR recupera validade ao reverter no blur', as
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const data = page.getByRole('region', { name: 'Dados do financiamento' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
 
   await compare.click();
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -453,7 +453,7 @@ test('sintaxe inválida em prazo e TR recupera validade ao reverter no blur', as
 
   const months = page.getByRole('textbox', { name: 'Parcelas restantes' });
   await months.fill('abc');
-  await expect(warning).toHaveText('Dados alterados — calcule novamente');
+  await expect(warning).toHaveText('Dados alterados, calcule novamente');
   await expect(smart.getByText(/taxa máxima que ainda compensa portar/i)).toHaveCount(0);
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
   await compare.evaluate((button: HTMLButtonElement) => button.click());
@@ -472,7 +472,7 @@ test('sintaxe inválida em prazo e TR recupera validade ao reverter no blur', as
 
   const tr = page.getByRole('textbox', { name: 'TR mensal (%)' });
   await tr.fill('abc');
-  await expect(warning).toHaveText('Dados alterados — calcule novamente');
+  await expect(warning).toHaveText('Dados alterados, calcule novamente');
   await expect(smart.getByText(/taxa máxima que ainda compensa portar/i)).toHaveCount(0);
   await compare.evaluate((button: HTMLButtonElement) => button.click());
   await expect(data.getByText('Informe uma TR mensal válida.')).toBeVisible();
@@ -494,7 +494,7 @@ test('campo numérico vazio emite zero: prazo falha e TR recalcula', async ({ pa
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const data = page.getByRole('region', { name: 'Dados do financiamento' });
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
   await compare.click();
 
   const months = page.getByRole('textbox', { name: 'Parcelas restantes' });
@@ -528,7 +528,7 @@ test('taxa inválida atual ou oferecida descarta a busca inteligente', async ({ 
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
 
   await compare.click();
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -564,7 +564,7 @@ test('banco, sistema e tipo de taxa invalidam e limpam busca independentemente',
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
   const transfer = page.getByRole('button', { name: 'Levar proposta para o simulador' });
   const prepareSmartResult = async () => {
     await page.getByRole('button', { name: /buscar taxa ideal/i }).click();
@@ -752,7 +752,7 @@ test('TR inválida preserva resultado e metadados do cálculo anterior', async (
   await page.goto('/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
-  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados — calcule novamente' });
+  const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
   await compare.click();
   await page.getByRole('button', { name: 'Ver comparação lado a lado' }).click();
 

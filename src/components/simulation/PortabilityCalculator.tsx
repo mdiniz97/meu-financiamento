@@ -507,7 +507,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
                     role="alert"
                     className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
                   >
-                    Dados alterados — calcule novamente
+                    Dados alterados, calcule novamente
                   </p>
                 )}
                 <div

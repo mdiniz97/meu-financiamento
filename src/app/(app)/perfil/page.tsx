@@ -45,7 +45,7 @@ export default async function PerfilPage() {
               <span className="text-lg font-semibold">
                 {user?.createdAt
                   ? new Date(user.createdAt).toLocaleDateString('pt-BR')
-                  : '—'}
+                  : '-'}
               </span>
             </div>
           </div>

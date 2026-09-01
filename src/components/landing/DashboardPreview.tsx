@@ -61,7 +61,7 @@ const parcelaInicialSac = brl(sac.installments[0].parcela);
 const economiaTotal = brl(price.metrics.totalJuros - sac.metrics.totalJuros);
 
 // pontos do gráfico da aba "Gráficos": PRICE e SAC sem estratégia (cinza) e
-// amortizador inteligente (roxo) — mesmos dados reais das simulações acima
+// amortizador inteligente (roxo), mesmos dados reais das simulações acima
 const W = 300;
 const H = 80;
 const PAD_Y = 6;

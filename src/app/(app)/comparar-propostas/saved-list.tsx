@@ -23,7 +23,7 @@ export function SavedList({ initial }: { initial: ComparisonSummary[] }) {
             <div className="flex flex-col">
               <span className="font-medium">{c.name}</span>
               <span className="text-xs text-muted-foreground">
-                Melhor: {c.bestBank ?? '—'} · {new Date(c.createdAt).toLocaleDateString('pt-BR')}
+                Melhor: {c.bestBank ?? '-'} · {new Date(c.createdAt).toLocaleDateString('pt-BR')}
               </span>
             </div>
             <div className="flex gap-2">

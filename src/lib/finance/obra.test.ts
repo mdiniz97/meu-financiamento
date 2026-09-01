@@ -121,6 +121,30 @@ describe('calcularJurosDeObra', () => {
     expect(r.totalDuranteObra).toBeCloseTo(r.totalJuros + r.totalSeguro + r.totalEntrada, 4);
   });
 
+  it('entrada parcelada com parcela conhecida: usa o valor informado por mês', () => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      downPaymentFinancedAmount: 0,
+      downPaymentParcela: 3000,
+      downPaymentMonths: 12,
+    });
+    expect(r.monthly[0].entradaParcela).toBe(3000);
+    expect(r.monthly[11].entradaParcela).toBe(3000);
+    expect(r.monthly[12].entradaParcela).toBe(0);
+    // entrada total de 60.000; parcelas somam 36.000; restante (24.000) à vista
+    expect(r.totalEntrada).toBe(60000);
+  });
+
+  it('entrada parcelada com parcela conhecida acima da entrada: tudo parcelado', () => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      downPaymentFinancedAmount: 0,
+      downPaymentParcela: 6000,
+      downPaymentMonths: 12,
+    });
+    expect(r.totalEntrada).toBe(72000);
+  });
+
   it('rejeita valor parcelado acima da entrada', () => {
     expect(() =>
       calcularJurosDeObra({ ...BASE, downPaymentFinancedAmount: 60001, downPaymentMonths: 12 })

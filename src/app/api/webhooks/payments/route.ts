@@ -91,7 +91,7 @@ function idempotent() {
 
 function conflictRenewal() {
   return NextResponse.json(
-    { ok: false, error: 'Conflito de renovação: outra compra estendeu o período — tente novamente' },
+    { ok: false, error: 'Conflito de renovação: outra compra estendeu o período, tente novamente' },
     { status: 409 }
   );
 }
@@ -99,7 +99,7 @@ function conflictRenewal() {
 // Estende currentPeriodEnd com guarda de concorrência otimista: o UPDATE só
 // aplica se o fim atual ainda for o que lemos (WHERE currentPeriodEnd = :old).
 // Se outra compra ganhou a corrida, o UPDATE não afeta linhas → re-lê e tenta
-// uma vez com o fim fresco; se perder de novo, devolve conflito/retry — nunca
+// uma vez com o fim fresco; se perder de novo, devolve conflito/retry, nunca
 // perde silenciosamente os 30 dias de uma compra paga.
 type ExtendOutcome = NextResponse | { updated: true };
 
@@ -121,7 +121,7 @@ async function extendSubscription(
           eq(schema.subscriptions.id, sub.id),
           eq(schema.subscriptions.currentPeriodEnd, oldEnd)
         )
-      : // legado: linha sem fim definido — o CAS vira `id AND fim é nulo`, senão
+      : // legado: linha sem fim definido, o CAS vira `id AND fim é nulo`, senão
         // duas renovações em paralelo na mesma linha nula estendem do mesmo
         // "agora" sem se verem e uma perde silenciosamente os 30 dias
         and(
@@ -210,7 +210,7 @@ async function processPayment(
       ),
     });
     // renovação real: estende a partir do maior entre agora e o fim atual, sem
-    // encolher um período já pago — com guarda de corrida (CAS + re-leitura)
+    // encolher um período já pago, com guarda de corrida (CAS + re-leitura)
     const currentEnd = current?.currentPeriodEnd?.getTime() ?? 0;
     if (current) {
       const outcome = await extendSubscription(current, {
@@ -239,7 +239,7 @@ async function processPayment(
       }
     } catch (e) {
       // Corrida de primeira compra: outro webhook já inseriu a assinatura
-      // deste (usuário, pacote, provedor) — possível com providerIds DISTINTOS
+      // deste (usuário, pacote, provedor), possível com providerIds DISTINTOS
       // (duas compras reais em paralelo) graças ao índice único
       // (user_id, pack_id, provider). Não pode virar idempotente cego: a
       // segunda compra pagou 30 dias e precisa estender a linha vencedora.
@@ -253,7 +253,7 @@ async function processPayment(
         });
         if (!winner) return conflictRenewal();
         // entrega duplicada do MESMO evento (mesmo providerId): guarda de
-        // produção preservada — não estende de novo, devolve idempotente
+        // produção preservada, não estende de novo, devolve idempotente
         if (winner.providerId === result.providerId) return idempotent();
         const outcome = await extendSubscription(winner, {
           providerId: result.providerId,
