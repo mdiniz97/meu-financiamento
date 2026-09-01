@@ -27,6 +27,10 @@ const faqs = [
     a: "Portabilidade é trocar o financiamento de banco por uma taxa menor. O simulador compara manter o contrato atual com portar para a nova taxa, mostra a economia total, a diferença de parcela e o mês em que os custos da portabilidade se pagam.",
   },
   {
+    q: "O que é juros de obra?",
+    a: "Quem compra na planta paga, durante a construção, apenas os juros sobre o valor que o banco já liberou — sem amortizar o saldo — além do seguro de obra. Só depois da entrega a parcela vira a cheia (juros + amortização).",
+  },
+  {
     q: "Preciso criar conta para usar?",
     a: "Sim, ao criar a conta você ganha 2 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado (R$ 119,90/ano).",
   },

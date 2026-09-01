@@ -220,7 +220,7 @@ function WizardFormContent({ initialForm, isUnlimited }: { initialForm: FormStat
             <Button type="submit" className="min-w-32">
               Simular
               {!isUnlimited && (
-                <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-background/20 px-2 py-0.5 text-xs font-semibold">
+                <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
                   <Coins className="size-3.5" /> -1
                 </span>
               )}

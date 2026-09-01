@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, Coins, History, Home, Menu, Percent, Scale, Sparkles, User, X } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, Hammer, History, Home, Menu, Percent, Scale, Sparkles, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
   { href: '/juros', label: 'Juros de mercado', icon: Percent },
+  { href: '/comprar-na-planta', label: 'Comprar na Planta', icon: Hammer },
   { href: '/portabilidade', label: 'Portabilidade', icon: ArrowLeftRight },
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },

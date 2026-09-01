@@ -4,6 +4,7 @@ import { Hero } from "@/components/landing/Hero";
 import { TrustRow } from "@/components/landing/TrustRow";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { SystemsExplain } from "@/components/landing/SystemsExplain";
+import { ObraExplain } from "@/components/landing/ObraExplain";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { PricingPreview } from "@/components/landing/PricingPreview";
 import { StatsBar } from "@/components/landing/StatsBar";
@@ -22,6 +23,7 @@ export default async function Home() {
         <TrustRow />
         <HowItWorks />
         <SystemsExplain />
+        <ObraExplain signedIn={signedIn} />
         <DashboardPreview />
         <PricingPreview signedIn={signedIn} />
         <StatsBar />
