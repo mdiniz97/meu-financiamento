@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Sparkles, Lock } from 'lucide-react';
+import { ArrowLeftRight, Sparkles } from 'lucide-react';
 import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 import {
@@ -61,7 +61,7 @@ type Validation =
 
 type FormField = Exclude<keyof typeof DEFAULTS, 'smartResult'>;
 
-export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean }) {
+export function PortabilityCalculator() {
   const [f, setF] = useState(DEFAULTS);
   const [result, setResult] = useState<PortabilityResult | null>(null);
   const [resultDirty, setResultDirty] = useState(false);
@@ -255,24 +255,6 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!isUnlimited ? (
-          <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">
-            <Lock className="mx-auto size-8 text-[#820AD1]" />
-            <p className="text-sm font-medium">Recurso exclusivo do plano Ilimitado</p>
-            <p className="text-sm text-muted-foreground">
-              Compare manter o contrato com portar para um novo banco.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mx-auto"
-              onClick={() => setUpgradeOpen(true)}
-            >
-              <Lock className="size-3" /> Ver opções de acesso
-            </Button>
-          </div>
-        ) : (
           <div className="flex flex-col gap-4">
             <section
               aria-label="Dados do financiamento"
@@ -530,6 +512,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
             </div>
 
             {result && (
+
               <div className="flex min-w-0 flex-col gap-4">
                 {resultDirty && (
                   <p
@@ -718,6 +701,7 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
             )}
 
             {result && showSandbox && (
+
               <PortabilitySandbox
                 keep={result.keep}
                 ported={result.ported}
@@ -729,7 +713,6 @@ export function PortabilityCalculator({ isUnlimited }: { isUnlimited: boolean })
               />
             )}
           </div>
-        )}
       </CardContent>
       <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </Card>

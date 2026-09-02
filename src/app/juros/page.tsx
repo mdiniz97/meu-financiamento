@@ -4,7 +4,7 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
-import { UpgradeBanner } from '@/components/upgrade-banner';
+import { UpgradeCard } from '@/components/upgrade-card';
 import { getMarketOverview } from '@/lib/market/bacen';
 import { MarketContent } from '@/components/market/market-content';
 
@@ -21,7 +21,7 @@ export default async function JurosPage() {
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex w-full flex-col items-center gap-2 bg-muted p-4 pb-0 sm:p-6 sm:pb-0">
             <div className="w-full max-w-6xl">
-              <UpgradeBanner isUnlimited={balance.isUnlimited} />
+              <UpgradeCard isUnlimited={balance.isUnlimited} />
             </div>
           </div>
           <MarketContent data={data} contained />

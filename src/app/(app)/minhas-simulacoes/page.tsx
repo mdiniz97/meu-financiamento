@@ -7,7 +7,7 @@ import { deleteComparison, listComparisons } from '../comparar-propostas/actions
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UpgradeBanner } from '@/components/upgrade-banner';
+import { UpgradeCard } from '@/components/upgrade-card';
 import { Countdown } from '@/components/countdown';
 import { parseSimulationJson } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
@@ -148,8 +148,9 @@ export default async function MinhasSimulacoesPage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
-      <UpgradeBanner isUnlimited={isUnlimited} sticky />
+    <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
+      <div className="flex w-full max-w-5xl flex-col gap-6">
+      <UpgradeCard isUnlimited={isUnlimited} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">Minhas simulações</h1>
@@ -254,6 +255,7 @@ export default async function MinhasSimulacoesPage() {
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }

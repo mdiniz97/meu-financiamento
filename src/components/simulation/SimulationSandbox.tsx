@@ -43,7 +43,7 @@ import { DebtInsightCard } from './DebtInsightCard';
 import { RecommendationCard } from './RecommendationCard';
 import { ScenarioCompare } from './ScenarioCompare';
 import { StrategyControls } from './StrategyControls';
-import { UpgradeBanner } from '@/components/upgrade-banner';
+import { UpgradeCard } from '@/components/upgrade-card';
 
 const EMPTY: Strategies = { extraLumpSum: [], reduceMode: 'term' };
 
@@ -222,7 +222,7 @@ export function SimulationSandbox({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <UpgradeBanner isUnlimited={isUnlimited} />
+      <UpgradeCard isUnlimited={isUnlimited} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">{saved?.name ?? 'Simulador de financiamento'}</h1>

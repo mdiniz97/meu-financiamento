@@ -247,6 +247,7 @@ export function AffordabilityCalculator({
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
         {panelMode === 'income' && incomeResult && (
+
           <div className="flex flex-col gap-4">
             <p className="text-sm font-medium">
               Entrada disponível após custos: <strong>{formatBRL(incomeResult.availableDownPayment)}</strong>
@@ -296,6 +297,7 @@ export function AffordabilityCalculator({
           </div>
         )}
         {panelMode === 'payment' && paymentResult && (
+
           <PaymentCapacityCards
             result={paymentResult}
             compact={compact}

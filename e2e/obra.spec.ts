@@ -31,23 +31,22 @@ async function assinar(page: Page, email: string) {
   expect(response.ok()).toBeTruthy();
 }
 
-test('página de juros de obra mostra disclaimers e calcula com 1 crédito', async ({ page }) => {
+test('página de juros de obra mostra disclaimers e calcula sem custo', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
-  await cadastrar(page);
+  const email = await cadastrar(page);
+  await assinar(page, email);
   await page.goto('/comprar-na-planta');
 
   await expect(page.getByRole('heading', { name: 'Comprar na planta' })).toBeVisible();
   await expect(page.getByText(/Esta é uma simulação/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /calcular juros de obra/i })).toContainText('-1');
 
-  await page.getByRole('button', { name: /calcular juros de obra/i }).click();
+  const calcular = page.getByRole('button', { name: /calcular juros de obra/i });
+  await expect(calcular).not.toContainText('-1');
+  await calcular.click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
   await expect(page.getByText('Total de juros de obra', { exact: true })).toBeVisible();
   await expect(page.getByText('Primeira parcela após entrega (PRICE 360m)', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /nova simulação/i })).toBeVisible();
-
-  await page.goto('/perfil');
-  await expect(page.getByText('Saldo de créditos').locator('..').getByText('1', { exact: true })).toBeVisible();
 
   await page.goto('/minhas-simulacoes');
   await expect(page.getByText(/Juros de obra/).first()).toBeVisible();
@@ -68,25 +67,16 @@ test('portabilidade calculada aparece em minhas simulações', async ({ page }) 
   await expect(page.getByText('Portabilidade', { exact: true }).first()).toBeVisible();
 });
 
-test('sem créditos abre o modal de upgrade', async ({ page }) => {
+test('sem plano vê card de upgrade sem acesso à ferramenta', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrar(page);
   await page.goto('/comprar-na-planta');
 
-  const calcular = page.getByRole('button', { name: /calcular juros de obra/i });
-  const seguro = page.getByRole('textbox', { name: 'Seguro de obra (R$/mês)' });
-
-  await calcular.click();
-  await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
-  await page.getByRole('button', { name: /nova simulação/i }).click();
-  await seguro.fill('100000');
-  await calcular.click();
-  await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
-  await page.getByRole('button', { name: /nova simulação/i }).click();
-  await seguro.fill('200000');
-  await calcular.click();
-  await expect(page.getByRole('dialog')).toContainText('Recurso exclusivo do plano Ilimitado');
-  await expect(page.getByRole('dialog')).toContainText('5 créditos');
+  await expect(page.getByRole('heading', { name: 'Comprar na planta' })).toBeVisible();
+  await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
+  await expect(page.getByText(/Simule juros de obra/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /calcular juros de obra/i })).not.toBeVisible();
 });
 
 test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
@@ -103,7 +93,8 @@ test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
 
 test('toggle Financiei a entrada abre campos e inclui a entrada no resultado', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
-  await cadastrar(page);
+  const email = await cadastrar(page);
+  await assinar(page, email);
   await page.goto('/comprar-na-planta');
 
   await page.getByRole('switch', { name: /financiei a entrada/i }).click();
@@ -125,7 +116,8 @@ test('toggle Financiei a entrada abre campos e inclui a entrada no resultado', a
 
 test('modo sei o valor da parcela aceita parte à vista e calcula', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
-  await cadastrar(page);
+  const email = await cadastrar(page);
+  await assinar(page, email);
   await page.goto('/comprar-na-planta');
 
   await page.getByRole('switch', { name: /financiei a entrada/i }).click();

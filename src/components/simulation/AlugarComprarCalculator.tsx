@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Coins, KeyRound } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { calcularAlugarOuComprar, type AlugarComprarResult } from '@/lib/finance/alugar-comprar';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
@@ -11,7 +11,6 @@ import { FieldHelp } from '@/components/ui/field-help';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { RateField } from '@/components/ui/rate-field';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
@@ -26,10 +25,8 @@ const DEFAULTS = {
 };
 
 export function AlugarComprarCalculator({
-  isUnlimited,
   selicAnnual,
 }: {
-  isUnlimited: boolean;
   selicAnnual: number | null;
 }) {
   const [form, setForm] = useState({
@@ -40,7 +37,6 @@ export function AlugarComprarCalculator({
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [rateValid, setRateValid] = useState(true);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const rf = resultForm ?? form;
 
@@ -58,14 +54,13 @@ export function AlugarComprarCalculator({
       sessionStorage.setItem('alugar-saved-fp', fp);
     }
     (async () => {
-      const res = await saveToolSimulation({
+      await saveToolSimulation({
         name: `Alugar ou comprar ${new Date().toLocaleDateString('pt-BR')}`,
         system: 'Alugar ou comprar',
         payload: { form: resultForm },
         result,
-        charge: true,
+        charge: false,
       });
-      if ('error' in res) setUpgradeOpen(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -154,11 +149,6 @@ export function AlugarComprarCalculator({
               ) : (
                 <Button type="button" onClick={calcular}>
                   Comparar
-                  {!isUnlimited && (
-                    <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                      <Coins className="size-3.5" /> -1
-                    </span>
-                  )}
                 </Button>
               )}
             </div>
@@ -167,6 +157,7 @@ export function AlugarComprarCalculator({
       </Card>
 
       {result && (
+
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">Resultado</CardTitle>
@@ -287,8 +278,6 @@ export function AlugarComprarCalculator({
           </CardContent>
         </Card>
       )}
-
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

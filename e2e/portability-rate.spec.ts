@@ -28,10 +28,11 @@ async function cadastrarSemPlano(page: Page) {
   await page.waitForURL(/nova-simulacao/);
 }
 
-test('plano sem acesso vê gate premium e não vê formulário', async ({ page }) => {
+test('plano sem acesso vê card de upgrade sem formulário', async ({ page }) => {
   await cadastrarSemPlano(page);
   await page.goto('/portabilidade');
   await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
+  await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /comparar contrato atual e proposta/i })).toHaveCount(0);
 });
 

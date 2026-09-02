@@ -32,11 +32,13 @@ async function assinar(page: Page, email: string) {
   expect(response.ok()).toBeTruthy();
 }
 
-test('não assinante vê gate do imóvel no bolso', async ({ page }) => {
+test('não assinante vê card de upgrade sem acesso à ferramenta', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrar(page, 'aff-lock');
   await page.goto('/qual-imovel-cabe-no-meu-bolso');
-  await expect(page.getByText(/recurso exclusivo do plano ilimitado/i)).toBeVisible();
+  await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
+  await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /calcular imóvel máximo/i })).not.toBeVisible();
 });
 
 test('Ilimitado calcula cenários na página e mantém modal no amortizador inteligente', async ({ page }) => {

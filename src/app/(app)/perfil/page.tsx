@@ -20,7 +20,8 @@ export default async function PerfilPage() {
   ]);
 
   return (
-    <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
+    <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
+      <div className="flex w-full max-w-5xl flex-col gap-6">
       <h1 className="font-display text-xl font-semibold">Meu perfil</h1>
 
       <Card className="rounded-2xl shadow-sm">
@@ -98,6 +99,7 @@ export default async function PerfilPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

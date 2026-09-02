@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Coins, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { calcularMetaQuitacao, type MetaQuitacaoResult } from '@/lib/finance/meta-quitacao';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RateField } from '@/components/ui/rate-field';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
@@ -22,13 +21,12 @@ const DEFAULTS = {
   metaAnos: '10',
 };
 
-export function MetaCalculator({ isUnlimited }: { isUnlimited: boolean }) {
+export function MetaCalculator() {
   const [form, setForm] = useState(DEFAULTS);
   const [result, setResult] = useState<MetaQuitacaoResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [rateValid, setRateValid] = useState(true);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const rf = resultForm ?? form;
 
@@ -46,14 +44,13 @@ export function MetaCalculator({ isUnlimited }: { isUnlimited: boolean }) {
       sessionStorage.setItem('meta-saved-fp', fp);
     }
     (async () => {
-      const res = await saveToolSimulation({
+      await saveToolSimulation({
         name: `Meta de quitação ${new Date().toLocaleDateString('pt-BR')}`,
         system: 'Meta de quitação',
         payload: { form: resultForm },
         result,
-        charge: true,
+        charge: false,
       });
-      if ('error' in res) setUpgradeOpen(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -164,11 +161,6 @@ export function MetaCalculator({ isUnlimited }: { isUnlimited: boolean }) {
               ) : (
                 <Button type="button" onClick={calcular}>
                   Calcular aporte
-                  {!isUnlimited && (
-                    <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                      <Coins className="size-3.5" /> -1
-                    </span>
-                  )}
                 </Button>
               )}
             </div>
@@ -177,6 +169,7 @@ export function MetaCalculator({ isUnlimited }: { isUnlimited: boolean }) {
       </Card>
 
       {result && (
+
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">Resultado</CardTitle>
@@ -250,8 +243,6 @@ export function MetaCalculator({ isUnlimited }: { isUnlimited: boolean }) {
           </CardContent>
         </Card>
       )}
-
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

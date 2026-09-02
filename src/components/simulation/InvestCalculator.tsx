@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Info, Scale } from 'lucide-react';
+import { Info, Scale } from 'lucide-react';
 import { calcularInvestOuAmortizar, type CenarioId, type InvestResult } from '@/lib/finance/invest-ou-amortizar';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,14 +12,10 @@ import { FieldHelp } from '@/components/ui/field-help';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { RateField } from '@/components/ui/rate-field';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
-import { consumeCalcCredit } from '@/app/(app)/comprar-na-planta/actions';
 
 export function InvestCalculator({
-  isUnlimited,
   selicAnnual,
 }: {
-  isUnlimited: boolean;
   selicAnnual: number | null;
 }) {
   const router = useRouter();
@@ -36,7 +32,6 @@ export function InvestCalculator({
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [rateValid, setRateValid] = useState(true);
 
   const rf = resultForm ?? form;
@@ -66,11 +61,6 @@ export function InvestCalculator({
 
     setBusy(true);
     try {
-      const res = await consumeCalcCredit('Investir ou amortizar');
-      if (!res.ok) {
-        setUpgradeOpen(true);
-        return;
-      }
       setResult(
         calcularInvestOuAmortizar({
           saldoDevedor,
@@ -221,11 +211,7 @@ export function InvestCalculator({
               ) : (
                 <Button type="button" onClick={calcular} disabled={busy}>
                   {busy ? 'Calculando…' : 'Comparar'}
-                  {!isUnlimited && (
-                    <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                      <Coins className="size-3.5" /> -1
-                    </span>
-                  )}
+
                 </Button>
               )}
             </div>
@@ -234,6 +220,7 @@ export function InvestCalculator({
       </Card>
 
       {result && (
+
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">
@@ -377,7 +364,6 @@ export function InvestCalculator({
         </Card>
       )}
 
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

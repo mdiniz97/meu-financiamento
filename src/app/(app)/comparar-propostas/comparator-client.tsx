@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { MoneyInput } from '@/components/ui/money-input';
 import { FieldHelp } from '@/components/ui/field-help';
 import { computeComparator, type ComparatorResult } from '@/lib/comparator/calculate';
@@ -126,13 +125,10 @@ function rawToInput(proposals: RawProposal[], budget: string): ComparatorInput {
 }
 
 export function ComparatorClient({
-  locked,
   saved,
 }: {
-  locked: boolean;
   saved: { input: ComparatorInput; result: ComparatorResult; name: string; resultEngineVersion: string; storedEngineVersion: string; recalculated: boolean } | null;
 }) {
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [proposals, setProposals] = useState<RawProposal[]>(() => {
     if (saved) {
       return saved.input.proposals.map(proposalToRaw);
@@ -208,29 +204,6 @@ export function ComparatorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
-  if (locked) {
-    return (
-      <div className="flex w-full flex-1 flex-col items-center justify-center gap-4 bg-muted p-6">
-        <Card className="w-full max-w-md rounded-2xl shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              Comparar propostas <Sparkles className="size-5 text-[#820AD1]" />
-            </CardTitle>
-            <CardDescription>
-              Compare até 3 propostas bancárias, audite o CET e descubra quanto o amortizador inteligente pode economizar.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">Recurso exclusivo do plano Ilimitado.</p>
-            <Button type="button" onClick={() => setUpgradeOpen(true)}>
-              Ver opções de acesso
-            </Button>
-          </CardContent>
-        </Card>
-        <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
-      </div>
-    );
-  }
 
   function comparar() {
     setResult(null);
@@ -352,7 +325,10 @@ export function ComparatorClient({
         </CardContent>
       </Card>
 
-      {result && <ComparatorResultView result={result} input={input} />}
+      {result && (
+
+          <ComparatorResultView result={result} input={input} />
+      )}
     </div>
   );
 }

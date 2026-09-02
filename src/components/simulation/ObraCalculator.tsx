@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Coins, Hammer, Info, TrendingUp } from 'lucide-react';
+import { Hammer, Info, TrendingUp } from 'lucide-react';
 import { calcularJurosDeObra, type ObraResult } from '@/lib/finance/obra';
 import { compararPlantaOuInvestir, type PlantaInvestResult } from '@/lib/finance/invest-ou-amortizar';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
@@ -14,7 +14,6 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { RateField } from '@/components/ui/rate-field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
@@ -45,10 +44,8 @@ function monthsUntil(date: string): number {
 }
 
 export function ObraCalculator({
-  isUnlimited,
   selicAnnual,
 }: {
-  isUnlimited: boolean;
   selicAnnual: number | null;
 }) {
   const [form, setForm] = useState({
@@ -59,7 +56,6 @@ export function ObraCalculator({
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [rateValid, setRateValid] = useState(true);
   const [plantaInvest, setPlantaInvest] = useState<PlantaInvestResult | null>(null);
 
@@ -69,8 +65,8 @@ export function ObraCalculator({
     : 0;
   const custoTotalCompra = result ? result.totalJuros + result.totalSeguro + sobrecustoEntrada : 0;
 
-  // Auto-save: cada cálculo válido é salvo automaticamente em "Minhas simulações"
-  // (1 crédito para quem não é Ilimitado). O fingerprint na sessionStorage evita
+  // Auto-save: cada cálculo válido é salvo automaticamente em "Minhas simulações".
+  // O fingerprint na sessionStorage evita
   // duplicar em reload; um novo cálculo (form diferente) salva de novo.
   const obraSavedFpRef = useRef<string | null>(null);
   useEffect(() => {
@@ -86,16 +82,13 @@ export function ObraCalculator({
       sessionStorage.setItem('obra-saved-fp', fp);
     }
     (async () => {
-      const res = await saveToolSimulation({
+      await saveToolSimulation({
         name: `Juros de obra ${new Date().toLocaleDateString('pt-BR')}`,
         system: 'Comprar na planta',
         payload: { input: resultForm },
         result: { obra: result, planta: plantaInvest },
-        charge: true,
+        charge: false,
       });
-      if ('error' in res) {
-        setUpgradeOpen(true);
-      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -426,11 +419,6 @@ export function ObraCalculator({
               ) : (
                 <Button type="button" onClick={calcular} disabled={busy}>
                   {busy ? 'Calculando…' : 'Calcular juros de obra'}
-                  {!isUnlimited && (
-                    <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                      <Coins className="size-3.5" /> -1
-                    </span>
-                  )}
                 </Button>
               )}
             </div>
@@ -439,6 +427,7 @@ export function ObraCalculator({
       </Card>
 
       {result && (
+
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">Resultado da simulação</CardTitle>
@@ -512,6 +501,7 @@ export function ObraCalculator({
       )}
 
       {result && plantaInvest && (
+
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-lg">
@@ -634,7 +624,6 @@ export function ObraCalculator({
         </Card>
       )}
 
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

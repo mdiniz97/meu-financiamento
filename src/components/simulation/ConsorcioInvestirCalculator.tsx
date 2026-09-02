@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlarmClock, Coins } from 'lucide-react';
+import { AlarmClock } from 'lucide-react';
 import { calcularConsorcioOuInvestir, type ConsorcioInvestirResult } from '@/lib/finance/consorcio-investir';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { FieldHelp } from '@/components/ui/field-help';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput } from '@/components/ui/numeric-input';
-import { UpgradeDialog } from '@/components/upgrade-dialog';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
@@ -19,10 +18,8 @@ const DEFAULTS = {
 };
 
 export function ConsorcioInvestirCalculator({
-  isUnlimited,
   selicAnnual,
 }: {
-  isUnlimited: boolean;
   selicAnnual: number | null;
 }) {
   const [form, setForm] = useState({
@@ -32,7 +29,6 @@ export function ConsorcioInvestirCalculator({
   const [result, setResult] = useState<ConsorcioInvestirResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const savedFpRef = useRef<string | null>(null);
   useEffect(() => {
@@ -48,14 +44,13 @@ export function ConsorcioInvestirCalculator({
       sessionStorage.setItem('consorcio-investir-saved-fp', fp);
     }
     (async () => {
-      const res = await saveToolSimulation({
+      await saveToolSimulation({
         name: `Consórcio ou investir ${new Date().toLocaleDateString('pt-BR')}`,
         system: 'Consórcio vs investir',
         payload: { form: resultForm },
         result,
-        charge: true,
+        charge: false,
       });
-      if ('error' in res) setUpgradeOpen(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -116,17 +111,13 @@ export function ConsorcioInvestirCalculator({
             ) : (
               <Button type="button" onClick={calcular}>
                 Comparar
-                {!isUnlimited && (
-                  <span aria-hidden className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold">
-                    <Coins className="size-3.5" /> -1
-                  </span>
-                )}
               </Button>
             )}
           </div>
       </div>
 
       {result && (
+
         <div className="flex flex-col gap-4 rounded-2xl bg-muted/50 p-4 shadow-sm sm:p-6">
           <div className="flex flex-col gap-1">
             <h3 className="font-display text-lg font-semibold">Resultado</h3>
@@ -198,8 +189,6 @@ export function ConsorcioInvestirCalculator({
             </p>
         </div>
       )}
-
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>
   );
 }

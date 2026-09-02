@@ -31,23 +31,22 @@ async function assinar(page: Page, email: string) {
   expect(response.ok()).toBeTruthy();
 }
 
-test('página investir ou amortizar calcula com 1 crédito e mostra veredito', async ({ page }) => {
+test('página investir ou amortizar calcula sem custo e mostra veredito', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
-  await cadastrar(page);
+  const email = await cadastrar(page);
+  await assinar(page, email);
   await page.goto('/investir-ou-amortizar');
 
   await expect(page.getByRole('heading', { name: 'Investir ou amortizar?' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /comparar/i })).toContainText('-1');
 
-  await page.getByRole('button', { name: /comparar/i }).click();
+  const comparar = page.getByRole('button', { name: /comparar/i });
+  await expect(comparar).not.toContainText('-1');
+  await comparar.click();
   await expect(page.getByRole('heading', { name: 'Resultado da comparação' })).toBeVisible();
   await expect(page.getByText(/maior economia de juros/i).first()).toBeVisible();
   await expect(page.getByText(/reduzir a parcela/i).first()).toBeVisible();
   await expect(page.getByText(/reduzir o prazo/i).first()).toBeVisible();
   await expect(page.getByText(/investir e amortizar com o rendimento/i).first()).toBeVisible();
-
-  await page.goto('/perfil');
-  await expect(page.getByText('Saldo de créditos').locator('..').getByText('1', { exact: true })).toBeVisible();
 });
 
 test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
@@ -62,9 +61,10 @@ test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Resultado da comparação' })).toBeVisible();
 });
 
-test('seção planta ou investir calcula junto sem cobrar crédito extra', async ({ page }) => {
+test('seção planta ou investir calcula junto sem custo extra', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
-  await cadastrar(page);
+  const email = await cadastrar(page);
+  await assinar(page, email);
   await page.goto('/comprar-na-planta');
 
   await page.getByRole('button', { name: /calcular juros de obra/i }).click();
@@ -72,9 +72,6 @@ test('seção planta ou investir calcula junto sem cobrar crédito extra', async
   await expect(page.getByRole('heading', { name: 'Planta ou investir?' })).toBeVisible();
   await expect(page.getByText(/vale investir até a entrega|comprar na planta pesa menos/i)).toBeVisible();
   await expect(page.getByText(/na entrega você tem/i).first()).toBeVisible();
-
-  await page.goto('/perfil');
-  await expect(page.getByText('Saldo de créditos').locator('..').getByText('1', { exact: true })).toBeVisible();
 });
 
 test('landing tem seção investir ou amortizar com CTA', async ({ page }) => {

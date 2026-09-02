@@ -45,12 +45,13 @@ async function preencherProposta(page: Page, index: number, bank: string, entrad
   if (index === 2) await page.getByRole('textbox', { name: 'CET efetivo anual informado (%)', exact: true }).nth(2).fill('10,31');
 }
 
-test('não assinante vê bloqueio com upgrade', async ({ page }) => {
+test('não assinante vê card de upgrade sem acesso à ferramenta', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrar(page, 'b');
   await page.goto('/comparar-propostas');
-  await expect(page.getByText(/recurso exclusivo do plano ilimitado/i)).toBeVisible();
+  await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
   await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Banco' }).first()).not.toBeVisible();
 });
 
 test('ilimitado compara 2 propostas, adiciona 3ª, vê ranking + alerta CET, salva, PDF e leva ao simulador', async ({ page }) => {
