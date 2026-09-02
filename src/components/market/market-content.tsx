@@ -4,8 +4,7 @@ import { Indicators } from '@/components/market/indicators';
 import { HistoryChart } from '@/components/market/history-chart';
 import { MortgageTable } from '@/components/market/mortgage-table';
 
-const BACEN_SOURCE =
-  'Fonte: Banco Central do Brasil (BACEN), séries SGS 4390 (Selic), 433 (IPCA) e 7811 (TR) e taxas de juros por instituição financeira.';
+const BACEN_SOURCE = 'Fonte: Banco Central do Brasil (BACEN).';
 
 export function MarketContent({
   data,

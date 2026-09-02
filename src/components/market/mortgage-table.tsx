@@ -34,7 +34,12 @@ export function MortgageTable({ institutions }: { institutions: MortgageInstitut
           <h3 className="font-display border-b border-border px-4 py-3 text-sm font-semibold">
             {institution.institution}
           </h3>
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[55%]" />
+              <col className="w-[22.5%]" />
+              <col className="w-[22.5%]" />
+            </colgroup>
             <thead>
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">Modalidade</th>
