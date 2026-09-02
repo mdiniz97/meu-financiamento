@@ -40,7 +40,28 @@ function SimulationCard({ sim, isUnlimited }: { sim: Sim; isUnlimited: boolean }
       ? '/portabilidade'
       : sim.system === 'Comprar na planta'
         ? '/comprar-na-planta'
-        : null;
+        : sim.system === 'Meta de quitação'
+          ? '/meta-de-quitacao'
+          : sim.system === 'Alugar ou comprar'
+            ? '/alugar-ou-comprar'
+            : sim.system === 'Consórcio vs financiamento' || sim.system === 'Consórcio vs investir'
+              ? '/consorcio-vale-a-pena'
+              : null;
+
+  const toolDescription =
+    sim.system === 'Portabilidade'
+      ? 'Comparação de portabilidade.'
+      : sim.system === 'Comprar na planta'
+        ? 'Simulação de juros de obra.'
+        : sim.system === 'Meta de quitação'
+          ? 'Aporte mensal para quitar na meta.'
+          : sim.system === 'Alugar ou comprar'
+            ? 'Comparação de patrimônio alugando vs comprando.'
+            : sim.system === 'Consórcio vs financiamento'
+              ? 'Comparação de custo das duas modalidades.'
+              : sim.system === 'Consórcio vs investir'
+                ? 'Comparação do consórcio com investir a parcela.'
+                : '';
 
   return (
     <Card className="flex flex-col gap-3 rounded-2xl shadow-sm">
@@ -76,11 +97,7 @@ function SimulationCard({ sim, isUnlimited }: { sim: Sim; isUnlimited: boolean }
           </div>
         )}
         {toolRoute !== null && (
-          <p className="text-xs text-muted-foreground">
-            {sim.system === 'Portabilidade'
-              ? 'Comparação de portabilidade.'
-              : 'Simulação de juros de obra.'}
-          </p>
+          <p className="text-xs text-muted-foreground">{toolDescription}</p>
         )}
         {!isUnlimited && (
           <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
@@ -112,10 +129,23 @@ export default async function MinhasSimulacoesPage() {
   const comparisons = await listComparisons();
 
   const normais = sims.filter(
-    (s) => s.system !== 'Portabilidade' && s.system !== 'Comprar na planta'
+    (s) =>
+      s.system !== 'Portabilidade' &&
+      s.system !== 'Comprar na planta' &&
+      s.system !== 'Meta de quitação' &&
+      s.system !== 'Alugar ou comprar' &&
+      s.system !== 'Consórcio vs financiamento' &&
+      s.system !== 'Consórcio vs investir'
   );
   const portabilidades = sims.filter((s) => s.system === 'Portabilidade');
   const obras = sims.filter((s) => s.system === 'Comprar na planta');
+  const ferramentas = sims.filter(
+    (s) =>
+      s.system === 'Meta de quitação' ||
+      s.system === 'Alugar ou comprar' ||
+      s.system === 'Consórcio vs financiamento' ||
+      s.system === 'Consórcio vs investir'
+  );
 
   return (
     <div className="flex flex-1 flex-col gap-6 bg-muted p-6">
@@ -167,6 +197,17 @@ export default async function MinhasSimulacoesPage() {
           <h2 className="font-display text-lg font-semibold">Comprar na planta</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {obras.map((sim) => (
+              <SimulationCard key={sim.id} sim={sim} isUnlimited={isUnlimited} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {ferramentas.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold">Ferramentas de decisão</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ferramentas.map((sim) => (
               <SimulationCard key={sim.id} sim={sim} isUnlimited={isUnlimited} />
             ))}
           </div>
