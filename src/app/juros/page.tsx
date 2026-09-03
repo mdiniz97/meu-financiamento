@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { UpgradeCard } from '@/components/upgrade-card';
 import { getMarketOverview } from '@/lib/market/bacen';
 import { MarketContent } from '@/components/market/market-content';
+import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
 
 export default async function JurosPage() {
   const session = await auth();
@@ -25,6 +26,12 @@ export default async function JurosPage() {
             </div>
           </div>
           <MarketContent data={data} contained />
+          <div className="flex w-full flex-col items-center bg-muted p-4 pb-6 sm:p-6">
+            <BlogSuggestions
+              title="Aprenda mais sobre juros"
+              slugs={['juros-do-financiamento', 'qual-banco-financia-melhor', 'portabilidade-de-financiamento']}
+            />
+          </div>
         </main>
       </div>
     );
@@ -35,8 +42,14 @@ export default async function JurosPage() {
       <Header signedIn={false} />
       <main className="flex-1">
         <MarketContent data={data} />
-        <CTA signedIn={false} />
+        <div className="flex w-full justify-center bg-muted px-6 pb-10 pt-2">
+          <BlogSuggestions
+            title="Aprenda mais sobre juros"
+            slugs={['juros-do-financiamento', 'qual-banco-financia-melhor', 'portabilidade-de-financiamento']}
+          />
+        </div>
       </main>
+      <CTA signedIn={false} />
       <Footer />
     </div>
   );
