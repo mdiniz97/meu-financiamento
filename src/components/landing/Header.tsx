@@ -17,6 +17,15 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
         </Link>
         <nav className="flex items-center gap-2">
           <Link
+            href="/custos-da-compra"
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "hidden px-4 text-sm sm:inline-flex"
+            )}
+          >
+            Quanto preciso para comprar?
+          </Link>
+          <Link
             href="/juros"
             className={cn(
               buttonVariants({ variant: "ghost" }),
@@ -24,6 +33,15 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
             )}
           >
             Juros de mercado
+          </Link>
+          <Link
+            href="/blog"
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "hidden px-4 text-sm sm:inline-flex"
+            )}
+          >
+            Blog
           </Link>
           {signedIn ? (
             <>

@@ -15,6 +15,7 @@ const NAV = [
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
   { href: '/juros', label: 'Juros de mercado', icon: Percent },
+  { href: '/custos-da-compra', label: 'Quanto preciso para comprar?', icon: Coins },
   { href: '/comprar-na-planta', label: 'Comprar na Planta', icon: Hammer },
   { href: '/investir-ou-amortizar', label: 'Investir ou Amortizar', icon: TrendingUp },
   { href: '/meta-de-quitacao', label: 'Meta de Quitação', icon: Target },

@@ -13,7 +13,16 @@ export function Footer() {
             Raio X do Financiamento
           </span>
         </Link>
-        <div className="flex items-center gap-5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+          <Link href="/juros" className="hover:text-foreground">
+            Juros de mercado
+          </Link>
+          <Link href="/custos-da-compra" className="hover:text-foreground">
+            Quanto preciso para comprar?
+          </Link>
+          <Link href="/blog" className="hover:text-foreground">
+            Blog
+          </Link>
           <Link href="/login" className="hover:text-foreground">
             Entrar
           </Link>

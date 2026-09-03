@@ -8,6 +8,7 @@ import { ObraExplain } from "@/components/landing/ObraExplain";
 import { InvestExplain } from "@/components/landing/InvestExplain";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { PricingPreview } from "@/components/landing/PricingPreview";
+import { BlogPreview } from "@/components/landing/BlogPreview";
 import { StatsBar } from "@/components/landing/StatsBar";
 import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
@@ -28,6 +29,7 @@ export default async function Home() {
         <InvestExplain signedIn={signedIn} />
         <DashboardPreview />
         <PricingPreview signedIn={signedIn} />
+        <BlogPreview />
         <StatsBar />
         <FAQ />
         <CTA signedIn={signedIn} />
