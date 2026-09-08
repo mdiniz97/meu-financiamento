@@ -50,6 +50,62 @@ export interface Projecao {
   divergencia: number;
 }
 
+export interface ContractInput {
+  bank: string;
+  system: ContractSystem;
+  annualRate: number;
+  trMonthly: number;
+  insuranceMonthly: number;
+  parcelasTotais: number;
+  saldoDevedor: number;
+  dataBase: string;
+  proximaParcelaNumero: number;
+}
+
+const DATA_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isValidDateString(s: unknown): s is string {
+  if (typeof s !== 'string' || !DATA_ISO_RE.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+export function validateContractInput(p: unknown): { ok: true; value: ContractInput } | { ok: false; error: string } {
+  const fail = (error: string) => ({ ok: false as const, error });
+  if (typeof p !== 'object' || p === null) return fail('Dados do contrato inválidos');
+  const o = p as Record<string, unknown>;
+  const { bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero } = o;
+  if (typeof bank !== 'string' || bank.length > 60) return fail('Banco inválido');
+  if (system !== 'PRICE' && system !== 'SAC') return fail('Sistema inválido');
+  if (typeof annualRate !== 'number' || !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 1) {
+    return fail('Taxa anual inválida');
+  }
+  if (typeof trMonthly !== 'number' || !Number.isFinite(trMonthly) || trMonthly < 0 || trMonthly > 0.1) {
+    return fail('TR mensal inválida');
+  }
+  if (typeof insuranceMonthly !== 'number' || !Number.isFinite(insuranceMonthly) || insuranceMonthly < 0) {
+    return fail('Seguro mensal inválido');
+  }
+  if (typeof parcelasTotais !== 'number' || !Number.isInteger(parcelasTotais) || parcelasTotais < 1 || parcelasTotais > 600) {
+    return fail('Prazo inválido');
+  }
+  if (typeof saldoDevedor !== 'number' || !Number.isFinite(saldoDevedor) || saldoDevedor <= 0) {
+    return fail('Saldo devedor inválido');
+  }
+  if (!isValidDateString(dataBase)) return fail('Data-base inválida');
+  if (typeof proximaParcelaNumero !== 'number' || !Number.isInteger(proximaParcelaNumero)
+    || proximaParcelaNumero < 1 || proximaParcelaNumero > parcelasTotais) {
+    return fail('Próxima parcela inválida');
+  }
+  return {
+    ok: true,
+    value: {
+      bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero,
+    },
+  };
+}
+
 export function toLoanInput(params: ContractParams, baseline: Baseline): LoanInput {
   return {
     bank: params.bank, system: params.system, principal: baseline.saldoDevedor,

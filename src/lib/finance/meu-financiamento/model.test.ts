@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { simulate } from '../engine';
-import { projecao, primeiraPendente, toLoanInput } from './model';
+import { projecao, primeiraPendente, toLoanInput, validateContractInput } from './model';
 
 const PARAMS = {
   bank: 'Caixa', system: 'PRICE' as const, annualRate: 0.105, trMonthly: 0.0017,
@@ -121,4 +121,63 @@ it('term sem n\' factível (aporte abaixo do efeito) mantém o prazo default', (
   const base = projecao(PARAMS, BASELINE, [], []);
   const comExtra = projecao(PARAMS, BASELINE, [], [{ dataPagamento: '2026-09-20', valor: 100, origem: 'proprio', modo: 'term' }]);
   expect(comExtra.quitaEm).toBe(base.quitaEm);
+});
+
+describe('validateContractInput', () => {
+  const VALID = {
+    bank: 'Caixa', system: 'PRICE', annualRate: 0.105, trMonthly: 0.0017,
+    insuranceMonthly: 100, parcelasTotais: 360, saldoDevedor: 1000000,
+    dataBase: '2026-09-08', proximaParcelaNumero: 141,
+  };
+
+  it('aceita payload válido de cadastro', () => {
+    const r = validateContractInput(VALID);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value).toEqual(VALID);
+  });
+
+  it('recusa taxa anual acima de 1 (100% a.a.)', () => {
+    expect(validateContractInput({ ...VALID, annualRate: 1.01 }).ok).toBe(false);
+  });
+
+  it('recusa TR mensal acima de 0.1', () => {
+    expect(validateContractInput({ ...VALID, trMonthly: 0.11 }).ok).toBe(false);
+  });
+
+  it('recusa prazo 0 e prazo acima de 600', () => {
+    expect(validateContractInput({ ...VALID, parcelasTotais: 0 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, parcelasTotais: 601 }).ok).toBe(false);
+  });
+
+  it('recusa saldo devedor zero ou negativo', () => {
+    expect(validateContractInput({ ...VALID, saldoDevedor: 0 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, saldoDevedor: -1 }).ok).toBe(false);
+  });
+
+  it('recusa próxima parcela fora de 1..parcelasTotais ou fracionária', () => {
+    expect(validateContractInput({ ...VALID, proximaParcelaNumero: 0 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, proximaParcelaNumero: 361 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, proximaParcelaNumero: 141.5 }).ok).toBe(false);
+  });
+
+  it('recusa data-base inválida (formato ou calendário)', () => {
+    expect(validateContractInput({ ...VALID, dataBase: '10/05/2026' }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, dataBase: '2026-13-01' }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, dataBase: '2026-02-30' }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, dataBase: '' }).ok).toBe(false);
+  });
+
+  it('recusa system inválido', () => {
+    expect(validateContractInput({ ...VALID, system: 'MIXED' }).ok).toBe(false);
+  });
+
+  it('recusa banco com mais de 60 caracteres', () => {
+    expect(validateContractInput({ ...VALID, bank: 'x'.repeat(61) }).ok).toBe(false);
+  });
+
+  it('recusa payload não-objeto e campos não numéricos', () => {
+    expect(validateContractInput(null).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, annualRate: NaN }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, insuranceMonthly: '100' }).ok).toBe(false);
+  });
 });
