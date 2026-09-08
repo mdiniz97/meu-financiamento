@@ -148,7 +148,8 @@ describe('comparePortability', () => {
       insuranceMonthly: 0,
       newInsuranceMonthly: 500,
       months: 120,
-      costs: 100000,
+      // Oráculo independente: pico acumulado 103221,88; economia final 101868,69.
+      costs: 102000,
     });
     expect(r.economiaLiquida).toBeLessThan(0);
     expect(r.paybackMonth).toBeNull();

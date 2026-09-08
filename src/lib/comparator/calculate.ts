@@ -33,7 +33,7 @@ export interface ComparatorResult {
   };
 }
 
-export const COMPARISON_ENGINE_VERSION = '1';
+export const COMPARISON_ENGINE_VERSION = '2';
 export const COMPARISON_FINGERPRINT_VERSION = 1;
 
 export function comparisonLoadVersions(storedEngineVersion: string, recalculated: boolean) {

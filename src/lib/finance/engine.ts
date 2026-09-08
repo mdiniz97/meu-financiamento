@@ -44,7 +44,7 @@ export function validateLoanInput(input: LoanInput, strategies?: Strategies): vo
   const s = strategies ?? emptyStrategies();
   check(Array.isArray(s.extraLumpSum), 'amortizações extras inválidas');
   for (const e of s.extraLumpSum) {
-    check(Number.isFinite(e.month) && e.month >= 1 && e.month <= input.months, 'mês de amortização extra inválido (não pode passar do prazo do contrato)');
+    check(Number.isInteger(e.month) && e.month >= 1 && e.month <= input.months, 'mês de amortização extra inválido (não pode passar do prazo do contrato)');
     // valor 0 é permitido (aporte inerte, ex: campo apagado pelo usuário)
     check(Number.isFinite(e.amount) && e.amount >= 0, 'valor de amortização extra inválido');
     if (e.reduceMode !== undefined) {
@@ -127,7 +127,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
   let amortizacaoFixada = 0; // SAC: nova amortização (fixa) no modo "reduzir parcela"
   // taxa efetiva que cobre juros + correção monetária (TR): usada no modo
   // "reduzir parcela" para que a parcela reduzida continue amortizando o saldo
-  const mEff = (1 + m) * (1 + input.trMonthly) - 1;
+  const mEff = m + input.trMonthly;
   if (
     input.system === 'PRICE' &&
     m === 0 &&
@@ -157,13 +157,13 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     let bs = input.principal;
     let prevP = 0;
     for (let t = 1; t <= input.months + 360; t++) {
-      if (bs <= 1e-9) break;
+      if (bs < 0.005) break;
       const corr = bs * input.trMonthly;
       const pagNper = prevP > 0 ? prevP - seguroMensal : 0;
       const pvNper = prevP > 0 ? bs - corr : 0;
       const rem = pagNper > 0 ? nper(m, pagNper, pvNper) : input.months;
       const parcela = pmt(m, rem, bs) + seguroMensal;
-      const amort = Math.min(Math.max(parcela - bs * m - seguroMensal, 0), bs);
+      const amort = Math.min(Math.max(parcela - bs * m - seguroMensal, 0), bs + corr);
       basePriceParcela.push(parcela);
       bs = Math.max(0, bs - amort + corr);
       prevP = parcela;
@@ -193,6 +193,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (saldo <= 1e-9) break;
     const juros = saldo * m;
     const correcao = saldo * input.trMonthly;
+    const saldoCorrigido = saldo + correcao;
 
     const pctBase = strategies.extraMonthlyPct ?? 0;
     const pctAtivo =
@@ -234,7 +235,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (input.system === 'PRICE') {
       if (modoPayment) {
         parcela = parcelaFixada;
-        amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldo);
+        amortizacao = Math.min(Math.max(parcela - juros - seguroMensal, 0), saldoCorrigido);
         // pago real no fim do contrato: só juros + amortização (cap) + seguro
         parcela = juros + amortizacao + seguroMensal;
       } else {
@@ -243,7 +244,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
         const alvo = basePriceParcela[month - 1] ?? (parcelaBase > 0
           ? pmt(m, nper(m, parcelaBase - seguroMensal, saldo - correcao), saldo) + seguroMensal
           : pmt(m, input.months, saldo) + seguroMensal);
-        amortizacao = Math.min(Math.max(alvo - juros - seguroMensal, 0), saldo);
+        amortizacao = Math.min(Math.max(alvo - juros - seguroMensal, 0), saldoCorrigido);
         parcela = juros + amortizacao + seguroMensal;
       }
     } else {
@@ -270,17 +271,19 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     let modoFonte: 'term' | 'payment' | undefined;
     const pctExtra = pctAtivo ? parcela * pctBase : 0;
     if (pctExtra > 0) {
-      extra += Math.min(pctExtra, Math.max(saldo - amortizacao, 0));
+      extra += Math.min(pctExtra, Math.max(saldoCorrigido - amortizacao, 0));
       if (strategies.extraMonthlyPctReduceMode) modoFonte = strategies.extraMonthlyPctReduceMode;
     }
-    const lumpEntry = strategies.extraLumpSum.find((e) => e.month === month);
-    if (lumpEntry && lumpEntry.amount > 0) {
-      extra += Math.min(lumpEntry.amount, Math.max(saldo - amortizacao - extra, 0));
-      if (lumpEntry.reduceMode) modoFonte = lumpEntry.reduceMode;
+    for (const lumpEntry of strategies.extraLumpSum.filter((e) => e.month === month)) {
+      const lumpExtra = Math.min(lumpEntry.amount, Math.max(saldoCorrigido - amortizacao - extra, 0));
+      if (lumpExtra > 0) {
+        extra += lumpExtra;
+        if (lumpEntry.reduceMode) modoFonte = lumpEntry.reduceMode;
+      }
     }
     const fg = strategies.fgtsAnnual;
     if (fg && month >= (fg.startMonth ?? 12) && (month - (fg.startMonth ?? 12)) % 12 === 0 && (!fg.untilMonth || month <= fg.untilMonth)) {
-      const fgExtra = Math.min(fg.amount, Math.max(saldo - amortizacao - extra, 0));
+      const fgExtra = Math.min(fg.amount, Math.max(saldoCorrigido - amortizacao - extra, 0));
       if (fgExtra > 0) {
         extra += fgExtra;
         // modo só conta se o aporte entra de verdade: fonte com valor zero (ou
@@ -290,7 +293,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     }
     const rec = strategies.recurringExtra;
     if (rec && month >= rec.startMonth && (month - rec.startMonth) % rec.every === 0 && (!rec.untilMonth || month <= rec.untilMonth)) {
-      const recExtra = Math.min(rec.amount, Math.max(saldo - amortizacao - extra, 0));
+      const recExtra = Math.min(rec.amount, Math.max(saldoCorrigido - amortizacao - extra, 0));
       if (recExtra > 0) {
         extra += recExtra;
         if (rec.reduceMode) modoFonte = rec.reduceMode;
@@ -304,7 +307,7 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
       // se a parcela já ultrapassar o valor fixo)
       const extraFixo = Math.max(0, fp.amount - parcela);
       if (extraFixo > 0) {
-        const fixoEfetivo = Math.min(extraFixo, Math.max(saldo - amortizacao - extra, 0));
+        const fixoEfetivo = Math.min(extraFixo, Math.max(saldoCorrigido - amortizacao - extra, 0));
         if (fixoEfetivo > 0) {
           extra += fixoEfetivo;
           // modo só vence se o fixo realmente contribui (valor zero ou fixo
@@ -317,14 +320,22 @@ export function simulate(input: LoanInput, strategies: Strategies = emptyStrateg
     if (!fixedPaymentActive && strategies.paySacParcela && input.system === 'PRICE' && sacParcelas[month - 1] !== undefined) {
       // paga o que pagaria no SAC: a diferença (SAC − PRICE) vira amortização
       const extraSac = Math.max(0, sacParcelas[month - 1] - parcela);
-      if (extraSac > 0) extra += Math.min(extraSac, Math.max(saldo - amortizacao - extra, 0));
+      if (extraSac > 0) extra += Math.min(extraSac, Math.max(saldoCorrigido - amortizacao - extra, 0));
     }
 
     parcelaBase = parcela; // ancora da recorrência NPER: parcela CONTRATUAL, sem extra
     parcela += extra;
     amortizacao += extra;
-    saldo = Math.max(0, saldo - amortizacao + correcao);
-    if (saldo < 1e-9) saldo = 0;
+    saldo = Math.max(0, saldoCorrigido - amortizacao);
+    // Liquida a fração que arredonda para zero centavos no pagamento final,
+    // sem criar outra competência de juros/seguro nem perder a identidade do saldo.
+    // Régua monetária: resíduos de float abaixo de meio centavo (R$ 0,005) são
+    // absorvidos; acima disso o mês extra é contabilizado (limiar observável).
+    if (saldo < 0.005) {
+      amortizacao += saldo;
+      parcela += saldo;
+      saldo = 0;
+    }
 
     const modoEfetivo = modoFonte ?? strategies.reduceMode;
     if (modoEfetivo === 'payment' && extra > 0 && saldo > 0 && !modoPayment) {

@@ -24,7 +24,10 @@ export function ConsorcioCalculator() {
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
   const [rateValid, setRateValid] = useState(true);
-
+  const taxaFinResultado = resultForm ? parseDecimal(resultForm.taxaFin) : NaN;
+  const taxaFinLabel = Number.isFinite(taxaFinResultado)
+    ? taxaFinResultado.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+    : '-';
 
   const savedFpRef = useRef<string | null>(null);
   useEffect(() => {
@@ -168,7 +171,7 @@ export function ConsorcioCalculator() {
               <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">Financiamento</span>
-                  <span className="text-xs text-muted-foreground">Juros {form.taxaFin}% a.a. + seguros e tarifas</span>
+                  <span className="text-xs text-muted-foreground">Juros {taxaFinLabel}% a.a. + seguros e tarifas</span>
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   <div className="flex items-baseline justify-between gap-2">
@@ -198,7 +201,7 @@ export function ConsorcioCalculator() {
                 </li>
                 <li>
                   <strong className="text-foreground">Financiamento:</strong> você paga o mesmo
-                  valor com juros de {form.taxaFin}% a.a. embutidos na parcela ({formatBRL(result.jurosFinanciamento)}
+                  valor com juros de {taxaFinLabel}% a.a. embutidos na parcela ({formatBRL(result.jurosFinanciamento)}
                   de juros no total).
                 </li>
                 <li>

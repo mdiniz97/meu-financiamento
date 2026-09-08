@@ -61,11 +61,19 @@ test('consórcio vs financiamento compara custos', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Consórcio vale a pena?' })).toBeVisible();
   await expect(page.getByRole('tab', { name: /financiar/i })).toBeVisible();
+  const taxa = page.getByRole('textbox', { name: 'Taxa do financiamento', exact: true });
+  await taxa.fill('10.500000000000002');
   await page.getByRole('button', { name: /comparar/i }).click();
   await expect(page.getByRole('heading', { name: 'Resultado' })).toBeVisible();
   await expect(page.getByText(/consórcio mais barato no total/i).first()).toBeVisible();
   await expect(page.getByText('Custo dos juros', { exact: true })).toBeVisible();
   await expect(page.getByText(/no consórcio, o imóvel não sai na hora/i)).toBeVisible();
+
+  const resultado = page.getByRole('heading', { name: 'Resultado', exact: true }).locator('../..');
+  await expect(resultado).toContainText('Juros 10,5% a.a.');
+  const snapshot = await resultado.innerText();
+  await taxa.fill('0');
+  await expect(resultado).toHaveText(snapshot, { useInnerText: true });
 
   await page.goto('/minhas-simulacoes');
   await expect(page.getByText(/consórcio vs financiamento/i).first()).toBeVisible();
@@ -76,10 +84,19 @@ test('consórcio vs investir mostra quando o investimento compra à vista', asyn
   await page.goto('/consorcio-vale-a-pena');
 
   await page.getByRole('tab', { name: /investir/i }).click();
+  const taxa = page.getByRole('textbox', { name: 'Taxa de investimento (Selic % a.a.)', exact: true });
+  await taxa.fill('10.500000000000002');
   await page.getByRole('button', { name: /comparar/i }).click();
   await expect(page.getByRole('heading', { name: 'Resultado' })).toBeVisible();
   await expect(page.getByText(/investindo, você compra à vista/i).first()).toBeVisible();
   await expect(page.getByText(/quando o consórcio vale\?/i)).toBeVisible();
+
+  const resultado = page.getByRole('heading', { name: 'Resultado', exact: true }).locator('../..');
+  await expect(resultado).toContainText('compra à vista no mês 120');
+  await expect(resultado).toContainText('rende 10,5% a.a.');
+  const snapshot = await resultado.innerText();
+  await taxa.fill('0');
+  await expect(resultado).toHaveText(snapshot, { useInnerText: true });
 
   await page.goto('/minhas-simulacoes');
   await expect(page.getByText(/consórcio vs investir/i).first()).toBeVisible();

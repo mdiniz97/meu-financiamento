@@ -302,20 +302,27 @@ function isCandidateValid(value: unknown): boolean {
   if (!hasOnlyKeys(candidate, ['system', 'months', 'parcela', 'extraMonthlyPct', 'extraMonthlyAmount', 'result'])) return false;
   if ((candidate.system !== 'SAC' && candidate.system !== 'PRICE') || !isMonth(candidate.months) ||
     !isNonNegative(candidate.parcela) || !isFiniteNumber(candidate.extraMonthlyPct) ||
-    candidate.extraMonthlyPct < 0 || candidate.extraMonthlyPct > 1 || !isNonNegative(candidate.extraMonthlyAmount) ||
+    candidate.extraMonthlyPct < 0 || !isNonNegative(candidate.extraMonthlyAmount) ||
     !isSimulationValid(candidate.result)) return false;
   const result = candidate.result as Record<string, unknown>;
   const input = result.input as Record<string, unknown>;
   const strategies = result.strategies as Record<string, unknown>;
+  const first = (result.installments as Record<string, number>[])[0];
+  const parcela = first.parcela - first.extra;
+  if (!approximatelyEqual(candidate.parcela as number, parcela) ||
+    !approximatelyEqual(candidate.extraMonthlyAmount as number, first.extra) ||
+    !approximatelyEqual(candidate.extraMonthlyPct as number, parcela > 0 ? first.extra / parcela : 0)) return false;
   if (result.system !== candidate.system || input.system !== candidate.system || input.months !== candidate.months) return false;
   if (strategies.fixedPayment !== undefined) {
-    const amount = (strategies.fixedPayment as Record<string, unknown>).amount as number;
-    const parcela = candidate.parcela as number;
-    const expectedExtra = Math.max(0, Math.min(amount - parcela, parcela));
-    return approximatelyEqual(candidate.extraMonthlyAmount as number, expectedExtra) &&
-      approximatelyEqual(candidate.extraMonthlyPct as number, parcela > 0 ? expectedExtra / parcela : 0);
+    const fixed = strategies.fixedPayment as { amount: number; startMonth?: number };
+    const available = Number(input.principal) + first.correcao - (first.amortizacao - first.extra);
+    const expectedExtra = (fixed.startMonth ?? 1) <= 1
+      ? Math.min(Math.max(0, fixed.amount - parcela), Math.max(0, available))
+      : 0;
+    return approximatelyEqual(first.extra, expectedExtra);
   }
-  return strategies.extraMonthlyPct === undefined || strategies.extraMonthlyPct === candidate.extraMonthlyPct;
+  return candidate.extraMonthlyPct <= 1 && (strategies.extraMonthlyPct === undefined ||
+    approximatelyEqual(strategies.extraMonthlyPct as number, candidate.extraMonthlyPct as number));
 }
 
 function approximatelyEqual(a: number, b: number): boolean {

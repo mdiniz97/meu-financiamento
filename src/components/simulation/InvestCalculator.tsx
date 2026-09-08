@@ -25,7 +25,6 @@ export function InvestCalculator({
     taxaFinanciamento: '10.5',
     valorDisponivel: '100000,00',
     selic: selicAnnual === null ? '10.5' : String(selicAnnual),
-    horizonteMeses: '120',
     sistema: 'PRICE' as 'PRICE' | 'SAC',
   });
   const [result, setResult] = useState<InvestResult | null>(null);
@@ -46,18 +45,17 @@ export function InvestCalculator({
     const taxaFinanciamento = parseDecimal(form.taxaFinanciamento);
     const valorDisponivel = parseBRLToNumber(form.valorDisponivel);
     const selic = parseDecimal(form.selic);
-    const horizonteMeses = Number(form.horizonteMeses);
 
-    if (!(saldoDevedor > 0)) return setError('Informe o saldo devedor (maior que zero).');
-    if (!(prazoRestante >= 1 && prazoRestante <= 600))
-      return setError('Prazo restante deve ficar entre 1 e 600 meses.');
-    if (!rateValid || !(taxaFinanciamento >= 0)) return setError('Informe uma taxa válida.');
-    if (!(valorDisponivel > 0)) return setError('Informe o valor disponível (maior que zero).');
+    if (!Number.isFinite(saldoDevedor) || !(saldoDevedor > 0)) return setError('Informe o saldo devedor (maior que zero).');
+    if (!Number.isSafeInteger(prazoRestante) || !(prazoRestante >= 1 && prazoRestante <= 600))
+      return setError('Prazo restante deve ser inteiro entre 1 e 600 meses.');
+    if (!rateValid || !Number.isFinite(taxaFinanciamento) || !(taxaFinanciamento >= 0))
+      return setError('Informe uma taxa válida.');
+    if (!Number.isFinite(valorDisponivel) || !(valorDisponivel > 0))
+      return setError('Informe o valor disponível (maior que zero).');
     if (valorDisponivel > saldoDevedor)
       return setError('O valor disponível não pode superar o saldo devedor.');
-    if (!(selic >= 0)) return setError('Informe a taxa de investimento (Selic).');
-    if (!(horizonteMeses >= 1 && horizonteMeses <= prazoRestante))
-      return setError('Horizonte deve ficar entre 1 e o prazo restante.');
+    if (!Number.isFinite(selic) || !(selic >= 0)) return setError('Informe a taxa de investimento (Selic).');
 
     setBusy(true);
     try {
@@ -68,7 +66,7 @@ export function InvestCalculator({
           taxaFinanciamento: taxaFinanciamento / 100,
           valorDisponivel,
           selicAnual: selic / 100,
-          horizonteMeses,
+          horizonteMeses: prazoRestante,
           sistema: form.sistema,
         })
       );
@@ -89,8 +87,8 @@ export function InvestCalculator({
             <Scale className="size-5 text-[#820AD1]" /> Comparativo investimento × amortização
           </CardTitle>
           <CardDescription>
-            A amortização é um retorno garantido da taxa do seu contrato; o investimento rende a
-            Selic menos o Imposto de Renda.
+            Compare os juros totais de cada estratégia até quitar a dívida. Não é uma comparação
+            de patrimônio ou de retorno em um horizonte escolhido.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -108,12 +106,12 @@ export function InvestCalculator({
               saber o que faz mais sentido.
             </p>
             <p>
-              <strong>2.</strong> <strong>Amortizar</strong>: o valor abate a dívida e a parcela
-              cai; a diferença da parcela é reinvestida na Selic.
+              <strong>2.</strong> <strong>Amortizar</strong>: o valor abate a dívida para reduzir
+              a parcela ou o prazo. A simulação não reinveste a diferença de parcela.
             </p>
             <p>
-              <strong>3.</strong> <strong>Investir</strong>: o valor rende a Selic (juros
-              compostos) e você segue pagando a parcela cheia.
+              <strong>3.</strong> <strong>Investir</strong>: o principal fica aplicado e o
+              rendimento líquido mensal amortiza a dívida, além da parcela contratual.
             </p>
           </div>
 
@@ -164,15 +162,6 @@ export function InvestCalculator({
                 value={parseDecimal(form.selic)}
                 parse={parseDecimal}
                 onValid={(v) => set('selic', String(v))}
-              />
-            </FieldHelp>
-            <FieldHelp htmlFor="invHorizonte" label="Horizonte (meses)" help="Prazo da comparação; ex.: 120 meses (10 anos).">
-              <NumericInput
-                id="invHorizonte"
-                aria-describedby="invHorizonte-help"
-                value={Number(form.horizonteMeses)}
-                parse={(s) => (s.trim() === '' ? 0 : Number(s.replace(/\D/g, '')))}
-                onValid={(v) => set('horizonteMeses', String(v))}
               />
             </FieldHelp>
           </div>
@@ -230,7 +219,8 @@ export function InvestCalculator({
               Três formas de usar os {formatBRL(parseBRLToNumber(rf.valorDisponivel))}, o que
               muda nos juros totais do seu contrato e no tempo de quitação. Parcela atual:{' '}
               {formatBRL(result.parcelaOriginal)} ({rf.sistema}); juros totais do contrato:{' '}
-              {formatBRL(result.jurosTotaisOriginal)}.
+              {formatBRL(result.jurosTotaisOriginal)}.{' '}
+              {rf.sistema === 'SAC' && 'No SAC, o valor mostrado é o do primeiro mês; as parcelas caem conforme os juros diminuem.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -254,8 +244,8 @@ export function InvestCalculator({
                 <strong>
                   {formatBRL(result.estrategias[result.melhorEconomia].economiaJuros)}
                 </strong>{' '}
-                de juros até quitar. A amortização é retorno garantido da taxa do contrato;
-                investir depende da Selic futura.
+                de juros até quitar, nas condições simuladas. Não indica maior patrimônio final;
+                o rendimento do investimento depende da Selic futura.
               </p>
               {result.melhorEconomia !== 'investir-rendimento' && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -278,17 +268,23 @@ export function InvestCalculator({
                   {
                     id: 'reduzir-parcela' as CenarioId,
                     titulo: 'Reduzir a parcela',
-                    descricao: `Você abate ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} da dívida e a parcela cai de ${formatBRL(result.parcelaOriginal)} para ${formatBRL(result.estrategias['reduzir-parcela'].parcela ?? 0)} (${rf.sistema}). O prazo continua o mesmo.`,
+                    descricao: result.estrategias['reduzir-parcela'].quitaEmMeses === 0
+                      ? 'O valor disponível quita todo o saldo hoje, sem novas parcelas.'
+                      : `Você abate ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} da dívida e a parcela cai de ${formatBRL(result.parcelaOriginal)} para ${formatBRL(result.estrategias['reduzir-parcela'].parcela ?? 0)} (${rf.sistema}). O prazo continua o mesmo.${rf.sistema === 'SAC' ? ' Valores do primeiro mês; a nova amortização é constante e as parcelas caem com os juros.' : ''}`,
                   },
                   {
                     id: 'reduzir-prazo' as CenarioId,
                     titulo: 'Reduzir o prazo',
-                    descricao: `Você abate ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} e mantém a parcela de ${formatBRL(result.parcelaOriginal)}: a dívida quita muito antes, os juros dos ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} deixam de existir até o fim do contrato.`,
+                    descricao: result.estrategias['reduzir-prazo'].quitaEmMeses === 0
+                      ? 'O valor disponível quita todo o saldo hoje, sem novas parcelas.'
+                      : rf.sistema === 'SAC'
+                        ? `Você abate ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} e mantém a amortização contratual de ${formatBRL(parseBRLToNumber(rf.saldoDevedor) / Number(rf.prazoRestante))}/mês. Os juros incidem sobre o saldo reduzido; a parcela não fica fixa e o prazo diminui.`
+                        : `Você abate ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} e mantém a prestação PRICE constante de ${formatBRL(result.parcelaOriginal)} até quitar, reduzindo o prazo.`,
                   },
                   {
                     id: 'investir-rendimento' as CenarioId,
                     titulo: 'Investir e amortizar com o rendimento',
-                    descricao: `Os ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} ficam investidos na Selic (${parseDecimal(rf.selic).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.) e o rendimento líquido de cada mês é usado para amortizar, você não tira os ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} do bolso.`,
+                    descricao: `Os ${formatBRL(parseBRLToNumber(rf.valorDisponivel))} ficam investidos na Selic (${parseDecimal(rf.selic).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.) e o rendimento líquido mensal amortiza a dívida, sem reinvestir os rendimentos.${rf.sistema === 'SAC' ? ' A amortização contratual é mantida e os juros da parcela caem com o saldo.' : ' A prestação PRICE original permanece constante.'}`,
                   },
                 ] as const
               ).map((cenario) => {
@@ -316,7 +312,9 @@ export function InvestCalculator({
                         <span className="font-semibold font-mono tabular-nums">
                           {c.quitaEmMeses === null
                             ? 'mais de 600 meses'
-                            : `${c.quitaEmMeses} ${c.quitaEmMeses === 1 ? 'mês' : 'meses'}`}
+                            : c.quitaEmMeses === 0
+                              ? 'Hoje'
+                              : `${c.quitaEmMeses} ${c.quitaEmMeses === 1 ? 'mês' : 'meses'}`}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -344,7 +342,7 @@ export function InvestCalculator({
                           {formatBRL(c.economiaJuros)}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {((c.economiaJuros / result.jurosTotaisOriginal) * 100).toFixed(0)}%
+                          {(result.jurosTotaisOriginal > 0 ? (c.economiaJuros / result.jurosTotaisOriginal) * 100 : 0).toFixed(0)}%
                           dos juros do contrato original ({formatBRL(result.jurosTotaisOriginal)})
                         </span>
                       </div>
@@ -356,9 +354,11 @@ export function InvestCalculator({
 
             <p className="text-xs text-muted-foreground">
               Simulação com Selic constante, parcelas {rf.sistema} e IR pela tabela regressiva
-              conforme o prazo. A amortização elimina os juros futuros sobre o valor abatido
-              (retorno garantido da taxa do contrato); investir mantém o dinheiro rendendo à
-              Selic de hoje, que muda a cada Copom, não é recomendação de investimento.
+              conforme o tempo de aplicação. A comparação soma juros até a quitação de cada
+              estratégia; não projeta patrimônio após quitar nem reinveste parcelas poupadas.
+              Não inclui TR, seguros ou tarifas. Confirme as condições de amortização com o banco.
+              A Selic muda a cada Copom; os resultados não são garantidos e não constituem
+              recomendação de investimento.
             </p>
           </CardContent>
         </Card>

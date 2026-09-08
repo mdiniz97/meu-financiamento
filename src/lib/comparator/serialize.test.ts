@@ -152,6 +152,21 @@ describe('comparison serialization', () => {
     expect(COMPARISON_ENGINE_VERSION).not.toBe('old');
   });
 
+  it('recalcula a versão 1 anterior à correção de liquidação e orçamento', () => {
+    const restored = deserializeStoredComparisonSnapshot(
+      JSON.stringify({ version: 1, ...input }), computeComparator(input), '1'
+    );
+    expect(restored.recalculated).toBe(true);
+  });
+
+  it('reutiliza aporte fixo real acima de 100% sem limitar metadados à parcela', () => {
+    const largeBudget = { ...input, monthlyBudget: 50000 };
+    const result = computeComparator(largeBudget);
+    expect(result.v1.outcomes.some((outcome) => outcome.smart!.recommended.best!.extraMonthlyPct > 1)).toBe(true);
+    const restored = deserializeStoredComparisonSnapshot(JSON.stringify({ version: 1, ...largeBudget }), result);
+    expect(restored.recalculated).toBe(false);
+  });
+
   it('recalcula snapshot sem versão de fingerprint', () => {
     const result = computeComparator(input);
     delete (result.v1 as Partial<typeof result.v1>).fingerprintVersion;

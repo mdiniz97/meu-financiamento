@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { maxFinancing, recommendSmart, type SmartInput } from './smart';
 import { simulate } from './engine';
+import * as engine from './engine';
 import type { LoanInput } from './types';
 
 const base: SmartInput = {
@@ -60,8 +61,8 @@ describe('recommendSmart', () => {
     expect(r.best).toBeNull();
     expect(r.minBudget).toBeGreaterThan(5000);
   });
-  it('prazo máximo curto inviabiliza o SAC e recomenda PRICE', () => {
-    const r = recommendSmart({ ...base, maxPayment: 12000, maxMonths: 180 });
+  it('sem TR, prazo máximo curto inviabiliza o SAC e recomenda PRICE', () => {
+    const r = recommendSmart({ ...base, trMonthly: 0, maxPayment: 12000, maxMonths: 180 });
     expect(r.infeasible).toBe(false);
     expect(r.best!.system).toBe('PRICE');
     const sac = r.comparison.find((c) => c.system === 'SAC')!;
@@ -82,8 +83,8 @@ describe('recommendSmart', () => {
       expect(t.result.metrics.totalPago).toBeGreaterThanOrEqual(r.best!.result.metrics.totalPago);
     }
   });
-  it('aporte limitado a +100% da parcela (orçamento absurdamente alto)', () => {
-    const r = recommendSmart({ ...base, maxPayment: 100000 });
+  it('aporte percentual limitado a +100% da parcela (orçamento absurdamente alto)', () => {
+    const r = recommendSmart({ ...base, trMonthly: 0, maxPayment: 100000, fixedPayment: false });
     const b = r.best!;
     expect(b.extraMonthlyPct).toBeLessThanOrEqual(1);
     expect(b.months).toBeGreaterThanOrEqual(60);
@@ -113,12 +114,13 @@ describe('recommendSmart', () => {
     );
     expect(r.best!.result.metrics.totalPago).toBe(menor);
   });
-  it('fixedPayment=false usa percentual extra (aporte cresce com a parcela)', () => {
+  it('fixedPayment=false usa percentual extra sem ultrapassar o teto total', () => {
     const r = recommendSmart({ ...base, maxPayment: 12000, fixedPayment: false });
     const b = r.best!;
-    const p1 = b.result.installments[0].parcela;
-    const p24 = b.result.installments[23]?.parcela ?? p1;
-    expect(p24).toBeGreaterThan(p1);
+    expect(b.result.strategies.fixedPayment).toBeUndefined();
+    expect(b.result.strategies.extraMonthlyPct).toBeGreaterThan(0);
+    expect(b.result.strategies.extraMonthlyPct).toBeLessThanOrEqual(1);
+    expect(b.result.installments.every((i) => Math.round(i.parcela * 100) <= 1200000)).toBe(true);
   });
   it('até o mês fixo além do prazo é clampado no contrato, sem lançar (fix5b)', () => {
     const r = recommendSmart({ ...base, maxMonths: 360, fixedUntilMonth: 400 });
@@ -129,6 +131,118 @@ describe('recommendSmart', () => {
       expect(until === undefined || until <= 360).toBe(true);
     }
     expect(r.best!.result.strategies.fixedPayment!.untilMonth).toBeLessThanOrEqual(360);
+  });
+
+  it.each([
+    { fixedPayment: true },
+    { fixedPayment: false },
+    { fixedPayment: true, fixedUntilMonth: 12 },
+  ])('todos os modos e maxTerms respeitam o teto, inclusive fora da janela: %j', (options) => {
+    const r = recommendSmart({ ...base, ...options });
+    expect(r.best).not.toBeNull();
+    for (const candidate of [...r.alternatives, ...r.maxTerms]) {
+      const peakCents = Math.max(...candidate.result.installments.map((i) => Math.round(i.parcela * 100)));
+      expect(peakCents).toBeLessThanOrEqual(1200000);
+    }
+  });
+
+  it('rejeita SAC que excede o teto em quarenta centavos, sem folga de um real', () => {
+    const r = recommendSmart({ ...base, minMonths: 360, maxPayment: 11233, preferredSystem: 'SAC' });
+    // Mes 2: amortizacao 2787.25 + juros 8346.150126569257 + seguro 100.
+    expect(r.comparison.find((c) => c.system === 'SAC')?.feasible).toBe(false);
+    expect(r.alternatives.some((c) => c.system === 'SAC')).toBe(false);
+    expect(r.maxTerms.some((c) => c.system === 'SAC')).toBe(false);
+  });
+
+  it.each([
+    { maxPayment: 9000, maxMonths: 360 },
+    { maxPayment: 12000, maxMonths: 180 },
+  ])('orcamento minimo sugerido realmente viabiliza o prazo maximo: %j', (options) => {
+    const input = { ...base, ...options };
+    const r = recommendSmart(input);
+    expect(r.infeasible).toBe(true);
+    expect(r.minBudget).toBeGreaterThan(input.maxPayment);
+    const atMinimum = recommendSmart({
+      ...input, minMonths: input.maxMonths, maxPayment: r.minBudget,
+    });
+    expect(atMinimum.infeasible).toBe(false);
+    const belowMinimum = recommendSmart({
+      ...input, minMonths: input.maxMonths, maxPayment: r.minBudget - 0.01,
+    });
+    expect(belowMinimum.infeasible).toBe(true);
+  });
+
+  it.each([true, false])('orcamento abaixo da primeira parcela e inviavel, fixo=%s', (fixedPayment) => {
+    const r = recommendSmart({
+      ...base, principal: 100000, annualRate: 0, trMonthly: 0,
+      maxPayment: 100, fixedPayment,
+    });
+    expect(r.infeasible).toBe(true);
+    expect(r.best).toBeNull();
+    expect(r.comparison.every((c) => !c.feasible)).toBe(true);
+    expect(r.maxTerms).toEqual([]);
+  });
+
+  it('avalia prazo viavel sem exigir folga artificial de quinze por cento', () => {
+    const r = recommendSmart({
+      principal: 60000, annualRate: 0, trMonthly: 0, insuranceMonthly: 100,
+      bank: 'Caixa', maxPayment: 1100, minMonths: 60, maxMonths: 120,
+      fixedPayment: true, fixedUntilMonth: 1, preferredSystem: 'PRICE',
+    });
+    expect(r.best?.months).toBe(60);
+    expect(r.best?.result.metrics.saldoZeroAt).toBe(60);
+    expect(r.best?.result.metrics.totalPago).toBeCloseTo(66000, 2);
+  });
+
+  it('metadados do fixo refletem aporte real acima de cem por cento', () => {
+    const r = recommendSmart({
+      principal: 120000, annualRate: 1.01 ** 12 - 1, trMonthly: 0,
+      insuranceMonthly: 100, bank: 'Caixa', maxPayment: 10000,
+      fixedPayment: true, minMonths: 60, maxMonths: 60, preferredSystem: 'PRICE',
+    });
+    const b = r.best!;
+    expect(b.parcela).toBeCloseTo(2769.333722188211, 6);
+    expect(b.extraMonthlyAmount).toBeCloseTo(7230.666277811789, 6);
+    expect(b.extraMonthlyPct).toBeGreaterThan(1);
+    expect(b.extraMonthlyPct).toBeCloseTo(b.extraMonthlyAmount / b.parcela, 10);
+    expect(b.parcela + b.extraMonthlyAmount).toBeCloseTo(10000, 6);
+    expect(b.extraMonthlyAmount).toBe(b.result.installments[0].extra);
+    expect(b.result.metrics.saldoZeroAt).toBe(13);
+  });
+
+  it('metadados do fixo mostram somente dinheiro usado quando quita no mes um', () => {
+    const r = recommendSmart({
+      principal: 120000, annualRate: 0, trMonthly: 0, insuranceMonthly: 100,
+      bank: 'Caixa', maxPayment: 1000000, fixedPayment: true,
+      minMonths: 60, maxMonths: 60, preferredSystem: 'PRICE',
+    });
+    const b = r.best!;
+    expect(b.parcela).toBe(2100);
+    expect(b.extraMonthlyAmount).toBe(118000);
+    expect(b.parcela + b.extraMonthlyAmount).toBe(120100);
+    expect(b.result.metrics.saldoZeroAt).toBe(1);
+  });
+
+  it('fallback de payment usa juros e TR sobre o mesmo saldo anterior', () => {
+    const realSimulate = engine.simulate;
+    const spy = vi.spyOn(engine, 'simulate').mockImplementation((input, strategies) => {
+      if (strategies?.reduceMode === 'payment') throw new Error('payment indisponivel');
+      return realSimulate(input, strategies);
+    });
+    try {
+      const r = recommendSmart({
+        principal: 120000, annualRate: 1.01 ** 12 - 1, trMonthly: 0.0017,
+        insuranceMonthly: 100, bank: 'Caixa', maxPayment: 10000,
+        minMonths: 60, maxMonths: 60, preferredSystem: 'PRICE',
+      });
+      expect(r.best?.system).toBe('PRICE');
+      expect(r.modes.payment).toBeNull();
+      const rate = 0.01 + 0.0017;
+      const expected = 120000 * rate / (1 - (1 + rate) ** -60) + 100;
+      expect(r.paymentMinParcela).toBeCloseTo(expected, 6);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

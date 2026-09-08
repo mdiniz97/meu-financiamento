@@ -110,7 +110,8 @@ export function AlugarComprarCalculator({
           </CardTitle>
           <CardDescription>
             Compare o patrimônio construído comprando (imóvel menos dívida) com o de continuar
-            alugando e investindo a diferença.
+            alugando e investindo a diferença. Este modelo considera aluguel até o valor da
+            parcela e horizonte até o fim do financiamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -173,7 +174,7 @@ export function AlugarComprarCalculator({
                   de {rf.prazoAnos} anos, seu patrimônio alugando e investindo a diferença (
                   {formatBRL(result.patrimonioAluguel)}) ainda supera o patrimônio comprando (
                   {formatBRL(result.patrimonioCompra)}). Nesse cenário, comprar nunca passa a ser
-                  melhor que alugar.
+                   melhor que alugar dentro do horizonte informado.
                 </p>
               </div>
             ) : result.patrimonioCompra > result.patrimonioAluguel ? (
@@ -272,7 +273,8 @@ export function AlugarComprarCalculator({
 
             <p className="text-xs text-muted-foreground">
               Simulação simplificada: valorização do imóvel e Selic constantes, aluguel sem
-              reajuste e parcela PRICE. Impostos e custos de aquisição não estão incluídos. Não
+              reajuste e parcela PRICE. Não cobre aluguel acima da parcela nem investimentos
+              de quem compra após a quitação. Impostos e custos de aquisição não estão incluídos. Não
               é recomendação de investimento.
             </p>
           </CardContent>

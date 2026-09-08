@@ -10,37 +10,43 @@ import { CompareChart } from '@/components/simulation/charts/CompareChart';
 import { formatBRL } from '@/lib/utils';
 import type { ComparatorInput } from '@/lib/comparator/types';
 import type { ComparatorResult, ProposalOutcome } from '@/lib/comparator/calculate';
+import { SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
 function levarAoSimulador(o: ProposalOutcome) {
   const p = o.proposal;
   const best = o.smart?.feasible ? o.smart.recommended.best : null;
-  const form = {
-    system: best?.system ?? p.system,
-    principal: String(Math.round(p.principal)),
-    annualRate: String(p.annualRate * 100),
+  const input = best?.result.input;
+  const strategies = best?.result.strategies;
+  // Leve o snapshot exato do candidato, como o SmartResultCard faz. Em modo
+  // payment o aporte é um valor fixo que pode passar de 100% da parcela e o
+  // formulário não o representa; recompor por percentual zeraria a estratégia.
+  const form: FormState = {
+    system: input?.system ?? p.system,
+    principal: String(Math.round(input?.principal ?? p.principal)).replace('.', ','),
+    annualRate: String((input?.annualRate ?? p.annualRate) * 100),
     annualRateKind: 'effective-annual',
-    months: String(best?.months ?? p.months),
-    trMonthly: String((p.trMonthly * 100).toFixed(2)),
-    insuranceMonthly: String(Math.round(p.insuranceMonthly)),
-    bank: p.bank,
-    lumpSum: [],
-    extraMonthlyPct: best ? String((best.extraMonthlyPct * 100).toFixed(2)) : '0',
-    extraMonthlyPctStart: '',
-    extraMonthlyPctUntil: '',
-    fixedPaymentStart: '',
+    months: String(input?.months ?? best?.months ?? p.months),
+    trMonthly: String((input?.trMonthly ?? p.trMonthly) * 100),
+    insuranceMonthly: String(Math.round(input?.insuranceMonthly ?? p.insuranceMonthly)).replace('.', ','),
+    bank: input?.bank ?? p.bank,
+    lumpSum: strategies?.extraLumpSum ?? [],
+    extraMonthlyPct: String((strategies?.extraMonthlyPct ?? 0) * 100),
+    extraMonthlyPctStart: String(strategies?.extraMonthlyPctStartMonth ?? ''),
+    extraMonthlyPctUntil: String(strategies?.extraMonthlyPctUntilMonth ?? ''),
+    fixedPaymentStart: String(strategies?.fixedPayment?.startMonth ?? ''),
     fgtsAnnual: '0',
     fgtsStartMonth: '12',
     fgtsUntilMonth: '',
     recurringExtra: null,
-    fixedPayment: '',
-    fixedPaymentUntil: '',
+    fixedPayment: String(strategies?.fixedPayment?.amount ?? '').replace('.', ','),
+    fixedPaymentUntil: String(strategies?.fixedPayment?.untilMonth ?? ''),
     paySacParcela: false,
-    reduceMode: 'term',
+    reduceMode: strategies?.reduceMode ?? 'term',
     portability: null,
   };
-  sessionStorage.setItem('sim-input', JSON.stringify(form));
+  sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
   window.location.href = '/simulacao';
 }
 

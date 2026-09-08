@@ -35,15 +35,26 @@ export interface ObraResult {
 }
 
 export function calcularJurosDeObra(input: ObraInput): ObraResult {
-  if (!(input.propertyValue > 0)) throw new Error('Valor do imóvel deve ser maior que zero.');
+  if (!Number.isFinite(input.propertyValue) || !(input.propertyValue > 0))
+    throw new Error('Valor do imóvel deve ser maior que zero.');
   if (!(input.downPaymentPct >= 0 && input.downPaymentPct < 100))
     throw new Error('Entrada deve ficar entre 0% e 99%.');
-  if (!(input.annualRate >= 0)) throw new Error('Taxa anual inválida.');
-  if (!(input.monthsUntilDelivery >= 1 && input.monthsUntilDelivery <= 120))
+  if (!Number.isFinite(input.annualRate) || !(input.annualRate >= 0)) throw new Error('Taxa anual inválida.');
+  if (!Number.isInteger(input.monthsUntilDelivery) || !(input.monthsUntilDelivery >= 1 && input.monthsUntilDelivery <= 120))
     throw new Error('Prazo até a entrega deve ficar entre 1 e 120 meses.');
   if (!(input.progressPct >= 0 && input.progressPct <= 100))
     throw new Error('Obra concluída deve ficar entre 0% e 100%.');
-  if (!(input.insuranceMonthly >= 0)) throw new Error('Seguro mensal inválido.');
+  if (!Number.isFinite(input.insuranceMonthly) || !(input.insuranceMonthly >= 0))
+    throw new Error('Seguro mensal inválido.');
+  if (input.downPaymentAnnualRate !== undefined &&
+      (!Number.isFinite(input.downPaymentAnnualRate) || input.downPaymentAnnualRate < 0))
+    throw new Error('Taxa da entrada inválida.');
+  if (input.downPaymentParcela !== undefined &&
+      (!Number.isFinite(input.downPaymentParcela) || input.downPaymentParcela < 0))
+    throw new Error('Parcela da entrada inválida.');
+  if (input.downPaymentAvista !== undefined &&
+      (!Number.isFinite(input.downPaymentAvista) || input.downPaymentAvista < 0))
+    throw new Error('Entrada à vista inválida.');
 
   const financed = input.propertyValue * (1 - input.downPaymentPct / 100);
   const monthlyRate = Math.pow(1 + input.annualRate, 1 / 12) - 1;
@@ -52,11 +63,11 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
 
   const entrada = input.propertyValue * (input.downPaymentPct / 100);
   const financedAmount = input.downPaymentFinancedAmount;
-  if (!(financedAmount >= 0 && financedAmount <= entrada + 1e-6))
+  if (!Number.isFinite(financedAmount) || !(financedAmount >= 0 && financedAmount <= entrada + 1e-6))
     throw new Error('Valor parcelado da entrada inválido.');
 
   const monthsEntrada = input.downPaymentMonths ?? input.monthsUntilDelivery;
-  if (!(monthsEntrada >= 1 && monthsEntrada <= 120))
+  if (!Number.isInteger(monthsEntrada) || !(monthsEntrada >= 1 && monthsEntrada <= 120))
     throw new Error('Parcelas da entrada devem ficar entre 1 e 120.');
 
   let entradaParcela = 0;
@@ -82,19 +93,20 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
   // O que não cabe nas parcelas é pago à vista na assinatura. No modo "parcela
   // conhecida" sem à vista informado, se as parcelas somam menos que a
   // entrada, o restante é à vista (total = entrada).
-  const totalEntrada =
+  const entradaAvista =
     avistaInformado
-      ? input.downPaymentAvista! + entradaParceladaTotal
+      ? input.downPaymentAvista!
       : input.downPaymentParcela && input.downPaymentParcela > 0
-        ? Math.max(entrada, entradaParceladaTotal)
-        : (entrada - financedAmount) + entradaParceladaTotal;
+        ? Math.max(0, entrada - entradaParceladaTotal)
+        : entrada - financedAmount;
+  const totalEntrada = entradaAvista + entradaParceladaTotal;
 
   const monthly: ObraMonth[] = [];
   for (let m = 1; m <= input.monthsUntilDelivery; m += 1) {
     const progressPctAtMonth = Math.min(100, progress + (remainingPct * m) / input.monthsUntilDelivery);
     const saldoLiberado = (financed * progressPctAtMonth) / 100;
     const juros = saldoLiberado * monthlyRate;
-    const entradaDoMes = m <= (input.downPaymentMonths ?? input.monthsUntilDelivery) ? entradaParcela : 0;
+    const entradaDoMes = m <= monthsEntrada ? entradaParcela : 0;
     monthly.push({
       month: m,
       progressPct: progressPctAtMonth,
@@ -108,8 +120,13 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
 
   const totalJuros = monthly.reduce((acc, m) => acc + m.juros, 0);
   const totalSeguro = monthly.reduce((acc, m) => acc + m.seguro, 0);
-  const price = financed * monthlyRate / (1 - Math.pow(1 + monthlyRate, -360));
+  const totalDuranteObra = entradaAvista + monthly.reduce((acc, m) => acc + m.total, 0);
+  const price = monthlyRate === 0
+    ? financed / 360
+    : financed * monthlyRate / (1 - Math.pow(1 + monthlyRate, -360));
   const sac = financed / 360 + financed * monthlyRate;
+  if (![financed, monthlyRate, totalJuros, totalSeguro, totalEntrada, totalDuranteObra, price, sac].every(Number.isFinite))
+    throw new Error('Resultado fora do limite numérico.');
 
   return {
     financed,
@@ -118,7 +135,7 @@ export function calcularJurosDeObra(input: ObraInput): ObraResult {
     totalJuros,
     totalSeguro,
     totalEntrada,
-    totalDuranteObra: totalJuros + totalSeguro + totalEntrada,
+    totalDuranteObra,
     primeiraParcelaPrice: price,
     primeiraParcelaSac: sac,
   };

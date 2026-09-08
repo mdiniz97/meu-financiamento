@@ -65,10 +65,12 @@ export function MetaCalculator() {
     const taxa = parseDecimal(form.taxa);
     const metaMeses = Number(form.metaAnos) * 12;
 
-    if (!(saldo > 0)) return setError('Informe o saldo devedor (maior que zero).');
-    if (!rateValid || !(taxa >= 0)) return setError('Informe uma taxa válida.');
-    if (!(prazo >= 1 && prazo <= 600)) return setError('Prazo deve ficar entre 1 e 600 meses.');
-    if (!(metaMeses >= 1 && metaMeses <= 600)) return setError('Meta deve ficar entre 1 e 600 meses.');
+    if (!Number.isFinite(saldo) || !(saldo > 0)) return setError('Informe o saldo devedor (maior que zero).');
+    if (!rateValid || !Number.isFinite(taxa) || !(taxa >= 0)) return setError('Informe uma taxa válida.');
+    if (!Number.isSafeInteger(prazo) || !(prazo >= 1 && prazo <= 600))
+      return setError('Prazo deve ser inteiro entre 1 e 600 meses.');
+    if (!Number.isSafeInteger(metaMeses) || !(metaMeses >= 1 && metaMeses <= 600))
+      return setError('Meta deve corresponder a um número inteiro entre 1 e 600 meses.');
 
     try {
       const r = calcularMetaQuitacao({
@@ -174,7 +176,7 @@ export function MetaCalculator() {
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-lg">Resultado</CardTitle>
             <CardDescription>
-              O que muda se você quitar em {rf.metaAnos} {Number(rf.metaAnos) === 1 ? 'ano' : 'anos'}.
+              Sua meta é quitar em até {rf.metaAnos} {Number(rf.metaAnos) === 1 ? 'ano' : 'anos'}.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -182,44 +184,39 @@ export function MetaCalculator() {
               <div className="rounded-2xl border border-border bg-muted/50 p-4">
                 <p className="text-sm">
                   Sua meta ({rf.metaAnos} anos) é maior ou igual ao prazo atual de {rf.prazo} meses:
-                  basta seguir pagando a parcela de {formatBRL(result.parcelaAtual)}. Nenhum aporte
-                  extra é necessário.
+                  mantenha o cronograma original, sem alongar a dívida. A parcela atual é{' '}
+                  {formatBRL(result.parcelaAtual)}{rf.sistema === 'SAC' ? ', seguindo o SAC nos meses seguintes' : ', constante no PRICE'}.
+                  Nenhum aporte extra é necessário e a economia adicional de juros é zero.
                 </p>
-              </div>
-            ) : result.aporteMensal > 0 ? (
-              <div className="rounded-2xl border border-[#820AD1]/30 bg-primary/[0.04] p-4">
-                <p className="text-sm">
-                  <strong className="text-[#820AD1]">Para quitar em {rf.metaAnos} {Number(rf.metaAnos) === 1 ? 'ano' : 'anos'}:</strong>{' '}
-                  sua parcela hoje é {formatBRL(result.parcelaAtual)} ({rf.sistema}). Somando um{' '}
-                  <strong>aporte de {formatBRL(result.aporteMensal)}/mês</strong>, o pagamento total
-                  fica em {formatBRL(result.pagamentoTotal)}/mês e a dívida zera na meta,{' '}
-                  <strong>economizando {formatBRL(result.economiaJuros)} de juros</strong>.
-                </p>
-                {rf.sistema === 'SAC' && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    No SAC a parcela cai mês a mês: esse é o aporte do primeiro mês; ele cresce
-                    conforme a parcela diminui, mantendo o total fixo.
-                  </p>
-                )}
               </div>
             ) : (
               <div className="rounded-2xl border border-[#820AD1]/30 bg-primary/[0.04] p-4">
                 <p className="text-sm">
                   <strong className="text-[#820AD1]">Para quitar em {rf.metaAnos} {Number(rf.metaAnos) === 1 ? 'ano' : 'anos'}:</strong>{' '}
-                  no SAC a parcela começa alta ({formatBRL(result.parcelaAtual)}) e cai sozinha.
-                  Pagando o total de {formatBRL(result.pagamentoTotal)}/mês desde o início (sem
-                  aporte extra nos primeiros meses), a dívida quita na meta,{' '}
-                  <strong>economizando {formatBRL(result.economiaJuros)} de juros</strong>.
+                  sua parcela hoje é {formatBRL(result.parcelaAtual)} ({rf.sistema}). Somando um{' '}
+                  <strong>aporte extra fixo de {formatBRL(result.aporteMensal)}/mês</strong>,{' '}
+                  {rf.sistema === 'SAC'
+                    ? <>o total no primeiro mês é {formatBRL(result.pagamentoTotal)}, com parcelas decrescentes quando há juros.</>
+                    : <>o pagamento total fica constante em {formatBRL(result.pagamentoTotal)}/mês.</>}{' '}
+                  Na simulação, a dívida zera na meta, com{' '}
+                  <strong>economia de {formatBRL(result.economiaJuros)} de juros</strong>.
                 </p>
+                {rf.sistema === 'SAC' && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No SAC, o aporte extra permanece fixo além da parcela de cada mês. A amortização
+                    contratual é mantida para reduzir o prazo; os juros incidem sobre o saldo que
+                    diminui. O aporte não substitui o pagamento do boleto.
+                  </p>
+                )}
               </div>
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { label: 'Parcela atual', desc: `O que você paga hoje no contrato (${rf.sistema})`, value: formatBRL(result.parcelaAtual) },
-                { label: 'Aporte mensal', desc: result.aporteMensal > 0 ? 'Extra além da parcela, para quitar na meta' : 'Sem aporte extra necessário', value: formatBRL(Math.max(0, result.aporteMensal)) },
-                { label: 'Pagamento total', desc: 'Parcela + aporte, todo mês até quitar', value: formatBRL(result.pagamentoTotal) },
-                { label: 'Economia de juros', desc: 'Juros que deixam de existir até quitar', value: formatBRL(Math.max(0, result.economiaJuros)) },
+                { label: 'Aporte mensal fixo', desc: result.aporteMensal > 0 ? 'Mesmo extra além da parcela de cada mês' : 'Sem aporte extra necessário', value: formatBRL(result.aporteMensal) },
+                { label: rf.sistema === 'SAC' ? 'Total no primeiro mês' : 'Pagamento total', desc: rf.sistema === 'SAC' ? 'Parcela + aporte; diminui conforme os juros caem' : 'Parcela + aporte, constante até quitar', value: formatBRL(result.pagamentoTotal) },
+                { label: 'Economia de juros', desc: 'Juros evitados em relação ao cronograma original', value: formatBRL(result.economiaJuros) },
               ].map((item) => (
                 <div key={item.label} className="flex flex-col gap-1 rounded-2xl border border-border bg-muted/50 p-4">
                   <span className="text-xs text-muted-foreground">{item.label}</span>
@@ -232,14 +229,22 @@ export function MetaCalculator() {
             <div className="rounded-2xl border border-border bg-muted/50 p-4">
               <p className="text-xs font-medium text-muted-foreground">Como funciona</p>
               <ol className="mt-1 list-decimal pl-4 text-sm text-muted-foreground">
-                <li>Sua parcela atual quita o contrato no prazo original ({rf.prazo} meses).</li>
+                <li>O cronograma original quita em {rf.prazo} meses, com {formatBRL(result.jurosOriginais)} de juros.</li>
                 <li>
-                  Para quitar antes, o pagamento mensal total precisa subir para{' '}
-                  {formatBRL(result.pagamentoTotal)} (parcela + aporte).
+                  {result.metaMaiorQuePrazo
+                    ? 'Sua meta não antecipa a quitação: mantenha as parcelas e o prazo originais.'
+                    : rf.sistema === 'SAC'
+                      ? `O aporte fixo de ${formatBRL(result.aporteMensal)} soma-se à amortização contratual. O total começa em ${formatBRL(result.pagamentoTotal)} e cai com os juros sobre o saldo.`
+                      : `Para antecipar, pague o total constante de ${formatBRL(result.pagamentoTotal)} (parcela + aporte).`}
                 </li>
-                <li>Quitando mais cedo, os juros dos meses restantes deixam de existir: economia de {formatBRL(result.economiaJuros)}.</li>
+                <li>Juros com esta meta: {formatBRL(result.jurosTotais)}. Economia estimada: {formatBRL(result.economiaJuros)}.</li>
               </ol>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Estimativa com taxa constante, sem TR, seguros ou tarifas. Confirme com o banco as
+              condições para amortizar reduzindo prazo. Não é garantia de quitação nem recomendação
+              de investimento.
+            </p>
           </CardContent>
         </Card>
       )}

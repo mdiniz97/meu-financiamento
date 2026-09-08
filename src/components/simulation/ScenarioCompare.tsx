@@ -1,8 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
-import { recommend } from '@/lib/finance/recommend';
-import type { LoanInput, SimulationResult } from '@/lib/finance/types';
+import type { SimulationResult } from '@/lib/finance/types';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,17 +13,13 @@ import {
 } from '@/components/ui/table';
 
 interface Props {
-  input: LoanInput;
   base: SimulationResult;
   current: SimulationResult;
 }
 
-export function ScenarioCompare({ input, base, current }: Props) {
-  const rec = useMemo(
-    () => recommend(input, [base.strategies, current.strategies]),
-    [input, base.strategies, current.strategies]
-  );
-  const bestIdx = rec.scenarios[0]?.strategies === base.strategies ? 0 : 1;
+export function ScenarioCompare({ base, current }: Props) {
+  const bestIdx = current.metrics.totalPago < base.metrics.totalPago ||
+    (current.metrics.totalPago === base.metrics.totalPago && current.metrics.saldoZeroAt < base.metrics.saldoZeroAt) ? 1 : 0;
   const scenarios = [base, current];
 
   const rows: { label: string; values: [string, string] }[] = [

@@ -57,6 +57,13 @@ describe('calcularJurosDeObra', () => {
     expect(r.primeiraParcelaSac).toBeGreaterThan(r.primeiraParcelaPrice);
   });
 
+  it('taxa zero divide o saldo financiado por 360 sem gerar NaN', () => {
+    const r = calcularJurosDeObra({ ...BASE, annualRate: 0 });
+    expect(r.primeiraParcelaPrice).toBeCloseTo(666.6666666666666, 8);
+    expect(r.primeiraParcelaSac).toBe(r.primeiraParcelaPrice);
+    expect(r.totalJuros).toBe(0);
+  });
+
   it('reproduz o exemplo de referência: 1M financiado, 11% a.a., 30 meses', () => {
     const r = calcularJurosDeObra({
       propertyValue: 1300000,
@@ -112,6 +119,53 @@ describe('calcularJurosDeObra', () => {
     expect(r.monthly[0].entradaParcela).toBeCloseTo(esperado, 2);
     expect(r.totalEntrada).toBeCloseTo(30000 + esperado * 12, 2);
     expect(r.totalEntrada).toBeGreaterThan(60000);
+  });
+
+  it.each([
+    { downPaymentFinancedAmount: 60000, avista: 0, parcela: 2500 },
+    { downPaymentFinancedAmount: 30000, avista: 30000, parcela: 1250 },
+  ])('limita o desembolso até a entrega com $downPaymentFinancedAmount parcelados', ({ downPaymentFinancedAmount, avista, parcela }) => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      monthsUntilDelivery: 12,
+      insuranceMonthly: 50,
+      downPaymentFinancedAmount,
+      downPaymentMonths: 24,
+    });
+    expect(r.totalEntrada).toBe(60000);
+    expect(r.totalDuranteObra).toBeCloseTo(14802.51697794955 + 600 + avista + parcela * 12, 6);
+    expect(r.monthly).toHaveLength(12);
+    expect(r.monthly.every((m) => m.entradaParcela === parcela)).toBe(true);
+  });
+
+  it.each([
+    { downPaymentParcela: 3000, downPaymentAvista: undefined, totalEntrada: 72000, ateEntrega: 36000 },
+    { downPaymentParcela: 1000, downPaymentAvista: undefined, totalEntrada: 60000, ateEntrega: 48000 },
+    { downPaymentParcela: 3000, downPaymentAvista: 10000, totalEntrada: 82000, ateEntrega: 46000 },
+  ])('limita parcelas conhecidas à entrega, preservando entrada completa de $totalEntrada', ({ downPaymentParcela, downPaymentAvista, totalEntrada, ateEntrega }) => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      annualRate: 0,
+      monthsUntilDelivery: 12,
+      downPaymentMonths: 24,
+      downPaymentParcela,
+      downPaymentAvista,
+    });
+    expect(r.totalEntrada).toBe(totalEntrada);
+    expect(r.totalDuranteObra).toBe(ateEntrega);
+  });
+
+  it('inclui juros da entrada apenas nas parcelas pagas até a entrega', () => {
+    const r = calcularJurosDeObra({
+      ...BASE,
+      monthsUntilDelivery: 12,
+      downPaymentFinancedAmount: 30000,
+      downPaymentMonths: 24,
+      downPaymentAnnualRate: 0.12,
+    });
+    expect(r.totalEntrada).toBeGreaterThan(60000);
+    expect(r.totalDuranteObra).toBeCloseTo(30000 + r.monthly.reduce((sum, m) => sum + m.total, 0), 6);
+    expect(r.totalEntrada - 30000).toBeCloseTo(r.monthly[0].entradaParcela * 24, 6);
   });
 
   it('entrada à vista: sem parcela mensal e total igual à entrada', () => {
@@ -183,5 +237,31 @@ describe('calcularJurosDeObra', () => {
     expect(() => calcularJurosDeObra({ ...BASE, monthsUntilDelivery: 0 })).toThrow();
     expect(() => calcularJurosDeObra({ ...BASE, progressPct: 101 })).toThrow();
     expect(() => calcularJurosDeObra({ ...BASE, insuranceMonthly: -1 })).toThrow();
+  });
+
+  it.each<keyof ObraInput>([
+    'propertyValue', 'downPaymentPct', 'annualRate', 'monthsUntilDelivery',
+    'progressPct', 'insuranceMonthly', 'downPaymentFinancedAmount',
+    'downPaymentMonths', 'downPaymentAnnualRate', 'downPaymentParcela', 'downPaymentAvista',
+  ])('rejeita valores não finitos em %s', (field) => {
+    for (const value of [NaN, Infinity, -Infinity]) {
+      expect(() => calcularJurosDeObra({ ...BASE, [field]: value })).toThrow();
+    }
+  });
+
+  it.each(['monthsUntilDelivery', 'downPaymentMonths'] as const)('rejeita meses fracionários em %s', (field) => {
+    expect(() => calcularJurosDeObra({ ...BASE, [field]: 1.5 })).toThrow();
+  });
+
+  it.each(['downPaymentAnnualRate', 'downPaymentParcela', 'downPaymentAvista'] as const)('rejeita valores negativos em %s', (field) => {
+    expect(() => calcularJurosDeObra({ ...BASE, [field]: -1 })).toThrow();
+  });
+
+  it.each([
+    { insuranceMonthly: 1e308 },
+    { downPaymentParcela: 1e308, downPaymentAvista: 0 },
+    { propertyValue: 1e308 },
+  ])('rejeita overflow do resultado com entradas finitas: %j', (input) => {
+    expect(() => calcularJurosDeObra({ ...BASE, ...input })).toThrow();
   });
 });

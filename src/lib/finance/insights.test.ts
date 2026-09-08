@@ -156,6 +156,80 @@ describe('priceBreakEven', () => {
     const pct5 = simulate(base, { ...noStrategy, extraMonthlyPct: 0.05 });
     expect(recurringParcela(pct5)).toBeCloseTo(9339.83, 2);
   });
+
+  it.each([
+    { annualRate: 0.05, insuranceMonthly: 50, minPayment: 5824.123783648353, extra: 473.57180722814974, ratio: 0.08850896305935782 },
+    { annualRate: 0.2, insuranceMonthly: 150, minPayment: 17159.470499731193, extra: 1635.2326370877436, ratio: 0.105334165294044 },
+  ])('portabilidade usa taxa e seguro efetivos no minimo e no percentual: %j', (expected) => {
+    const input = Object.freeze({ ...base });
+    const strategies = {
+      ...noStrategy,
+      portability: { annualRate: expected.annualRate, insuranceMonthly: expected.insuranceMonthly, bank: 'BB' },
+    };
+    const before = structuredClone(strategies);
+    const current = simulate(input, strategies);
+    const b = priceBreakEven(input, current);
+    expect(b.minPayment).toBeCloseTo(expected.minPayment, 6);
+    expect(b.requiredExtraMonthly).toBeCloseTo(expected.extra, 6);
+    expect(b.requiredExtraPct).toBeCloseTo(expected.ratio, 10);
+    expect(b.requiredTotalExtraPct).toBeCloseTo(expected.ratio, 10);
+
+    const rows = applyRecommendedPercent(deriveRows(strategies), b.requiredTotalExtraPct);
+    const applied = simulate(input, { ...strategies, ...rowsToStrategies(rows) });
+    expect(applied.installments[0].saldo).toBeLessThan(input.principal);
+    expect(applied.installments[0].parcela).toBeGreaterThan(expected.minPayment);
+    expect(applied.installments[0].parcela).toBeLessThan(expected.minPayment + 2);
+    expect(input).toEqual(base);
+    expect(strategies).toEqual(before);
+  });
+
+  it('prazo e parcela ideais usam condicoes da portabilidade', () => {
+    const current = simulate(base, {
+      ...noStrategy,
+      portability: { annualRate: 0.05, insuranceMonthly: 50, bank: 'BB' },
+    });
+    const b = priceBreakEven(base, current);
+    expect(b.maxMonths).toBe(300);
+    expect(b.idealPayment).toBeCloseTo(5831.381875821675, 6);
+  });
+
+  it('portabilidade com juros zero tem prazo limite finito quando ha TR', () => {
+    const current = simulate(base, {
+      ...noStrategy,
+      portability: { annualRate: 0, insuranceMonthly: 50, bank: 'BB' },
+    });
+    const b = priceBreakEven(base, current);
+    expect(b.minPayment).toBe(1750);
+    expect(b.maxMonths).toBe(588);
+    expect(b.idealPayment).toBeCloseTo(1750.6802721088436, 6);
+    expect(b.requiredTotalExtraPct).toBe(0);
+  });
+
+  it.each([
+    { recurringExtra: { amount: 1000, every: 12, startMonth: 1 } },
+    { fgtsAnnual: { amount: 1000, startMonth: 1 } },
+  ])('aporte esporadico nao substitui cobertura mensal: %j', (partial) => {
+    const strategies = { ...noStrategy, ...partial };
+    const current = simulate(base, strategies);
+    expect(recurringParcela(current)).toBeCloseTo(8895.073053863314, 6);
+    const b = priceBreakEven(base, current);
+    expect(b.requiredExtraMonthly).toBeCloseTo(1260.0826297718922, 6);
+    expect(b.requiredTotalExtraPct).toBeCloseTo(0.14166073984345887, 10);
+    const rows = applyRecommendedPercent(deriveRows(strategies), b.requiredTotalExtraPct);
+    const applied = simulate(base, { ...strategies, ...rowsToStrategies(rows) });
+    expect(applied.installments[1].saldo).toBeLessThan(applied.installments[0].saldo);
+    expect(applied.installments.every((i) => i.valorUtil > 0)).toBe(true);
+  });
+
+  it('parcela recorrente nao subtrai valor pontual que excedeu o saldo', () => {
+    const input = { ...base, principal: 100000, months: 60, trMonthly: 0 };
+    const current = simulate(input, { ...noStrategy, extraLumpSum: [{ month: 1, amount: 200000 }] });
+    expect(current.metrics.saldoZeroAt).toBe(1);
+    expect(recurringParcela(current)).toBeCloseTo(2225.9931988288736, 6);
+    const b = priceBreakEven(input, current);
+    expect(b.requiredExtraMonthly).toBe(0);
+    expect(b.requiredTotalExtraPct).toBe(0);
+  });
 });
 
 describe('sacVsPrice', () => {
@@ -166,7 +240,8 @@ describe('sacVsPrice', () => {
     expect(c.parcela1Price).toBeCloseTo(8895.07, 2);
     expect(c.ultimaParcelaSac).toBeCloseTo(5262.29, 2);
     expect(c.crossingMonth).toBe(102);
-    expect(c.economiaVsPrice).toBeCloseTo(1116212, 0);
+    // Sem seguros de competências artificiais após quitação; soma independente dos fluxos.
+    expect(c.economiaVsPrice).toBeCloseTo(1115811, 0);
     expect(c.dividaCai12mSac).toBeCloseTo(13423, 0);
   });
   it('dívida SAC cai em 12 meses enquanto a PRICE cresce no início', () => {

@@ -4,6 +4,7 @@ export interface InvestInput {
   taxaFinanciamento: number;
   valorDisponivel: number;
   selicAnual: number;
+  /** @deprecated Mantido para consumidores existentes; a comparacao vai ate quitar. */
   horizonteMeses: number;
   sistema: 'PRICE' | 'SAC';
 }
@@ -68,16 +69,21 @@ function simulateUntilPaid(
   saldoInicial: number,
   taxaMensal: number,
   parcela: number,
+  amortizacaoSac?: number,
   extraAmortizacaoPorMes?: (m: number) => number
 ): SimOutcome {
+  if (saldoInicial === 0) return { quitaEmMeses: 0, jurosTotais: 0 };
+  // Tolerancia relativa, limitada a meio centavo, sem apagar parcelas de saldos pequenos.
+  const tolerancia = Math.min(0.005, saldoInicial * 1e-10);
   let saldo = saldoInicial;
   let juros = 0;
   let quita: number | null = null;
   for (let m = 1; m <= 600; m += 1) {
     const jurosMes = saldo * taxaMensal;
     juros += jurosMes;
-    saldo = saldo * (1 + taxaMensal) - parcela - (extraAmortizacaoPorMes?.(m) ?? 0);
-    if (saldo <= 0) {
+    const amortizacao = amortizacaoSac ?? parcela - jurosMes;
+    saldo -= amortizacao + (extraAmortizacaoPorMes?.(m) ?? 0);
+    if (saldo <= tolerancia) {
       quita = m;
       break;
     }
@@ -86,15 +92,18 @@ function simulateUntilPaid(
 }
 
 export function calcularInvestOuAmortizar(input: InvestInput): InvestResult {
-  if (!(input.saldoDevedor > 0)) throw new Error('Saldo devedor deve ser maior que zero.');
-  if (!(input.prazoRestanteMeses >= 1 && input.prazoRestanteMeses <= 600))
-    throw new Error('Prazo restante deve ficar entre 1 e 600 meses.');
-  if (!(input.valorDisponivel > 0 && input.valorDisponivel <= input.saldoDevedor))
+  if (!Number.isFinite(input.saldoDevedor) || !(input.saldoDevedor > 0))
+    throw new Error('Saldo devedor deve ser maior que zero.');
+  if (!Number.isSafeInteger(input.prazoRestanteMeses) || !(input.prazoRestanteMeses >= 1 && input.prazoRestanteMeses <= 600))
+    throw new Error('Prazo restante deve ser inteiro entre 1 e 600 meses.');
+  if (!Number.isFinite(input.valorDisponivel) || !(input.valorDisponivel > 0 && input.valorDisponivel <= input.saldoDevedor))
     throw new Error('Valor disponível deve ser maior que zero e não superar o saldo.');
-  if (!(input.taxaFinanciamento >= 0)) throw new Error('Taxa do financiamento inválida.');
-  if (!(input.selicAnual >= 0)) throw new Error('Taxa de investimento inválida.');
-  if (!(input.horizonteMeses >= 1 && input.horizonteMeses <= input.prazoRestanteMeses))
-    throw new Error('Horizonte deve ficar entre 1 e o prazo restante.');
+  if (!Number.isFinite(input.taxaFinanciamento) || !(input.taxaFinanciamento >= 0))
+    throw new Error('Taxa do financiamento inválida.');
+  if (!Number.isFinite(input.selicAnual) || !(input.selicAnual >= 0))
+    throw new Error('Taxa de investimento inválida.');
+  if (!Number.isSafeInteger(input.horizonteMeses) || !(input.horizonteMeses >= 1 && input.horizonteMeses <= input.prazoRestanteMeses))
+    throw new Error('Horizonte deve ser inteiro entre 1 e o prazo restante.');
 
   const tmSelic = monthlyRate(input.selicAnual);
   const tmFin = monthlyRate(input.taxaFinanciamento);
@@ -114,21 +123,27 @@ export function calcularInvestOuAmortizar(input: InvestInput): InvestResult {
         input.prazoRestanteMeses
       );
 
-  // Contrato original: pagando a parcela cheia até quitar.
-  const original = simulateUntilPaid(input.saldoDevedor, tmFin, parcelaOriginal);
+  const original = simulateUntilPaid(
+    input.saldoDevedor,
+    tmFin,
+    parcelaOriginal,
+    sac ? amortizacaoOriginal : undefined
+  );
 
   // 1) Reduzir a parcela: parcela menor, prazo cheio.
   const reduzirParcela = simulateUntilPaid(
     input.saldoDevedor - input.valorDisponivel,
     tmFin,
-    parcelaReduzida
+    parcelaReduzida,
+    sac ? amortizacaoAmortizar : undefined
   );
 
-  // 2) Reduzir o prazo: parcela cheia sobre o saldo abatido.
+  // 2) SAC preserva a amortizacao original; PRICE preserva a prestacao original.
   const reduzirPrazo = simulateUntilPaid(
     input.saldoDevedor - input.valorDisponivel,
     tmFin,
-    parcelaOriginal
+    parcelaOriginal,
+    sac ? amortizacaoOriginal : undefined
   );
 
   // 3) Investir e amortizar com o rendimento: principal fica investido e rendendo;
@@ -137,6 +152,7 @@ export function calcularInvestOuAmortizar(input: InvestInput): InvestResult {
     input.saldoDevedor,
     tmFin,
     parcelaOriginal,
+    sac ? amortizacaoOriginal : undefined,
     (m) => input.valorDisponivel * tmSelic * (1 - irRateForMonths(m))
   );
 

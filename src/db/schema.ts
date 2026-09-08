@@ -92,7 +92,7 @@ export const proposalComparisons = pgTable('proposal_comparisons', {
   monthlyBudget: doublePrecision('monthly_budget').notNull(),
   proposals: jsonb('proposals').notNull(),
   result: jsonb('result').notNull(),
-  // Keep migration default aligned manually; runtime writes COMPARISON_ENGINE_VERSION.
+  // Default 1 identifies historical/unversioned rows; runtime writes COMPARISON_ENGINE_VERSION.
   engineVersion: text('engine_version').notNull().default('1'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

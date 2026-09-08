@@ -321,7 +321,7 @@ export function SimulationSandbox({
       </section>
 
       <DebtInsightCard
-        input={input}
+        input={displayed.input}
         result={displayed}
         isUnlimited={isUnlimited}
         onApplyAporte={(ratio) => applyAporteRef.current?.(ratio)}
@@ -345,7 +345,7 @@ export function SimulationSandbox({
 
       <section className="flex flex-col gap-3">
         <StrategyControls
-          input={input}
+          input={displayed.input}
           strategies={strategies}
           onChange={(s) => {
             setCachedStrategies(clampStrategyUntilMonths(s, input.months));
@@ -357,7 +357,7 @@ export function SimulationSandbox({
         />
       </section>
 
-      <ScenarioCompare input={input} base={base} current={displayed} />
+      <ScenarioCompare base={base} current={displayed} />
 
       <Dialog open={showCreditsDialog} onOpenChange={setShowCreditsDialog}>
         <DialogContent>

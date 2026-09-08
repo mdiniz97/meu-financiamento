@@ -3,11 +3,10 @@
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Sparkles } from 'lucide-react';
-import type { SmartRecommendation } from '@/lib/finance/smart';
+import type { SmartCandidate, SmartRecommendation } from '@/lib/finance/smart';
 import { SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
-import { formatBRL, parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { formatBRL, parseBRLToNumber } from '@/lib/utils';
 import { simulate } from '@/lib/finance/engine';
-import { normalizeRate } from '@/lib/finance/rates';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompareChart } from './charts/CompareChart';
@@ -124,29 +123,32 @@ interface Props {
 export function SmartResultCard({ rec, fields }: Props) {
   const router = useRouter();
 
-  function abrirCenario(c: { system: string; months: number }) {
+  function abrirCenario(c: SmartCandidate) {
+    const { input, strategies } = c.result;
+    // Smart gera fixo ou percentual, ambos com modo global. Use o snapshot,
+    // nao os campos de edicao nem o percentual apenas descritivo do aporte fixo.
     const form: FormState = {
-      system: c.system as FormState['system'],
-      principal: fields.principal,
-      annualRate: String(normalizeRate(parseDecimal(fields.annualRate), fields.annualRateKind).effectiveAnnual * 100),
+      system: input.system,
+      principal: String(input.principal).replace('.', ','),
+      annualRate: String(input.annualRate * 100),
       annualRateKind: 'effective-annual',
-      months: String(c.months),
-      trMonthly: fields.trMonthly,
-      insuranceMonthly: fields.insuranceMonthly,
-      bank: fields.bank,
-      lumpSum: [],
-      extraMonthlyPct: '0',
-      extraMonthlyPctStart: '',
-      extraMonthlyPctUntil: '',
-      fixedPaymentStart: '',
+      months: String(input.months),
+      trMonthly: String(input.trMonthly * 100),
+      insuranceMonthly: String(input.insuranceMonthly).replace('.', ','),
+      bank: input.bank,
+      lumpSum: strategies.extraLumpSum,
+      extraMonthlyPct: String((strategies.extraMonthlyPct ?? 0) * 100),
+      extraMonthlyPctStart: String(strategies.extraMonthlyPctStartMonth ?? ''),
+      extraMonthlyPctUntil: String(strategies.extraMonthlyPctUntilMonth ?? ''),
+      fixedPaymentStart: String(strategies.fixedPayment?.startMonth ?? ''),
       fgtsAnnual: '0',
       fgtsStartMonth: '12',
       fgtsUntilMonth: '',
       recurringExtra: null,
-      fixedPayment: fields.maxPayment,
-      fixedPaymentUntil: fields.fixedUntilMonth ?? '',
+      fixedPayment: String(strategies.fixedPayment?.amount ?? '').replace('.', ','),
+      fixedPaymentUntil: String(strategies.fixedPayment?.untilMonth ?? ''),
       paySacParcela: false,
-      reduceMode: 'term',
+      reduceMode: strategies.reduceMode,
       portability: null,
     };
     sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
@@ -159,25 +161,12 @@ export function SmartResultCard({ rec, fields }: Props) {
   const chartData = useMemo(() => {
     const best = rec.best;
     if (!best) return null;
-    const principal = parseBRLToNumber(fields.principal);
-    const annualRate = normalizeRate(parseDecimal(fields.annualRate), fields.annualRateKind).effectiveAnnual;
-    const trMonthly = parseDecimal(fields.trMonthly) / 100;
-    const insuranceMonthly = parseBRLToNumber(fields.insuranceMonthly);
-    const plain = simulate({
-      system: best.system,
-      principal,
-      annualRate,
-      trMonthly,
-      insuranceMonthly,
-      insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
-      bank: fields.bank,
-      months: best.months,
-    });
+    const plain = simulate(best.result.input);
     return {
       base: plain.installments.map((i) => i.saldo),
       withStrategy: best.result.installments.map((i) => i.saldo),
     };
-  }, [rec, fields]);
+  }, [rec]);
 
   if (rec.infeasible) {
     return (

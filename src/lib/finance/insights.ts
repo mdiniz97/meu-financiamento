@@ -12,30 +12,34 @@ export interface PriceBreakEven {
   requiredExtraMonthly: number;
   /** mesmo aporte em % da parcela contratual */
   requiredExtraPct: number;
-  /** percentual mensal total que substitui qualquer percentual atual */
+  /** percentual total para cobertura no mes 1; janelas mensais futuras nao sao garantidas */
   requiredTotalExtraPct: number;
   /** primeiro mês em que a amortização supera a correção monetária; null se nunca (não deve ocorrer) */
   monthsUntilAmortize: number | null;
 }
 
 export function priceBreakEven(input: LoanInput, result?: SimulationResult): PriceBreakEven {
-  const m = convertAnnualToMonthly(input.annualRate);
-  const minPayment = input.principal * (m + input.trMonthly) + input.insuranceMonthly;
+  const portability = result?.strategies.portability;
+  const m = convertAnnualToMonthly(portability?.annualRate ?? input.annualRate);
+  const insuranceMonthly = portability?.insuranceMonthly ?? input.insuranceMonthly;
+  const minPayment = input.principal * (m + input.trMonthly) + insuranceMonthly;
   const maxMonths =
     input.trMonthly <= 0
       ? Infinity
-      : Math.floor(Math.log((m + input.trMonthly) / input.trMonthly) / Math.log(1 + m));
+      : m === 0
+        ? Math.ceil(1 / input.trMonthly) - 1
+        : Math.floor(Math.log((m + input.trMonthly) / input.trMonthly) / Math.log(1 + m));
   const idealPayment = Number.isFinite(maxMonths)
-    ? pmt(m, maxMonths, input.principal) + input.insuranceMonthly
+    ? pmt(m, maxMonths, input.principal) + insuranceMonthly
     : null;
   // o que o usuário já paga por mês (reflete as estratégias atuais, sem aportes pontuais)
   const pagamentoAtual = result && result.installments.length > 0 ? recurringParcela(result) : 0;
   const parcelaReferencia = pagamentoAtual > 0
     ? pagamentoAtual
-    : pmt(m, input.months, input.principal) + input.insuranceMonthly;
+    : pmt(m, input.months, input.principal) + insuranceMonthly;
   const requiredExtraMonthly = Math.max(0, minPayment - parcelaReferencia);
   const requiredExtraPct = requiredExtraMonthly / parcelaReferencia;
-  const contractualPayment = recurringParcela(simulate(input, { extraLumpSum: [], reduceMode: 'term' }));
+  const contractualPayment = recurringParcela(simulate(input, { extraLumpSum: [], reduceMode: 'term', portability }));
   const strategiesWithoutPercent = result
     ? {
         ...result.strategies,
@@ -62,18 +66,21 @@ export function priceBreakEven(input: LoanInput, result?: SimulationResult): Pri
   };
 }
 
-/**
- * Parcela recorrente (o que o usuário paga todo mês), ignorando aportes pontuais
- * (lump sum) que aparecem só no mês em que foram agendados. Aportes recorrentes
- * (% extra, FGTS, aporte a cada X meses) são mantidos quando caem no mês 1.
- */
+/** Primeira prestacao sem aportes esporadicos; janelas mensais permanecem respeitadas. */
 export function recurringParcela(result: SimulationResult): number {
   const first = result.installments[0];
   if (!first) return 0;
-  const lumpsNoMes1 = (result.strategies.extraLumpSum ?? [])
-    .filter((e) => e.month === first.month)
-    .reduce((acc, e) => acc + e.amount, 0);
-  return Math.max(0, first.parcela - lumpsNoMes1);
+  const { extraLumpSum, fgtsAnnual, recurringExtra } = result.strategies;
+  if (extraLumpSum.length === 0 && !fgtsAnnual && (!recurringExtra || recurringExtra.every === 1)) {
+    return first.parcela;
+  }
+  // Recalcular sem essas fontes preserva caps por saldo e precedencia do fixo.
+  return simulate(result.input, {
+    ...result.strategies,
+    extraLumpSum: [],
+    fgtsAnnual: undefined,
+    recurringExtra: recurringExtra?.every === 1 ? recurringExtra : undefined,
+  }).installments[0]?.parcela ?? 0;
 }
 
 export interface SacVsPrice {

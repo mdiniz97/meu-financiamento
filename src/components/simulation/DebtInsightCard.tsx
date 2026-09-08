@@ -47,12 +47,22 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
   if (input.system === 'SAC') {
     const c = sacVsPrice(input);
     const sacMaisCara = c.parcela1Sac > c.parcela1Price;
+    const firstBalance = result.installments[0]?.saldo;
+    const firstChange = firstBalance === undefined ? null : firstBalance - input.principal;
+    const firstDescription = firstChange === null
+      ? 'não tem saldo observado no mês 1'
+      : firstChange < 0
+        ? 'cai no mês 1'
+        : firstChange > 0
+          ? 'cresce no mês 1'
+          : 'fica estável no mês 1';
     return (
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg">Raio X da dívida</CardTitle>
           <CardDescription>
-            No SAC a amortização é fixa desde a 1ª parcela: a dívida abate todo mês. Compare com o PRICE:
+            No cenário atual, a dívida {firstDescription}. A TR pode superar a amortização mesmo no SAC.
+            Comparação abaixo: contratos sem estratégias.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
@@ -67,10 +77,14 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
               </span>
             </div>
             <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
-              <span className="text-xs text-muted-foreground">Parcela mínima (última) no SAC</span>
+              <span className="text-xs text-muted-foreground">Última parcela no SAC sem estratégias</span>
               <span className="text-lg font-semibold">{formatBRL(c.ultimaParcelaSac)}</span>
               <span className="text-xs text-muted-foreground">
-                cai {formatBRL(c.parcela1Sac - c.ultimaParcelaSac)} até o fim
+                {c.ultimaParcelaSac < c.parcela1Sac
+                  ? `${formatBRL(c.parcela1Sac - c.ultimaParcelaSac)} abaixo da primeira parcela`
+                  : c.ultimaParcelaSac > c.parcela1Sac
+                    ? `${formatBRL(c.ultimaParcelaSac - c.parcela1Sac)} acima da primeira parcela`
+                    : 'igual à primeira parcela'}
               </span>
             </div>
             <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
@@ -79,22 +93,24 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
                 {c.crossingMonth ? `${c.crossingMonth} (${(c.crossingMonth / 12).toFixed(1)} anos)` : 'nunca'}
               </span>
               <span className="text-xs text-muted-foreground">
-                depois disso, o SAC paga menos que a PRICE em todas as parcelas
+                primeiro cruzamento observado nos contratos sem estratégias; não garante as parcelas seguintes
               </span>
             </div>
             <div className="flex flex-col gap-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-3">
               <span className="text-xs text-muted-foreground">Economia total do SAC vs PRICE</span>
               <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatBRL(c.economiaVsPrice)}</span>
               <span className="text-xs text-muted-foreground">
-                dívida cai {formatBRL(c.dividaCai12mSac)} em 12 meses
+                {c.dividaCai12mSac === 0
+                  ? 'dívida estável em 12 meses, sem estratégias'
+                  : `dívida ${c.dividaCai12mSac > 0 ? 'cai' : 'cresce'} ${formatBRL(Math.abs(c.dividaCai12mSac))} em 12 meses, sem estratégias`}
               </span>
             </div>
           </div>
-          <p className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-3 text-emerald-800 dark:text-emerald-300">
-            No SAC sua dívida <strong>cai desde o mês 1</strong>: diferentemente do PRICE, onde pode
-            crescer no início. O preço é a parcela inicial mais alta
-            {sacMaisCara ? ` (${formatBRL(c.parcela1Sac - c.parcela1Price)} a mais)` : ''}; depois do mês{' '}
-            {c.crossingMonth ?? '·'} ela fica menor que a PRICE para sempre. Use o seletor
+          <p className="rounded-xl bg-muted/50 p-3 text-muted-foreground">
+            Sua dívida <strong>{firstDescription}</strong>
+            {firstChange !== null && firstChange !== 0 ? ` em ${formatBRL(Math.abs(firstChange))}` : ''}.
+            Esse resultado considera os aportes do cenário atual. Taxas, TR e janelas de aporte
+            determinam os meses seguintes; uma queda inicial não garante queda contínua. Use o seletor
             &quot;Comparar PRICE ↔ SAC&quot; no topo para ver lado a lado.
           </p>
         </CardContent>
@@ -104,7 +120,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
 
   const be = priceBreakEven(input, result);
   const parcelaAtual = recurringParcela(result);
-  const abateDesdeInicio = (be.monthsUntilAmortize ?? 1) <= 1;
+  const abateDesdeInicio = be.monthsUntilAmortize === 1;
   const parcelaCobre = parcelaAtual >= be.minPayment;
   const prazoOk = input.months <= be.maxMonths;
   const aporteAplicavel = Number.isFinite(be.requiredTotalExtraPct) && be.requiredTotalExtraPct <= 1;
@@ -118,28 +134,28 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
       <CardContent className="flex flex-col gap-4 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
-            <span className="text-xs text-muted-foreground">Sua parcela</span>
+            <span className="text-xs text-muted-foreground">Parcela recorrente no mês 1</span>
             <span className={`text-lg font-semibold ${parcelaCobre ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
               {formatBRL(parcelaAtual)}
             </span>
             <span className="text-xs text-muted-foreground">
               {parcelaCobre
-                ? 'cobre o crescimento da dívida'
-                : `mínima para abater: ${formatBRL(be.minPayment)}`}
+                ? 'cobre juros e TR do saldo inicial'
+                : `limiar aproximado no mês 1: ${formatBRL(be.minPayment)}`}
             </span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
-            <span className="text-xs text-muted-foreground">Dívida começa a cair no mês</span>
+            <span className="text-xs text-muted-foreground">Primeira queda observada da dívida</span>
             <span className="text-lg font-semibold">
-              {abateDesdeInicio ? '1' : `${be.monthsUntilAmortize}`}
+              {be.monthsUntilAmortize === null ? 'Não observada' : `mês ${be.monthsUntilAmortize}`}
               {abateDesdeInicio && ' ✓'}
             </span>
             <span className="text-xs text-muted-foreground">
-              {abateDesdeInicio ? 'desde a primeira parcela' : `dos ${input.months} meses do contrato`}
+              {abateDesdeInicio ? 'na primeira parcela deste cenário' : 'no cronograma simulado, incluindo aportes'}
             </span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3">
-            <span className="text-xs text-muted-foreground">Prazo ideal para abater desde o início</span>
+            <span className="text-xs text-muted-foreground">Prazo estimado para queda no mês 1</span>
             <span className={`text-lg font-semibold ${prazoOk ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
               {Number.isFinite(be.maxMonths) ? `até ${be.maxMonths} meses` : 'sem limite'}
               {prazoOk && ' ✓'}
@@ -152,18 +168,16 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
           </div>
           {be.idealPayment !== null && (
             <div className="flex flex-col gap-1 rounded-xl bg-primary/5 dark:bg-[#820AD1]/15 p-3">
-              <span className="text-xs text-muted-foreground">Parcela se financiar já no prazo ideal</span>
+              <span className="text-xs text-muted-foreground">Parcela estimada no prazo de referência</span>
               <span className="text-lg font-semibold text-primary">{formatBRL(be.idealPayment)}</span>
               <span className="text-xs text-muted-foreground">
-                {prazoOk
-                  ? 'mesma parcela, dívida caindo desde o início'
-                  : `com ${be.maxMonths} meses (${(be.maxMonths / 12).toFixed(1)} anos)`}
+                {`com ${be.maxMonths} meses (${(be.maxMonths / 12).toFixed(1)} anos), sem estratégias`}
               </span>
             </div>
           )}
           {be.requiredExtraMonthly > 0 && (
             <div className="flex flex-col gap-1 rounded-xl bg-primary/5 dark:bg-[#820AD1]/15 p-3">
-              <span className="text-xs text-muted-foreground">Aporte mensal p/ abater no seu prazo</span>
+              <span className="text-xs text-muted-foreground">Aporte estimado para cobertura no mês 1</span>
               <span className="text-lg font-semibold text-primary">
                 {formatBRL(be.requiredExtraMonthly)}
                 <span className="ml-1 text-xs font-medium text-muted-foreground">
@@ -172,7 +186,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
               </span>
               <span className="text-xs text-muted-foreground">
                 {aporteAplicavel
-                  ? 'amortize por fora todo mês e a dívida cai desde a 1ª parcela'
+                  ? 'percentual aplicado desde o mês 1; revise a cobertura quando outras janelas terminarem'
                   : 'aporte acima de 100%; reduza o prazo ou revise as condições do financiamento'}
               </span>
               <Button
@@ -188,13 +202,17 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
             </div>
           )}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Limiar aproximado de equilíbrio no mês 1: juros e TR sobre o saldo inicial, mais seguro.
+          Para reduzir o saldo, o pagamento deve superar esse valor. Taxas, TR e seguro informados
+          são mantidos na estimativa; aportes pontuais e mudanças nas janelas podem alterar os meses seguintes.
+        </p>
         {!abateDesdeInicio && (
           <p className="rounded-xl bg-amber-50 dark:bg-amber-950/60 p-3 text-amber-800 dark:text-amber-300">
-            Sua parcela de <strong>{formatBRL(parcelaAtual)}</strong> não abate a dívida no começo.
-            por <strong>{formatBRL(be.requiredExtraMonthly)}/mês</strong> de aporte por fora, ou
-            financiando em até {be.maxMonths} meses com parcela de{' '}
-            <strong>{formatBRL(be.idealPayment ?? parcelaAtual)}</strong>, a dívida cai desde a 1ª
-            parcela e os juros totais despencam.
+            O cronograma atual não registra queda do saldo no mês 1.
+            {be.requiredExtraMonthly > 0 && <> A estimativa de aporte adicional nesse mês é de{' '}
+              <strong>{formatBRL(be.requiredExtraMonthly)}</strong>.</>}
+            {' '}Confira a tabela após aplicar o aporte: a estimativa inicial não garante queda contínua.
           </p>
         )}
       </CardContent>

@@ -40,4 +40,20 @@ describe('calcularAlugarOuComprar', () => {
     expect(() => calcularAlugarOuComprar({ ...BASE, aluguelMensal: -1 })).toThrow();
     expect(() => calcularAlugarOuComprar({ ...BASE, prazoMeses: 0 })).toThrow();
   });
+
+  it('rejeita comparação com aluguel maior que parcela enquanto não modela sobra do comprador', () => {
+    expect(() => calcularAlugarOuComprar({ ...BASE, aluguelMensal: 5000 })).toThrow(/aluguel.*parcela/i);
+  });
+
+  it('não projeta ganhos unilaterais depois da quitação do financiamento', () => {
+    expect(() => calcularAlugarOuComprar({ ...BASE, prazoMeses: 360, mesesFinanciamento: 120 })).toThrow(/horizonte.*financiamento/i);
+  });
+
+  it.each([NaN, Infinity, -1])('rejeita valorização inválida %s', (valorizacaoAnual) => {
+    expect(() => calcularAlugarOuComprar({ ...BASE, valorizacaoAnual })).toThrow(/valoriza/i);
+  });
+
+  it('rejeita horizonte fracionário em vez de simular silenciosamente menos meses', () => {
+    expect(() => calcularAlugarOuComprar({ ...BASE, prazoMeses: 12.5 })).toThrow(/Horizonte/i);
+  });
 });

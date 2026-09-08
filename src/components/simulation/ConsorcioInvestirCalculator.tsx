@@ -29,6 +29,10 @@ export function ConsorcioInvestirCalculator({
   const [result, setResult] = useState<ConsorcioInvestirResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
   const [error, setError] = useState('');
+  const selicResultado = resultForm ? parseDecimal(resultForm.selic) : NaN;
+  const selicLabel = Number.isFinite(selicResultado)
+    ? selicResultado.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+    : '-';
 
   const savedFpRef = useRef<string | null>(null);
   useEffect(() => {
@@ -128,7 +132,7 @@ export function ConsorcioInvestirCalculator({
             <div className="rounded-2xl border border-[#820AD1]/30 bg-primary/[0.04] p-4">
               <p className="text-sm">
                 <strong className="text-[#820AD1]">Investindo, você compra à vista no mês {result.mesCompraAvista} (~{result.mesCompraAvistaAnos} anos):</strong>{' '}
-                aplicando {formatBRL(result.parcelaMensal)}/mês a {form.selic}% a.a., seu
+                aplicando {formatBRL(result.parcelaMensal)}/mês a {selicLabel}% a.a., seu
                 dinheiro atinge {formatBRL(result.valor)} e o imóvel é seu sem taxa de administração.
                 O consórcio, no pior caso, só entrega a carta no fim do prazo ({result.prazoMeses} meses),
                 depois de pagar {formatBRL(result.totalConsorcio)} no total (incluindo{' '}
@@ -173,7 +177,7 @@ export function ConsorcioInvestirCalculator({
                 </li>
                 <li>
                   <strong className="text-foreground">Investindo:</strong> a mesma parcela aplicada
-                  todo mês rende {form.selic}% a.a. e compra à vista quando atinge o
+                  todo mês rende {selicLabel}% a.a. e compra à vista quando atinge o
                   valor, sem pagar taxa nem depender de sorteio.
                 </li>
                 <li>

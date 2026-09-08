@@ -22,26 +22,32 @@ function monthlyRate(annual: number): number {
 }
 
 export function calcularConsorcioOuInvestir(input: ConsorcioInvestirInput): ConsorcioInvestirResult {
-  if (!(input.valor > 0)) throw new Error('Valor do crédito deve ser maior que zero.');
-  if (!(input.prazoMeses >= 1 && input.prazoMeses <= 600))
+  if (!Number.isFinite(input.valor) || !(input.valor > 0)) throw new Error('Valor do crédito deve ser maior que zero.');
+  if (!Number.isInteger(input.prazoMeses) || !(input.prazoMeses >= 1 && input.prazoMeses <= 600))
     throw new Error('Prazo deve ficar entre 1 e 600 meses.');
-  if (!(input.taxaAdminPct >= 0)) throw new Error('Taxa de administração inválida.');
-  if (!(input.selicAnual >= 0)) throw new Error('Taxa de investimento inválida.');
+  if (!Number.isFinite(input.taxaAdminPct) || !(input.taxaAdminPct >= 0)) throw new Error('Taxa de administração inválida.');
+  if (!Number.isFinite(input.selicAnual) || !(input.selicAnual >= 0)) throw new Error('Taxa de investimento inválida.');
 
   const totalConsorcio = input.valor * (1 + input.taxaAdminPct / 100);
   const parcelaMensal = totalConsorcio / input.prazoMeses;
   const i = monthlyRate(input.selicAnual);
+  if (!Number.isFinite(totalConsorcio) || !Number.isFinite(parcelaMensal) || !(parcelaMensal > 0))
+    throw new Error('Resultado fora do limite numérico.');
 
   // Investidor aplica a mesma parcela todo mês até juntar o valor do crédito.
   let fv = 0;
-  let mesCompraAvista = input.prazoMeses;
-  for (let m = 1; m <= 3600; m += 1) {
-    fv = fv * (1 + i) + parcelaMensal;
-    if (fv >= input.valor) {
+  let mesCompraAvista = 0;
+  for (let m = 1; m <= input.prazoMeses; m += 1) {
+    fv = i === 0 ? parcelaMensal * m : fv * (1 + i) + parcelaMensal;
+    if (!Number.isFinite(fv)) throw new Error('Resultado fora do limite numérico.');
+    // Compensa erro acumulado de ponto flutuante, sempre abaixo de um centavo.
+    const tolerance = Math.min(0.001, input.valor * Number.EPSILON * m * 4);
+    if (fv >= input.valor || input.valor - fv <= tolerance) {
       mesCompraAvista = m;
       break;
     }
   }
+  if (mesCompraAvista === 0) throw new Error('Resultado fora do limite numérico.');
 
   return {
     valor: input.valor,
