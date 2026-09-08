@@ -22,6 +22,8 @@ import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
 import { AmortizacoesSection } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
+import { EsePanel } from './e-se-panel';
+import { InvestPanel } from './invest-panel';
 
 const DIVERGENCIA_BANNER_LIMITE = 200;
 
@@ -191,10 +193,13 @@ function PagaRow({ paga, readOnly }: { paga: ParcelaPagaComId; readOnly: boolean
 export function Dashboard({
   state,
   readOnly = false,
+  selicAnnual = null,
 }: {
   state: PageState;
   /** Modo somente leitura (sem ações); a Task 8 liga a página a este estado. */
   readOnly?: boolean;
+  /** Selic anual do BACEN para o painel investir ou amortizar; null usa o padrão. */
+  selicAnnual?: number | null;
 }) {
   const { params, baseline, pagas, extras, projecao } = state;
   const { parcelas, quitaEm, divergencia, saldoEfetivo, primeiraPendente } = projecao;
@@ -334,6 +339,21 @@ export function Dashboard({
       </section>
 
       <AmortizacoesSection extras={extras} readOnly={readOnly} quitado={quitado} />
+
+      {state.isUnlimited && !readOnly && !quitado && (
+        // Recomendações são exclusivas do plano Ilimitado e sem persistência;
+        // a Task 8 substitui o corte por um ExclusiveCard quando aplicável.
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold">Recomendações</h2>
+          <div
+            key={`${saldoEfetivo}:${primeiraPendente}:${quitaEm}`}
+            className="grid items-start gap-4 lg:grid-cols-2"
+          >
+            <EsePanel params={state.params} projecao={state.projecao} />
+            <InvestPanel params={state.params} projecao={state.projecao} selicAnnual={selicAnnual} />
+          </div>
+        </section>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Valores projetados são estimativas do modelo (TR e seguro constantes). O saldo real do banco vale quando você

@@ -6,6 +6,7 @@ import { Dashboard } from '@/components/meu-financiamento/dashboard';
 import { OnboardingWizard } from '@/components/meu-financiamento/onboarding-wizard';
 import { getPageData, recomputeState } from '@/lib/meu-financiamento/repo';
 import type { PageState } from '@/lib/meu-financiamento/repo';
+import { getSelicAnnual } from '@/lib/market/bacen';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,9 @@ export default async function MeuFinanciamentoPage() {
     // Estado inconsistente não pode derrubar a página; o wizard recomeça.
   }
 
+  // Selic só é necessária com contrato e plano Ilimitado (painel Recomendações).
+  const selicAnnual = state?.isUnlimited ? await getSelicAnnual() : null;
+
   return (
     <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
       <div className={cn('flex w-full flex-col gap-6', state ? 'max-w-5xl' : 'max-w-2xl')}>
@@ -47,7 +51,7 @@ export default async function MeuFinanciamentoPage() {
         {state ? (
           // readOnly=false: dashboard sempre editável nesta etapa; a Task 8
           // liga a visão somente leitura para contratos sem o plano Ilimitado.
-          <Dashboard state={state} readOnly={false} />
+          <Dashboard state={state} readOnly={false} selicAnnual={selicAnnual} />
         ) : (
           <OnboardingWizard draft={draft} />
         )}
