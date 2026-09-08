@@ -25,6 +25,8 @@ interface ResultadoEfeito {
   tipo: 'efeito';
   linhas: Trecho[][];
   economia: number;
+  /** Falso quando o valor da economia já vem embutido em uma linha (nada mudou além dos juros). */
+  comCaixaEconomia: boolean;
 }
 
 interface ResultadoHonesto {
@@ -64,8 +66,10 @@ function baseLoanInput(params: ContractParams, projecao: Projecao): LoanInput {
 /**
  * Parcela do contrato em que a simulação quita, com a mesma fusão da parcela
  * fantasma do model (engine PRICE com TR paga months+1 e o model funde na
- * última parcela do prazo). Quitação e comparação ficam no mesmo espaço de
- * parcelas que o dashboard exibe.
+ * última parcela do prazo). O painel ancora a comparação na quitação exibida
+ * pelo dashboard (`projecao.quitaEm`), que o model pode encurtar por
+ * amortizações term registradas: o cenário nunca "quita depois" dela, então a
+ * parcela final é limitada a Y no chamador.
  */
 function parcelaDeQuitacao(cenario: SimulationResult, mesesDoCenario: number, primeiraPendente: number): number {
   if (cenario.installments.length > mesesDoCenario) return primeiraPendente + mesesDoCenario - 1;
@@ -98,15 +102,16 @@ function estrategiasMensal(parcelaAtual: number, valor: number, modo: ModoReduca
 }
 
 /**
- * Menor valor (na grade de centavos) a partir do aporte informado que muda
- * prazo ou total pago em mais de um centavo. Busca linear limitada: passos de
- * um centavo (ou 25% do aporte para valores grandes), até 5x o aporte.
+ * Menor valor (na grade de centavos) a partir do aporte informado que muda o
+ * prazo (quitação abaixo da exibida pelo dashboard) ou o total pago em mais de
+ * um centavo. Busca linear limitada: passos de um centavo (ou 25% do aporte
+ * para valores grandes), até 5x o aporte.
  */
 function buscarMinimoComEfeito(
   cenarioDe: (valor: number) => SimulationResult,
   aporte: number,
   base: SimulationResult,
-  baseQuita: number,
+  quitaEmProjecao: number,
   meses: number,
   primeiraPendente: number,
 ): { minimo: number | null; testadoAte: number } {
@@ -120,9 +125,9 @@ function buscarMinimoComEfeito(
     if (valor > limite) break;
     testadoAte = valor;
     const cenario = cenarioDe(valor);
-    const quita = parcelaDeQuitacao(cenario, meses, primeiraPendente);
+    const quita = Math.min(parcelaDeQuitacao(cenario, meses, primeiraPendente), quitaEmProjecao);
     const economia = base.metrics.totalPago - cenario.metrics.totalPago;
-    if (quita !== baseQuita || economia > LIMIAR_EFEITO) {
+    if (quita < quitaEmProjecao || economia > LIMIAR_EFEITO) {
       minimo = valor;
       break;
     }
@@ -190,6 +195,10 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
 
   function recalcular() {
     setError('');
+    const Y = quitaEm;
+    // O formulário só existe com quitação projetada (guard acima), mas a
+    // função não carrega o estreitamento de tipo do render.
+    if (Y === null) return;
     if (aporte <= 0) {
       setError(tipo === 'pontual' ? 'Informe o valor do aporte extra (maior que zero).' : 'Informe o valor do aporte mensal (maior que zero).');
       setResultado(null);
@@ -197,46 +206,61 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
     }
     const input = baseLoanInput(params, projecao);
     const base = simulate(input);
-    const baseQuita = parcelaDeQuitacao(base, meses, primeiraPendente);
-
+    // Baseline do PageState: a quitação exibida pelo dashboard, que o model já
+    // encurtou por amortizações term registradas (mesesParaParcela).
     const estrategiasDe = tipo === 'pontual'
       ? estrategiasPontual
       : (valor: number) => estrategiasMensal(parcelaAtual, valor, modo);
 
     try {
       const cenario = simulate(input, estrategiasDe(aporte));
-      const quita = parcelaDeQuitacao(cenario, meses, primeiraPendente);
-      const economia = base.metrics.totalPago - cenario.metrics.totalPago;
+      // Cenário nunca quita depois do que o model já projetou para o estado.
+      const quita = Math.min(parcelaDeQuitacao(cenario, meses, primeiraPendente), Y);
+      const economia = Math.max(0, base.metrics.totalPago - cenario.metrics.totalPago);
 
-      if (quita === baseQuita && economia <= LIMIAR_EFEITO) {
-        const busca = buscarMinimoComEfeito((valor) => simulate(input, estrategiasDe(valor)), aporte, base, baseQuita, meses, primeiraPendente);
+      if (quita === Y && economia <= LIMIAR_EFEITO) {
+        const busca = buscarMinimoComEfeito((valor) => simulate(input, estrategiasDe(valor)), aporte, base, Y, meses, primeiraPendente);
         setResultado({ tipo: 'honesto', minimo: busca.minimo, testadoAte: busca.testadoAte });
         return;
       }
 
+      const reduzida = tipo === 'mensal' && modo === 'payment' ? parcelaReduzida(cenario, base) : null;
       const linhas: Trecho[][] = [];
-      if (quita < baseQuita) {
-        linhas.push([txt('Quita na parcela '), numero(String(quita)), txt(' em vez de '), numero(String(baseQuita)), txt('.')]);
-      } else {
-        linhas.push([txt('Quitação mantida na parcela '), numero(String(baseQuita)), txt('.')]);
-      }
-      if (tipo === 'mensal' && modo === 'payment') {
-        const reduzida = parcelaReduzida(cenario, base);
-        if (reduzida !== null) {
-          linhas.push([
-            txt('Parcela cai para '),
-            numero(formatBRL(reduzida)),
-            txt(' a partir do próximo mês.'),
-          ]);
-        } else {
-          linhas.push([
-            txt('Com '),
-            numero(formatBRL(aporte)),
-            txt(' mensais o modelo não reduz a parcela projetada; o aporte apenas antecipa a quitação. Aumente o aporte para reduzir a parcela.'),
-          ]);
+      let comCaixaEconomia = true;
+      if (quita < Y) {
+        linhas.push([txt('Quita na parcela '), numero(String(quita)), txt(' em vez de '), numero(String(Y)), txt('.')]);
+        if (tipo === 'mensal' && modo === 'payment') {
+          if (reduzida !== null) {
+            linhas.push([
+              txt('Parcela cai para '),
+              numero(formatBRL(reduzida)),
+              txt(' a partir do próximo mês.'),
+            ]);
+          } else {
+            linhas.push([
+              txt('Com '),
+              numero(formatBRL(aporte)),
+              txt(' mensais o modelo não reduz a parcela projetada; o aporte apenas antecipa a quitação. Aumente o aporte para reduzir a parcela.'),
+            ]);
+          }
         }
+      } else if (reduzida !== null) {
+        linhas.push([txt('Quitação mantida na parcela '), numero(String(Y)), txt('.')]);
+        linhas.push([
+          txt('Parcela cai para '),
+          numero(formatBRL(reduzida)),
+          txt(' a partir do próximo mês.'),
+        ]);
+      } else if (economia > LIMIAR_EFEITO) {
+        // Nada mudou além dos juros: prazo e parcela continuam iguais.
+        linhas.push([
+          txt('Prazo e parcela não mudam neste cenário; a economia de '),
+          numero(formatBRL(economia)),
+          txt(' vem só dos juros.'),
+        ]);
+        comCaixaEconomia = false;
       }
-      setResultado({ tipo: 'efeito', linhas, economia: Math.max(0, economia) });
+      setResultado({ tipo: 'efeito', linhas, economia, comCaixaEconomia });
     } catch {
       setError('Não foi possível simular este cenário. Confira os valores e tente de novo.');
     }
@@ -343,12 +367,14 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
                     <LinhaResultado key={i} trechos={trechos} />
                   ))}
                 </div>
-                <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
-                  <span className="text-sm text-muted-foreground">Economia estimada</span>
-                  <span className="font-mono text-lg font-semibold tabular-nums">
-                    {formatBRL(resultado.economia)}
-                  </span>
-                </div>
+                {resultado.comCaixaEconomia && (
+                  <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
+                    <span className="text-sm text-muted-foreground">Economia estimada</span>
+                    <span className="font-mono text-lg font-semibold tabular-nums">
+                      {formatBRL(resultado.economia)}
+                    </span>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Economia do modelo: total a pagar do contrato atual menos o total a pagar do cenário, simulados do
                   mesmo jeito.

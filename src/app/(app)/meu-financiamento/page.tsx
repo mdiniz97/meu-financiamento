@@ -28,8 +28,16 @@ export default async function MeuFinanciamentoPage() {
     // Estado inconsistente não pode derrubar a página; o wizard recomeça.
   }
 
-  // Selic só é necessária com contrato e plano Ilimitado (painel Recomendações).
-  const selicAnnual = state?.isUnlimited ? await getSelicAnnual() : null;
+  // Selic só é necessária com contrato e plano Ilimitado (painel Recomendações);
+  // falha de rede do BACEN não pode derrubar a página (fallback 10,5% no painel).
+  let selicAnnual: number | null = null;
+  if (state?.isUnlimited) {
+    try {
+      selicAnnual = await getSelicAnnual();
+    } catch {
+      selicAnnual = null;
+    }
+  }
 
   return (
     <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
