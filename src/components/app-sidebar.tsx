@@ -5,13 +5,15 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, Coins, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, User, X } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, User, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 
-const NAV = [
+type NavItem = { href: string; label: string; icon: LucideIcon; exclusive?: boolean };
+
+const NAV: NavItem[] = [
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
   { href: '/juros', label: 'Juros de mercado', icon: Percent },
@@ -23,16 +25,26 @@ const NAV = [
   { href: '/consorcio-vale-a-pena', label: 'Consórcio vale a pena?', icon: Landmark },
   { href: '/portabilidade', label: 'Portabilidade', icon: ArrowLeftRight },
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
+  { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, exclusive: true },
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
   { href: '/perfil', label: 'Meu perfil', icon: User },
 ];
 
-function NavLinks({ compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }) {
+function NavLinks({
+  compact = false,
+  showMeuFinanciamento = false,
+  onNavigate,
+}: {
+  compact?: boolean;
+  showMeuFinanciamento?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
+  const visibleItems = NAV.filter((item) => !item.exclusive || showMeuFinanciamento);
   return (
     <nav className="flex flex-col gap-1">
-      {NAV.map(({ href, label, icon: Icon }) => {
+      {visibleItems.map(({ href, label, icon: Icon, exclusive }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
@@ -48,7 +60,12 @@ function NavLinks({ compact = false, onNavigate }: { compact?: boolean; onNaviga
             )}
           >
             <Icon className={cn('shrink-0', compact ? 'size-4' : 'size-5')} />
-            {label}
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            {exclusive && (
+              <span className="shrink-0 rounded-md bg-[#820AD1]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#820AD1]">
+                exclusivo
+              </span>
+            )}
           </Link>
         );
       })}
@@ -87,11 +104,13 @@ function MobileDrawer({
   onClose,
   credits,
   isUnlimited,
+  showMeuFinanciamento = false,
 }: {
   open: boolean;
   onClose: () => void;
   credits: number;
   isUnlimited: boolean;
+  showMeuFinanciamento?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -122,7 +141,7 @@ function MobileDrawer({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-          <NavLinks onNavigate={onClose} />
+          <NavLinks showMeuFinanciamento={showMeuFinanciamento} onNavigate={onClose} />
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
@@ -135,7 +154,15 @@ function MobileDrawer({
   );
 }
 
-export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
+export function AppSidebar({
+  credits,
+  isUnlimited,
+  showMeuFinanciamento = false,
+}: {
+  credits: number;
+  isUnlimited: boolean;
+  showMeuFinanciamento?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -147,7 +174,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
           </Link>
         </div>
         <div className="flex flex-1 flex-col justify-between p-3">
-          <NavLinks compact />
+          <NavLinks compact showMeuFinanciamento={showMeuFinanciamento} />
           <div className="flex flex-col gap-3 border-t border-border pt-3">
             <PlanChip credits={credits} isUnlimited={isUnlimited} />
             <ActionsRow />
@@ -164,7 +191,13 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
         </Button>
       </header>
 
-      <MobileDrawer open={open} onClose={() => setOpen(false)} credits={credits} isUnlimited={isUnlimited} />
+      <MobileDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        credits={credits}
+        isUnlimited={isUnlimited}
+        showMeuFinanciamento={showMeuFinanciamento}
+      />
     </>
   );
 }
