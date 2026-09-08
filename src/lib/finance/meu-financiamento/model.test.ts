@@ -68,6 +68,15 @@ it('quitação: saldo efetivo zero após extras', () => {
   expect(p.quitaEm).toBeNull();
 });
 
+it('baseline quitado por recalibração (saldo 0) projeta vazio sem lançar', () => {
+  const p = projecao(PARAMS, { ...BASELINE, saldoDevedor: 0, version: 2, dataBase: '2026-10-05' }, [], []);
+  expect(p.saldoEfetivo).toBe(0);
+  expect(p.saldoAntesExtras).toBe(0);
+  expect(p.parcelas).toEqual([]);
+  expect(p.quitaEm).toBeNull();
+  expect(p.primeiraPendente).toBe(141);
+});
+
 it('lacuna em parcelas pagas lança erro', () => {
   expect(() => projecao(PARAMS, BASELINE,
     [

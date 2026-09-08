@@ -20,6 +20,8 @@ import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
+import { AmortizacoesSection } from './amortization-form';
+import { RecalibrateDialog } from './recalibrate-dialog';
 
 const DIVERGENCIA_BANNER_LIMITE = 200;
 
@@ -194,11 +196,14 @@ export function Dashboard({
   /** Modo somente leitura (sem ações); a Task 8 liga a página a este estado. */
   readOnly?: boolean;
 }) {
-  const { params, baseline, pagas, projecao } = state;
+  const { params, baseline, pagas, extras, projecao } = state;
   const { parcelas, quitaEm, divergencia, saldoEfetivo, primeiraPendente } = projecao;
   const parcelasBoletos = parcelas.slice(0, 12);
   const primeiraProjetada = parcelas[0] ?? null;
   const [showPay, setShowPay] = useState(false);
+  const [recalibrando, setRecalibrando] = useState(false);
+
+  const quitado = saldoEfetivo === 0;
 
   const vencimentoEstimado = (parcelaNumero: number) =>
     addMonthsISO(baseline.dataBase, parcelaNumero - baseline.proximaParcelaNumero);
@@ -213,13 +218,30 @@ export function Dashboard({
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg font-semibold">Resumo</h2>
-        {Math.abs(divergencia) >= DIVERGENCIA_BANNER_LIMITE && (
-          <div className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-            <p>
-              Seus pagamentos divergem do modelo em {formatBRL(Math.abs(divergencia))}. Confira o saldo no extrato e
-              recalibre.
+        {quitado ? (
+          <div
+            role="status"
+            className="flex flex-col gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+          >
+            <p>Financiamento quitado</p>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+              Saldo zerado. O contrato permanece aqui como histórico de pagamentos e amortizações.
             </p>
           </div>
+        ) : (
+          Math.abs(divergencia) >= DIVERGENCIA_BANNER_LIMITE && (
+            <div className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Seus pagamentos divergem do modelo em {formatBRL(Math.abs(divergencia))}. Confira o saldo no extrato
+                e recalibre.
+              </p>
+              {!readOnly && (
+                <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+                  Recalibrar saldo
+                </Button>
+              )}
+            </div>
+          )
         )}
         <div className="grid gap-3 sm:grid-cols-3">
           <SummaryCard label="Saldo devedor atual" value={formatBRL(saldoEfetivo)} />
@@ -230,7 +252,7 @@ export function Dashboard({
           />
           <SummaryCard
             label="Quitação estimada"
-            value={quitaEm != null && quitaEmData ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})` : 'não no prazo'}
+            value={quitaEm != null && quitaEmData ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})` : (quitado ? '—' : 'não no prazo')}
           />
         </div>
         {parcelas.length > 0 && <BalanceChart data={parcelas.map((p) => ({ month: p.parcelaNumero, saldo: p.saldo }))} />}
@@ -278,7 +300,9 @@ export function Dashboard({
           </div>
         ) : (
           <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-            Não há parcelas em aberto neste contrato. Recalibre o contrato para registrar o saldo real do banco.
+            {quitado
+              ? 'Contrato quitado: não há boletos em aberto. Confira o histórico abaixo.'
+              : 'Não há parcelas em aberto neste contrato. Recalibre o contrato para registrar o saldo real do banco.'}
           </p>
         )}
       </section>
@@ -308,10 +332,19 @@ export function Dashboard({
         )}
       </section>
 
+      <AmortizacoesSection extras={extras} readOnly={readOnly} quitado={quitado} />
+
       <p className="text-xs text-muted-foreground">
         Valores projetados são estimativas do modelo (TR e seguro constantes). O saldo real do banco vale quando você
         recalibra.
       </p>
+
+      <RecalibrateDialog
+        open={recalibrando}
+        onOpenChange={setRecalibrando}
+        saldoEfetivo={saldoEfetivo}
+        primeiraPendente={primeiraPendente}
+      />
     </div>
   );
 }

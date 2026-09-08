@@ -32,7 +32,7 @@ export interface PageState {
   params: ContractParams;
   baseline: Baseline;
   pagas: ParcelaPagaComId[];
-  extras: AmortizacaoExtra[];
+  extras: AmortizacaoComId[];
   projecao: Projecao;
   isUnlimited: boolean;
 }
@@ -94,7 +94,10 @@ export function toBaseline(row: ContractState): Baseline {
 /** Parcela paga com o id do lançamento (movements.id), necessário para editar/apagar na UI. */
 export type ParcelaPagaComId = ParcelaPaga & { id: string };
 
-export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId[]; extras: AmortizacaoExtra[] } {
+/** Amortização extra com o id do lançamento, necessário para editar/apagar na UI. */
+export type AmortizacaoComId = AmortizacaoExtra & { id: string };
+
+export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] } {
   const pagas = movements
     .filter((m) => m.type === 'parcela' && m.parcelaNumero != null)
     .map((m) => ({
@@ -107,6 +110,7 @@ export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId
   const extras = movements
     .filter((m) => m.type === 'amortizacao')
     .map((m) => ({
+      id: m.id,
       dataPagamento: m.dataPagamento,
       valor: m.valor,
       origem: (m.origem ?? 'proprio') as 'proprio' | 'fgts',
@@ -155,7 +159,10 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
       eq(schema.movements.contractId, contract.id),
       eq(schema.movements.stateId, state.id),
     ))
-    .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero));
+    // created_at desempata lançamentos do mesmo dia (amortizações não têm
+    // parcelaNumero e o NULL deixa a ordem do Postgres não determinística):
+    // a UI lista na ordem em que foram registrados.
+    .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero), asc(schema.movements.createdAt));
   return { contract, state, params: toContractParams(contract), baseline: toBaseline(state), movements };
 }
 

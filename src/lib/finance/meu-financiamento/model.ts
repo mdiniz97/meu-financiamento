@@ -144,6 +144,14 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
     if (n !== esperado) throw new Error('Parcelas pagas não são contínuas');
     esperado += 1;
   }
+  const primeira = primeiraPendente(params, baseline, pagas);
+
+  // Baseline já quitado (estado criado por recalibração com saldo 0): não há
+  // movimentos (as actions bloqueiam) nem futuro a projetar, e a engine recusa
+  // principal 0 — projeção vazia sem lançar.
+  if (baseline.saldoDevedor === 0) {
+    return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras: 0, parcelas: [], quitaEm: null, divergencia: 0 };
+  }
 
   const m = convertAnnualToMonthly(params.annualRate);
   const cronoOriginal = simulate(toLoanInput(params, baseline));
@@ -165,7 +173,6 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   const saldoAntesExtras = saldo;
   const totalExtras = extras.reduce((soma, e) => soma + e.valor, 0);
   const saldoEfetivo = Math.max(0, saldoAntesExtras - totalExtras);
-  const primeira = primeiraPendente(params, baseline, pagas);
 
   if (saldoEfetivo === 0) {
     return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras, parcelas: [], quitaEm: null, divergencia };
