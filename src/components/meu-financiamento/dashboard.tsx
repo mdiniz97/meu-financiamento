@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
+import { ExclusiveCard } from '@/components/exclusive-card';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno } from '@/lib/meu-financiamento/dates';
@@ -196,7 +197,8 @@ export function Dashboard({
   selicAnnual = null,
 }: {
   state: PageState;
-  /** Modo somente leitura (sem ações); a Task 8 liga a página a este estado. */
+  /** Modo somente leitura (leitura congelada): a página passa true quando o
+   *  contrato existe e o plano Ilimitado expirou (sem ações, com paywall). */
   readOnly?: boolean;
   /** Selic anual do BACEN para o painel investir ou amortizar; null usa o padrão. */
   selicAnnual?: number | null;
@@ -263,6 +265,17 @@ export function Dashboard({
         </div>
         {parcelas.length > 0 && <BalanceChart data={parcelas.map((p) => ({ month: p.parcelaNumero, saldo: p.saldo }))} />}
       </section>
+
+      {readOnly && !quitado && (
+        // Leitura congelada: um único ExclusiveCard ocupa o lugar das ações
+        // (Paguei, editar/apagar, Registrei amortização, Recalibrar saldo e
+        // painéis de recomendação). Nenhum formulário é montado em readOnly;
+        // a proteção real continua no servidor (requireUnlimited).
+        <ExclusiveCard
+          isUnlimited={state.isUnlimited}
+          benefit="Registre boletos pagos, amortizações extras e recalibre o saldo pelo extrato do banco."
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -341,8 +354,9 @@ export function Dashboard({
       <AmortizacoesSection extras={extras} readOnly={readOnly} quitado={quitado} />
 
       {state.isUnlimited && !readOnly && !quitado && (
-        // Recomendações são exclusivas do plano Ilimitado e sem persistência;
-        // a Task 8 substitui o corte por um ExclusiveCard quando aplicável.
+        // Recomendações são exclusivas do plano Ilimitado; na leitura
+        // congelada o ExclusiveCard acima ocupa o lugar das ações e destes
+        // painéis, que não são montados para quem não é Ilimitado.
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-lg font-semibold">Recomendações</h2>
           <div

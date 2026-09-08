@@ -57,9 +57,11 @@ export default async function MeuFinanciamentoPage() {
           </p>
         </div>
         {state ? (
-          // readOnly=false: dashboard sempre editável nesta etapa; a Task 8
-          // liga a visão somente leitura para contratos sem o plano Ilimitado.
-          <Dashboard state={state} readOnly={false} selicAnnual={selicAnnual} />
+          // Expiração do plano (spec): usuário sem Ilimitado com contrato vê
+          // a leitura congelada — dados renderizados, ações substituídas por
+          // ExclusiveCard dentro do Dashboard. Leitura nunca redireciona nem
+          // lança: as actions já exigem Ilimitado no servidor.
+          <Dashboard state={state} readOnly={!state.isUnlimited} selicAnnual={selicAnnual} />
         ) : (
           <OnboardingWizard draft={draft} />
         )}
