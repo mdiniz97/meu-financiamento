@@ -29,6 +29,13 @@
       "when": 1788126440823,
       "tag": "0003_user_pack_provider_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788895182686,
+      "tag": "0004_meu_financiamento",
+      "breakpoints": true
     }
   ]
 }

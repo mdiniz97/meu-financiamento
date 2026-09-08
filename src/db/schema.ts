@@ -98,6 +98,68 @@ export const proposalComparisons = pgTable('proposal_comparisons', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+export const contracts = pgTable('contracts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  bank: text('bank').notNull(),
+  system: text('system').notNull(), // 'PRICE' | 'SAC'
+  annualRate: doublePrecision('annual_rate').notNull(), // efetiva a.a. (0..1)
+  trMonthly: doublePrecision('tr_monthly').notNull(), // 0..0.1
+  insuranceMonthly: doublePrecision('insurance_monthly').notNull(),
+  insuranceSplit: jsonb('insurance_split').notNull(),
+  parcelasTotais: integer('parcelas_totais').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [uniqueIndex('contracts_user_id_unique').on(table.userId)]);
+
+export const contractStates = pgTable('contract_states', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  contractId: uuid('contract_id')
+    .notNull()
+    .references(() => contracts.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  saldoDevedor: doublePrecision('saldo_devedor').notNull(),
+  dataBase: text('data_base').notNull(), // 'YYYY-MM-DD'
+  proximaParcelaNumero: integer('proxima_parcela_numero').notNull(), // 1..parcelasTotais
+  source: text('source').notNull(), // 'cadastro' | 'recalibracao' | 'quitacao'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('contract_states_contract_version_unique').on(table.contractId, table.version),
+]);
+
+export const movements = pgTable('movements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  contractId: uuid('contract_id')
+    .notNull()
+    .references(() => contracts.id, { onDelete: 'cascade' }),
+  stateId: uuid('state_id')
+    .notNull()
+    .references(() => contractStates.id),
+  type: text('type').notNull(), // 'parcela' | 'amortizacao'
+  parcelaNumero: integer('parcela_numero'), // type=parcela: obrigatório; type=amortizacao: null
+  valor: doublePrecision('valor').notNull(),
+  dataPagamento: text('data_pagamento').notNull(), // 'YYYY-MM-DD'
+  origem: text('origem'), // 'proprio' | 'fgts' (só amortizacao)
+  modo: text('modo'), // 'term' | 'payment' (só amortizacao)
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('movements_contract_parcela_unique')
+    .on(table.contractId, table.parcelaNumero)
+    .where(sql`${table.type} = 'parcela' AND ${table.parcelaNumero} IS NOT NULL`),
+]);
+
+export const contractDrafts = pgTable('contract_drafts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [uniqueIndex('contract_drafts_user_id_unique').on(table.userId)]);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Pack = typeof packs.$inferSelect;
@@ -105,3 +167,7 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type CreditLedgerEntry = typeof creditLedger.$inferSelect;
 export type Simulation = typeof simulations.$inferSelect;
 export type ProposalComparison = typeof proposalComparisons.$inferSelect;
+export type Contract = typeof contracts.$inferSelect;
+export type ContractState = typeof contractStates.$inferSelect;
+export type Movement = typeof movements.$inferSelect;
+export type ContractDraft = typeof contractDrafts.$inferSelect;
