@@ -1,0 +1,119 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
+import { payInstallment } from '@/app/(app)/meu-financiamento/actions';
+import { todayISO } from '@/lib/meu-financiamento/dates';
+import { formatBRL } from '@/lib/utils';
+
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Formulário inline de "Paguei": marca a próxima parcela pendente como paga
+ * com o valor digitado e a data do pagamento. Só é montado com a parcela já
+ * visível na tabela de boletos; o botão fica desabilitado durante o envio
+ * (duplo clique serializado pagaria duas parcelas seguidas).
+ */
+export function PayInstallment({
+  parcelaNumero,
+  defaultValor,
+  onCancel,
+  onDone,
+}: {
+  parcelaNumero: number;
+  defaultValor: number;
+  onCancel: () => void;
+  /** Chamado após o pagamento registrado e o refresh; fecha o form. */
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [valor, setValor] = useState(roundCents(defaultValor));
+  const [dataPagamento, setDataPagamento] = useState(todayISO());
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit() {
+    if (pending || valor <= 0 || !dataPagamento) return;
+    setPending(true);
+    setError('');
+    let result;
+    try {
+      result = await payInstallment({ valor, dataPagamento });
+    } catch {
+      setPending(false);
+      setError('Sessão expirada, entre novamente');
+      return;
+    }
+    if ('error' in result) {
+      setPending(false);
+      setError(result.error);
+      return;
+    }
+    await router.refresh();
+    setPending(false);
+    onDone();
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4" data-pay-installment>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">
+          Pagamento da parcela {parcelaNumero}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Valor sugerido da parcela projetada: {formatBRL(defaultValor)}. Ajuste se pagou outro valor.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="payValor" className="text-sm font-medium text-foreground">
+            Valor pago (R$)
+          </label>
+          <MoneyInput
+            id="payValor"
+            name="valor"
+            value={valor}
+            onValid={setValor}
+            disabled={pending}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="payData" className="text-sm font-medium text-foreground">
+            Data do pagamento
+          </label>
+          <Input
+            id="payData"
+            name="dataPagamento"
+            type="date"
+            value={dataPagamento}
+            onChange={(e) => setDataPagamento(e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
+        <div className="flex items-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={pending || valor <= 0 || !dataPagamento}
+          >
+            {pending ? 'Confirmando...' : 'Confirmar pagamento'}
+          </Button>
+        </div>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 import { createContract, saveDraft } from '@/app/(app)/meu-financiamento/actions';
 import { simulate } from '@/lib/finance/engine';
 import { isValidDateString } from '@/lib/finance/meu-financiamento/model';
+import { addMonthsISO, formatDataBr, formatMesAno } from '@/lib/meu-financiamento/dates';
 import type { CreateContractInput } from '@/lib/meu-financiamento/repo';
 import { cn, formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 
@@ -21,8 +22,6 @@ const UNLIMITED_ERROR = 'Recurso exclusivo do plano Ilimitado';
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 
 const TOTAL_STEPS = 4;
-
-const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 export interface MeuFinanciamentoDraftValues {
   bank: string;
@@ -134,19 +133,6 @@ function fieldErrors(step: number, values: MeuFinanciamentoDraftValues): Record<
     }
   }
   return errors;
-}
-
-function addMonthsISO(iso: string, months: number): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const target = new Date(Date.UTC(y, m - 1 + months, 1));
-  const daysInTarget = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  target.setUTCDate(Math.min(d, daysInTarget));
-  return target.toISOString().slice(0, 10);
-}
-
-function formatMesAno(iso: string): string {
-  const [y, mes] = iso.split('-');
-  return `${MESES_CURTOS[Number(mes) - 1]}/${y}`;
 }
 
 const STEP_TITLES = ['Sobre o financiamento', 'Saldo, prazo e parcela', 'Confira os dados', 'Criar meu financiamento'];
@@ -641,10 +627,4 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
 function formatDecimalPtBr(value: number): string {
   if (!Number.isFinite(value)) return '';
   return String(Math.round(value * 1000) / 1000).replace('.', ',');
-}
-
-function formatDataBr(iso: string): string {
-  if (!isValidDateString(iso)) return '';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
 }

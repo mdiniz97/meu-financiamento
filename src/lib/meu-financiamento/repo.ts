@@ -31,7 +31,7 @@ export interface PageData {
 export interface PageState {
   params: ContractParams;
   baseline: Baseline;
-  pagas: ParcelaPaga[];
+  pagas: ParcelaPagaComId[];
   extras: AmortizacaoExtra[];
   projecao: Projecao;
   isUnlimited: boolean;
@@ -91,10 +91,18 @@ export function toBaseline(row: ContractState): Baseline {
   };
 }
 
-export function splitMovements(movements: Movement[]): { pagas: ParcelaPaga[]; extras: AmortizacaoExtra[] } {
+/** Parcela paga com o id do lançamento (movements.id), necessário para editar/apagar na UI. */
+export type ParcelaPagaComId = ParcelaPaga & { id: string };
+
+export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId[]; extras: AmortizacaoExtra[] } {
   const pagas = movements
     .filter((m) => m.type === 'parcela' && m.parcelaNumero != null)
-    .map((m) => ({ parcelaNumero: m.parcelaNumero as number, valor: m.valor, dataPagamento: m.dataPagamento }))
+    .map((m) => ({
+      id: m.id,
+      parcelaNumero: m.parcelaNumero as number,
+      valor: m.valor,
+      dataPagamento: m.dataPagamento,
+    }))
     .sort((a, b) => a.parcelaNumero - b.parcelaNumero);
   const extras = movements
     .filter((m) => m.type === 'amortizacao')
