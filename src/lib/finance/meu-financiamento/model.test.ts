@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { simulate } from '../engine';
 import { projecao, primeiraPendente, toLoanInput } from './model';
 
 const PARAMS = {
@@ -102,4 +103,22 @@ it('SAC: amortização extra payment reduz parcela e mantém prazo', () => {
   const comExtra = projecao(sacParams, BASELINE, [], [{ dataPagamento: '2026-09-20', valor: 200000, origem: 'fgts', modo: 'payment' }]);
   expect(comExtra.parcelas[0].parcela).toBeLessThan(base.parcelas[0].parcela);
   expect(comExtra.parcelas.at(-1)!.parcelaNumero).toBe(base.parcelas.at(-1)!.parcelaNumero);
+});
+
+it('funde a parcela fantasma da TR na última parcela do contrato sem duplicar seguro', () => {
+  const p = projecao(PARAMS, BASELINE, [], []);
+  const engine = simulate(toLoanInput(PARAMS, BASELINE));
+  const f = engine.installments; // PRICE com TR>0: 221 linhas
+  const ultima = p.parcelas.at(-1)!;
+  expect(p.parcelas).toHaveLength(220);
+  expect(ultima.parcelaNumero).toBe(360);
+  expect(ultima.parcela).toBeCloseTo(f[219].parcela + f[220].amortizacao + f[220].juros, 6);
+  expect(ultima.amortizacao).toBeCloseTo(f[219].amortizacao + f[220].amortizacao, 6);
+  expect(ultima.saldo).toBe(0);
+});
+
+it('term sem n\' factível (aporte abaixo do efeito) mantém o prazo default', () => {
+  const base = projecao(PARAMS, BASELINE, [], []);
+  const comExtra = projecao(PARAMS, BASELINE, [], [{ dataPagamento: '2026-09-20', valor: 100, origem: 'proprio', modo: 'term' }]);
+  expect(comExtra.quitaEm).toBe(base.quitaEm);
 });

@@ -116,6 +116,15 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   }
 
   const defaultMeses = params.parcelasTotais - primeira + 1;
+  // fim-de-contrato: parcelas pagas cobriram todo o contrato sem zerar o saldo
+  // (ex.: pagas pela tabela com TR > 0 deixam resíduo de correção). Não há
+  // competências futuras (mesesFuturos = 0 faria a engine lançar erro cru):
+  // retorna projeção sem parcelas — quitaEm null sinaliza saldo não liquidado.
+  // A action deve tratar esse caso (contrato encerrado com saldo > 0) como
+  // estado de recalibração, não como pagamento normal.
+  if (defaultMeses < 1) {
+    return { primeiraPendente: primeira, saldoEfetivo, saldoAntesExtras, parcelas: [], quitaEm: null, divergencia };
+  }
   let mesesFuturos = defaultMeses;
   const temTerm = extras.some((e) => e.modo === 'term');
   if (temTerm) {
@@ -136,12 +145,20 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   let linhas = futuro.installments;
   let quitaEm: number | null;
   if (linhas.length > mesesFuturos) {
-    // engine PRICE com TR>0 pagaria months+1 (parcela fantasma só de correção
-    // residual + seguro): funde o resíduo na última parcela do contrato
-    const residuo = linhas[mesesFuturos].saldo;
+    // engine PRICE com TR>0 pagaria months+1: a fantasma amortiza o saldo
+    // residual da correção (valor material) e paga mais um seguro. Funde a
+    // amortização e os juros da fantasma na última parcela do contrato; o
+    // seguro da fantasma não duplica (a última parcela já tem o seu).
+    const fantasma = linhas[mesesFuturos];
     const ultima = linhas[mesesFuturos - 1];
     linhas = linhas.slice(0, mesesFuturos);
-    linhas[mesesFuturos - 1] = { ...ultima, amortizacao: ultima.amortizacao + residuo, parcela: ultima.parcela + residuo, saldo: 0 };
+    linhas[mesesFuturos - 1] = {
+      ...ultima,
+      amortizacao: ultima.amortizacao + fantasma.amortizacao,
+      juros: ultima.juros + fantasma.juros,
+      parcela: ultima.parcela + fantasma.amortizacao + fantasma.juros,
+      saldo: 0,
+    };
     quitaEm = primeira + mesesFuturos - 1;
   } else if (futuro.metrics.saldoZeroAt > 0 && futuro.metrics.saldoZeroAt <= linhas.length) {
     quitaEm = linhas[futuro.metrics.saldoZeroAt - 1].month + primeira - 1;
