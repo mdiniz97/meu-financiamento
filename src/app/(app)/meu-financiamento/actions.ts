@@ -106,33 +106,63 @@ export async function payInstallment(input: { valor: number; dataPagamento: stri
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  if (typeof input?.valor !== 'number' || !Number.isFinite(input.valor) || input.valor <= 0) {
+  const { valor, dataPagamento } = input ?? {};
+  if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) {
     return { ok: false, error: 'Valor inválido' };
   }
-  if (!isValidDateString(input.dataPagamento)) return { ok: false, error: 'Data inválida' };
+  if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
 
-  const data = await getContract(userId);
-  if (!data) return { ok: false, error: 'Contrato não encontrado' };
-  if (data.baseline.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
-  const { pagas } = splitMovements(data.movements);
-  const primeira = primeiraPendente(data.params, data.baseline, pagas);
-  if (primeira > data.params.parcelasTotais) return { ok: false, error: 'Contrato já quitado' };
-
-  try {
-    await db.insert(schema.movements).values({
-      contractId: data.contract.id,
-      stateId: data.state.id,
-      type: 'parcela',
-      parcelaNumero: primeira,
-      valor: input.valor,
-      dataPagamento: input.dataPagamento,
+  // Transação com lock do usuário: recalibração concorrente não pode intercalar
+  // entre a leitura do baseline e o insert (senão o lançamento gravaria com o
+  // stateId do estado superado e sumiria do recompute). Toda a lógica é
+  // revalidada dentro da tx, contra o estado vigente no commit.
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+    const contract = await tx.query.contracts.findFirst({
+      where: eq(schema.contracts.userId, userId),
     });
-  } catch (e) {
-    // 23505: parcela já registrada (requisição duplicada ou corrida) — re-leitura
-    // abaixo devolve o estado já consistente em vez do erro cru.
-    if (!isUniqueViolation(e)) throw e;
-  }
+    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
+    const [state] = await tx
+      .select()
+      .from(schema.contractStates)
+      .where(eq(schema.contractStates.contractId, contract.id))
+      .orderBy(desc(schema.contractStates.version))
+      .limit(1);
+    if (!state) return { ok: false, error: 'Contrato sem estado' };
+    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
 
+    const params = toContractParams(contract);
+    const baseline = toBaseline(state);
+    const movements = await tx
+      .select()
+      .from(schema.movements)
+      .where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.stateId, state.id),
+      ));
+    const { pagas } = splitMovements(movements);
+    const primeira = primeiraPendente(params, baseline, pagas);
+    if (primeira > params.parcelasTotais) return { ok: false, error: 'Contrato já quitado' };
+
+    try {
+      await tx.insert(schema.movements).values({
+        contractId: contract.id,
+        stateId: state.id,
+        type: 'parcela',
+        parcelaNumero: primeira,
+        valor,
+        dataPagamento,
+      });
+    } catch (e) {
+      // 23505: parcela já registrada por outro fluxo — re-leitura idempotente
+      // (recompute abaixo reflete a linha que já existe).
+      if (!isUniqueViolation(e)) throw e;
+    }
+    return { ok: true };
+  });
+
+  if (!outcome.ok) return outcome;
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
@@ -263,6 +293,11 @@ export async function editMovement(id: string, patch: EditMovementPatch): Promis
     .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)))
     .limit(1);
   if (!movement) return { ok: false, error: 'Movimento não encontrado' };
+  // Só o estado VIGENTE é editável: lançamento de baseline superado já foi
+  // absorvido pela recalibração (histórico) e alterá-lo não muda a projeção.
+  if (movement.stateId !== data.state.id) {
+    return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
+  }
 
   const patchObj = patch ?? {};
   const set: { valor?: number; dataPagamento?: string; origem?: string; modo?: string } = {};
@@ -314,6 +349,12 @@ export async function deleteMovement(id: string): Promise<MutationResult> {
     .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)))
     .limit(1);
   if (!movement) return { ok: false, error: 'Movimento não encontrado' };
+  // Guarda dupla contra estado superado: além de bloquear exclusão de parcela
+  // do meio do bloco, movimentos de baselines antigos (histórico absorvido pela
+  // recalibração) não podem ser apagados silenciosamente.
+  if (movement.stateId !== data.state.id) {
+    return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
+  }
 
   if (movement.type === 'parcela') {
     // Apagar parcela do meio do bloco quebra a contiguidade que o modelo exige
