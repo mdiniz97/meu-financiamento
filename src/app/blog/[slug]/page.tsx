@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
-import { ARTIGOS, getArtigo } from '@/lib/artigos';
+import { ARTIGOS, getArtigo, getArticleReadMinutes } from '@/lib/artigos';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
@@ -80,9 +80,9 @@ export default async function ArtigoPage({
       <main className="flex flex-1 flex-col items-center gap-10 bg-muted p-6">
         <div className="flex w-full max-w-4xl flex-col gap-8">
           <ArticleHeader artigo={artigo} />
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
+          <article className="min-w-0 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
             <ArticleBody artigo={artigo} />
-          </div>
+          </article>
           <div className="flex flex-col gap-4">
             <h2 className="text-center font-display text-xl font-semibold">Continue aprendendo</h2>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -93,7 +93,7 @@ export default async function ArtigoPage({
                   className="group flex flex-col gap-1.5 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
                 >
                   <span className="font-display text-sm font-semibold leading-snug">{s.title}</span>
-                  <span className="text-xs text-muted-foreground">{s.readMinutes} min de leitura</span>
+                  <span className="text-xs text-muted-foreground">{getArticleReadMinutes(s)} min de leitura</span>
                   <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#820AD1]">
                     Ler <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
                   </span>

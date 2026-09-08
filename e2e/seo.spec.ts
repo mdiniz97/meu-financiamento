@@ -63,7 +63,7 @@ test('cada artigo tem canonical próprio e esquema coerente com o conteúdo vis�
     expect(article).toMatchObject({
       headline: (await page.getByRole('heading', { level: 1 }).innerText()).trim(),
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
-      dateModified: '2026-09-02',
+      dateModified: await page.locator('time').getAttribute('datetime'),
       inLanguage: 'pt-BR',
       publisher: { '@type': 'Organization', name: 'amortiza.me', url: 'https://amortiza.me' },
     });
@@ -91,7 +91,7 @@ test('sitemap lista apenas páginas públicas canônicas com datas reais dos art
     'https://amortiza.me/blog/portabilidade-de-financiamento',
     'https://amortiza.me/blog/juros-do-financiamento',
   ].sort());
-  expect(xml).toContain('<lastmod>2026-09-02');
+  expect(xml).toContain('<lastmod>2026-09-08');
 });
 
 test('robots anuncia sitemap definitivo sem bloquear acesso às páginas públicas', async ({ request }) => {

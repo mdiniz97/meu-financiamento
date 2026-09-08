@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { ARTIGOS } from '@/lib/artigos';
+import { ARTIGOS, getArticleReadMinutes } from '@/lib/artigos';
 
 export function BlogSuggestions({
   slugs,
@@ -26,7 +26,7 @@ export function BlogSuggestions({
             className="group flex flex-col gap-1.5 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
           >
             <span className="font-display text-sm font-semibold leading-snug">{artigo.title}</span>
-            <span className="text-xs text-muted-foreground">{artigo.readMinutes} min de leitura</span>
+            <span className="text-xs text-muted-foreground">{getArticleReadMinutes(artigo)} min de leitura</span>
             <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#820AD1]">
               Ler <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
             </span>
