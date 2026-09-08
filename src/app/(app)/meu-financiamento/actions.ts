@@ -295,6 +295,15 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
     const primeira = primeiraPendente(params, baseline, pagas);
     if (proximaParcelaNumero < primeira) return { ok: false, error: 'Parcela anterior à pendente' };
 
+    // Paridade com o baseline vigente: criar versão nova com os MESMOS
+    // saldo/data-base/próxima parcela esconderia os lançamentos do usuário
+    // (movements do estado superado viram histórico) sem nenhum efeito.
+    // Saldo em centavos: valores de ponto flutuante da mesma origem.
+    const saldoIgual = Math.round(saldoDevedor * 100) === Math.round(state.saldoDevedor * 100);
+    if (saldoIgual && dataBase === state.dataBase && proximaParcelaNumero === state.proximaParcelaNumero) {
+      return { ok: false, error: 'Nada a recalibrar: saldo, data-base e próxima parcela já são os atuais' };
+    }
+
     await tx.insert(schema.contractStates).values({
       contractId: contract.id,
       version: state.version + 1,

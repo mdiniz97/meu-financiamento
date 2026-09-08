@@ -225,7 +225,8 @@ export function Dashboard({
           >
             <p>Financiamento quitado</p>
             <p className="text-xs text-emerald-700 dark:text-emerald-400">
-              Saldo zerado. O contrato permanece aqui como histórico de pagamentos e amortizações.
+              Saldo zerado. O registro do contrato é mantido e os lançamentos anteriores à última recalibração ficam
+              como histórico no banco.
             </p>
           </div>
         ) : (
