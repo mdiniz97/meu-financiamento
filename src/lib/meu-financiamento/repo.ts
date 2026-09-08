@@ -1,7 +1,16 @@
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import type { Contract, ContractState, Movement } from '@/db/schema';
-import type { AmortizacaoExtra, Baseline, ContractParams, ContractSystem, ParcelaPaga } from '@/lib/finance/meu-financiamento/model';
+import { isUnlimited } from './auth';
+import { projecao } from '@/lib/finance/meu-financiamento/model';
+import type {
+  AmortizacaoExtra,
+  Baseline,
+  ContractParams,
+  ContractSystem,
+  ParcelaPaga,
+  Projecao,
+} from '@/lib/finance/meu-financiamento/model';
 
 export interface ContractData {
   params: ContractParams;
@@ -17,6 +26,49 @@ export interface ContractBundle extends ContractData {
 export interface PageData {
   contract: ContractData | null;
   draft: unknown | null;
+}
+
+export interface PageState {
+  params: ContractParams;
+  baseline: Baseline;
+  pagas: ParcelaPaga[];
+  extras: AmortizacaoExtra[];
+  projecao: Projecao;
+  isUnlimited: boolean;
+}
+
+export type MutationResult = { ok: true; state: PageState } | { ok: false; error: string };
+
+export interface CreateContractInput {
+  bank: string;
+  system: 'PRICE' | 'SAC';
+  annualRate: number;
+  trMonthly: number;
+  insuranceMonthly: number;
+  parcelasTotais: number;
+  saldoDevedor: number;
+  dataBase: string;
+  proximaParcelaNumero: number;
+}
+
+export interface AmortizacaoInput {
+  valor: number;
+  dataPagamento: string;
+  origem: 'proprio' | 'fgts';
+  modo: 'term' | 'payment';
+}
+
+export interface RecalibrateInput {
+  saldoDevedor: number;
+  dataBase: string;
+  proximaParcelaNumero: number;
+}
+
+export interface EditMovementPatch {
+  valor?: number;
+  dataPagamento?: string;
+  origem?: 'proprio' | 'fgts';
+  modo?: 'term' | 'payment';
 }
 
 export function toContractParams(row: Contract): ContractParams {
@@ -56,6 +108,20 @@ export function splitMovements(movements: Movement[]): { pagas: ParcelaPaga[]; e
   return { pagas, extras };
 }
 
+export async function recomputeState(userId: string): Promise<PageState> {
+  const data = await getContract(userId);
+  if (!data) throw new Error('Contrato não encontrado');
+  const { pagas, extras } = splitMovements(data.movements);
+  return {
+    params: data.params,
+    baseline: data.baseline,
+    pagas,
+    extras,
+    projecao: projecao(data.params, data.baseline, pagas, extras),
+    isUnlimited: await isUnlimited(userId),
+  };
+}
+
 async function loadBundle(userId: string): Promise<ContractBundle | null> {
   const contract = await db.query.contracts.findFirst({
     where: eq(schema.contracts.userId, userId),
@@ -68,10 +134,19 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
     .orderBy(desc(schema.contractStates.version))
     .limit(1);
   if (!state) throw new Error('Contrato sem estado');
+  // Movements são lançamentos DO ESTADO VIGENTE: cada linha aponta para o
+  // contract_states em que foi registrada (stateId). Lançamentos de baselines
+  // antigos são histórico — a recalibração já os incorporou no novo saldo e
+  // na nova parcela pendente — e NUNCA são reaplicados: incluí-los aqui
+  // recontaria parcelas pagas/amortizações de estados superados (duplo
+  // desconto) e quebraria a contiguidade esperada pelo modelo.
   const movements = await db
     .select()
     .from(schema.movements)
-    .where(eq(schema.movements.contractId, contract.id))
+    .where(and(
+      eq(schema.movements.contractId, contract.id),
+      eq(schema.movements.stateId, state.id),
+    ))
     .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero));
   return { contract, state, params: toContractParams(contract), baseline: toBaseline(state), movements };
 }

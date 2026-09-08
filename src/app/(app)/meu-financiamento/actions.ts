@@ -3,64 +3,16 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
-import { isUnlimited, requireUnlimited } from '@/lib/meu-financiamento/auth';
-import { getContract, splitMovements, toBaseline, toContractParams, upsertDraft } from '@/lib/meu-financiamento/repo';
-import {
-  isValidDateString,
-  primeiraPendente,
-  projecao,
-  validateContractInput,
-} from '@/lib/finance/meu-financiamento/model';
+import { requireUnlimited } from '@/lib/meu-financiamento/auth';
+import { getContract, recomputeState, splitMovements, toBaseline, toContractParams, upsertDraft } from '@/lib/meu-financiamento/repo';
 import type {
-  AmortizacaoExtra,
-  Baseline,
-  ContractParams,
-  ParcelaPaga,
-  Projecao,
-} from '@/lib/finance/meu-financiamento/model';
-
-export interface PageState {
-  params: ContractParams;
-  baseline: Baseline;
-  pagas: ParcelaPaga[];
-  extras: AmortizacaoExtra[];
-  projecao: Projecao;
-  isUnlimited: boolean;
-}
-
-export type MutationResult = { ok: true; state: PageState } | { ok: false; error: string };
-
-export interface CreateContractInput {
-  bank: string;
-  system: 'PRICE' | 'SAC';
-  annualRate: number;
-  trMonthly: number;
-  insuranceMonthly: number;
-  parcelasTotais: number;
-  saldoDevedor: number;
-  dataBase: string;
-  proximaParcelaNumero: number;
-}
-
-export interface AmortizacaoInput {
-  valor: number;
-  dataPagamento: string;
-  origem: 'proprio' | 'fgts';
-  modo: 'term' | 'payment';
-}
-
-export interface RecalibrateInput {
-  saldoDevedor: number;
-  dataBase: string;
-  proximaParcelaNumero: number;
-}
-
-export interface EditMovementPatch {
-  valor?: number;
-  dataPagamento?: string;
-  origem?: 'proprio' | 'fgts';
-  modo?: 'term' | 'payment';
-}
+  AmortizacaoInput,
+  CreateContractInput,
+  EditMovementPatch,
+  MutationResult,
+  RecalibrateInput,
+} from '@/lib/meu-financiamento/repo';
+import { isValidDateString, primeiraPendente, validateContractInput } from '@/lib/finance/meu-financiamento/model';
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 
@@ -87,23 +39,10 @@ function isUniqueViolation(e: unknown): boolean {
   return err?.code === '23505';
 }
 
-export async function recomputeState(userId: string): Promise<PageState> {
-  const data = await getContract(userId);
-  if (!data) throw new Error('Contrato não encontrado');
-  const { pagas, extras } = splitMovements(data.movements);
-  return {
-    params: data.params,
-    baseline: data.baseline,
-    pagas,
-    extras,
-    projecao: projecao(data.params, data.baseline, pagas, extras),
-    isUnlimited: await isUnlimited(userId),
-  };
-}
-
-async function stateAfter(userId: string): Promise<PageState | null> {
+async function stateAfter(userId: string): Promise<MutationResult | null> {
   try {
-    return await recomputeState(userId);
+    const state = await recomputeState(userId);
+    return { ok: true, state };
   } catch {
     return null;
   }
@@ -159,9 +98,7 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
     return true;
   });
   if (!created) return { ok: false, error: 'Contrato já cadastrado' };
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
 export async function payInstallment(input: { valor: number; dataPagamento: string }): Promise<MutationResult> {
@@ -176,6 +113,7 @@ export async function payInstallment(input: { valor: number; dataPagamento: stri
 
   const data = await getContract(userId);
   if (!data) return { ok: false, error: 'Contrato não encontrado' };
+  if (data.baseline.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
   const { pagas } = splitMovements(data.movements);
   const primeira = primeiraPendente(data.params, data.baseline, pagas);
   if (primeira > data.params.parcelasTotais) return { ok: false, error: 'Contrato já quitado' };
@@ -195,9 +133,7 @@ export async function payInstallment(input: { valor: number; dataPagamento: stri
     if (!isUniqueViolation(e)) throw e;
   }
 
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
 export async function registerAmortization(input: AmortizacaoInput): Promise<MutationResult> {
@@ -213,23 +149,42 @@ export async function registerAmortization(input: AmortizacaoInput): Promise<Mut
   if (origem !== 'proprio' && origem !== 'fgts') return { ok: false, error: 'Origem inválida' };
   if (modo !== 'term' && modo !== 'payment') return { ok: false, error: 'Modo inválido' };
 
-  const data = await getContract(userId);
-  if (!data) return { ok: false, error: 'Contrato não encontrado' };
-  if (dataPagamento < data.baseline.dataBase) return { ok: false, error: 'Data anterior à data-base' };
+  // Transação com lock do usuário serializa duplo clique e revalida contra o
+  // baseline vigente no commit (recalibração concorrente não furar a regra de
+  // data). Não há índice único: amortizações legítimas repetem valor/data; a
+  // proteção de duplo clique na UI (botão desabilitado durante pending) é a
+  // Task 6.
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+    const contract = await tx.query.contracts.findFirst({
+      where: eq(schema.contracts.userId, userId),
+    });
+    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
+    const [state] = await tx
+      .select()
+      .from(schema.contractStates)
+      .where(eq(schema.contractStates.contractId, contract.id))
+      .orderBy(desc(schema.contractStates.version))
+      .limit(1);
+    if (!state) return { ok: false, error: 'Contrato sem estado' };
+    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
+    if (dataPagamento < state.dataBase) return { ok: false, error: 'Data anterior à data-base' };
 
-  await db.insert(schema.movements).values({
-    contractId: data.contract.id,
-    stateId: data.state.id,
-    type: 'amortizacao',
-    parcelaNumero: null,
-    valor,
-    dataPagamento,
-    origem,
-    modo,
+    await tx.insert(schema.movements).values({
+      contractId: contract.id,
+      stateId: state.id,
+      type: 'amortizacao',
+      parcelaNumero: null,
+      valor,
+      dataPagamento,
+      origem,
+      modo,
+    });
+    return { ok: true };
   });
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  if (!outcome.ok) return outcome;
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
 export async function recalibrate(input: RecalibrateInput): Promise<MutationResult> {
@@ -253,6 +208,7 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       .orderBy(desc(schema.contractStates.version))
       .limit(1);
     if (!state) return { ok: false, error: 'Contrato sem estado' };
+    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
 
     if (typeof saldoDevedor !== 'number' || !Number.isFinite(saldoDevedor) || saldoDevedor < 0) {
       return { ok: false, error: 'Saldo devedor inválido' };
@@ -266,10 +222,15 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       || proximaParcelaNumero < 1 || proximaParcelaNumero > params.parcelasTotais) {
       return { ok: false, error: 'Próxima parcela inválida' };
     }
+    // Guarda de contiguidade: movimentos do estado vigente (o que será
+    // superado); lançamentos de estados mais antigos já viraram histórico.
     const movements = await tx
       .select()
       .from(schema.movements)
-      .where(eq(schema.movements.contractId, contract.id));
+      .where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.stateId, state.id),
+      ));
     const { pagas } = splitMovements(movements);
     const primeira = primeiraPendente(params, baseline, pagas);
     if (proximaParcelaNumero < primeira) return { ok: false, error: 'Parcela anterior à pendente' };
@@ -286,9 +247,7 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
   });
 
   if (!outcome.ok) return outcome;
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
 export async function editMovement(id: string, patch: EditMovementPatch): Promise<MutationResult> {
@@ -339,9 +298,7 @@ export async function editMovement(id: string, patch: EditMovementPatch): Promis
       .set(set)
       .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
   }
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
 export async function deleteMovement(id: string): Promise<MutationResult> {
@@ -358,10 +315,19 @@ export async function deleteMovement(id: string): Promise<MutationResult> {
     .limit(1);
   if (!movement) return { ok: false, error: 'Movimento não encontrado' };
 
+  if (movement.type === 'parcela') {
+    // Apagar parcela do meio do bloco quebra a contiguidade que o modelo exige
+    // (projecao lança 'Parcelas pagas não são contínuas') e trava o contrato:
+    // só a parcela de maior número entre as pagas do estado vigente pode sair.
+    const { pagas } = splitMovements(data.movements);
+    const maxPaga = pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
+    if (movement.parcelaNumero !== maxPaga) {
+      return { ok: false, error: 'Parcela excluída criaria lacuna; apague da mais recente para a mais antiga' };
+    }
+  }
+
   await db
     .delete(schema.movements)
     .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
-  const state = await stateAfter(userId);
-  if (!state) return { ok: false, error: 'Estado inconsistente' };
-  return { ok: true, state };
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
