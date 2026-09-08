@@ -16,6 +16,33 @@ import { isValidDateString, primeiraPendente, validateContractInput } from '@/li
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 
+// Guarda do rascunho: payload pequeno, raso e sem ciclos. O tamanho usa a
+// serialização real (UTF-8) para não depender de heurística de contagem.
+const MAX_DRAFT_BYTES = 8 * 1024;
+const MAX_DRAFT_DEPTH = 4;
+
+function depthOf(value: unknown, seen: Set<object>): number {
+  if (typeof value !== 'object' || value === null) return 0;
+  if (seen.has(value)) return 0;
+  seen.add(value);
+  let depth = 0;
+  for (const child of Object.values(value)) {
+    depth = Math.max(depth, depthOf(child, seen));
+  }
+  return depth + 1;
+}
+
+function isValidDraftPayload(payload: unknown): boolean {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false;
+  let bytes = 0;
+  try {
+    bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
+  } catch {
+    return false; // ciclo de referência: JSON.stringify lança
+  }
+  return bytes <= MAX_DRAFT_BYTES && depthOf(payload, new Set()) <= MAX_DRAFT_DEPTH;
+}
+
 async function requireUser(): Promise<string> {
   const session = await auth();
   if (!session?.userId) throw new Error('Não autenticado');
@@ -50,6 +77,9 @@ async function stateAfter(userId: string): Promise<MutationResult | null> {
 
 export async function saveDraft(payload: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
   const userId = await requireUser();
+  if (!isValidDraftPayload(payload)) {
+    return { ok: false, error: 'Rascunho inválido' };
+  }
   try {
     await upsertDraft(userId, payload);
   } catch {

@@ -179,7 +179,8 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
   const [step, setStep] = useState(initial?.step ?? 1);
   const [values, setValues] = useState<MeuFinanciamentoDraftValues>(initial?.values ?? EMPTY_VALUES);
   const [attempted, setAttempted] = useState(false);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveError, setSaveError] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [needsUnlimited, setNeedsUnlimited] = useState(false);
@@ -187,6 +188,7 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
   const set = (patch: Partial<MeuFinanciamentoDraftValues>) => {
     setValues((current) => ({ ...current, ...patch }));
     setSaveState('idle');
+    setSaveError('');
     setCreateError('');
     setNeedsUnlimited(false);
   };
@@ -224,7 +226,13 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
         insuranceSplit: INSURANCE_SPLIT,
       });
       const ultimaParcela = result.installments[result.installments.length - 1];
-      const ultimaData = addMonthsISO(values.dataBase, contractInput.parcelasTotais - 1);
+      // A data-base é a competência da próxima parcela: a última parcela do
+      // contrato cai em dataBase + (parcelasTotais - proximaParcelaNumero)
+      // meses (ex.: próxima 121 de 240 com data-base 2026-08 → jul/2036).
+      const ultimaData = addMonthsISO(
+        values.dataBase,
+        contractInput.parcelasTotais - contractInput.proximaParcelaNumero
+      );
       return {
         ok: true as const,
         parcelaProxima: result.installments[0]?.parcela ?? null,
@@ -239,10 +247,21 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
 
   async function persist(targetStep: number): Promise<boolean> {
     setSaveState('saving');
+    setSaveError('');
     const payload: MeuFinanciamentoDraft = { step: targetStep, values };
-    const result = await saveDraft(payload);
+    let result;
+    try {
+      result = await saveDraft(payload);
+    } catch {
+      // Sessão expirada (requireUser lança na action): não deixar o estado
+      // 'saving' travar os botões nem sumir com o erro.
+      setSaveState('idle');
+      setSaveError('Sessão expirada, entre novamente');
+      return false;
+    }
     if ('error' in result) {
-      setSaveState('error');
+      setSaveState('idle');
+      setSaveError(result.error);
       return false;
     }
     setSaveState('saved');
@@ -275,7 +294,16 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
     setCreating(true);
     setCreateError('');
     setNeedsUnlimited(false);
-    const result = await createContract(contractInput);
+    let result;
+    try {
+      result = await createContract(contractInput);
+    } catch {
+      // Sessão expirada (requireUser lança na action): a promise rejeitada não
+      // pode deixar o botão preso em 'Criando...'.
+      setCreating(false);
+      setCreateError('Sessão expirada, entre novamente');
+      return;
+    }
     setCreating(false);
     if ('error' in result) {
       if (result.error === UNLIMITED_ERROR) {
@@ -525,6 +553,10 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                 <UpgradeCard
                   title="Crie seu financiamento com o plano Ilimitado"
                   subtitle="O recurso Meu financiamento é exclusivo do plano Ilimitado. Assine para registrar seu contrato e acompanhar a projeção."
+                  bullets={[
+                    'Acompanhe saldo, parcelas e amortizações do seu contrato real',
+                    'Projeção e recomendações explicadas com os seus dados',
+                  ]}
                 />
               )}
               {createError && (
@@ -584,9 +616,9 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                 Rascunho salvo
               </p>
             )}
-            {saveState === 'error' && (
+            {saveError && (
               <p role="alert" className="text-xs text-destructive">
-                Não foi possível salvar o rascunho. Tente novamente.
+                {saveError}
               </p>
             )}
             {step < TOTAL_STEPS ? (
