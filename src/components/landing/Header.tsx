@@ -8,12 +8,9 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Logo size={32} />
-          <span className="text-base font-semibold tracking-tight">
-            Raio X
-            <span className="font-normal text-muted-foreground"> do Financiamento</span>
-          </span>
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo size={32} className="sm:hidden" />
+          <Logo size={36} variant="full" className="hidden sm:block" />
         </Link>
         <nav className="flex items-center gap-2">
           <Link

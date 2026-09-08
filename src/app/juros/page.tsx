@@ -8,6 +8,14 @@ import { UpgradeCard } from '@/components/upgrade-card';
 import { getMarketOverview } from '@/lib/market/bacen';
 import { MarketContent } from '@/components/market/market-content';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
+import { publicMetadata } from '@/lib/site';
+
+export const metadata = publicMetadata({
+  title: 'Juros de mercado: Selic, IPCA, TR e taxas imobiliárias',
+  description:
+    'Consulte Selic, IPCA, TR e taxas médias de financiamento imobiliário por banco, com dados do Banco Central. Compare referências antes de negociar.',
+  path: '/juros',
+});
 
 export default async function JurosPage() {
   const session = await auth();

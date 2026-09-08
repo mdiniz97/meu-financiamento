@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Syne } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,9 +16,29 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Raio X do Financiamento",
-  description:
-    "Simule seu financiamento imobiliário, compare os sistemas SAC e PRICE e descubra quanto você realmente vai pagar de juros. Grátis para começar.",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  title: {
+    default: `${SITE_NAME} | Simulador de financiamento imobiliário`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  publisher: SITE_NAME,
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    siteName: SITE_NAME,
+    locale: 'pt_BR',
+    images: [SITE_IMAGE],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [{ url: SITE_IMAGE.url, alt: SITE_IMAGE.alt }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

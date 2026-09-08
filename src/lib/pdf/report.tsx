@@ -1,6 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { recommend } from '@/lib/finance/recommend';
 import type { SimulationResult, Strategies } from '@/lib/finance/types';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 
 const PURPLE = '#820AD1';
 const GRAY = '#6B7280';
@@ -117,7 +118,7 @@ function InstallmentsTable({
     <Page key={startPage + i} size="A4" style={styles.page}>
       <View style={[styles.header, { marginBottom: 8 }]}>
         <View>
-          <Text style={styles.title}>Raio X do Financiamento</Text>
+          <Text style={styles.title}>{SITE_NAME}</Text>
           <Text style={styles.subtitle}>Continuação: tabela de parcelas</Text>
         </View>
       </View>
@@ -145,16 +146,16 @@ export function ReportDocument({ result }: { result: SimulationResult }) {
   const firstPage = 1;
 
   return (
-    <Document title="Raio X do Financiamento">
+    <Document title={SITE_NAME} author={SITE_NAME}>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Raio X do Financiamento</Text>
+            <Text style={styles.title}>{SITE_NAME}</Text>
             <Text style={styles.subtitle}>
               {input.bank} · {new Date().toLocaleDateString('pt-BR')}
             </Text>
           </View>
-          <Text style={styles.subtitle}>Gerado em meu-financiamento.app</Text>
+          <Text style={styles.subtitle}>Gerado em {SITE_URL}</Text>
         </View>
 
         <Text style={styles.section}>Resumo</Text>

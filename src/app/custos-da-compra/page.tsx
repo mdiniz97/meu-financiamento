@@ -6,6 +6,14 @@ import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
 import { CompraCustosCalculator } from '@/components/simulation/CompraCustosCalculator';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
+import { publicMetadata } from '@/lib/site';
+
+export const metadata = publicMetadata({
+  title: 'Custos da compra de imóvel: entrada, ITBI e cartório',
+  description:
+    'Calcule uma estimativa de entrada, ITBI, escritura, registro e despesas extras para comprar seu imóvel. Calculadora gratuita, sem cadastro obrigatório.',
+  path: '/custos-da-compra',
+});
 
 export default async function CustosDaCompraPage() {
   const session = await auth();

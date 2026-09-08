@@ -1,6 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { computeComparator, type ProposalOutcome } from '@/lib/comparator/calculate';
 import type { ComparatorInput } from '@/lib/comparator/types';
+import { SITE_NAME } from '@/lib/site';
 
 const PURPLE = '#820AD1';
 const GRAY = '#6B7280';
@@ -26,11 +27,11 @@ const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 export function buildComparisonPdf(input: ComparatorInput) {
   const { ranked, smartRanked } = computeComparator(input).v1;
   return (
-    <Document>
+    <Document title={SITE_NAME} author={SITE_NAME}>
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>Comparação de propostas</Text>
         <Text style={styles.subtitle}>
-          Gerado em {new Date().toLocaleString('pt-BR')} · Orçamento mensal: {brl(input.monthlyBudget)} · Exclusivo do plano Ilimitado
+          {SITE_NAME} · Gerado em {new Date().toLocaleString('pt-BR')} · Orçamento mensal: {brl(input.monthlyBudget)} · Exclusivo do plano Ilimitado
         </Text>
 
         <Text style={styles.section}>Ranking por custo total da aquisição</Text>

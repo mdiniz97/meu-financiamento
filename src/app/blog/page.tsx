@@ -5,6 +5,14 @@ import { ARTIGOS } from '@/lib/artigos';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
+import { publicMetadata } from '@/lib/site';
+
+export const metadata = publicMetadata({
+  title: 'Blog sobre financiamento imobiliário e amortização',
+  description:
+    'Guias sobre SAC e PRICE, juros, amortização, portabilidade e custos da compra de imóveis. Entenda conceitos e compare cenários com as calculadoras.',
+  path: '/blog',
+});
 
 export default async function BlogPage() {
   const session = await auth();

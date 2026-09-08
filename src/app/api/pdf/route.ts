@@ -50,7 +50,7 @@ export async function GET(req: Request) {
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="raio-x-financiamento.pdf"',
+      'Content-Disposition': 'attachment; filename="amortiza-me-raio-x.pdf"',
       'Cache-Control': 'no-store',
     },
   });

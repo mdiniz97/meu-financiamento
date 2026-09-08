@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
 import { getPaymentProvider } from '@/lib/payments';
+
+export const metadata: Metadata = {
+  title: 'Assinar Ilimitado',
+  robots: { index: false, follow: false },
+};
 
 export default async function AssinarPage() {
   const session = await auth();

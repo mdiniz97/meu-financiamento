@@ -114,8 +114,7 @@ function MobileDrawer({
       <div className="absolute inset-y-0 left-0 flex w-full max-w-sm flex-col bg-background shadow-2xl">
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <span className="flex items-center gap-2.5">
-            <Logo size={28} />
-            <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
+            <Logo size={32} variant="full" />
           </span>
           <Button type="button" variant="ghost" size="sm" aria-label="Fechar menu" onClick={onClose}>
             <X className="size-5" />
@@ -144,11 +143,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background min-[1024px]:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2.5">
-            <Logo size={32} />
-            <span className="text-base font-semibold tracking-tight">
-              Raio X
-              <span className="block font-normal text-muted-foreground">do Financiamento</span>
-            </span>
+            <Logo size={36} variant="full" />
           </Link>
         </div>
         <div className="flex flex-1 flex-col justify-between p-3">
@@ -162,8 +157,7 @@ export function AppSidebar({ credits, isUnlimited }: { credits: number; isUnlimi
 
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background px-4 min-[1024px]:hidden">
         <Link href="/" className="flex items-center gap-2.5">
-          <Logo size={28} />
-          <span className="text-base font-semibold tracking-tight">Raio X do Financiamento</span>
+          <Logo size={32} variant="full" />
         </Link>
         <Button type="button" variant="ghost" size="sm" aria-label="Abrir menu" onClick={() => setOpen(true)}>
           <Menu className="size-5" />

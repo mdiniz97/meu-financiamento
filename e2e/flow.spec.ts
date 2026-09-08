@@ -105,7 +105,8 @@ test('banners de upgrade aparecem para free (simulacao, juros, minhas-simulacoes
 
   await page.goto('/nova-simulacao');
   await page.getByRole('button', { name: /simular/i }).click();
-  await page.waitForURL(/simulacao/);
+  await page.waitForURL(/\/simulacao$/);
+  await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
   await expect(page.getByRole('button', { name: /assinar ilimitado/i })).toBeVisible();
 
   await page.goto('/juros');

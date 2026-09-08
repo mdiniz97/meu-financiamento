@@ -8,6 +8,7 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { ArticleBody, ArticleHeader } from '@/components/landing/Article';
+import { publicMetadata, SITE_NAME, SITE_URL } from '@/lib/site';
 
 export const dynamicParams = false;
 
@@ -22,12 +23,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const artigo = getArtigo(slug);
-  if (!artigo) return {};
-  return {
+  if (!artigo) notFound();
+  return publicMetadata({
     title: artigo.title,
     description: artigo.description,
-    openGraph: { title: artigo.title, description: artigo.description },
-  };
+    path: `/blog/${artigo.slug}`,
+    modifiedTime: artigo.updatedAt,
+  });
 }
 
 export default async function ArtigoPage({
@@ -41,9 +43,39 @@ export default async function ArtigoPage({
   const session = await auth();
   const signedIn = Boolean(session?.userId);
   const sugestoes = ARTIGOS.filter((a) => a.slug !== artigo.slug).slice(0, 3);
+  const url = `${SITE_URL}/blog/${artigo.slug}`;
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BlogPosting',
+        '@id': `${url}#article`,
+        headline: artigo.title,
+        description: artigo.description,
+        url,
+        mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+        dateModified: artigo.updatedAt,
+        inLanguage: 'pt-BR',
+        image: `${SITE_URL}/opengraph-image`,
+        publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: SITE_URL },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
+          { '@type': 'ListItem', position: 3, name: artigo.title, item: url },
+        ],
+      },
+    ],
+  };
 
   return (
     <div className="flex flex-1 flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
+      />
       <Header signedIn={signedIn} />
       <main className="flex flex-1 flex-col items-center gap-10 bg-muted p-6">
         <div className="flex w-full max-w-4xl flex-col gap-8">

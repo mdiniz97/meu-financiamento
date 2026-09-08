@@ -1,6 +1,6 @@
 # Deploy — Vercel + Neon
 
-Guia passo a passo para publicar o **Meu Financiamento** em produção (Vercel)
+Guia passo a passo para publicar o **amortiza.me** em produção (Vercel)
 com banco Postgres gerenciado (Neon).
 
 ## Arquitetura
@@ -106,6 +106,11 @@ push em `main` → produção, PR → preview.
 ## Passo 5 — Checklist pós-deploy
 
 Com o deploy no ar (URL de produção):
+
+- [ ] **Domínio**: configurar `amortiza.me` no provedor, com HTTPS. URLs canônicas, sitemap e PDFs usam `https://amortiza.me`, definido em `src/lib/site.ts`; não derivar URLs públicas do host da requisição ou de previews.
+- [ ] **Google OAuth**: cadastrar `https://amortiza.me/api/auth/callback/google` como callback de produção no painel do Google.
+- [ ] **SEO**: conferir `/robots.txt`, `/sitemap.xml` e `/opengraph-image`; enviar o sitemap ao Search Console após verificar o domínio. Somente home, juros, custos e blog entram no sitemap; páginas privadas e autenticação usam `noindex`.
+- [ ] **Previews**: manter proteção de acesso/noindex no ambiente de preview da hospedagem. Canonical de produção não impede sozinho a indexação de previews.
 
 - [ ] **Cadastro** — criar conta na URL do deploy; conferir no console Neon que o usuário e o bônus (2 créditos, `kind='bonus'`) foram gravados.
 - [ ] **Login/logout** — sessão JWT funciona (valida `AUTH_SECRET` estável).
