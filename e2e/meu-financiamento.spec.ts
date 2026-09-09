@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { todayISO } from '../src/lib/meu-financiamento/dates';
-import type { ContractParams, ParcelaPaga } from '../src/lib/finance/meu-financiamento/model';
+import type { ContractParams } from '../src/lib/finance/meu-financiamento/model';
 import { projecao } from '../src/lib/finance/meu-financiamento/model';
 
 // Contrato padrão dos testes: Caixa PRICE 10,5% a.a., TR 0,17%, seguro R$ 100,
@@ -105,6 +105,13 @@ function baselineDeHoje() {
   return { version: 1, saldoDevedor: 1000000, dataBase: todayISO(), proximaParcelaNumero: 141 };
 }
 
+function amanhaISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado. */async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   await page.getByRole('button', { name: 'Paguei', exact: true }).click();
   const box = page.locator('[data-pay-installment]');
@@ -191,7 +198,6 @@ test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  const saldoAntes = parseBRL(await saldoCard(page).innerText());
   const paga = await pagarProxima(page);
 
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
@@ -209,7 +215,6 @@ test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue
   await expect(linhaPaga).toHaveCount(1);
   await expect(linhaPaga).toContainText(/R\$\s*[\d.,]+/);
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
-  void saldoAntes;
 });
 
 test('pagamento divergente sugere recalibração e o banner some após recalibrar', async ({ page }) => {
@@ -270,9 +275,13 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   await expect(secao).toContainText(/R\$\s*100\.000,00/);
 
   const quitacaoDepois = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
-  // Oráculo do modelo: saldo R$ 900.000 com a parcela do cronograma encurta
-  // para 170 parcelas → quitação na parcela 310.
-  expect(quitacaoDepois).toBe(310);
+  // Oráculo do modelo: o mesmo pagamento de R$ 100.000 no modelo puro deriva a
+  // parcela de quitação — o número cravado (310) viraria manutenção silenciosa
+  // se a engine mudar.
+  const oracle = projecao(PARAMS_E2E, baselineDeHoje(), [], [
+    { dataPagamento: todayISO(), valor: 100000, origem: 'proprio', modo: 'term' },
+  ]);
+  expect(quitacaoDepois).toBe(oracle.quitaEm);
 });
 
 test('expiração do plano congela a leitura e mostra o paywall sem ações', async ({ page }) => {
@@ -347,4 +356,97 @@ test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela p
   expect(parseBRL(await saldoCard(page).innerText())).toBeCloseTo(saldoOriginal, 2);
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
   await expect(page.getByText('Nenhuma parcela paga ainda.', { exact: true })).toBeVisible();
+});
+
+test('amortização do saldo inteiro zera o modelo, mostra o aviso âmbar e recalibrar restaura', async ({ page }) => {
+  const conta = await criarConta(page, 'Zero por Lançamento');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+  await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0);
+
+  // Lançamento equivocado: amortização pelo saldo devedor inteiro. O contrato
+  // segue ativo no banco (baseline R$ 1.000.000), só o MODELO zera.
+  await page.getByRole('button', { name: 'Registrei amortização', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#amortValor').fill('100000000');
+  await dialog.locator('#amortData').fill(todayISO());
+  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+
+  await expect(page.getByText(/zeraram o saldo no modelo/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Recalibrar saldo', exact: true })).toBeVisible();
+
+  // Extrato do banco mostra R$ 990.000: recalibra e o modelo volta a projetar.
+  await page.getByRole('button', { name: 'Recalibrar saldo', exact: true }).click();
+  const rec = page.getByRole('dialog');
+  await expect(rec).toBeVisible();
+  await expect(rec.locator('#recParcela')).toHaveValue('141');
+  await rec.locator('#recSaldo').fill('99000000');
+  await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
+
+  await expect(page.getByText(/zeraram o saldo no modelo/)).toHaveCount(0, { timeout: 20_000 });
+  await expect(proximaCard(page)).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect
+    .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
+    .toBeCloseTo(990000, 2);
+});
+
+test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa o acompanhamento', async ({ page }) => {
+  const conta = await criarConta(page, 'Reativar Quitado');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  // Cria divergência para o banner de recalibração aparecer.
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  await pagarProxima(page, 500);
+  await expect(page.getByText(/divergem do modelo/)).toBeVisible({ timeout: 20_000 });
+
+  // Extrato (equivocado) informa saldo R$ 0: contrato vira quitado no banco.
+  await page.getByRole('button', { name: 'Recalibrar saldo', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#recSaldo').fill('0');
+  await dialog.locator('#recData').fill(todayISO());
+  await expect(dialog.locator('#recParcela')).toHaveValue('143');
+  await dialog.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
+
+  await expect(page.getByText('Financiamento quitado', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Recalibrar saldo', exact: true })).toBeVisible();
+
+  // O extrato certo mostra R$ 500.000: a mesma recalibração reativa o contrato
+  // com uma versão nova (source 'recalibracao'), sem perder o histórico.
+  await page.getByRole('button', { name: 'Recalibrar saldo', exact: true }).click();
+  const rec = page.getByRole('dialog');
+  await expect(rec).toBeVisible();
+  await expect(rec.locator('#recParcela')).toHaveValue('143');
+  await rec.locator('#recSaldo').fill('50000000');
+  await rec.locator('#recData').fill(todayISO());
+  await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
+
+  await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0, { timeout: 20_000 });
+  await expect(proximaCard(page)).toContainText('Parcela 143 de 360', { timeout: 20_000 });
+  await expect
+    .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
+    .toBeCloseTo(500000, 2);
+  await expect(page.getByRole('button', { name: 'Paguei', exact: true })).toBeVisible();
+});
+
+test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
+  const conta = await criarConta(page, 'Data Futura');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  await page.getByRole('button', { name: 'Registrei amortização', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#amortValor').fill('10000000');
+  await dialog.locator('#amortData').fill(amanhaISO());
+  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+
+  await expect(dialog.getByText('Data futura', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByText('Nenhuma amortização extra ainda.', { exact: true })).toBeVisible();
 });

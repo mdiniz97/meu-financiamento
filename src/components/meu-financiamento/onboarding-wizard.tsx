@@ -196,7 +196,9 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
 
   const parcelasRestantes = contractInput.parcelasTotais - contractInput.proximaParcelaNumero + 1;
   const estimativa = useMemo(() => {
-    if (step !== 3) return null;
+    // A conferência (passo 3) é a fonte da estimativa; o passo 4 (criar) precisa
+    // dela para decidir se o contrato pode ser criado, sem reprojetar no servidor.
+    if (step !== 3 && step !== 4) return null;
     if (Object.keys(fieldErrors(1, values)).length > 0 || Object.keys(fieldErrors(2, values)).length > 0) {
       return { ok: false as const };
     }
@@ -550,6 +552,12 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                   {createError}
                 </p>
               )}
+              {!estimativa?.ok && (
+                <p role="alert" className="text-sm text-destructive">
+                  Não foi possível projetar o contrato com os dados informados. Volte à conferência e revise taxa, TR e
+                  prazo antes de criar.
+                </p>
+              )}
             </div>
           )}
         </CardContent>
@@ -612,7 +620,7 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                 Continuar
               </Button>
             ) : (
-              <Button type="button" onClick={criar} disabled={creating}>
+              <Button type="button" onClick={criar} disabled={creating || !estimativa?.ok}>
                 <Zap className="size-4" />
                 {creating ? 'Criando...' : 'Criar meu financiamento'}
               </Button>
