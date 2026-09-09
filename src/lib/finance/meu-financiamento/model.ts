@@ -76,7 +76,7 @@ export function validateContractInput(p: unknown): { ok: true; value: ContractIn
   if (typeof p !== 'object' || p === null) return fail('Dados do contrato inválidos');
   const o = p as Record<string, unknown>;
   const { bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero } = o;
-  if (typeof bank !== 'string' || bank.length > 60) return fail('Banco inválido');
+  if (typeof bank !== 'string' || bank.trim().length < 1 || bank.trim().length > 60) return fail('Banco inválido');
   if (system !== 'PRICE' && system !== 'SAC') return fail('Sistema inválido');
   if (typeof annualRate !== 'number' || !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 1) {
     return fail('Taxa anual inválida');
@@ -101,7 +101,7 @@ export function validateContractInput(p: unknown): { ok: true; value: ContractIn
   return {
     ok: true,
     value: {
-      bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero,
+      bank: bank.trim(), system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero,
     },
   };
 }

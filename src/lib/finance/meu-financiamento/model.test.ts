@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { simulate } from '../engine';
-import { projecao, primeiraPendente, toLoanInput, validateContractInput } from './model';
+import { projecao, toLoanInput, validateContractInput } from './model';
 
 const PARAMS = {
   bank: 'Caixa', system: 'PRICE' as const, annualRate: 0.105, trMonthly: 0.0017,
@@ -75,6 +75,16 @@ it('baseline quitado por recalibração (saldo 0) projeta vazio sem lançar', ()
   expect(p.parcelas).toEqual([]);
   expect(p.quitaEm).toBeNull();
   expect(p.primeiraPendente).toBe(141);
+});
+
+it('projecao propaga o erro da engine quando a combinação no range validado não amortiza (taxa 0 + TR alta)', () => {
+  // validateContractInput aceita annualRate 0 e trMonthly 0.1 isoladamente;
+  // juntos, a parcela programada não cobre a correção e a engine rejeita.
+  expect(() => projecao(
+    { ...PARAMS, annualRate: 0, trMonthly: 0.1 },
+    { ...BASELINE, saldoDevedor: 1000000, proximaParcelaNumero: 1 },
+    [], [],
+  )).toThrow(/não amortiza/);
 });
 
 it('lacuna em parcelas pagas lança erro', () => {
@@ -180,8 +190,20 @@ describe('validateContractInput', () => {
     expect(validateContractInput({ ...VALID, system: 'MIXED' }).ok).toBe(false);
   });
 
-  it('recusa banco com mais de 60 caracteres', () => {
+  it('recusa banco vazio ou só com espaços', () => {
+    expect(validateContractInput({ ...VALID, bank: '' }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, bank: '   ' }).ok).toBe(false);
+  });
+
+  it('recusa banco com mais de 60 caracteres após o trim', () => {
     expect(validateContractInput({ ...VALID, bank: 'x'.repeat(61) }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, bank: `  ${'x'.repeat(61)}` }).ok).toBe(false);
+  });
+
+  it('aparava espaços ao redor do banco e aceita com 1..60 caracteres', () => {
+    const r = validateContractInput({ ...VALID, bank: '  Caixa Econômica  ' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.bank).toBe('Caixa Econômica');
   });
 
   it('recusa payload não-objeto e campos não numéricos', () => {

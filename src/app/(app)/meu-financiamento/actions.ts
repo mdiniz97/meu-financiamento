@@ -12,9 +12,26 @@ import type {
   MutationResult,
   RecalibrateInput,
 } from '@/lib/meu-financiamento/repo';
-import { isValidDateString, primeiraPendente, validateContractInput } from '@/lib/finance/meu-financiamento/model';
+import { isValidDateString, primeiraPendente, projecao, validateContractInput } from '@/lib/finance/meu-financiamento/model';
+import type { Baseline, ContractParams } from '@/lib/finance/meu-financiamento/model';
+import { todayISO } from '@/lib/meu-financiamento/dates';
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
+const NAO_AMORTIZA = 'Dados não amortizam no modelo; revise taxa, TR e prazo';
+
+/** Dry-run da projeção sobre o baseline proposto com o estado novo vazio
+ *  (movimentos de estados superados nunca são reaplicados). A engine rejeita
+ *  combinações que o range de validação aceita (ex.: taxa anual 0 com TR alta)
+ *  — gravar antes de validar deixaria o usuário preso num contrato que o
+ *  wizard recusa recriar. */
+function projecaoValida(params: ContractParams, baseline: Baseline): boolean {
+  try {
+    projecao(params, baseline, [], []);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Guarda do rascunho: payload pequeno, raso e sem ciclos. O tamanho usa a
 // serialização real (UTF-8) para não depender de heurística de contagem.
@@ -97,12 +114,28 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const v = parsed.value;
 
-  const created = await db.transaction(async (tx): Promise<boolean> => {
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
     await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
     const existing = await tx.query.contracts.findFirst({
       where: eq(schema.contracts.userId, userId),
     });
-    if (existing) return false;
+    if (existing) return { ok: false, error: 'Contrato já cadastrado' };
+    const params: ContractParams = {
+      bank: v.bank,
+      system: v.system,
+      annualRate: v.annualRate,
+      trMonthly: v.trMonthly,
+      insuranceMonthly: v.insuranceMonthly,
+      parcelasTotais: v.parcelasTotais,
+    };
+    const baseline: Baseline = {
+      version: 1,
+      saldoDevedor: v.saldoDevedor,
+      dataBase: v.dataBase,
+      proximaParcelaNumero: v.proximaParcelaNumero,
+    };
+    if (!projecaoValida(params, baseline)) return { ok: false, error: NAO_AMORTIZA };
     const [contract] = await tx
       .insert(schema.contracts)
       .values({
@@ -125,9 +158,9 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
       source: 'cadastro',
     });
     await tx.delete(schema.contractDrafts).where(eq(schema.contractDrafts.userId, userId));
-    return true;
+    return { ok: true };
   });
-  if (!created) return { ok: false, error: 'Contrato já cadastrado' };
+  if (!outcome.ok) return outcome;
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
@@ -206,6 +239,7 @@ export async function registerAmortization(input: AmortizacaoInput): Promise<Mut
     return { ok: false, error: 'Valor inválido' };
   }
   if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
+  if (dataPagamento > todayISO()) return { ok: false, error: 'Data futura' };
   if (origem !== 'proprio' && origem !== 'fgts') return { ok: false, error: 'Origem inválida' };
   if (modo !== 'term' && modo !== 'payment') return { ok: false, error: 'Modo inválido' };
 
@@ -268,7 +302,6 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       .orderBy(desc(schema.contractStates.version))
       .limit(1);
     if (!state) return { ok: false, error: 'Contrato sem estado' };
-    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
 
     if (typeof saldoDevedor !== 'number' || !Number.isFinite(saldoDevedor) || saldoDevedor < 0) {
       return { ok: false, error: 'Saldo devedor inválido' };
@@ -303,6 +336,19 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
     if (saldoIgual && dataBase === state.dataBase && proximaParcelaNumero === state.proximaParcelaNumero) {
       return { ok: false, error: 'Nada a recalibrar: saldo, data-base e próxima parcela já são os atuais' };
     }
+
+    // Dry-run da projeção do estado novo (movimentos vazios) antes do insert:
+    // combinação no range validado que a engine rejeita não pode gravar uma
+    // versão que o recompute não consegue projetar. Contrato quitado (saldo 0)
+    // pode ser reativado aqui: saldo > 0 com data-base/parcela novas gera
+    // version+1 com source 'recalibracao' e o histórico dos estados antigos.
+    const novoBaseline: Baseline = {
+      version: state.version + 1,
+      saldoDevedor,
+      dataBase,
+      proximaParcelaNumero,
+    };
+    if (!projecaoValida(params, novoBaseline)) return { ok: false, error: NAO_AMORTIZA };
 
     await tx.insert(schema.contractStates).values({
       contractId: contract.id,
