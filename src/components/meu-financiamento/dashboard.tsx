@@ -210,7 +210,7 @@ export function Dashboard({
   const [showPay, setShowPay] = useState(false);
   const [recalibrando, setRecalibrando] = useState(false);
 
-  const quitado = saldoEfetivo === 0;
+  const quitado = state.quitado;
 
   const vencimentoEstimado = (parcelaNumero: number) =>
     addMonthsISO(baseline.dataBase, parcelaNumero - baseline.proximaParcelaNumero);
@@ -228,13 +228,39 @@ export function Dashboard({
         {quitado ? (
           <div
             role="status"
-            className="flex flex-col gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+            className="flex flex-col gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 sm:flex-row sm:items-center sm:justify-between"
           >
-            <p>Financiamento quitado</p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400">
-              Saldo zerado. O registro do contrato é mantido e os lançamentos anteriores à última recalibração ficam
-              como histórico no banco.
-            </p>
+            <div className="flex flex-col gap-1">
+              <p>Financiamento quitado</p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                Saldo zerado. O registro do contrato é mantido e os lançamentos anteriores à última recalibração ficam
+                como histórico no banco. Se o extrato mostrar saldo, recalibre para reativar o acompanhamento.
+              </p>
+            </div>
+            {!readOnly && (
+              <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+                Recalibrar saldo
+              </Button>
+            )}
+          </div>
+        ) : saldoEfetivo === 0 ? (
+          <div
+            role="alert"
+            className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex flex-col gap-1">
+              <p>
+                Seus lançamentos zeraram o saldo no modelo. Confira o valor no extrato do banco e recalibre.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                O contrato segue ativo: o zero pode ser um lançamento com valor maior que o devido.
+              </p>
+            </div>
+            {!readOnly && (
+              <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+                Recalibrar saldo
+              </Button>
+            )}
           </div>
         ) : (
           Math.abs(divergencia) >= DIVERGENCIA_BANNER_LIMITE && (
@@ -260,7 +286,7 @@ export function Dashboard({
           />
           <SummaryCard
             label="Quitação estimada"
-            value={quitaEm != null && quitaEmData ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})` : (quitado ? '—' : 'não no prazo')}
+            value={quitaEm != null && quitaEmData ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})` : (quitado || saldoEfetivo === 0 ? '—' : 'não no prazo')}
           />
         </div>
         {parcelas.length > 0 && <BalanceChart data={parcelas.map((p) => ({ month: p.parcelaNumero, saldo: p.saldo }))} />}
@@ -353,10 +379,11 @@ export function Dashboard({
 
       <AmortizacoesSection extras={extras} readOnly={readOnly} quitado={quitado} />
 
-      {state.isUnlimited && !readOnly && !quitado && (
+      {state.isUnlimited && !readOnly && !quitado && saldoEfetivo > 0 && (
         // Recomendações são exclusivas do plano Ilimitado; na leitura
         // congelada o ExclusiveCard acima ocupa o lugar das ações e destes
-        // painéis, que não são montados para quem não é Ilimitado.
+        // painéis, que não são montados para quem não é Ilimitado. Sem saldo
+        // efetivo no modelo não há aporte a simular (painéis não fazem sentido).
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-lg font-semibold">Recomendações</h2>
           <div

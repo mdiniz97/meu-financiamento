@@ -34,6 +34,10 @@ export interface PageState {
   pagas: ParcelaPagaComId[];
   extras: AmortizacaoComId[];
   projecao: Projecao;
+  /** Contrato quitado segundo o BANCO (baseline vigente com saldo 0 /
+   *  source 'quitacao'), não segundo o modelo. Lançamentos equivocados podem
+   *  zerar saldoEfetivo com o contrato ainda ativo (quitado false). */
+  quitado: boolean;
   isUnlimited: boolean;
 }
 
@@ -130,6 +134,7 @@ export async function recomputeState(userId: string): Promise<PageState> {
     pagas,
     extras,
     projecao: projecao(data.params, data.baseline, pagas, extras),
+    quitado: data.state.saldoDevedor === 0 || data.state.source === 'quitacao',
     isUnlimited: await isUnlimited(userId),
   };
 }
