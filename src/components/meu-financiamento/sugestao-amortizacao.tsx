@@ -73,7 +73,11 @@ export function SugestaoAmortizacao({
           valor: chip.valor,
           label: chip.label,
           parcelas,
-          economia: economiaAmortizacoes(params, baseline, pagas, [...extras, aporte]),
+          // Economia MARGINAL do aporte: a diferença desconta a economia já
+          // atribuída aos extras existentes (senão o chip roubaria para si a
+          // economia de amortizações antigas).
+          economia: economiaAmortizacoes(params, baseline, pagas, [...extras, aporte])
+            - economiaAmortizacoes(params, baseline, pagas, extras),
         };
       },
     );

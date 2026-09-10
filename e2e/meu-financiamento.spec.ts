@@ -265,6 +265,23 @@ test('sugestão de amortização preenche o pagamento com o split e antecipa a q
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
   await expect(historico).toContainText(/R\$\s*2\.000,00/);
   await expect(historico).toContainText(/Parcela 141 ·/);
+
+  // Accordion: a amortização (data de hoje, igual ao vencimento estimado da
+  // 141) aparece intercalada entre as parcelas 141 e 142, com origem, modo e data.
+  await page.getByText('Todas as parcelas', { exact: true }).click();
+  const linhas = page.locator('details ol li');
+  const textos = await linhas.allInnerTexts();
+  const amortizacao = textos.findIndex((t) => t.includes('Amortização extra de'));
+  const parcela141 = textos.findIndex((t) => t.startsWith('Parcela 141'));
+  const parcela142 = textos.findIndex((t) => t.startsWith('Parcela 142'));
+  expect(parcela141).toBeGreaterThanOrEqual(0);
+  expect(amortizacao).toBeGreaterThan(parcela141);
+  expect(amortizacao).toBeLessThan(parcela142);
+  expect(textos[amortizacao]).toMatch(/Amortização extra de R\$\s*2\.000,00/);
+  expect(textos[amortizacao]).toContain('Dinheiro próprio');
+  expect(textos[amortizacao]).toContain('Reduziu o prazo');
+  expect(textos[amortizacao]).toMatch(/em \d{2}\/\d{2}\/\d{4}/);
+
   await expect
     .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
     .toBeLessThan(quitacaoAntes);
