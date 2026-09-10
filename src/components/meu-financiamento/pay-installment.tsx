@@ -25,19 +25,29 @@ export function PayInstallment({
   parcelaNumero,
   defaultValor,
   initialValor,
+  initialAporte,
   onCancel,
   onDone,
 }: {
   parcelaNumero: number;
   defaultValor: number;
-  /** Valor inicial do campo; defaultValor quando ausente (sugestão de amortização). */
+  /** Valor inicial do campo; defaultValor quando ausente. */
   initialValor?: number;
+  /**
+   * Aporte extra pré-preenchido (sugestão): o total vira
+   * `roundCents(parcelaProjetada) + aporte`, em centavos exatos, para o split
+   * do servidor receber o aporte pedido (ou até centavos acima).
+   */
+  initialAporte?: number;
   onCancel: () => void;
   /** Chamado após o pagamento registrado e o refresh; fecha o form. */
   onDone: () => void;
 }) {
   const router = useRouter();
-  const [valor, setValor] = useState(roundCents(initialValor ?? defaultValor));
+  const [valor, setValor] = useState(() => {
+    if (initialAporte != null) return roundCents(roundCents(defaultValor) + initialAporte);
+    return roundCents(initialValor ?? defaultValor);
+  });
   const [dataPagamento, setDataPagamento] = useState(todayISO());
   const [excedenteModo, setExcedenteModo] = useState<'term' | 'payment'>('term');
   const [pending, setPending] = useState(false);

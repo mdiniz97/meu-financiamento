@@ -376,7 +376,7 @@ export function Dashboard({
               key={aporteSugerido ?? 'sem-aporte'}
               parcelaNumero={primeiraProjetada.parcelaNumero}
               defaultValor={primeiraProjetada.parcela}
-              initialValor={aporteSugerido != null ? primeiraProjetada.parcela + aporteSugerido : undefined}
+              initialAporte={aporteSugerido ?? undefined}
               onCancel={() => {
                 setAporteSugerido(null);
                 setShowPay(false);

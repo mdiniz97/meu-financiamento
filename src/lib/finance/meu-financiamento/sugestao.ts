@@ -1,12 +1,18 @@
 import { projecao } from './model';
 import type { AmortizacaoExtra, Baseline, ContractParams, ParcelaPaga } from './model';
 
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /**
- * Menor valor de amortização extra (modo term, passo de R$ 0,01) que faz a
- * projeção quitar pelo menos uma parcela antes do cenário atual. A data do
- * candidato é irrelevante para o modelo (extras entram pelo valor total), então
- * usa a data-base. Retorna null quando não há o que encurtar: saldo zerado,
- * contrato já quitado ou sem parcela projetada.
+ * Menor aporte (modo term, passo de R$ 0,01) que, pago JUNTO com a parcela do
+ * mês, encurta a quitação em pelo menos 1 parcela. O fluxo real paga
+ * `roundCents(parcelaProjetada) + aporte` (centavos exatos), então a validação
+ * usa o extra EFETIVO `aporte + (roundCents(parcela) - parcela)`: o "quita 1
+ * parcela antes" vale para o que o banco recebe, não para o centavo exibido.
+ * Retorna null quando não há o que encurtar (saldo zerado, sem parcela
+ * projetada ou quitação já fora do prazo).
  */
 export function limiarUmaParcela(
   params: ContractParams,
@@ -15,9 +21,18 @@ export function limiarUmaParcela(
   extras: AmortizacaoExtra[],
 ): number | null {
   const atual = projecao(params, baseline, pagas, extras);
-  const baseQuita = atual.quitaEm;
-  if (atual.saldoEfetivo <= 0 || baseQuita == null) return null;
+  const primeira = atual.parcelas[0];
+  if (atual.saldoEfetivo <= 0 || atual.quitaEm == null || primeira == null) return null;
 
+  const pagasComParcela: ParcelaPaga[] = [
+    ...pagas,
+    { parcelaNumero: primeira.parcelaNumero, valor: primeira.parcela, dataPagamento: baseline.dataBase },
+  ];
+  const semAporte = projecao(params, baseline, pagasComParcela, extras);
+  const baseQuita = semAporte.quitaEm;
+  if (baseQuita == null) return null;
+
+  const desvio = roundCents(primeira.parcela) - primeira.parcela;
   const candidato = (valor: number): AmortizacaoExtra => ({
     dataPagamento: baseline.dataBase,
     valor,
@@ -25,7 +40,7 @@ export function limiarUmaParcela(
     modo: 'term',
   });
   const reduzPrazo = (centavos: number): boolean => {
-    const comAporte = projecao(params, baseline, pagas, [...extras, candidato(centavos / 100)]);
+    const comAporte = projecao(params, baseline, pagasComParcela, [...extras, candidato(centavos / 100 + desvio)]);
     // Quitação total do saldo também encurta: a projeção fica vazia e o
     // quitaEm vira null, mas o prazo restante caiu para zero.
     if (comAporte.saldoEfetivo === 0) return true;

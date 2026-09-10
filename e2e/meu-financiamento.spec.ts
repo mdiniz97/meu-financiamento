@@ -234,7 +234,7 @@ test('accordion "Todas as parcelas" lista o cronograma e carrega mais 24 por vez
   await expect(pagaLinha).toBeVisible();
 });
 
-test('sugestão de amortização preenche o pagamento com o split e antecipa a quitação', async ({ page }) => {
+test('sugestão de amortização aplica ideal, meia e extra com o efeito calculado', async ({ page }) => {
   const conta = await criarConta(page, 'Sugestão de Amortização');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
@@ -243,31 +243,36 @@ test('sugestão de amortização preenche o pagamento com o split e antecipa a q
   expect(quitacaoAntes).toBe(360);
 
   await page.getByText('Quer amortizar junto?', { exact: true }).click();
-  // Menor aporte com efeito no prazo, calculado pelo modelo.
-  await expect(page.getByText(/\+ R\$\s*[\d.,]+ e quita 1 parcela antes/)).toBeVisible();
+  await expect(page.getByText('Ideal calculado', { exact: true })).toBeVisible();
+  await expect(page.getByText('Meia parcela', { exact: true })).toBeVisible();
+  await expect(page.getByText('Parcela extra', { exact: true })).toBeVisible();
 
-  // R$ 1.000 não encurta o prazo neste cenário (o limiar é maior); o chip de
-  // R$ 2.000 é o menor atalho com efeito observável na quitação.
-  await expect(page.locator('[data-aporte="2000"]')).toContainText('corta 1 parcela');
-  await page.getByRole('button', { name: 'R$ 2.000', exact: true }).click();
-  await page.locator('[data-aporte="2000"]').getByRole('button', { name: 'Aplicar', exact: true }).click();
+  // Ideal calculado: menor aporte que corta 1 parcela; a quitação cai
+  // EXATAMENTE 1 e o split do form recebe o aporte exibido.
+  const cardIdeal = page.locator('[data-opcao="ideal"]');
+  await expect(cardIdeal).toContainText('quita 1 parcela antes');
+  const ideal = parseBRL(await cardIdeal.innerText());
+  expect(ideal).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Aplicar ideal', exact: true }).click();
 
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
   await expect(box.getByText(/Parcela .* \+ amortização extra/)).toBeVisible();
-  await expect(box.getByText(/R\$\s*2\.000,00/)).toBeVisible();
   await expect(box.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
+  expect(parseBRL(await box.locator('strong').last().innerText())).toBeCloseTo(ideal, 1);
 
   await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(box).toHaveCount(0, { timeout: 20_000 });
+  await expect
+    .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
+    .toBe(quitacaoAntes - 1);
 
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
-  await expect(historico).toContainText(/R\$\s*2\.000,00/);
   await expect(historico).toContainText(/Parcela 141 ·/);
 
   // Accordion: a amortização (data de hoje, igual ao vencimento estimado da
-  // 141) aparece intercalada entre as parcelas 141 e 142, com origem, modo e data.
+  // 141) aparece intercalada entre as parcelas 141 e 142, com origem e modo.
   await page.getByText('Todas as parcelas', { exact: true }).click();
   const linhas = page.locator('details ol li');
   const textos = await linhas.allInnerTexts();
@@ -277,35 +282,35 @@ test('sugestão de amortização preenche o pagamento com o split e antecipa a q
   expect(parcela141).toBeGreaterThanOrEqual(0);
   expect(amortizacao).toBeGreaterThan(parcela141);
   expect(amortizacao).toBeLessThan(parcela142);
-  expect(textos[amortizacao]).toMatch(/Amortização extra de R\$\s*2\.000,00/);
   expect(textos[amortizacao]).toContain('Dinheiro próprio');
   expect(textos[amortizacao]).toContain('Reduziu o prazo');
   expect(textos[amortizacao]).toMatch(/em \d{2}\/\d{2}\/\d{4}/);
 
+  // Meia parcela: efeito exibido e aporte aplicado no split.
+  const cardMeia = page.locator('[data-opcao="meia"]');
+  await expect(cardMeia).toContainText(/quita \d+ parcelas? antes|não corta parcela/);
+  const meia = parseBRL(await cardMeia.innerText());
+  await page.getByRole('button', { name: 'Aplicar meia parcela', exact: true }).click();
+  const boxMeia = page.locator('[data-pay-installment]');
+  await expect(boxMeia).toBeVisible();
+  expect(parseBRL(await boxMeia.locator('strong').last().innerText())).toBeCloseTo(meia, 1);
+  await boxMeia.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(boxMeia).toHaveCount(0);
+
+  // Parcela extra: efeito exibido, aplica e pode quitar ≥ 1 parcela.
+  const quitacaoAntesExtra = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
+  const cardExtra = page.locator('[data-opcao="extra"]');
+  await expect(cardExtra).toContainText(/quita \d+ parcelas? antes|não corta parcela/);
+  const extra = parseBRL(await cardExtra.innerText());
+  await page.getByRole('button', { name: 'Aplicar parcela extra', exact: true }).click();
+  const boxExtra = page.locator('[data-pay-installment]');
+  await expect(boxExtra).toBeVisible();
+  expect(parseBRL(await boxExtra.locator('strong').last().innerText())).toBeCloseTo(extra, 1);
+  await boxExtra.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(boxExtra).toHaveCount(0, { timeout: 20_000 });
   await expect
     .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
-    .toBeLessThan(quitacaoAntes);
-  const quitacaoDepoisChip = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
-
-  // Botão do limiar: aplica o valor exato sugerido (não só os chips) e o form
-  // abre com o split preenchido com esse valor.
-  const botaoLimiar = page.getByRole('button', { name: /^Aplicar R\$/ }).first();
-  await expect(botaoLimiar).toBeVisible();
-  const limiar = parseBRL(await botaoLimiar.innerText());
-  expect(limiar).toBeGreaterThan(0);
-  await botaoLimiar.click();
-
-  const boxLimiar = page.locator('[data-pay-installment]');
-  await expect(boxLimiar).toBeVisible();
-  await expect(boxLimiar.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
-  const amortizacaoLimiar = parseBRL(await boxLimiar.locator('strong').last().innerText());
-  expect(amortizacaoLimiar).toBeCloseTo(limiar, 2);
-
-  await boxLimiar.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
-  await expect(boxLimiar).toHaveCount(0, { timeout: 20_000 });
-  await expect
-    .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
-    .toBeLessThan(quitacaoDepoisChip);
+    .toBeLessThanOrEqual(quitacaoAntesExtra);
 });
 
 test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue o modelo', async ({ page }) => {
