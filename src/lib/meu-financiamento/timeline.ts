@@ -27,17 +27,6 @@ export type TimelineEvent =
   | { kind: 'atualizacao'; version: number; data: string; text: string }
   | { kind: 'cadastro'; version: number; data: string; text: string };
 
-// Empate na mesma data: lançamentos do dia vêm antes do baseline que os
-// superou (recalibração/quitação/atualização) e o cadastro fica por último.
-const RANK: Record<TimelineEvent['kind'], number> = {
-  parcela: 0,
-  amortizacao: 1,
-  recalibracao: 2,
-  quitacao: 2,
-  atualizacao: 2,
-  cadastro: 3,
-};
-
 /** Percentual pt-BR a partir da fração (0,105 → '10,5%'), sem zeros à direita. */
 function formatPct(value: number): string {
   const pct = Math.round(value * 100 * 1e4) / 1e4;
@@ -77,11 +66,6 @@ function atualizacaoPartes(atual: ContractStateSummary, anterior: ContractStateS
 /** Resumo textual do que mudou na atualização contratual (sem o prefixo). */
 export function atualizacaoResumo(atual: ContractStateSummary, anterior: ContractStateSummary | undefined): string {
   return atualizacaoPartes(atual, anterior).join(', ');
-}
-
-function atualizacaoText(atual: ContractStateSummary, anterior: ContractStateSummary | undefined): string {
-  const partes = atualizacaoPartes(atual, anterior);
-  return partes.length > 0 ? `Contrato atualizado: ${partes.join(', ')}` : 'Contrato atualizado';
 }
 
 function parcelaEvent(p: {
@@ -207,97 +191,21 @@ export function buildTimelineGroups(
   return grupos;
 }
 
+export interface TimelineGroupPage extends TimelineGroup {
+  /** Lançamentos do período que ficaram fora do limite atual. */
+  ocultos: number;
+}
+
 /**
- * Eventos da timeline unificada: TODOS os lançamentos do contrato (histórico,
- * incluindo os de baselines superados) + histórico de baselines (cadastro,
- * recalibrações, quitação e atualizações contratuais). Ordenação por data DESC;
- * empates resolvidos por tipo e, dentro do tipo, por número (parcela/versão) DESC.
+ * Orçamento POR PERÍODO: cada grupo exibe até `limite` lançamentos (mínimo 1) e
+ * informa quantos ficaram ocultos. Diferente de um corte global, nenhum período
+ * fica vazio enquanto outro aparece cortado; "Mostrar mais" só aumenta o limite
+ * de todos os grupos.
  */
-export function buildTimeline(state: Pick<PageState, 'historico' | 'states'>): TimelineEvent[] {
-  const porVersao = new Map(state.states.map((s) => [s.version, s]));
-  const stateEvents: { event: TimelineEvent; sortNum: number }[] = [];
-  for (const s of state.states) {
-    if (s.version === 1) {
-      stateEvents.push({
-        event: {
-          kind: 'cadastro',
-          version: s.version,
-          data: s.dataBase,
-          text: `Contrato cadastrado com saldo de ${formatBRL(s.saldoDevedor)}`,
-        },
-        sortNum: s.version,
-      });
-    } else if (s.source === 'quitacao') {
-      stateEvents.push({
-        event: {
-          kind: 'quitacao',
-          version: s.version,
-          data: s.dataBase,
-          text: `Financiamento quitado: ${formatBRL(0)}`,
-        },
-        sortNum: s.version,
-      });
-    } else if (s.source === 'recalibracao') {
-      stateEvents.push({
-        event: {
-          kind: 'recalibracao',
-          version: s.version,
-          data: s.dataBase,
-          text: `Saldo recalibrado pelo extrato: ${formatBRL(s.saldoDevedor)}`,
-        },
-        sortNum: s.version,
-      });
-    } else if (s.source === 'atualizacao') {
-      stateEvents.push({
-        event: {
-          kind: 'atualizacao',
-          version: s.version,
-          data: s.dataBase,
-          text: atualizacaoText(s, porVersao.get(s.version - 1)),
-        },
-        sortNum: s.version,
-      });
-    }
-  }
-
-  const sortable: { event: TimelineEvent; sortNum: number }[] = [
-    ...state.historico.pagas.map((p) => ({
-      event: {
-        kind: 'parcela' as const,
-        id: p.id,
-        stateId: p.stateId,
-        numero: p.parcelaNumero,
-        valor: p.valor,
-        data: p.dataPagamento,
-        text: `Parcela ${p.parcelaNumero} · ${formatBRL(p.valor)} · paga em ${formatDataBr(p.dataPagamento)}`,
-      },
-      sortNum: p.parcelaNumero,
-    })),
-    ...state.historico.extras.map((e, index) => ({
-      event: {
-        kind: 'amortizacao' as const,
-        id: e.id,
-        stateId: e.stateId,
-        valor: e.valor,
-        data: e.dataPagamento,
-        origem: e.origem,
-        modo: e.modo,
-        text: `Amortização extra de ${formatBRL(e.valor)} · ${origemLabel(e.origem)} · ${modoLabel(e.modo)}`,
-      },
-      sortNum: index,
-    })),
-    ...stateEvents,
-  ];
-
-  sortable.sort((a, b) => {
-    if (a.event.data !== b.event.data) return b.event.data.localeCompare(a.event.data);
-    if (RANK[a.event.kind] !== RANK[b.event.kind]) return RANK[a.event.kind] - RANK[b.event.kind];
-    return b.sortNum - a.sortNum;
+export function paginarGrupos(grupos: TimelineGroup[], limite: number): TimelineGroupPage[] {
+  const porPeriodo = Math.max(1, Math.floor(limite));
+  return grupos.map((grupo) => {
+    const events = grupo.events.slice(0, porPeriodo);
+    return { ...grupo, events, ocultos: grupo.events.length - events.length };
   });
-
-  const events = sortable.map((s) => s.event);
-  // Contrato recém-cadastrado: o baseline inicial sozinho não é histórico;
-  // sem ele a seção fica vazia ("Nenhum lançamento ainda.").
-  if (events.length === 1 && events[0].kind === 'cadastro') return [];
-  return events;
 }

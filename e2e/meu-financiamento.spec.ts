@@ -388,8 +388,8 @@ test('pagamento divergente sugere recalibração e o banner some após recalibra
   await expect
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(saldoDivergente, 2);
-  // A recalibração vira evento na timeline; os lançamentos do baseline
-  // superado saem do histórico exibido (já incorporados no novo saldo).
+  // A recalibração vira marco na timeline; os lançamentos do baseline
+  // superado continuam visíveis no grupo do período anterior.
   await expect(page.getByText(/Saldo recalibrado pelo extrato/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toHaveCount(0);
 });

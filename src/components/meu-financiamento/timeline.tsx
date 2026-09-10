@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
-import { buildTimelineGroups } from '@/lib/meu-financiamento/timeline';
+import { buildTimelineGroups, paginarGrupos } from '@/lib/meu-financiamento/timeline';
 import type { TimelineEvent } from '@/lib/meu-financiamento/timeline';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { OrigemRadios, ModoRadios } from './amortization-form';
 
-const LIMITE_EVENTOS = 12;
+const LIMITE_POR_PERIODO = 6;
+const PASSO_MOSTRAR_MAIS = 6;
 
 type ParcelaEvent = Extract<TimelineEvent, { kind: 'parcela' }>;
 type AmortizacaoEvent = Extract<TimelineEvent, { kind: 'amortizacao' }>;
@@ -394,11 +395,12 @@ const TIPO_BADGE: Record<'cadastro' | 'recalibracao' | 'atualizacao' | 'quitacao
 /**
  * Histórico agrupado por período do contrato: o marco de cada baseline
  * (cadastro, recalibrações, atualizações e quitação) com seus lançamentos
- * logo abaixo, ligados por uma linha vertical. O período vigente vem
- * primeiro; os anteriores ganham o selo "período anterior". No máximo 12
- * eventos por vez (limite global simples). Ações de editar/apagar só existem
- * fora do readOnly e no período vigente; os guards de lacuna/estado superado
- * ficam nas actions.
+ * logo abaixo, ligados por uma linha vertical contínua. O período vigente vem
+ * primeiro; os anteriores ganham o selo "período anterior". Cada período mostra
+ * até `LIMITE_POR_PERIODO` lançamentos e "Mostrar mais" aumenta o limite em
+ * `PASSO_MOSTRAR_MAIS` para todos. Ações de editar/apagar só existem fora do
+ * readOnly e no período vigente; os guards de lacuna/estado superado ficam nas
+ * actions.
  */
 export function Timeline({
   state,
@@ -409,18 +411,11 @@ export function Timeline({
   readOnly: boolean;
   quitado: boolean;
 }) {
-  const [mostrarTudo, setMostrarTudo] = useState(false);
+  const [limite, setLimite] = useState(LIMITE_POR_PERIODO);
   const grupos = buildTimelineGroups(state);
+  const paginas = paginarGrupos(grupos, limite);
   const podeAgir = !readOnly && !quitado;
-  const totalEventos = grupos.reduce((soma, grupo) => soma + grupo.events.length, 0);
-
-  let restante = mostrarTudo ? Number.POSITIVE_INFINITY : LIMITE_EVENTOS;
-  const gruposVisiveis: typeof grupos = [];
-  for (const grupo of grupos) {
-    const events = grupo.events.slice(0, Math.max(0, restante));
-    restante -= events.length;
-    gruposVisiveis.push({ ...grupo, events });
-  }
+  const temOcultos = paginas.some((grupo) => grupo.ocultos > 0);
 
   return (
     <section className="flex flex-col gap-3">
@@ -430,60 +425,80 @@ export function Timeline({
       ) : (
         <>
           <ol className="flex flex-col rounded-2xl bg-card px-4 py-1 shadow-sm ring-1 ring-foreground/10">
-            {gruposVisiveis.map((grupo, indice) => (
-              <li key={grupo.version} className="relative flex flex-col gap-2 py-3">
-                {indice < gruposVisiveis.length - 1 && (
-                  <span aria-hidden className="absolute left-[15px] top-10 bottom-0 w-px bg-border" />
-                )}
-                <div className="relative flex items-start gap-3">
-                  <TimelineIcon kind={grupo.marco.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium">{grupo.marco.text}</p>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {TIPO_BADGE[grupo.source]}
-                      </span>
-                      {!grupo.atual && (
-                        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-                          período anterior
+            {paginas.map((grupo, indice) => {
+              const { events, ocultos } = grupo;
+              const primeira = indice === 0;
+              const ultima = indice === paginas.length - 1;
+              return (
+                <li key={grupo.version} className="relative flex flex-col gap-2 py-3">
+                  {paginas.length > 1 && (
+                    <span
+                      aria-hidden
+                      className={`absolute left-[15px] w-px bg-border ${
+                        primeira ? 'top-7 bottom-0' : ultima ? 'top-0 h-7' : 'top-0 bottom-0'
+                      }`}
+                    />
+                  )}
+                  <div className="relative z-10 flex items-start gap-3">
+                    <TimelineIcon kind={grupo.marco.kind} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">{grupo.marco.text}</p>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {TIPO_BADGE[grupo.source]}
                         </span>
-                      )}
+                        {!grupo.atual && (
+                          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                            período anterior
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground tabular-nums">{formatDataBr(grupo.marco.data)}</p>
+                      {grupo.resumo && <p className="text-xs text-muted-foreground">{grupo.resumo}</p>}
                     </div>
-                    <p className="text-xs text-muted-foreground tabular-nums">{formatDataBr(grupo.marco.data)}</p>
-                    {grupo.resumo && <p className="text-xs text-muted-foreground">{grupo.resumo}</p>}
                   </div>
-                </div>
-                {grupo.events.length > 0 && (
-                  <ol className="ml-11 flex flex-col rounded-xl bg-muted/30 px-3">
-                    {grupo.events.map((evento) => {
-                      if (evento.kind === 'parcela') {
-                        return (
-                          <ParcelaItem
-                            key={`parcela-${evento.id}`}
-                            event={evento}
-                            podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
-                          />
-                        );
-                      }
-                      if (evento.kind === 'amortizacao') {
-                        return (
-                          <AmortizacaoItem
-                            key={`amortizacao-${evento.id}`}
-                            event={evento}
-                            podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
-                          />
-                        );
-                      }
-                      return null;
-                    })}
-                  </ol>
-                )}
-              </li>
-            ))}
+                  {events.length > 0 && (
+                    <ol className="ml-11 flex flex-col rounded-xl bg-muted/30 px-3">
+                      {events.map((evento) => {
+                        if (evento.kind === 'parcela') {
+                          return (
+                            <ParcelaItem
+                              key={`parcela-${evento.id}`}
+                              event={evento}
+                              podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
+                            />
+                          );
+                        }
+                        if (evento.kind === 'amortizacao') {
+                          return (
+                            <AmortizacaoItem
+                              key={`amortizacao-${evento.id}`}
+                              event={evento}
+                              podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
+                            />
+                          );
+                        }
+                        return null;
+                      })}
+                    </ol>
+                  )}
+                  {events.length === 0 && ocultos > 0 && (
+                    <p className="ml-11 text-xs text-muted-foreground">
+                      {ocultos} {ocultos === 1 ? 'lançamento oculto' : 'lançamentos ocultos'}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ol>
-          {!mostrarTudo && totalEventos > LIMITE_EVENTOS && (
+          {temOcultos && (
             <div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setMostrarTudo(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLimite((atual) => atual + PASSO_MOSTRAR_MAIS)}
+              >
                 Mostrar mais
               </Button>
             </div>
