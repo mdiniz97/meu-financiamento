@@ -419,6 +419,15 @@ export async function editMovement(id: string, patch: EditMovementPatch): Promis
   if (movement.stateId !== data.state.id) {
     return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
   }
+  // Parcela com excedente tem amortização vinculada (groupId): editar só a
+  // parcela deixaria o excedente contado em dobro pelo modelo. A amortização
+  // isolada continua editável.
+  if (movement.type === 'parcela' && movement.groupId) {
+    return {
+      ok: false,
+      error: 'Parcela com amortização extra vinculada não pode ser editada; apague o lançamento e registre novamente',
+    };
+  }
 
   const patchObj = patch ?? {};
   const set: { valor?: number; dataPagamento?: string; origem?: string; modo?: string } = {};

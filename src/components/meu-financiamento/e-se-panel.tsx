@@ -300,7 +300,16 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
             <label htmlFor="aporteExtra" className="text-sm font-medium text-foreground">
               Aporte extra (R$)
             </label>
-            <MoneyInput id="aporteExtra" value={aportePontual} onValid={setAportePontual} className="max-w-56" />
+            <MoneyInput
+              id="aporteExtra"
+              value={aportePontual}
+              onValid={(v) => {
+                setAportePontual(v);
+                setResultado(null);
+                setError('');
+              }}
+              className="max-w-56"
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -308,7 +317,16 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
               <label htmlFor="aporteMensal" className="text-sm font-medium text-foreground">
                 Aporte mensal (R$)
               </label>
-              <MoneyInput id="aporteMensal" value={aporteMensal} onValid={setAporteMensal} className="max-w-56" />
+              <MoneyInput
+                id="aporteMensal"
+                value={aporteMensal}
+                onValid={(v) => {
+                  setAporteMensal(v);
+                  setResultado(null);
+                  setError('');
+                }}
+                className="max-w-56"
+              />
             </div>
             <RadioGroup
               value={modo}

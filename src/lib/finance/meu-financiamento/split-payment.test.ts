@@ -26,6 +26,12 @@ describe('splitPagamento', () => {
     expect(split.amortizacao).toBeCloseTo(0.006, 10);
   });
 
+  it('excedente exatamente de meio centavo fica na parcela (limite é maior que)', () => {
+    const split = splitPagamento(1000, 1000.005);
+    expect(split.parcela).toBeCloseTo(1000.005, 10);
+    expect(split.amortizacao).toBe(0);
+  });
+
   it('valor igual ao projetado mantém a parcela cheia', () => {
     const split = splitPagamento(1000, 1000);
     expect(split.parcela).toBeCloseTo(1000, 10);

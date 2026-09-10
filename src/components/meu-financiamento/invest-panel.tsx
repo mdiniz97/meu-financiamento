@@ -222,7 +222,15 @@ export function InvestPanel({
             <label htmlFor="invPValor" className="text-sm font-medium text-foreground">
               Valor disponível (R$)
             </label>
-            <MoneyInput id="invPValor" value={valor} onValid={setValor} />
+            <MoneyInput
+              id="invPValor"
+              value={valor}
+              onValid={(v) => {
+                setValor(v);
+                setResultado(null);
+                setError('');
+              }}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="invPRendimento" className="text-sm font-medium text-foreground">
@@ -232,7 +240,11 @@ export function InvestPanel({
               id="invPRendimento"
               value={rendimento}
               parse={parseDecimal}
-              onValid={setRendimento}
+              onValid={(v) => {
+                setRendimento(v);
+                setResultado(null);
+                setError('');
+              }}
             />
             <p className="text-xs text-muted-foreground">
               {selicAnnual !== null
@@ -248,7 +260,11 @@ export function InvestPanel({
               id="invPPrazo"
               value={prazoAnos}
               parse={(s) => (s.trim() === '' ? 0 : Number(s.replace(/\D/g, '')))}
-              onValid={setPrazoAnos}
+              onValid={(v) => {
+                setPrazoAnos(v);
+                setResultado(null);
+                setError('');
+              }}
             />
             <p className="text-xs text-muted-foreground">
               O contrato tem {Math.floor(meses / 12)} ano{Math.floor(meses / 12) === 1 ? '' : 's'} de prazo restante
