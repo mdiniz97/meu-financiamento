@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Landmark, PiggyBank } from 'lucide-react';
+import { FilePen, Landmark, PiggyBank } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
@@ -13,6 +13,7 @@ import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
+import { EditContractDialog } from './edit-contract-dialog';
 import { Timeline } from './timeline';
 import { EsePanel } from './e-se-panel';
 import { InvestPanel } from './invest-panel';
@@ -37,6 +38,7 @@ export function Dashboard({
   const primeiraProjetada = parcelas[0] ?? null;
   const [showPay, setShowPay] = useState(false);
   const [recalibrando, setRecalibrando] = useState(false);
+  const [editandoContrato, setEditandoContrato] = useState(false);
   const [amortizando, setAmortizando] = useState(false);
   const [ultimaPaga, setUltimaPaga] = useState<{ numero: number } | null>(null);
   const [desfazendo, setDesfazendo] = useState(false);
@@ -159,7 +161,7 @@ export function Dashboard({
       </section>
 
       {!readOnly && !quitado && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             aria-label="Registrar amortização extra"
@@ -191,6 +193,24 @@ export function Dashboard({
               <span className="font-medium">Recalibrar pelo extrato</span>
               <span id="acao-recalibrar-desc" className="text-xs text-muted-foreground">
                 Corrija o saldo devedor com o valor que aparece no banco.
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Editar contrato"
+            aria-describedby="acao-editar-contrato-desc"
+            onClick={() => setEditandoContrato(true)}
+            className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-[#820AD1]/50 hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <span className="rounded-xl bg-[#820AD1]/10 p-2 text-[#820AD1]">
+              <FilePen className="size-5" />
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-medium">Editar contrato</span>
+              <span id="acao-editar-contrato-desc" className="text-xs text-muted-foreground">
+                Portabilidade, nova taxa ou sistema, acordo de prazo. O passado fica congelado; informe o saldo do
+                extrato.
               </span>
             </span>
           </button>
@@ -376,6 +396,13 @@ export function Dashboard({
       <RecalibrateDialog
         open={recalibrando}
         onOpenChange={setRecalibrando}
+        saldoEfetivo={saldoEfetivo}
+        primeiraPendente={primeiraPendente}
+      />
+      <EditContractDialog
+        open={editandoContrato}
+        onOpenChange={setEditandoContrato}
+        params={params}
         saldoEfetivo={saldoEfetivo}
         primeiraPendente={primeiraPendente}
       />
