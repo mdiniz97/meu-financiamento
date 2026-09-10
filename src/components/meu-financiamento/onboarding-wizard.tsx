@@ -33,6 +33,7 @@ export interface MeuFinanciamentoDraftValues {
   saldoDevedor: string;
   proximaParcelaNumero: string;
   dataBase: string;
+  diaVencimento: string;
 }
 
 export interface MeuFinanciamentoDraft {
@@ -50,7 +51,13 @@ const EMPTY_VALUES: MeuFinanciamentoDraftValues = {
   saldoDevedor: '0,00',
   proximaParcelaNumero: '',
   dataBase: '',
+  diaVencimento: '',
 };
+
+/** Dia (sem zero à esquerda) de uma data ISO válida; '' quando inválida. */
+function diaDaData(iso: string): string {
+  return isValidDateString(iso) ? String(Number(iso.slice(8, 10))) : '';
+}
 
 function strField(raw: unknown, fallback = ''): string {
   return typeof raw === 'string' ? raw : fallback;
@@ -82,6 +89,7 @@ export function sanitizeDraft(raw: unknown): MeuFinanciamentoDraft | null {
       saldoDevedor: money('saldoDevedor'),
       proximaParcelaNumero: strField(v.proximaParcelaNumero),
       dataBase: strField(v.dataBase),
+      diaVencimento: strField(v.diaVencimento),
     },
   };
 }
@@ -130,6 +138,10 @@ function fieldErrors(step: number, values: MeuFinanciamentoDraftValues): Record<
     }
     if (!isValidDateString(values.dataBase)) {
       errors.dataBase = 'Informe a data-base.';
+    }
+    const diaVencimento = parseIntStrict(values.diaVencimento);
+    if (!Number.isInteger(diaVencimento) || diaVencimento < 1 || diaVencimento > 31) {
+      errors.diaVencimento = 'Informe o dia do vencimento (entre 1 e 31).';
     }
   }
   return errors;
@@ -192,6 +204,7 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
     saldoDevedor: parseBRLToNumber(values.saldoDevedor),
     dataBase: values.dataBase,
     proximaParcelaNumero: parseIntStrict(values.proximaParcelaNumero),
+    diaVencimento: parseIntStrict(values.diaVencimento),
   }), [values]);
 
   const parcelasRestantes = contractInput.parcelasTotais - contractInput.proximaParcelaNumero + 1;
@@ -216,10 +229,13 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
       const ultimaParcela = result.installments[result.installments.length - 1];
       // A data-base é a competência da próxima parcela: a última parcela do
       // contrato cai em dataBase + (parcelasTotais - proximaParcelaNumero)
-      // meses (ex.: próxima 121 de 240 com data-base 2026-08 → jul/2036).
+      // meses (ex.: próxima 121 de 240 com data-base 2026-08 → jul/2036),
+      // respeitando o dia do vencimento informado.
+      const dia = parseIntStrict(values.diaVencimento);
       const ultimaData = addMonthsISO(
         values.dataBase,
-        contractInput.parcelasTotais - contractInput.proximaParcelaNumero
+        contractInput.parcelasTotais - contractInput.proximaParcelaNumero,
+        Number.isInteger(dia) && dia >= 1 && dia <= 31 ? dia : undefined,
       );
       return {
         ok: true as const,
@@ -450,19 +466,44 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                   aria-invalid={attempted && Boolean(errors.saldoDevedor)}
                 />
               </FieldHelp>
-              <FieldHelp
-                htmlFor="dataBase"
-                label="Data-base"
-                help="Competência da próxima parcela, no formato dia/mês/ano. Ex.: 01/08/2026."
-              >
-                <Input
-                  id="dataBase"
-                  type="date"
-                  value={values.dataBase}
-                  onChange={(e) => set({ dataBase: e.target.value })}
-                  aria-invalid={attempted && Boolean(errors.dataBase)}
-                />
-              </FieldHelp>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FieldHelp
+                  htmlFor="dataBase"
+                  label="Data-base"
+                  help="Competência da próxima parcela, no formato dia/mês/ano. Ex.: 01/08/2026."
+                >
+                  <Input
+                    id="dataBase"
+                    type="date"
+                    value={values.dataBase}
+                    onChange={(e) => {
+                      const dataBase = e.target.value;
+                      // Default = dia da data-base digitada; preserva o dia que
+                      // o usuário ajustou à mão (diferente do anterior).
+                      const anterior = diaDaData(values.dataBase);
+                      const manter = values.diaVencimento !== '' && values.diaVencimento !== anterior;
+                      set({
+                        dataBase,
+                        diaVencimento: manter ? values.diaVencimento : diaDaData(dataBase),
+                      });
+                    }}
+                    aria-invalid={attempted && Boolean(errors.dataBase)}
+                  />
+                </FieldHelp>
+                <FieldHelp
+                  htmlFor="diaVencimento"
+                  label="Dia do vencimento"
+                  help="Dia do mês em que a parcela vence (1 a 31). Quando o mês não tem o dia, vale o último dia dele."
+                >
+                  <NumericInput
+                    id="diaVencimento"
+                    value={values.diaVencimento === '' ? undefined : parseIntStrict(values.diaVencimento)}
+                    parse={parseIntStrict}
+                    onValid={(v) => set({ diaVencimento: String(v) })}
+                    aria-invalid={attempted && Boolean(errors.diaVencimento)}
+                  />
+                </FieldHelp>
+              </div>
             </div>
           )}
 
@@ -492,6 +533,7 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
                   value={`${parseIntStrict(values.proximaParcelaNumero)} de ${parseIntStrict(values.parcelasTotais)}`}
                 />
                 <SummaryRow label="Data-base" value={formatDataBr(values.dataBase)} />
+                <SummaryRow label="Dia do vencimento" value={String(parseIntStrict(values.diaVencimento))} />
               </dl>
 
               {estimativa?.ok ? (

@@ -1,12 +1,16 @@
 const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DATA_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Soma meses a uma data ISO 'YYYY-MM-DD' preservando o dia (clamp no mês-alvo). */
-export function addMonthsISO(iso: string, months: number): string {
+/** Soma meses a uma data ISO 'YYYY-MM-DD' preservando o dia (clamp no mês-alvo).
+ *  Com `diaVencimento` (1..31), usa esse dia no mês-alvo — clamp para o último
+ *  dia quando ele não existir (ex.: 31 em fevereiro). Sem ele, preserva o dia
+ *  da própria data. */
+export function addMonthsISO(iso: string, months: number, diaVencimento?: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const target = new Date(Date.UTC(y, m - 1 + months, 1));
   const daysInTarget = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  target.setUTCDate(Math.min(d, daysInTarget));
+  const dia = diaVencimento != null && Number.isInteger(diaVencimento) ? diaVencimento : d;
+  target.setUTCDate(Math.min(Math.max(dia, 1), daysInTarget));
   return target.toISOString().slice(0, 10);
 }
 

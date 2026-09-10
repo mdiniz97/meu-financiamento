@@ -17,6 +17,9 @@ export interface Baseline {
   saldoDevedor: number;
   dataBase: string;          // 'YYYY-MM-DD'
   proximaParcelaNumero: number; // 1..parcelasTotais
+  /** Dia do vencimento (1..31) do estado vigente; a projeção financeira não
+   *  depende dele, só a estimativa de data de vencimento na UI. */
+  diaVencimento?: number;
 }
 
 export interface ParcelaPaga {
@@ -60,6 +63,8 @@ export interface ContractInput {
   saldoDevedor: number;
   dataBase: string;
   proximaParcelaNumero: number;
+  /** Dia do vencimento (1..31). */
+  diaVencimento: number;
 }
 
 const DATA_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -75,7 +80,7 @@ export function validateContractInput(p: unknown): { ok: true; value: ContractIn
   const fail = (error: string) => ({ ok: false as const, error });
   if (typeof p !== 'object' || p === null) return fail('Dados do contrato inválidos');
   const o = p as Record<string, unknown>;
-  const { bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero } = o;
+  const { bank, system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero, diaVencimento } = o;
   if (typeof bank !== 'string' || bank.trim().length < 1 || bank.trim().length > 60) return fail('Banco inválido');
   if (system !== 'PRICE' && system !== 'SAC') return fail('Sistema inválido');
   if (typeof annualRate !== 'number' || !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 1) {
@@ -98,10 +103,13 @@ export function validateContractInput(p: unknown): { ok: true; value: ContractIn
     || proximaParcelaNumero < 1 || proximaParcelaNumero > parcelasTotais) {
     return fail('Próxima parcela inválida');
   }
+  if (typeof diaVencimento !== 'number' || !Number.isInteger(diaVencimento) || diaVencimento < 1 || diaVencimento > 31) {
+    return fail('Dia do vencimento inválido');
+  }
   return {
     ok: true,
     value: {
-      bank: bank.trim(), system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero,
+      bank: bank.trim(), system, annualRate, trMonthly, insuranceMonthly, parcelasTotais, saldoDevedor, dataBase, proximaParcelaNumero, diaVencimento,
     },
   };
 }

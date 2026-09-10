@@ -50,12 +50,13 @@ export function Dashboard({
 
   const quitado = state.quitado;
   const hoje = todayISO();
+  const diaVencimento = baseline.diaVencimento ?? Number(baseline.dataBase.slice(8, 10));
 
   const vencimentoEstimado = (parcelaNumero: number) =>
-    addMonthsISO(baseline.dataBase, parcelaNumero - baseline.proximaParcelaNumero);
+    addMonthsISO(baseline.dataBase, parcelaNumero - baseline.proximaParcelaNumero, diaVencimento);
 
   const quitaEmData = quitaEm != null
-    ? addMonthsISO(baseline.dataBase, quitaEm - baseline.proximaParcelaNumero)
+    ? addMonthsISO(baseline.dataBase, quitaEm - baseline.proximaParcelaNumero, diaVencimento)
     : null;
 
   const vencimentoPrimeira = primeiraProjetada ? vencimentoEstimado(primeiraProjetada.parcelaNumero) : null;
@@ -445,6 +446,7 @@ export function Dashboard({
         onOpenChange={setRecalibrando}
         saldoEfetivo={saldoEfetivo}
         primeiraPendente={primeiraPendente}
+        diaVencimento={diaVencimento}
       />
       <EditContractDialog
         open={editandoContrato}
@@ -452,6 +454,7 @@ export function Dashboard({
         params={params}
         saldoEfetivo={saldoEfetivo}
         primeiraPendente={primeiraPendente}
+        diaVencimento={diaVencimento}
       />
       <AmortizacaoDialog open={amortizando} onOpenChange={setAmortizando} />
     </div>

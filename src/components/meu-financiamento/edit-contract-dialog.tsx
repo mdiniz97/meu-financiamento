@@ -39,6 +39,7 @@ function EditContractForm({
   params,
   saldoEfetivo,
   primeiraPendente,
+  diaVencimento,
   pending,
   onPendingChange,
   onClose,
@@ -46,6 +47,7 @@ function EditContractForm({
   params: ContractParams;
   saldoEfetivo: number;
   primeiraPendente: number;
+  diaVencimento: number;
   pending: boolean;
   onPendingChange: (v: boolean) => void;
   onClose: () => void;
@@ -60,6 +62,7 @@ function EditContractForm({
   const [saldoDevedor, setSaldoDevedor] = useState(roundCents(saldoEfetivo));
   const [dataBase, setDataBase] = useState(todayISO());
   const [proximaParcela, setProximaParcela] = useState(primeiraPendente);
+  const [dia, setDia] = useState(diaVencimento);
   const [error, setError] = useState('');
 
   async function handleSubmit() {
@@ -78,6 +81,7 @@ function EditContractForm({
         saldoDevedor,
         dataBase,
         proximaParcelaNumero: proximaParcela,
+        diaVencimento: dia,
       });
     } catch {
       onPendingChange(false);
@@ -102,7 +106,10 @@ function EditContractForm({
     || !Number.isInteger(parcelasTotais) || parcelasTotais < 1 || parcelasTotais > 600
     || !Number.isFinite(saldoDevedor) || saldoDevedor <= 0
     || !dataBase
-    || !Number.isInteger(proximaParcela) || proximaParcela < 1 || proximaParcela > parcelasTotais;
+    || !Number.isInteger(proximaParcela) || proximaParcela < 1 || proximaParcela > parcelasTotais
+    || !Number.isInteger(dia) || dia < 1 || dia > 31;
+
+  const parcelaAnterior = Number.isInteger(proximaParcela) && proximaParcela < primeiraPendente;
 
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -283,6 +290,7 @@ export function EditContractDialog({
   params,
   saldoEfetivo,
   primeiraPendente,
+  diaVencimento,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -292,6 +300,8 @@ export function EditContractDialog({
   saldoEfetivo: number;
   /** Pré-preenchimento de "Número da próxima parcela". */
   primeiraPendente: number;
+  /** Pré-preenchimento de "Dia do vencimento". */
+  diaVencimento: number;
 }) {
   const [pending, setPending] = useState(false);
 
@@ -307,6 +317,7 @@ export function EditContractDialog({
           params={params}
           saldoEfetivo={saldoEfetivo}
           primeiraPendente={primeiraPendente}
+          diaVencimento={diaVencimento}
           pending={pending}
           onPendingChange={setPending}
           onClose={() => onOpenChange(false)}

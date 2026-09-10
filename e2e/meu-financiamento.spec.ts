@@ -93,6 +93,7 @@ async function preencherWizard(page: Page, hoje: string) {
   await page.locator('#proximaParcelaNumero').fill('141');
   await page.locator('#saldoDevedor').fill('100000000');
   await page.locator('#dataBase').fill(hoje);
+  await page.locator('#diaVencimento').fill('10');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Passo 3 de 4')).toBeVisible();
 }
@@ -163,6 +164,7 @@ test('onboarding salva rascunho e continua após reload', async ({ page }) => {
   await page.locator('#proximaParcelaNumero').fill('141');
   await page.locator('#saldoDevedor').fill('100000000');
   await page.locator('#dataBase').fill(todayISO());
+  await page.locator('#diaVencimento').fill('10');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(page.getByText('Passo 3 de 4')).toBeVisible();
   await page.reload();
@@ -203,6 +205,10 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360');
   await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toBeVisible();
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+
+  // Dia do vencimento informado no wizard (10) vale para a estimativa do accordion.
+  await page.getByText('Todas as parcelas', { exact: true }).click();
+  await expect(page.getByText(/Vencimento estimado: 10\//).first()).toBeVisible();
 });
 
 test('accordion "Todas as parcelas" lista o cronograma e carrega mais 24 por vez', async ({ page }) => {

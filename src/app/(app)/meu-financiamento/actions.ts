@@ -157,6 +157,7 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
       saldoDevedor: v.saldoDevedor,
       dataBase: v.dataBase,
       proximaParcelaNumero: v.proximaParcelaNumero,
+      diaVencimento: v.diaVencimento,
       source: 'cadastro',
       bank: v.bank,
       system: v.system,
@@ -329,7 +330,7 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  const { saldoDevedor, dataBase, proximaParcelaNumero } = input ?? {};
+  const { saldoDevedor, dataBase, proximaParcelaNumero, diaVencimento } = input ?? {};
 
   type Outcome = { ok: true } | { ok: false; error: string };
   const outcome = await db.transaction(async (tx): Promise<Outcome> => {
@@ -358,6 +359,10 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       || proximaParcelaNumero < 1 || proximaParcelaNumero > params.parcelasTotais) {
       return { ok: false, error: 'Próxima parcela inválida' };
     }
+    if (typeof diaVencimento !== 'number' || !Number.isInteger(diaVencimento)
+      || diaVencimento < 1 || diaVencimento > 31) {
+      return { ok: false, error: 'Dia do vencimento inválido' };
+    }
     // Guarda de contiguidade: movimentos do estado vigente (o que será
     // superado); lançamentos de estados mais antigos já viraram histórico.
     const movements = await tx
@@ -376,7 +381,8 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
     // (movements do estado superado viram histórico) sem nenhum efeito.
     // Saldo em centavos: valores de ponto flutuante da mesma origem.
     const saldoIgual = Math.round(saldoDevedor * 100) === Math.round(state.saldoDevedor * 100);
-    if (saldoIgual && dataBase === state.dataBase && proximaParcelaNumero === state.proximaParcelaNumero) {
+    if (saldoIgual && dataBase === state.dataBase && proximaParcelaNumero === state.proximaParcelaNumero
+      && diaVencimento === state.diaVencimento) {
       return { ok: false, error: 'Nada a recalibrar: saldo, data-base e próxima parcela já são os atuais' };
     }
 
@@ -399,6 +405,7 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       saldoDevedor,
       dataBase,
       proximaParcelaNumero,
+      diaVencimento,
       source: saldoDevedor === 0 ? 'quitacao' : 'recalibracao',
       bank: params.bank,
       system: params.system,
@@ -471,6 +478,7 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
     const nadaMudou = centsEq(v.saldoDevedor, state.saldoDevedor)
       && v.dataBase === state.dataBase
       && v.proximaParcelaNumero === state.proximaParcelaNumero
+      && v.diaVencimento === state.diaVencimento
       && v.bank === state.bank
       && v.system === state.system
       && rateEq(v.annualRate, state.annualRate)
@@ -504,6 +512,7 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       saldoDevedor: v.saldoDevedor,
       dataBase: v.dataBase,
       proximaParcelaNumero: v.proximaParcelaNumero,
+      diaVencimento: v.diaVencimento,
       source: 'atualizacao',
       bank: v.bank,
       system: v.system,

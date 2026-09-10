@@ -123,6 +123,7 @@ export const contractStates = pgTable('contract_states', {
   saldoDevedor: doublePrecision('saldo_devedor').notNull(),
   dataBase: text('data_base').notNull(), // 'YYYY-MM-DD'
   proximaParcelaNumero: integer('proxima_parcela_numero').notNull(), // 1..parcelasTotais
+  diaVencimento: integer('dia_vencimento').notNull(), // 1..31 (clamp no mês sem o dia)
   source: text('source').notNull(), // 'cadastro' | 'recalibracao' | 'quitacao' | 'atualizacao'
   // Parâmetros contratuais versionados: portabilidade/mudança de taxa ou
   // sistema grava uma versão nova e congela o passado (movements do estado

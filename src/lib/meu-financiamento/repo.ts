@@ -81,6 +81,8 @@ export interface CreateContractInput {
   saldoDevedor: number;
   dataBase: string;
   proximaParcelaNumero: number;
+  /** Dia do vencimento (1..31). */
+  diaVencimento: number;
 }
 
 export interface AmortizacaoInput {
@@ -94,6 +96,8 @@ export interface RecalibrateInput {
   saldoDevedor: number;
   dataBase: string;
   proximaParcelaNumero: number;
+  /** Dia do vencimento (1..31). */
+  diaVencimento: number;
 }
 
 /** Portabilidade/mudança de taxa ou sistema: mesmos campos do cadastro. */
@@ -123,6 +127,7 @@ export function toBaseline(row: ContractState): Baseline {
     saldoDevedor: row.saldoDevedor,
     dataBase: row.dataBase,
     proximaParcelaNumero: row.proximaParcelaNumero,
+    diaVencimento: row.diaVencimento,
   };
 }
 

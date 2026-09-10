@@ -31,12 +31,14 @@ function roundCents(value: number): number {
 function RecalibrateForm({
   saldoEfetivo,
   primeiraPendente,
+  diaVencimento,
   pending,
   onPendingChange,
   onClose,
 }: {
   saldoEfetivo: number;
   primeiraPendente: number;
+  diaVencimento: number;
   pending: boolean;
   onPendingChange: (v: boolean) => void;
   onClose: () => void;
@@ -45,6 +47,7 @@ function RecalibrateForm({
   const [saldoDevedor, setSaldoDevedor] = useState(roundCents(saldoEfetivo));
   const [dataBase, setDataBase] = useState(todayISO());
   const [proximaParcela, setProximaParcela] = useState(primeiraPendente);
+  const [dia, setDia] = useState(diaVencimento);
   const [error, setError] = useState('');
 
   async function handleSubmit() {
@@ -53,7 +56,12 @@ function RecalibrateForm({
     setError('');
     let result;
     try {
-      result = await recalibrate({ saldoDevedor, dataBase, proximaParcelaNumero: proximaParcela });
+      result = await recalibrate({
+        saldoDevedor,
+        dataBase,
+        proximaParcelaNumero: proximaParcela,
+        diaVencimento: dia,
+      });
     } catch {
       onPendingChange(false);
       setError('Sessão expirada, entre novamente');
@@ -69,7 +77,9 @@ function RecalibrateForm({
     onClose();
   }
 
-  const invalido = !dataBase || !Number.isInteger(proximaParcela) || proximaParcela < 1;
+  const invalido = !dataBase
+    || !Number.isInteger(proximaParcela) || proximaParcela < 1
+    || !Number.isInteger(dia) || dia < 1 || dia > 31;
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -86,19 +96,34 @@ function RecalibrateForm({
           </label>
           <MoneyInput id="recSaldo" name="saldoDevedor" value={saldoDevedor} onValid={setSaldoDevedor} disabled={pending} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="recData" className="text-sm font-medium text-foreground">
-            Data-base
-          </label>
-          <Input
-            id="recData"
-            name="dataBase"
-            type="date"
-            value={dataBase}
-            onChange={(e) => setDataBase(e.target.value)}
-            disabled={pending}
-            required
-          />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="recData" className="text-sm font-medium text-foreground">
+              Data-base
+            </label>
+            <Input
+              id="recData"
+              name="dataBase"
+              type="date"
+              value={dataBase}
+              onChange={(e) => setDataBase(e.target.value)}
+              disabled={pending}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="recDia" className="text-sm font-medium text-foreground">
+              Dia do vencimento
+            </label>
+            <NumericInput
+              id="recDia"
+              name="diaVencimento"
+              value={dia}
+              parse={parseIntStrict}
+              onValid={setDia}
+              disabled={pending}
+            />
+          </div>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="recParcela" className="text-sm font-medium text-foreground">
@@ -151,6 +176,7 @@ export function RecalibrateDialog({
   onOpenChange,
   saldoEfetivo,
   primeiraPendente,
+  diaVencimento,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -158,6 +184,8 @@ export function RecalibrateDialog({
   saldoEfetivo: number;
   /** Pré-preenchimento de "Número da próxima parcela". */
   primeiraPendente: number;
+  /** Pré-preenchimento de "Dia do vencimento". */
+  diaVencimento: number;
 }) {
   const [pending, setPending] = useState(false);
 
@@ -172,6 +200,7 @@ export function RecalibrateDialog({
         <RecalibrateForm
           saldoEfetivo={saldoEfetivo}
           primeiraPendente={primeiraPendente}
+          diaVencimento={diaVencimento}
           pending={pending}
           onPendingChange={setPending}
           onClose={() => onOpenChange(false)}

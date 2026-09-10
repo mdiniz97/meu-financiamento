@@ -146,7 +146,7 @@ describe('validateContractInput', () => {
   const VALID = {
     bank: 'Caixa', system: 'PRICE', annualRate: 0.105, trMonthly: 0.0017,
     insuranceMonthly: 100, parcelasTotais: 360, saldoDevedor: 1000000,
-    dataBase: '2026-09-08', proximaParcelaNumero: 141,
+    dataBase: '2026-09-08', proximaParcelaNumero: 141, diaVencimento: 10,
   };
 
   it('aceita payload válido de cadastro', () => {
@@ -210,5 +210,13 @@ describe('validateContractInput', () => {
     expect(validateContractInput(null).ok).toBe(false);
     expect(validateContractInput({ ...VALID, annualRate: NaN }).ok).toBe(false);
     expect(validateContractInput({ ...VALID, insuranceMonthly: '100' }).ok).toBe(false);
+  });
+
+  it('recusa dia do vencimento fora de 1..31, fracionário ou ausente', () => {
+    expect(validateContractInput({ ...VALID, diaVencimento: 0 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, diaVencimento: 32 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, diaVencimento: 10.5 }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, diaVencimento: '10' }).ok).toBe(false);
+    expect(validateContractInput({ ...VALID, diaVencimento: undefined }).ok).toBe(false);
   });
 });

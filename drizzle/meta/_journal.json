@@ -50,6 +50,13 @@
       "when": 1789044075183,
       "tag": "0006_contract_states_params",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789050770347,
+      "tag": "0007_contract_states_dia_vencimento",
+      "breakpoints": true
     }
   ]
 }

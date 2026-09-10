@@ -40,12 +40,12 @@ interface Ordenavel {
  * resolve pela data do lançamento.
  */
 export function buildCronograma(
-  baseline: Pick<Baseline, 'dataBase' | 'proximaParcelaNumero'>,
+  baseline: Pick<Baseline, 'dataBase' | 'proximaParcelaNumero' | 'diaVencimento'>,
   projecao: Pick<Projecao, 'parcelas'>,
   historico: { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] },
 ): CronogramaLinha[] {
   const vencimento = (numero: number) =>
-    addMonthsISO(baseline.dataBase, numero - baseline.proximaParcelaNumero);
+    addMonthsISO(baseline.dataBase, numero - baseline.proximaParcelaNumero, baseline.diaVencimento);
   const pagasPorNumero = new Map(historico.pagas.map((p) => [p.parcelaNumero, p]));
   const projetadasPorNumero = new Map(projecao.parcelas.map((p) => [p.parcelaNumero, p]));
   const numeros = new Set<number>([
