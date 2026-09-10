@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
-import { projecao } from './model';
+import { simulate } from '../engine';
+import { projecao, toLoanInput } from './model';
 import type { AmortizacaoExtra, Baseline, ContractParams, ParcelaPaga } from './model';
-import { economiaAmortizacoes } from './economia';
+import { economiaAmortizacoes, economiaDoAporte, limiarParcelaEngine } from './economia';
 
 const PARAMS: ContractParams = {
   bank: 'Caixa', system: 'PRICE', annualRate: 0.105, trMonthly: 0.0017,
@@ -72,4 +73,39 @@ it('extras que zeram o saldo não produzem NaN nem economia negativa', () => {
 
 it('baseline já quitado (saldo 0) retorna 0', () => {
   expect(economiaAmortizacoes(PARAMS, { ...BASELINE, saldoDevedor: 0 }, [], [TERM_100K])).toBe(0);
+});
+
+it('economiaDoAporte é a diferença de totalPago do cenário (métrica do E se?)', () => {
+  // Cenário do diagnóstico: parcela 206/360, saldo R$ 597.736,77, aporte de
+  // R$ 1.814,85. O E se? mostra R$ 6.775,64.
+  const baseline: Baseline = { version: 1, saldoDevedor: 597736.77, dataBase: '2026-09-08', proximaParcelaNumero: 206 };
+  const input = toLoanInput(PARAMS, baseline);
+  const estrategias = { extraLumpSum: [{ month: 1, amount: 1814.85, reduceMode: 'term' as const }], reduceMode: 'term' as const };
+  const esperado = simulate(input).metrics.totalPago - simulate(input, estrategias).metrics.totalPago;
+  expect(economiaDoAporte(input, 1814.85)).toBeCloseTo(esperado, 6);
+  expect(economiaDoAporte(input, 1814.85)).toBeCloseTo(6775.64, 2);
+});
+
+it('economiaDoAporte nunca é negativa e respeita o modo', () => {
+  const input = toLoanInput(PARAMS, BASELINE);
+  expect(economiaDoAporte(input, 0)).toBe(0);
+  expect(economiaDoAporte(input, 100000, 'payment')).toBeGreaterThan(0);
+});
+
+it('limiarParcelaEngine corta exatamente 1 e o centavo anterior não', () => {
+  const input = toLoanInput(PARAMS, BASELINE);
+  const base = simulate(input).metrics.saldoZeroAt;
+  const limiar = limiarParcelaEngine(input);
+  expect(limiar).not.toBeNull();
+  const com = simulate(input, { extraLumpSum: [{ month: 1, amount: limiar!, reduceMode: 'term' }], reduceMode: 'term' });
+  expect(com.metrics.saldoZeroAt).toBe(base - 1);
+  const anterior = simulate(input, { extraLumpSum: [{ month: 1, amount: limiar! - 0.01, reduceMode: 'term' }], reduceMode: 'term' });
+  expect(anterior.metrics.saldoZeroAt).toBe(base);
+  // Valor do cenário padrão (mesma posição da sugestão): R$ 370,82.
+  expect(limiar).toBeCloseTo(370.82, 2);
+});
+
+it('limiarParcelaEngine retorna null sem principal', () => {
+  const input = toLoanInput(PARAMS, BASELINE);
+  expect(limiarParcelaEngine({ ...input, principal: 0 })).toBeNull();
 });

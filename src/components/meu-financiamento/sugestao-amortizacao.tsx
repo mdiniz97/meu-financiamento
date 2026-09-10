@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { simulate } from '@/lib/finance/engine';
+import { projecao, toLoanInput } from '@/lib/finance/meu-financiamento/model';
 import type {
   AmortizacaoExtra,
   Baseline,
@@ -10,7 +12,7 @@ import type {
   Projecao,
 } from '@/lib/finance/meu-financiamento/model';
 import { limiarUmaParcela } from '@/lib/finance/meu-financiamento/sugestao';
-import { economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
+import { economiaDoAporte, limiarParcelaEngine } from '@/lib/finance/meu-financiamento/economia';
 import { todayISO } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 
@@ -22,7 +24,7 @@ interface Opcao {
   /** Sufixo do aria-label "Aplicar ..." (labels E2E estáveis). */
   aria: string;
   aporte: number;
-  /** Economia total (encargos evitados) da ação completa: parcela + aporte. */
+  /** Economia total (métrica do E se?) da ação completa: parcela + aporte. */
   economia: number;
 }
 
@@ -32,9 +34,9 @@ function roundCents(value: number): number {
 
 /**
  * Sugestão de amortização junto com a parcela do mês: ideal calculado (menor
- * aporte que corta 1 parcela), meia parcela e parcela extra, cada um com a
- * economia total (encargos evitados, mesma métrica do simulador) da ação real
- * (parcela + aporte). "Aplicar" abre o pagamento inline preenchido com o
+ * aporte que corta 1 parcela na tela E no painel "E se?"), meia parcela e
+ * parcela extra, cada um com a economia total do MESMO helper do E se?
+ * (`economiaDoAporte`). "Aplicar" abre o pagamento inline preenchido com o
  * aporte explícito no modo "Reduziu o prazo".
  */
 export function SugestaoAmortizacao({
@@ -55,32 +57,60 @@ export function SugestaoAmortizacao({
   const hoje = todayISO();
   const opcoes = useMemo(() => {
     const primeira = atual.parcelas[0];
-    if (!primeira) return [];
-    // O fluxo real paga a parcela do mês JUNTO com o aporte e o form aplica
-    // `roundCents(parcela) + aporte`; o extra efetivo leva o desvio desse
-    // arredondamento para o efeito exibido bater com o aplicado.
+    const meses = params.parcelasTotais - atual.primeiraPendente + 1;
+    if (!primeira || atual.saldoEfetivo <= 0 || meses < 1) return [];
+
+    // Posição vigente com a MESMA base do painel E se? (saldo efetivo e meses
+    // restantes), para economia e limiar serem idênticos aos de lá.
+    const input = {
+      ...toLoanInput(params, baseline),
+      principal: atual.saldoEfetivo,
+      months: meses,
+    };
+    // O form aplica `roundCents(parcela) + aporte`; o extra efetivo no model
+    // leva o desvio desse arredondamento.
+    const desvio = roundCents(primeira.parcela) - primeira.parcela;
     const pagasComParcela: ParcelaPaga[] = [
       ...pagas,
       { parcelaNumero: primeira.parcelaNumero, valor: primeira.parcela, dataPagamento: hoje },
     ];
-    const desvio = roundCents(primeira.parcela) - primeira.parcela;
-    const economiaDoAporte = (aporte: number): number => {
-      const aporteExtra: AmortizacaoExtra = {
-        dataPagamento: hoje,
-        valor: aporte + desvio,
-        origem: 'proprio',
-        modo: 'term',
-      };
-      // Economia MARGINAL da opção: desconta a economia já atribuída aos extras
-      // existentes (senão a opção herdaria a economia de aportes antigos).
-      return economiaAmortizacoes(params, baseline, pagasComParcela, [...extras, aporteExtra])
-        - economiaAmortizacoes(params, baseline, pagasComParcela, extras);
-    };
+    const aporteModelo = (valor: number): AmortizacaoExtra => ({
+      dataPagamento: hoje,
+      valor: valor + desvio,
+      origem: 'proprio',
+      modo: 'term',
+    });
 
-    const limiar = limiarUmaParcela(params, baseline, pagas, extras);
+    // Ideal: precisa cortar 1 parcela na TELA (model: parcela paga + aporte) e
+    // no E se? (engine: aporte pontual). O maior dos dois limiares mínimos
+    // satisfaz ambos por monotonicidade; valida e soma centavos se necessário.
+    const limiarModelo = limiarUmaParcela(params, baseline, pagas, extras);
+    const limiarEngine = limiarParcelaEngine(input);
+    let ideal: number | null = null;
+    if (limiarModelo != null && limiarEngine != null) {
+      const baseModelo = projecao(params, baseline, pagasComParcela, extras).quitaEm;
+      const baseEngineZero = simulate(input).metrics.saldoZeroAt;
+      const modeloCorta = (valor: number): boolean => {
+        if (baseModelo == null) return false;
+        const comAporte = projecao(params, baseline, pagasComParcela, [...extras, aporteModelo(valor)]);
+        if (comAporte.saldoEfetivo === 0) return true;
+        return comAporte.quitaEm != null && comAporte.quitaEm <= baseModelo - 1;
+      };
+      const engineCorta = (valor: number): boolean =>
+        simulate(input, {
+          extraLumpSum: [{ month: 1, amount: valor, reduceMode: 'term' }],
+          reduceMode: 'term',
+        }).metrics.saldoZeroAt < baseEngineZero;
+      let candidato = Math.ceil(Math.max(limiarModelo, limiarEngine) * 100) / 100;
+      for (let tentativa = 0; tentativa < 20 && (!modeloCorta(candidato) || !engineCorta(candidato)); tentativa += 1) {
+        candidato = roundCents(candidato + 0.01);
+      }
+      if (modeloCorta(candidato) && engineCorta(candidato)) ideal = candidato;
+    }
+
     const candidatas: Omit<Opcao, 'economia'>[] = [];
-    if (limiar != null) {
-      candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: limiar });
+    if (ideal != null) {
+      candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: ideal });
     }
     candidatas.push({
       id: 'meia',
@@ -94,7 +124,10 @@ export function SugestaoAmortizacao({
       aria: 'parcela extra',
       aporte: roundCents(primeira.parcela),
     });
-    return candidatas.map((candidata) => ({ ...candidata, economia: economiaDoAporte(candidata.aporte) }));
+    return candidatas.map((candidata) => ({
+      ...candidata,
+      economia: economiaDoAporte(input, candidata.aporte, 'term'),
+    }));
   }, [params, baseline, pagas, extras, atual, hoje]);
 
   return (

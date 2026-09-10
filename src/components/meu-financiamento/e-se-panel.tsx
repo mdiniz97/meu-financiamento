@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Zap } from 'lucide-react';
 import { simulate } from '@/lib/finance/engine';
+import { economiaDoAporte } from '@/lib/finance/meu-financiamento/economia';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 import type { ContractParams, Projecao } from '@/lib/finance/meu-financiamento/model';
 import { Button } from '@/components/ui/button';
@@ -105,12 +106,13 @@ function estrategiasMensal(parcelaAtual: number, valor: number, modo: ModoReduca
  * Menor valor (na grade de centavos) a partir do aporte informado que muda o
  * prazo (quitação abaixo da exibida pelo dashboard) ou o total pago em mais de
  * um centavo. Busca linear limitada: passos de um centavo (ou 25% do aporte
- * para valores grandes), até 5x o aporte.
+ * para valores grandes), até 5x o aporte. A economia vem de `economiaDe`, o
+ * mesmo helper (`economiaDoAporte`) usado pela sugestão de amortização.
  */
 function buscarMinimoComEfeito(
   cenarioDe: (valor: number) => SimulationResult,
+  economiaDe: (valor: number) => number,
   aporte: number,
-  base: SimulationResult,
   quitaEmProjecao: number,
   meses: number,
   primeiraPendente: number,
@@ -126,7 +128,7 @@ function buscarMinimoComEfeito(
     testadoAte = valor;
     const cenario = cenarioDe(valor);
     const quita = Math.min(parcelaDeQuitacao(cenario, meses, primeiraPendente), quitaEmProjecao);
-    const economia = base.metrics.totalPago - cenario.metrics.totalPago;
+    const economia = economiaDe(valor);
     if (quita < quitaEmProjecao || economia > LIMIAR_EFEITO) {
       minimo = valor;
       break;
@@ -211,15 +213,20 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
     const estrategiasDe = tipo === 'pontual'
       ? estrategiasPontual
       : (valor: number) => estrategiasMensal(parcelaAtual, valor, modo);
+    // Aporte pontual usa o helper compartilhado com a sugestão (métrica
+    // idêntica por construção); o aporte mensal (fixedPayment) não é lump sum.
+    const economiaDe = tipo === 'pontual'
+      ? (valor: number) => economiaDoAporte(input, valor, 'term')
+      : (valor: number) => Math.max(0, base.metrics.totalPago - simulate(input, estrategiasDe(valor)).metrics.totalPago);
 
     try {
       const cenario = simulate(input, estrategiasDe(aporte));
       // Cenário nunca quita depois do que o model já projetou para o estado.
       const quita = Math.min(parcelaDeQuitacao(cenario, meses, primeiraPendente), Y);
-      const economia = Math.max(0, base.metrics.totalPago - cenario.metrics.totalPago);
+      const economia = economiaDe(aporte);
 
       if (quita === Y && economia <= LIMIAR_EFEITO) {
-        const busca = buscarMinimoComEfeito((valor) => simulate(input, estrategiasDe(valor)), aporte, base, Y, meses, primeiraPendente);
+        const busca = buscarMinimoComEfeito((valor) => simulate(input, estrategiasDe(valor)), economiaDe, aporte, Y, meses, primeiraPendente);
         setResultado({ tipo: 'honesto', minimo: busca.minimo, testadoAte: busca.testadoAte });
         return;
       }
