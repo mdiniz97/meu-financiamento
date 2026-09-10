@@ -744,6 +744,37 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
 });
 
+test('editar contrato recusa submit quando outra aba muda o estado', async ({ page, context }) => {
+  const conta = await criarConta(page, 'Edição Concorrente');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+
+  // Dialog aberto com o snapshot da pendente 142 (versão vigente).
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.locator('#editParcela')).toHaveValue('142');
+
+  // Outra aba paga a 142 depois do dialog aberto: o servidor já vê a 143.
+  const outra = await context.newPage();
+  await outra.goto('/meu-financiamento');
+  await expect(outra.locator('[data-month-action]')).toContainText('Parcela 142 de 360', { timeout: 60_000 });
+  await pagarProxima(outra);
+  await expect(outra.locator('[data-month-action]')).toContainText('Parcela 143 de 360', { timeout: 20_000 });
+  await outra.close();
+
+  // Submit com o snapshot velho: recusa e NÃO apaga o pagamento recém-criado.
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog.getByText('O contrato mudou desde que você abriu; reabra e confira os dados')).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 143 de 360', { timeout: 30_000 });
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico.getByText(/Parcela 142 ·/)).toBeVisible();
+});
+
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
   const conta = await criarConta(page, 'Data Futura');
   await assinar(page, conta.id);

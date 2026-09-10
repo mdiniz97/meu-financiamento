@@ -100,8 +100,14 @@ export interface RecalibrateInput {
   diaVencimento: number;
 }
 
-/** Portabilidade/mudança de taxa ou sistema: mesmos campos do cadastro. */
-export type UpdateContractInput = CreateContractInput;
+/** Portabilidade/mudança de taxa ou sistema: mesmos campos do cadastro + os
+ *  snapshots que o dialog de edição leu na abertura (guarda de concorrência). */
+export type UpdateContractInput = CreateContractInput & {
+  /** Versão do baseline vigente lida pelo dialog. */
+  stateVersion: number;
+  /** Primeira parcela pendente lida pelo dialog. */
+  primeiraPendente: number;
+};
 
 export interface EditMovementPatch {
   valor?: number;

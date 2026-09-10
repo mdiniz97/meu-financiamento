@@ -77,6 +77,11 @@ export function sanitizeDraft(raw: unknown): MeuFinanciamentoDraft | null {
     const s = strField(v[key]);
     return s.trim() === '' ? '0,00' : s;
   };
+  const dataBase = strField(v.dataBase);
+  const diaVencimento = strField(v.diaVencimento);
+  // Rascunho antigo (criado antes do campo existir): deriva o dia da data-base
+  // para o passo 3/4 continuar projetando; sem data-base, default 1.
+  const diaDerivado = isValidDateString(dataBase) ? String(Number(dataBase.slice(8, 10))) : '1';
   return {
     step,
     values: {
@@ -88,8 +93,8 @@ export function sanitizeDraft(raw: unknown): MeuFinanciamentoDraft | null {
       parcelasTotais: strField(v.parcelasTotais),
       saldoDevedor: money('saldoDevedor'),
       proximaParcelaNumero: strField(v.proximaParcelaNumero),
-      dataBase: strField(v.dataBase),
-      diaVencimento: strField(v.diaVencimento),
+      dataBase,
+      diaVencimento: diaVencimento.trim() === '' ? diaDerivado : diaVencimento,
     },
   };
 }

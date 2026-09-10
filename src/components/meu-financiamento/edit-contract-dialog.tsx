@@ -40,6 +40,7 @@ function EditContractForm({
   saldoEfetivo,
   primeiraPendente,
   diaVencimento,
+  stateVersion,
   pending,
   onPendingChange,
   onClose,
@@ -48,6 +49,7 @@ function EditContractForm({
   saldoEfetivo: number;
   primeiraPendente: number;
   diaVencimento: number;
+  stateVersion: number;
   pending: boolean;
   onPendingChange: (v: boolean) => void;
   onClose: () => void;
@@ -83,6 +85,8 @@ function EditContractForm({
         dataBase,
         proximaParcelaNumero: proximaParcela,
         diaVencimento: dia,
+        stateVersion,
+        primeiraPendente,
       });
     } catch {
       onPendingChange(false);
@@ -328,6 +332,7 @@ export function EditContractDialog({
   saldoEfetivo,
   primeiraPendente,
   diaVencimento,
+  stateVersion,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -339,6 +344,8 @@ export function EditContractDialog({
   primeiraPendente: number;
   /** Pré-preenchimento de "Dia do vencimento". */
   diaVencimento: number;
+  /** Versão do baseline vigente (guarda de concorrência contra outra aba). */
+  stateVersion: number;
 }) {
   const [pending, setPending] = useState(false);
 
@@ -355,6 +362,7 @@ export function EditContractDialog({
           saldoEfetivo={saldoEfetivo}
           primeiraPendente={primeiraPendente}
           diaVencimento={diaVencimento}
+          stateVersion={stateVersion}
           pending={pending}
           onPendingChange={setPending}
           onClose={() => onOpenChange(false)}

@@ -20,6 +20,7 @@ import { todayISO } from '@/lib/meu-financiamento/dates';
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 const NAO_AMORTIZA = 'Dados não amortizam no modelo; revise taxa, TR e prazo';
+const CONTRATO_MUDOU = 'O contrato mudou desde que você abriu; reabra e confira os dados';
 
 /** Dry-run da projeção sobre o baseline proposto com o estado novo vazio
  *  (movimentos de estados superados nunca são reaplicados). A engine rejeita
@@ -447,6 +448,12 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
   const parsed = validateContractInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const v = parsed.value;
+  const { stateVersion, primeiraPendente: primeiraPendenteSnapshot } = input ?? {};
+  if (typeof stateVersion !== 'number' || !Number.isInteger(stateVersion) || stateVersion < 1
+    || typeof primeiraPendenteSnapshot !== 'number' || !Number.isInteger(primeiraPendenteSnapshot)
+    || primeiraPendenteSnapshot < 1) {
+    return { ok: false, error: 'Versão do contrato inválida' };
+  }
 
   // Portabilidade, mudança de taxa/sistema ou acordo de prazo: grava uma
   // versão nova do baseline com os parâmetros novos. Os movements do estado
@@ -466,6 +473,10 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       .orderBy(desc(schema.contractStates.version))
       .limit(1);
     if (!state) return { ok: false, error: 'Contrato sem estado' };
+    // Guarda de concorrência do dialog: a versão do baseline lida na abertura
+    // divergiu (outra aba recalibrou/editou) — recusar evita gravar por cima de
+    // um estado que o usuário não viu.
+    if (state.version !== stateVersion) return { ok: false, error: CONTRATO_MUDOU };
     // Contrato quitado não é editável pela UI; reativar saldo tem fluxo
     // próprio (recalibrar pelo extrato), que grava source 'recalibracao'.
     if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
@@ -486,6 +497,10 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       ));
     const { pagas } = splitMovements(movements);
     const primeira = primeiraPendente(toContractParams(state), baseline, pagas);
+    // A primeira pendente lida pelo dialog divergiu (outra aba pagou/desfez):
+    // o dialog pode não ter exibido o aviso destrutivo para uma edição que, no
+    // servidor, apagaria o lançamento recém-criado. Recusar força reabrir.
+    if (primeira !== primeiraPendenteSnapshot) return { ok: false, error: CONTRATO_MUDOU };
     const retroativo = v.proximaParcelaNumero < primeira;
 
     // Paridade total: gravar versão nova sem nenhuma mudança esconderia os

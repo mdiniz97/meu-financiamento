@@ -455,6 +455,7 @@ export function Dashboard({
         saldoEfetivo={saldoEfetivo}
         primeiraPendente={primeiraPendente}
         diaVencimento={diaVencimento}
+        stateVersion={baseline.version}
       />
       <AmortizacaoDialog open={amortizando} onOpenChange={setAmortizando} />
     </div>
