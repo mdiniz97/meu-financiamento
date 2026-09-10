@@ -112,17 +112,19 @@ function amanhaISO(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// O cabeçalho do dashboard e o banner de estado expõem "Recalibrar saldo"
-// quando o banner está visível; os fluxos de teste clicam o CTA do banner.
+// O banner de estado expõe "Recalibrar saldo" quando visível; os fluxos de
+// teste clicam o CTA do banner (o botão "Recalibrar pelo extrato" fica na faixa
+// de ações do topo).
 const recalibrarNoBanner = (page: Page): Locator =>
   page.locator('[data-state-banner]').getByRole('button', { name: 'Recalibrar saldo', exact: true });
 
-/** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado. */async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
+/** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado. */
+async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
   const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
-  if (extraReais > 0) {
+  if (extraReais !== 0) {
     await box.locator('#payValor').fill(centsOf(sugestao + extraReais));
   }
   await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
@@ -231,8 +233,9 @@ test('pagamento divergente sugere recalibração e o banner some após recalibra
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
 
-  // Parcela 142 com R$ 500 além do projetado: o modelo diverge do extrato.
-  await pagarProxima(page, 500);
+  // Parcela 142 com R$ 500 A MENOS que o projetado: pagamento parcial, o
+  // modelo diverge do extrato.
+  await pagarProxima(page, -500);
   await expect(proximaCard(page)).toContainText('Parcela 143 de 360', { timeout: 20_000 });
   await expect(page.getByText(/divergem do modelo/)).toBeVisible({ timeout: 20_000 });
   const saldoDivergente = parseBRL(await saldoCard(page).innerText());
@@ -243,14 +246,14 @@ test('pagamento divergente sugere recalibração e o banner some após recalibra
   await expect(dialog.locator('#recData')).toHaveValue(todayISO());
   await expect(dialog.locator('#recParcela')).toHaveValue('143');
   // O extrato do banco: o próprio saldo efetivo do modelo após os pagamentos
-  // (os R$ 500 a mais já abateram o principal no modelo).
+  // (o parcial de R$ 500 a menos já deixou o principal maior no modelo).
   await expect(parseBRL(await dialog.locator('#recSaldo').inputValue())).toBeCloseTo(saldoDivergente, 2);
   await dialog.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
 
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0, { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 143 de 360', { timeout: 20_000 });
-  // espera o refresh refletir o saldo recalibrado (R$ 500 a mais já abateram
-  // o principal no modelo; o extrato informado foi o próprio saldo efetivo)
+  // espera o refresh refletir o saldo recalibrado (o extrato informado foi o
+  // próprio saldo efetivo do modelo após o pagamento parcial)
   await expect
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(saldoDivergente, 2);
@@ -258,6 +261,48 @@ test('pagamento divergente sugere recalibração e o banner some após recalibra
   // superado saem do histórico exibido (já incorporados no novo saldo).
   await expect(page.getByText(/Saldo recalibrado pelo extrato/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toHaveCount(0);
+});
+
+test('excedente do pagamento vira amortização extra vinculada e desfazer apaga o grupo', async ({ page }) => {
+  const conta = await criarConta(page, 'Excedente do Pagamento');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
+  const box = page.locator('[data-pay-installment]');
+  await expect(box).toBeVisible();
+  const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
+  await box.locator('#payValor').fill(centsOf(sugestao + 500));
+
+  // Split em tempo real: parcela + amortização extra, modo default e nota.
+  await expect(box.getByText(/Parcela .* \+ amortização extra/)).toBeVisible();
+  await expect(box.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
+  await expect(box.getByText(/O excedente será registrado como amortização extra/)).toBeVisible();
+
+  await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(box).toHaveCount(0, { timeout: 20_000 });
+
+  // Excedente vira amortização: sem banner de divergência e com os dois
+  // eventos na timeline.
+  await expect(page.getByText(/Parcela 141 paga em/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
+
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
+  await expect(historico).toContainText('Dinheiro próprio');
+  await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
+  await expect(historico).toContainText(/R\$\s*500,00/);
+  await expect(historico).toContainText(/Parcela 141 ·/);
+
+  // Desfazer a parcela apaga o grupo inteiro (parcela + amortização extra).
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+
+  await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Sua parcela deste mês', exact: true })).toBeVisible();
+  await expect(historico).not.toContainText('Amortização extra');
+  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
 
 test('amortização extra modo term encurta a quitação e aparece no histórico', async ({ page }) => {
@@ -268,7 +313,7 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   const quitacaoAntes = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   expect(quitacaoAntes).toBe(360);
 
-  await page.getByRole('button', { name: 'Registrei amortização', exact: true }).click();
+  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('#amortValor').fill('10000000');
@@ -323,9 +368,10 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
   for (const name of [
     'Paguei esta parcela',
     'Confirmar pagamento',
-    'Registrei amortização',
+    'Registrar amortização extra',
     'Confirmar amortização',
     'Recalibrar saldo',
+    'Recalibrar pelo extrato',
     'Confirmar recalibração',
     'Desfazer',
     'Editar',
@@ -397,7 +443,7 @@ test('amortização do saldo inteiro zera o modelo, mostra o aviso âmbar e reca
 
   // Lançamento equivocado: amortização pelo saldo devedor inteiro. O contrato
   // segue ativo no banco (baseline R$ 1.000.000), só o MODELO zera.
-  await page.getByRole('button', { name: 'Registrei amortização', exact: true }).click();
+  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('#amortValor').fill('100000000');
@@ -431,7 +477,7 @@ test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa
   // Cria divergência para o banner de recalibração aparecer.
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
-  await pagarProxima(page, 500);
+  await pagarProxima(page, -500);
   await expect(page.getByText(/divergem do modelo/)).toBeVisible({ timeout: 20_000 });
 
   // Extrato (equivocado) informa saldo R$ 0: contrato vira quitado no banco.
@@ -470,7 +516,7 @@ test('amortização com data futura é recusada sem gravar lançamento', async (
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  await page.getByRole('button', { name: 'Registrei amortização', exact: true }).click();
+  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('#amortValor').fill('10000000');
