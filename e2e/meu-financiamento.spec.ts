@@ -697,6 +697,39 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await expect(page.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toHaveCount(0);
 });
 
+test('editar contrato aceita parcela anterior à pendente e mantém o histórico', async ({ page }) => {
+  const conta = await criarConta(page, 'Editar Retroativo');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  // Paga a 141: o lançamento vira histórico quando a edição superar o estado.
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  const saldoAntes = parseBRL(await saldoCard(page).innerText());
+
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('#editParcela')).toHaveValue('142');
+  await expect(dialog.locator('#editDia')).toHaveValue('10');
+  await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(saldoAntes, 2);
+
+  // Parcela 141, anterior à pendente (142): aceita com o aviso de histórico.
+  await dialog.locator('#editParcela').fill('141');
+  await expect(
+    dialog.getByText('Os lançamentos posteriores a essa parcela ficam apenas como histórico e não entram no cálculo.'),
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+
+  // A página volta a mostrar a parcela 141 e a timeline preserva o passado.
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+});
+
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
   const conta = await criarConta(page, 'Data Futura');
   await assinar(page, conta.id);

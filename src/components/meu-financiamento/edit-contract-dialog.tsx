@@ -243,19 +243,40 @@ function EditContractForm({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="editParcela" className="text-sm font-medium text-foreground">
-                Número da próxima parcela
+              <label htmlFor="editDia" className="text-sm font-medium text-foreground">
+                Dia do vencimento
               </label>
               <NumericInput
-                id="editParcela"
-                name="proximaParcelaNumero"
-                value={proximaParcela}
+                id="editDia"
+                name="diaVencimento"
+                value={dia}
                 parse={parseIntStrict}
-                onValid={setProximaParcela}
+                onValid={setDia}
                 disabled={pending}
               />
             </div>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="editParcela" className="text-sm font-medium text-foreground">
+              Número da próxima parcela
+            </label>
+            <NumericInput
+              id="editParcela"
+              name="proximaParcelaNumero"
+              value={proximaParcela}
+              parse={parseIntStrict}
+              onValid={setProximaParcela}
+              disabled={pending}
+            />
+          </div>
+          {parcelaAnterior && (
+            <p
+              role="status"
+              className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+            >
+              Os lançamentos posteriores a essa parcela ficam apenas como histórico e não entram no cálculo.
+            </p>
+          )}
           <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
             A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.
           </p>

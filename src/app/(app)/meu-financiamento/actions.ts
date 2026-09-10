@@ -455,18 +455,9 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
     const baseline = toBaseline(state);
     if (v.dataBase < baseline.dataBase) return { ok: false, error: 'Data-base anterior à vigente' };
 
-    // Guarda de contiguidade: movimentos do estado vigente (o que será
-    // superado); lançamentos de estados mais antigos já viraram histórico.
-    const movements = await tx
-      .select()
-      .from(schema.movements)
-      .where(and(
-        eq(schema.movements.contractId, contract.id),
-        eq(schema.movements.stateId, state.id),
-      ));
-    const { pagas } = splitMovements(movements);
-    const primeira = primeiraPendente(toContractParams(state), baseline, pagas);
-    if (v.proximaParcelaNumero < primeira) return { ok: false, error: 'Parcela anterior à pendente' };
+    // Sem guarda de contiguidade: a parcela pode ser ANTERIOR à pendente (ex.:
+    // corrigir a competência informada). Os movements do estado superado viram
+    // histórico congelado e não entram no cálculo do baseline novo.
 
     // Paridade total: gravar versão nova sem nenhuma mudança esconderia os
     // lançamentos do usuário (movements do estado superado viram histórico)
