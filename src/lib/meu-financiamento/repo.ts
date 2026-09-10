@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import type { Contract, ContractState, Movement } from '@/db/schema';
 import { isUnlimited } from './auth';
@@ -21,6 +21,17 @@ export interface ContractData {
 export interface ContractBundle extends ContractData {
   contract: Contract;
   state: ContractState;
+  /** Todos os baselines do contrato em ordem de versão (histórico da timeline). */
+  states: ContractState[];
+}
+
+/** Baseline serializável para a timeline (createdAt como ISO string). */
+export interface ContractStateSummary {
+  version: number;
+  saldoDevedor: number;
+  dataBase: string;
+  source: 'cadastro' | 'recalibracao' | 'quitacao';
+  createdAt: string;
 }
 
 export interface PageData {
@@ -33,6 +44,8 @@ export interface PageState {
   baseline: Baseline;
   pagas: ParcelaPagaComId[];
   extras: AmortizacaoComId[];
+  /** Histórico de baselines (cadastro e recalibrações) para a timeline. */
+  states: ContractStateSummary[];
   projecao: Projecao;
   /** Contrato quitado segundo o BANCO (baseline vigente com saldo 0 /
    *  source 'quitacao'), não segundo o modelo. Lançamentos equivocados podem
@@ -133,6 +146,13 @@ export async function recomputeState(userId: string): Promise<PageState> {
     baseline: data.baseline,
     pagas,
     extras,
+    states: data.states.map((s) => ({
+      version: s.version,
+      saldoDevedor: s.saldoDevedor,
+      dataBase: s.dataBase,
+      source: s.source as ContractStateSummary['source'],
+      createdAt: s.createdAt.toISOString(),
+    })),
     projecao: projecao(data.params, data.baseline, pagas, extras),
     quitado: data.state.saldoDevedor === 0 || data.state.source === 'quitacao',
     isUnlimited: await isUnlimited(userId),
@@ -144,12 +164,12 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
     where: eq(schema.contracts.userId, userId),
   });
   if (!contract) return null;
-  const [state] = await db
+  const states = await db
     .select()
     .from(schema.contractStates)
     .where(eq(schema.contractStates.contractId, contract.id))
-    .orderBy(desc(schema.contractStates.version))
-    .limit(1);
+    .orderBy(asc(schema.contractStates.version));
+  const state = states[states.length - 1];
   if (!state) throw new Error('Contrato sem estado');
   // Movements são lançamentos DO ESTADO VIGENTE: cada linha aponta para o
   // contract_states em que foi registrada (stateId). Lançamentos de baselines
@@ -168,7 +188,7 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
     // parcelaNumero e o NULL deixa a ordem do Postgres não determinística):
     // a UI lista na ordem em que foram registrados.
     .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero), asc(schema.movements.createdAt));
-  return { contract, state, params: toContractParams(contract), baseline: toBaseline(state), movements };
+  return { contract, state, states, params: toContractParams(contract), baseline: toBaseline(state), movements };
 }
 
 export async function getContract(userId: string): Promise<ContractBundle | null> {
