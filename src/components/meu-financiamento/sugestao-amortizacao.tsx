@@ -147,16 +147,16 @@ export function SugestaoAmortizacao({
   return (
     <div
       data-sugestao-amortizacao
-      className="flex flex-col gap-3 rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-3"
+      className="flex flex-col gap-3 rounded-xl bg-muted/40 p-4"
     >
       <p className="text-sm font-medium">Quer amortizar junto?</p>
       {opcoes.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {opcoes.map((opcao) => (
             <div
               key={opcao.id}
               data-opcao={opcao.id}
-              className={`flex min-w-44 flex-col gap-2 rounded-xl border bg-card p-3 ${
+              className={`flex flex-col gap-2 rounded-xl border bg-card p-3 ${
                 opcao.id === 'ideal'
                   ? 'border-[#820AD1]/50 ring-1 ring-[#820AD1]/20'
                   : 'border-border'
@@ -176,6 +176,7 @@ export function SugestaoAmortizacao({
                 type="button"
                 variant={opcao.id === 'ideal' ? 'default' : 'outline'}
                 size="sm"
+                className="mt-auto"
                 aria-label={`Aplicar ${opcao.aria}`}
                 onClick={() => onAplicar(opcao.aporte)}
               >

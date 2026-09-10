@@ -329,20 +329,20 @@ export function Dashboard({
             <h2 className="font-display text-lg font-semibold">
               {vencida ? 'Parcela em aberto' : 'Sua parcela deste mês'}
             </h2>
-            <p className="text-sm text-muted-foreground">
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
               Parcela {primeiraPendente} de {params.parcelasTotais}
             </p>
+            <p className="text-xs text-muted-foreground">
+              Vencimento estimado: {vencimentoPrimeira ? formatDataBr(vencimentoPrimeira) : '—'}
+              {vencida ? ' (vencida)' : ''}
+            </p>
           </div>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <p className="font-mono text-2xl font-semibold tabular-nums sm:text-3xl">
-                {formatBRL(primeiraProjetada.parcela)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Vencimento estimado: {vencimentoPrimeira ? formatDataBr(vencimentoPrimeira) : '—'}
-                {vencida ? ' (vencida)' : ''}
-              </p>
-            </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-mono text-2xl font-semibold tabular-nums sm:text-3xl">
+              {formatBRL(primeiraProjetada.parcela)}
+            </p>
             {!readOnly && !showPay && (
               <Button
                 type="button"
@@ -359,18 +359,21 @@ export function Dashboard({
             )}
           </div>
           {!readOnly && (
-            <SugestaoAmortizacao
-              params={params}
-              baseline={baseline}
-              pagas={pagas}
-              extras={extras}
-              projecao={projecao}
-              onAplicar={(aporte) => {
-                setDesfazerError('');
-                setAporteSugerido(aporte);
-                setShowPay(true);
-              }}
-            />
+            <>
+              <div className="border-t border-border/60" />
+              <SugestaoAmortizacao
+                params={params}
+                baseline={baseline}
+                pagas={pagas}
+                extras={extras}
+                projecao={projecao}
+                onAplicar={(aporte) => {
+                  setDesfazerError('');
+                  setAporteSugerido(aporte);
+                  setShowPay(true);
+                }}
+              />
+            </>
           )}
           {!readOnly && showPay && (
             <PayInstallment

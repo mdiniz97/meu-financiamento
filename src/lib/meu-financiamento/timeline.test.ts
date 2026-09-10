@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimeline } from './timeline';
+import { buildTimeline, buildTimelineGroups } from './timeline';
 import { formatBRL } from '@/lib/utils';
 import type { ContractStateSummary } from './repo';
 
 const cadastro: ContractStateSummary = {
+  id: 'state-1',
   version: 1,
   saldoDevedor: 1000000,
   dataBase: '2026-09-10',
@@ -21,13 +22,16 @@ function estado(over: {
   pagas?: { id: string; stateId: string; parcelaNumero: number; valor: number; dataPagamento: string }[];
   extras?: { id: string; stateId: string; valor: number; dataPagamento: string; origem: 'proprio' | 'fgts'; modo: 'term' | 'payment' }[];
   states?: ContractStateSummary[];
+  stateId?: string;
 }) {
+  const states = over.states ?? [cadastro];
   return {
     historico: {
       pagas: over.pagas ?? [],
       extras: over.extras ?? [],
     },
-    states: over.states ?? [cadastro],
+    states,
+    stateId: over.stateId ?? states[states.length - 1].id,
   };
 }
 
@@ -80,6 +84,7 @@ describe('buildTimeline', () => {
       states: [
         cadastro,
         {
+          id: 'state-2',
           version: 2,
           saldoDevedor: 1000000,
           dataBase: '2026-10-01',
@@ -105,6 +110,7 @@ describe('buildTimeline', () => {
       states: [
         cadastro,
         {
+          id: 'state-2',
           version: 2,
           saldoDevedor: 990000,
           dataBase: '2026-10-01',
@@ -175,5 +181,75 @@ describe('buildTimeline', () => {
     ]);
     expect(eventos[0]).toMatchObject({ id: 'p142' });
     expect(eventos[1]).toMatchObject({ id: 'p141' });
+  });
+});
+
+describe('buildTimelineGroups', () => {
+  it('contrato recém-cadastrado não tem grupos', () => {
+    expect(buildTimelineGroups(estado({}))).toEqual([]);
+  });
+
+  it('período vigente primeiro e lançamentos sob o marco do seu estado', () => {
+    const recalibracao: ContractStateSummary = {
+      ...cadastro,
+      id: 'state-2',
+      version: 2,
+      saldoDevedor: 990000,
+      dataBase: '2026-10-06',
+      source: 'recalibracao',
+      createdAt: '2026-10-06T10:00:00.000Z',
+    };
+    const grupos = buildTimelineGroups(estado({
+      pagas: [
+        { id: 'p141', stateId: 'state-1', parcelaNumero: 141, valor: 1000, dataPagamento: '2026-10-05' },
+        { id: 'p140', stateId: 'state-1', parcelaNumero: 140, valor: 900, dataPagamento: '2026-10-04' },
+      ],
+      states: [cadastro, recalibracao],
+      stateId: 'state-2',
+    }));
+    expect(grupos.map((g) => g.version)).toEqual([2, 1]);
+    expect(grupos[0]).toMatchObject({ atual: true, source: 'recalibracao' });
+    expect(grupos[0].marco.text).toBe('Saldo recalibrado pelo extrato');
+    expect(grupos[0].events).toEqual([]);
+    expect(grupos[1]).toMatchObject({ atual: false, source: 'cadastro' });
+    expect(grupos[1].marco.text).toBe('Contrato cadastrado');
+    expect(grupos[1].events.map((e) => (e.kind === 'parcela' ? e.numero : null))).toEqual([141, 140]);
+  });
+
+  it('separa lançamentos do período vigente e do anterior', () => {
+    const atualizacao: ContractStateSummary = {
+      ...cadastro,
+      id: 'state-2',
+      version: 2,
+      bank: 'Itaú',
+      dataBase: '2026-10-10',
+      source: 'atualizacao',
+      createdAt: '2026-10-10T10:00:00.000Z',
+    };
+    const grupos = buildTimelineGroups(estado({
+      pagas: [
+        { id: 'antiga', stateId: 'state-1', parcelaNumero: 141, valor: 1000, dataPagamento: '2026-10-05' },
+        { id: 'nova', stateId: 'state-2', parcelaNumero: 142, valor: 1001, dataPagamento: '2026-10-11' },
+      ],
+      states: [cadastro, atualizacao],
+      stateId: 'state-2',
+    }));
+    expect(grupos[0].events.map((e) => (e.kind === 'parcela' ? e.id : null))).toEqual(['nova']);
+    expect(grupos[1].events.map((e) => (e.kind === 'parcela' ? e.id : null))).toEqual(['antiga']);
+  });
+
+  it('atualização sem lançamentos ainda rende os dois marcos', () => {
+    const atualizacao: ContractStateSummary = {
+      ...cadastro,
+      id: 'state-2',
+      version: 2,
+      dataBase: '2026-10-10',
+      source: 'atualizacao',
+      createdAt: '2026-10-10T10:00:00.000Z',
+    };
+    const grupos = buildTimelineGroups(estado({ states: [cadastro, atualizacao], stateId: 'state-2' }));
+    expect(grupos.map((g) => g.version)).toEqual([2, 1]);
+    expect(grupos[0].marco.kind).toBe('atualizacao');
+    expect(grupos[1].marco.kind).toBe('cadastro');
   });
 });

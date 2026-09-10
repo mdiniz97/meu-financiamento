@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
-import { buildTimeline } from '@/lib/meu-financiamento/timeline';
+import { buildTimelineGroups } from '@/lib/meu-financiamento/timeline';
 import type { TimelineEvent } from '@/lib/meu-financiamento/timeline';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
@@ -384,13 +384,21 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
   );
 }
 
+const TIPO_BADGE: Record<'cadastro' | 'recalibracao' | 'atualizacao' | 'quitacao', string> = {
+  cadastro: 'Cadastro',
+  recalibracao: 'Recalibração',
+  atualizacao: 'Atualização',
+  quitacao: 'Quitação',
+};
+
 /**
- * Histórico unificado do contrato: TODOS os lançamentos (incluindo os de
- * baselines superados) + cadastro, recalibrações, quitações e atualizações
- * contratuais do histórico de baselines. Ordem por data DESC, no máximo 12
- * eventos por vez. Ações de editar/apagar só existem fora do readOnly e para
- * lançamentos do baseline vigente; os guards de lacuna/estado superado ficam
- * nas actions.
+ * Histórico agrupado por período do contrato: o marco de cada baseline
+ * (cadastro, recalibrações, atualizações e quitação) com seus lançamentos
+ * logo abaixo, ligados por uma linha vertical. O período vigente vem
+ * primeiro; os anteriores ganham o selo "período anterior". No máximo 12
+ * eventos por vez (limite global simples). Ações de editar/apagar só existem
+ * fora do readOnly e no período vigente; os guards de lacuna/estado superado
+ * ficam nas actions.
  */
 export function Timeline({
   state,
@@ -402,49 +410,78 @@ export function Timeline({
   quitado: boolean;
 }) {
   const [mostrarTudo, setMostrarTudo] = useState(false);
-  const eventos = buildTimeline(state);
-  const visiveis = mostrarTudo ? eventos : eventos.slice(0, LIMITE_EVENTOS);
+  const grupos = buildTimelineGroups(state);
   const podeAgir = !readOnly && !quitado;
+  const totalEventos = grupos.reduce((soma, grupo) => soma + grupo.events.length, 0);
+
+  let restante = mostrarTudo ? Number.POSITIVE_INFINITY : LIMITE_EVENTOS;
+  const gruposVisiveis: typeof grupos = [];
+  for (const grupo of grupos) {
+    const events = grupo.events.slice(0, Math.max(0, restante));
+    restante -= events.length;
+    gruposVisiveis.push({ ...grupo, events });
+  }
 
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-display text-lg font-semibold">Histórico</h2>
-      {eventos.length === 0 ? (
+      {grupos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhum lançamento ainda.</p>
       ) : (
         <>
-          <ol className="flex flex-col rounded-2xl bg-card px-4 shadow-sm ring-1 ring-foreground/10">
-            {visiveis.map((evento) => {
-              if (evento.kind === 'parcela') {
-                return (
-                  <ParcelaItem
-                    key={`parcela-${evento.id}`}
-                    event={evento}
-                    podeAgir={podeAgir && evento.stateId === state.stateId}
-                  />
-                );
-              }
-              if (evento.kind === 'amortizacao') {
-                return (
-                  <AmortizacaoItem
-                    key={`amortizacao-${evento.id}`}
-                    event={evento}
-                    podeAgir={podeAgir && evento.stateId === state.stateId}
-                  />
-                );
-              }
-              return (
-                <li key={`${evento.kind}-${evento.version}`} className="flex gap-3 border-b border-border/60 py-3 last:border-b-0">
-                  <TimelineIcon kind={evento.kind} />
+          <ol className="flex flex-col rounded-2xl bg-card px-4 py-1 shadow-sm ring-1 ring-foreground/10">
+            {gruposVisiveis.map((grupo, indice) => (
+              <li key={grupo.version} className="relative flex flex-col gap-2 py-3">
+                {indice < gruposVisiveis.length - 1 && (
+                  <span aria-hidden className="absolute left-[15px] top-10 bottom-0 w-px bg-border" />
+                )}
+                <div className="relative flex items-start gap-3">
+                  <TimelineIcon kind={grupo.marco.kind} />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-sm">{evento.text}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{formatDataBr(evento.data)}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">{grupo.marco.text}</p>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {TIPO_BADGE[grupo.source]}
+                      </span>
+                      {!grupo.atual && (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                          período anterior
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground tabular-nums">{formatDataBr(grupo.marco.data)}</p>
+                    {grupo.resumo && <p className="text-xs text-muted-foreground">{grupo.resumo}</p>}
                   </div>
-                </li>
-              );
-            })}
+                </div>
+                {grupo.events.length > 0 && (
+                  <ol className="ml-11 flex flex-col rounded-xl bg-muted/30 px-3">
+                    {grupo.events.map((evento) => {
+                      if (evento.kind === 'parcela') {
+                        return (
+                          <ParcelaItem
+                            key={`parcela-${evento.id}`}
+                            event={evento}
+                            podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
+                          />
+                        );
+                      }
+                      if (evento.kind === 'amortizacao') {
+                        return (
+                          <AmortizacaoItem
+                            key={`amortizacao-${evento.id}`}
+                            event={evento}
+                            podeAgir={podeAgir && grupo.atual && evento.stateId === state.stateId}
+                          />
+                        );
+                      }
+                      return null;
+                    })}
+                  </ol>
+                )}
+              </li>
+            ))}
           </ol>
-          {!mostrarTudo && eventos.length > LIMITE_EVENTOS && (
+          {!mostrarTudo && totalEventos > LIMITE_EVENTOS && (
             <div>
               <Button type="button" variant="outline" size="sm" onClick={() => setMostrarTudo(true)}>
                 Mostrar mais

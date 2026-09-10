@@ -29,6 +29,8 @@ export interface ContractBundle extends ContractData {
 
 /** Baseline serializável para a timeline (createdAt como ISO string). */
 export interface ContractStateSummary {
+  /** Id do baseline no banco: liga os lançamentos (`stateId`) ao período. */
+  id: string;
   version: number;
   saldoDevedor: number;
   dataBase: string;
@@ -184,6 +186,7 @@ export async function recomputeState(userId: string): Promise<PageState> {
     historico,
     stateId: data.state.id,
     states: data.states.map((s) => ({
+      id: s.id,
       version: s.version,
       saldoDevedor: s.saldoDevedor,
       dataBase: s.dataBase,

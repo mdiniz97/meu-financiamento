@@ -627,7 +627,9 @@ test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa
   await expect(dialog.locator('#recParcela')).toHaveValue('143');
   await dialog.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
 
-  await expect(page.getByText('Financiamento quitado', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.locator('[data-state-banner]').getByText('Financiamento quitado', { exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
   await expect(recalibrarNoBanner(page)).toBeVisible();
 
@@ -641,7 +643,10 @@ test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa
   await rec.locator('#recData').fill(todayISO());
   await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
 
-  await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0, { timeout: 20_000 });
+  // O banner some; o marco de quitação permanece na timeline como histórico.
+  await expect(
+    page.locator('[data-state-banner]').getByText('Financiamento quitado', { exact: true }),
+  ).toHaveCount(0, { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 143 de 360', { timeout: 20_000 });
   await expect
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
@@ -689,6 +694,11 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
   await expect(historico.getByText(/Caixa → Itaú/)).toBeVisible();
   await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  // O lançamento anterior à edição fica no período congelado, com o selo e o
+  // marco do cadastro; o período vigente é o da atualização.
+  const periodoAnterior = historico.locator('li').filter({ hasText: 'período anterior' });
+  await expect(periodoAnterior).toContainText('Contrato cadastrado');
+  await expect(periodoAnterior).toContainText('Parcela 141 ·');
   await expect
     .poll(async () => parseBRL(await totalCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(totalAntes, 2);
