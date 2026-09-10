@@ -63,6 +63,7 @@ function EditContractForm({
   const [dataBase, setDataBase] = useState(todayISO());
   const [proximaParcela, setProximaParcela] = useState(primeiraPendente);
   const [dia, setDia] = useState(diaVencimento);
+  const [confirmouRetroativo, setConfirmouRetroativo] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSubmit() {
@@ -98,6 +99,11 @@ function EditContractForm({
     onClose();
   }
 
+  // Edição retroativa (parcela anterior à pendente) é destrutiva: apaga do
+  // estado vigente os lançamentos posteriores à nova posição; exige confirmação
+  // explícita antes de habilitar o Salvar.
+  const parcelaAnterior = Number.isInteger(proximaParcela) && proximaParcela < primeiraPendente;
+
   // Limites do modelo: taxa efetiva 0..100% a.a., TR 0..10% a.m., seguro >= 0.
   const invalido = bank.trim() === ''
     || annualRate === undefined || !Number.isFinite(annualRate) || annualRate <= 0 || annualRate > 100
@@ -107,9 +113,8 @@ function EditContractForm({
     || !Number.isFinite(saldoDevedor) || saldoDevedor <= 0
     || !dataBase
     || !Number.isInteger(proximaParcela) || proximaParcela < 1 || proximaParcela > parcelasTotais
-    || !Number.isInteger(dia) || dia < 1 || dia > 31;
-
-  const parcelaAnterior = Number.isInteger(proximaParcela) && proximaParcela < primeiraPendente;
+    || !Number.isInteger(dia) || dia < 1 || dia > 31
+    || (parcelaAnterior && !confirmouRetroativo);
 
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -270,12 +275,23 @@ function EditContractForm({
             />
           </div>
           {parcelaAnterior && (
-            <p
-              role="status"
-              className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-            >
-              Os lançamentos posteriores a essa parcela ficam apenas como histórico e não entram no cálculo.
-            </p>
+            <div className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+              <p role="status">
+                Editar para uma parcela anterior remove os pagamentos e amortizações posteriores deste período do
+                cálculo. Os lançamentos ficam apenas nos estados anteriores do histórico.
+              </p>
+              <label className="flex items-start gap-2 font-medium">
+                <input
+                  id="editConfirmarRetroativo"
+                  type="checkbox"
+                  checked={confirmouRetroativo}
+                  onChange={(e) => setConfirmouRetroativo(e.target.checked)}
+                  disabled={pending}
+                  className="mt-0.5 size-3.5 accent-amber-700"
+                />
+                Entendi que os lançamentos posteriores serão removidos
+              </label>
+            </div>
           )}
           <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
             A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.

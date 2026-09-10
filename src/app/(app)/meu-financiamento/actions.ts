@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, or, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { requireUnlimited } from '@/lib/meu-financiamento/auth';
@@ -237,6 +237,24 @@ export async function payInstallment(input: {
 
     const split = splitPagamento(projetada, valor);
     const groupId = split.amortizacao > 0 ? crypto.randomUUID() : null;
+    // Colisão de parcela: o unique é (contractId, parcelaNumero). Se a parcela
+    // já tem lançamento de um estado ANTERIOR (edição retroativa que reabriu a
+    // competência sobre um período já recalibrado), registrar de novo violaria
+    // o unique; e a transação abortada pelo 23505 não permite consultar o
+    // conflito depois. O lock do usuário serializa os fluxos, então a checagem
+    // prévia basta. Colisão com o MESMO estado segue idempotente no catch.
+    const [existente] = await tx
+      .select({ stateId: schema.movements.stateId })
+      .from(schema.movements)
+      .where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.type, 'parcela'),
+        eq(schema.movements.parcelaNumero, primeira),
+      ))
+      .limit(1);
+    if (existente && existente.stateId !== state.id) {
+      return { ok: false, error: 'Esta parcela já tem lançamento de um período anterior; recalibre ou ajuste o contrato' };
+    }
     try {
       await tx.insert(schema.movements).values({
         contractId: contract.id,
@@ -456,14 +474,26 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
     if (v.dataBase < baseline.dataBase) return { ok: false, error: 'Data-base anterior à vigente' };
 
     // Sem guarda de contiguidade: a parcela pode ser ANTERIOR à pendente (ex.:
-    // corrigir a competência informada). Os movements do estado superado viram
-    // histórico congelado e não entram no cálculo do baseline novo.
+    // corrigir a competência informada). Movimentos do estado vigente que ficam
+    // no futuro da nova posição são APAGADOS logo abaixo (voltar no tempo);
+    // estados anteriores permanecem intactos como histórico.
+    const movements = await tx
+      .select()
+      .from(schema.movements)
+      .where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.stateId, state.id),
+      ));
+    const { pagas } = splitMovements(movements);
+    const primeira = primeiraPendente(toContractParams(state), baseline, pagas);
+    const retroativo = v.proximaParcelaNumero < primeira;
 
     // Paridade total: gravar versão nova sem nenhuma mudança esconderia os
     // lançamentos do usuário (movements do estado superado viram histórico)
     // sem efeito. Comparações arredondadas (taxa/TR em 4 casas percentuais,
     // dinheiro em centavos) para ruído de ponto flutuante não gravar versão
-    // "sem mudança".
+    // "sem mudança". Retroativo escapa da paridade: a remoção dos lançamentos
+    // futuros (abaixo) é efeito suficiente para a versão nova.
     const rateEq = (a: number, b: number) => Math.round(a * 1e6) === Math.round(b * 1e6);
     const centsEq = (a: number, b: number) => Math.round(a * 100) === Math.round(b * 100);
     const nadaMudou = centsEq(v.saldoDevedor, state.saldoDevedor)
@@ -476,7 +506,7 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       && rateEq(v.trMonthly, state.trMonthly)
       && centsEq(v.insuranceMonthly, state.insuranceMonthly)
       && v.parcelasTotais === state.parcelasTotais;
-    if (nadaMudou) return { ok: false, error: 'Nada a atualizar: os dados são os atuais' };
+    if (nadaMudou && !retroativo) return { ok: false, error: 'Nada a atualizar: os dados são os atuais' };
 
     const novosParams: ContractParams = {
       bank: v.bank,
@@ -496,6 +526,31 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
     // combinação no range validado que a engine rejeita não pode gravar uma
     // versão que o recompute não consegue projetar.
     if (!projecaoValida(novosParams, novoBaseline)) return { ok: false, error: NAO_AMORTIZA };
+
+    // Edição retroativa = voltar no tempo: apaga do estado vigente as parcelas
+    // com número >= à nova posição e as amortizações com data >= à data-base
+    // nova. Congelá-las deixaria competências já registradas reabertas com o
+    // unique (contractId, parcelaNumero) ocupado e o pagamento seguinte
+    // colidiria para sempre (23505 engolido). A remoção é só do estado vigente:
+    // lançamentos de estados anteriores continuam no histórico. Roda depois de
+    // TODAS as validações e imediatamente antes do insert: um retorno de erro
+    // aqui depois deixaria a remoção commitada sem o estado novo.
+    if (retroativo) {
+      await tx.delete(schema.movements).where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.stateId, state.id),
+        or(
+          and(
+            eq(schema.movements.type, 'parcela'),
+            gte(schema.movements.parcelaNumero, v.proximaParcelaNumero),
+          ),
+          and(
+            eq(schema.movements.type, 'amortizacao'),
+            gte(schema.movements.dataPagamento, v.dataBase),
+          ),
+        ),
+      ));
+    }
 
     await tx.insert(schema.contractStates).values({
       contractId: contract.id,

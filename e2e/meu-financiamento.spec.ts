@@ -697,14 +697,16 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await expect(page.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toHaveCount(0);
 });
 
-test('editar contrato aceita parcela anterior à pendente e mantém o histórico', async ({ page }) => {
+test('editar contrato aceita parcela anterior à pendente e remove os lançamentos futuros', async ({ page }) => {
   const conta = await criarConta(page, 'Editar Retroativo');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  // Paga a 141: o lançamento vira histórico quando a edição superar o estado.
+  // Paga a 141: o lançamento entra no estado vigente.
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
   const saldoAntes = parseBRL(await saldoCard(page).innerText());
 
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
@@ -714,19 +716,31 @@ test('editar contrato aceita parcela anterior à pendente e mantém o histórico
   await expect(dialog.locator('#editDia')).toHaveValue('10');
   await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(saldoAntes, 2);
 
-  // Parcela 141, anterior à pendente (142): aceita com o aviso de histórico.
+  // Parcela 141, anterior à pendente (142): aviso destrutivo e confirmação
+  // explícita obrigatória antes de habilitar o Salvar.
   await dialog.locator('#editParcela').fill('141');
   await expect(
-    dialog.getByText('Os lançamentos posteriores a essa parcela ficam apenas como histórico e não entram no cálculo.'),
+    dialog.getByText(
+      'Editar para uma parcela anterior remove os pagamentos e amortizações posteriores deste período do cálculo. Os lançamentos ficam apenas nos estados anteriores do histórico.',
+    ),
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  const salvar = dialog.getByRole('button', { name: 'Salvar alterações', exact: true });
+  await expect(salvar).toBeDisabled();
+  await dialog.getByLabel('Entendi que os lançamentos posteriores serão removidos').check();
+  await expect(salvar).toBeEnabled();
+  await salvar.click();
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
-  // A página volta a mostrar a parcela 141 e a timeline preserva o passado.
+  // A página volta a mostrar a parcela 141; o lançamento do estado superado foi
+  // removido (não aparece em lugar nenhum) e a timeline só tem a atualização.
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico.getByText(/Contrato atualizado/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 ·/)).toHaveCount(0);
+
+  // A parcela reaberta pode ser paga de novo, sem colisão no unique.
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
 });
 
