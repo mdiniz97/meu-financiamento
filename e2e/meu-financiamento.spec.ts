@@ -234,7 +234,7 @@ test('accordion "Todas as parcelas" lista o cronograma e carrega mais 24 por vez
   await expect(pagaLinha).toBeVisible();
 });
 
-test('sugestão de amortização aplica ideal, meia e extra com o efeito calculado', async ({ page }) => {
+test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {
   const conta = await criarConta(page, 'Sugestão de Amortização');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
@@ -250,7 +250,8 @@ test('sugestão de amortização aplica ideal, meia e extra com o efeito calcula
   // Ideal calculado: menor aporte que corta 1 parcela; a quitação cai
   // EXATAMENTE 1 e o split do form recebe o aporte exibido.
   const cardIdeal = page.locator('[data-opcao="ideal"]');
-  await expect(cardIdeal).toContainText('quita 1 parcela antes');
+  await expect(cardIdeal).toContainText('Economia total de R$');
+  expect(parseBRL(await cardIdeal.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const ideal = parseBRL(await cardIdeal.innerText());
   expect(ideal).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Aplicar ideal', exact: true }).click();
@@ -286,9 +287,10 @@ test('sugestão de amortização aplica ideal, meia e extra com o efeito calcula
   expect(textos[amortizacao]).toContain('Reduziu o prazo');
   expect(textos[amortizacao]).toMatch(/em \d{2}\/\d{2}\/\d{4}/);
 
-  // Meia parcela: efeito exibido e aporte aplicado no split.
+  // Meia parcela: economia exibida e aporte aplicado no split.
   const cardMeia = page.locator('[data-opcao="meia"]');
-  await expect(cardMeia).toContainText(/quita \d+ parcelas? antes|não corta parcela/);
+  await expect(cardMeia).toContainText('Economia total de R$');
+  expect(parseBRL(await cardMeia.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const meia = parseBRL(await cardMeia.innerText());
   await page.getByRole('button', { name: 'Aplicar meia parcela', exact: true }).click();
   const boxMeia = page.locator('[data-pay-installment]');
@@ -297,10 +299,11 @@ test('sugestão de amortização aplica ideal, meia e extra com o efeito calcula
   await boxMeia.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(boxMeia).toHaveCount(0);
 
-  // Parcela extra: efeito exibido, aplica e pode quitar ≥ 1 parcela.
+  // Parcela extra: economia exibida, aplica e a quitação não piora.
   const quitacaoAntesExtra = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   const cardExtra = page.locator('[data-opcao="extra"]');
-  await expect(cardExtra).toContainText(/quita \d+ parcelas? antes|não corta parcela/);
+  await expect(cardExtra).toContainText('Economia total de R$');
+  expect(parseBRL(await cardExtra.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const extra = parseBRL(await cardExtra.innerText());
   await page.getByRole('button', { name: 'Aplicar parcela extra', exact: true }).click();
   const boxExtra = page.locator('[data-pay-installment]');

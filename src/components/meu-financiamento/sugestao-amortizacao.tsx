@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { projecao } from '@/lib/finance/meu-financiamento/model';
 import type {
   AmortizacaoExtra,
   Baseline,
@@ -11,6 +10,7 @@ import type {
   Projecao,
 } from '@/lib/finance/meu-financiamento/model';
 import { limiarUmaParcela } from '@/lib/finance/meu-financiamento/sugestao';
+import { economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
 import { todayISO } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 
@@ -22,8 +22,8 @@ interface Opcao {
   /** Sufixo do aria-label "Aplicar ..." (labels E2E estáveis). */
   aria: string;
   aporte: number;
-  /** Parcelas eliminadas do prazo com a ação completa (parcela + aporte). */
-  parcelas: number;
+  /** Economia total (encargos evitados) da ação completa: parcela + aporte. */
+  economia: number;
 }
 
 function roundCents(value: number): number {
@@ -32,10 +32,10 @@ function roundCents(value: number): number {
 
 /**
  * Sugestão de amortização junto com a parcela do mês: ideal calculado (menor
- * aporte que corta 1 parcela), meia parcela e parcela extra, cada um com o
- * efeito no prazo medido pelo modelo para a ação real (parcela + aporte).
- * "Aplicar" abre o pagamento inline preenchido com o aporte explícito no modo
- * "Reduziu o prazo".
+ * aporte que corta 1 parcela), meia parcela e parcela extra, cada um com a
+ * economia total (encargos evitados, mesma métrica do simulador) da ação real
+ * (parcela + aporte). "Aplicar" abre o pagamento inline preenchido com o
+ * aporte explícito no modo "Reduziu o prazo".
  */
 export function SugestaoAmortizacao({
   params,
@@ -64,24 +64,21 @@ export function SugestaoAmortizacao({
       { parcelaNumero: primeira.parcelaNumero, valor: primeira.parcela, dataPagamento: hoje },
     ];
     const desvio = roundCents(primeira.parcela) - primeira.parcela;
-    const semAporte = projecao(params, baseline, pagasComParcela, extras);
-    const baseQuita = semAporte.quitaEm;
-    const parcelasDoEfeito = (aporte: number): number => {
+    const economiaDoAporte = (aporte: number): number => {
       const aporteExtra: AmortizacaoExtra = {
         dataPagamento: hoje,
         valor: aporte + desvio,
         origem: 'proprio',
         modo: 'term',
       };
-      const comAporte = projecao(params, baseline, pagasComParcela, [...extras, aporteExtra]);
-      if (baseQuita == null) return 0;
-      if (comAporte.saldoEfetivo === 0) return baseQuita - semAporte.primeiraPendente + 1;
-      if (comAporte.quitaEm == null) return 0;
-      return baseQuita - comAporte.quitaEm;
+      // Economia MARGINAL da opção: desconta a economia já atribuída aos extras
+      // existentes (senão a opção herdaria a economia de aportes antigos).
+      return economiaAmortizacoes(params, baseline, pagasComParcela, [...extras, aporteExtra])
+        - economiaAmortizacoes(params, baseline, pagasComParcela, extras);
     };
 
     const limiar = limiarUmaParcela(params, baseline, pagas, extras);
-    const candidatas: Omit<Opcao, 'parcelas'>[] = [];
+    const candidatas: Omit<Opcao, 'economia'>[] = [];
     if (limiar != null) {
       candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: limiar });
     }
@@ -97,7 +94,7 @@ export function SugestaoAmortizacao({
       aria: 'parcela extra',
       aporte: roundCents(primeira.parcela),
     });
-    return candidatas.map((candidata) => ({ ...candidata, parcelas: parcelasDoEfeito(candidata.aporte) }));
+    return candidatas.map((candidata) => ({ ...candidata, economia: economiaDoAporte(candidata.aporte) }));
   }, [params, baseline, pagas, extras, atual, hoje]);
 
   return (
@@ -122,10 +119,10 @@ export function SugestaoAmortizacao({
               <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
                 + {formatBRL(opcao.aporte)}
               </p>
-              <p className={`text-xs ${opcao.parcelas > 0 ? 'font-medium text-[#820AD1]' : 'text-muted-foreground'}`}>
-                {opcao.parcelas > 0
-                  ? `quita ${opcao.parcelas} ${opcao.parcelas === 1 ? 'parcela' : 'parcelas'} antes`
-                  : 'não corta parcela'}
+              <p className={`text-xs ${opcao.economia > 0 ? 'font-medium text-[#820AD1]' : 'text-muted-foreground'}`}>
+                {opcao.economia > 0
+                  ? `Economia total de ${formatBRL(opcao.economia)}`
+                  : 'sem economia no modelo'}
               </p>
               <Button
                 type="button"
