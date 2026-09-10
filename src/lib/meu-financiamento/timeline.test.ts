@@ -8,6 +8,12 @@ const cadastro: ContractStateSummary = {
   saldoDevedor: 1000000,
   dataBase: '2026-09-10',
   source: 'cadastro',
+  bank: 'Caixa',
+  system: 'PRICE',
+  annualRate: 0.105,
+  trMonthly: 0.0017,
+  insuranceMonthly: 100,
+  parcelasTotais: 360,
   createdAt: '2026-09-10T12:00:00.000Z',
 };
 
@@ -58,13 +64,60 @@ describe('buildTimeline', () => {
     const eventos = buildTimeline(estado({
       states: [
         cadastro,
-        { version: 2, saldoDevedor: 990000, dataBase: '2026-11-01', source: 'recalibracao', createdAt: '2026-11-01T10:00:00.000Z' },
-        { version: 3, saldoDevedor: 0, dataBase: '2026-12-01', source: 'quitacao', createdAt: '2026-12-01T10:00:00.000Z' },
+        { ...cadastro, version: 2, saldoDevedor: 990000, dataBase: '2026-11-01', source: 'recalibracao', createdAt: '2026-11-01T10:00:00.000Z' },
+        { ...cadastro, version: 3, saldoDevedor: 0, dataBase: '2026-12-01', source: 'quitacao', createdAt: '2026-12-01T10:00:00.000Z' },
       ],
     }));
     expect(eventos.map((e) => e.kind)).toEqual(['quitacao', 'recalibracao', 'cadastro']);
     expect(eventos[1].text).toBe(`Saldo recalibrado pelo extrato: ${formatBRL(990000)}`);
     expect(eventos[0].text).toBe(`Financiamento quitado: ${formatBRL(0)}`);
+  });
+
+  it('descreve a atualização contratual com só o que mudou', () => {
+    const eventos = buildTimeline(estado({
+      states: [
+        cadastro,
+        {
+          version: 2,
+          saldoDevedor: 1000000,
+          dataBase: '2026-10-01',
+          source: 'atualizacao',
+          bank: 'Itaú',
+          system: 'SAC',
+          annualRate: 0.098,
+          trMonthly: 0.0017,
+          insuranceMonthly: 100,
+          parcelasTotais: 350,
+          createdAt: '2026-10-01T10:00:00.000Z',
+        },
+      ],
+    }));
+    expect(eventos.map((e) => e.kind)).toEqual(['atualizacao', 'cadastro']);
+    expect(eventos[0].text).toBe(
+      'Contrato atualizado: banco Caixa → Itaú, sistema PRICE → SAC, taxa 10,5% → 9,8% a.a., parcelas 360 → 350',
+    );
+  });
+
+  it('atualização sem mudança textual usa o texto curto', () => {
+    const eventos = buildTimeline(estado({
+      states: [
+        cadastro,
+        {
+          version: 2,
+          saldoDevedor: 990000,
+          dataBase: '2026-10-01',
+          source: 'atualizacao',
+          bank: 'Caixa',
+          system: 'PRICE',
+          annualRate: 0.105,
+          trMonthly: 0.0017,
+          insuranceMonthly: 100,
+          parcelasTotais: 360,
+          createdAt: '2026-10-01T10:00:00.000Z',
+        },
+      ],
+    }));
+    expect(eventos[0].text).toBe('Contrato atualizado');
   });
 
   it('ordena por data DESC e desempata o dia: lançamento antes do baseline', () => {
@@ -76,7 +129,7 @@ describe('buildTimeline', () => {
       extras: [{ id: 'a1', valor: 2000, dataPagamento: '2026-10-05', origem: 'fgts', modo: 'term' }],
       states: [
         cadastro,
-        { version: 2, saldoDevedor: 500000, dataBase: '2026-10-05', source: 'recalibracao', createdAt: '2026-10-05T18:00:00.000Z' },
+        { ...cadastro, version: 2, saldoDevedor: 500000, dataBase: '2026-10-05', source: 'recalibracao', createdAt: '2026-10-05T18:00:00.000Z' },
       ],
     }));
     expect(eventos.map((e) => e.kind)).toEqual([

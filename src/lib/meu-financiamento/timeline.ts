@@ -1,4 +1,4 @@
-import type { PageState } from './repo';
+import type { ContractStateSummary, PageState } from './repo';
 import { formatDataBr } from './dates';
 import { formatBRL } from '@/lib/utils';
 
@@ -23,25 +23,54 @@ export type TimelineEvent =
     }
   | { kind: 'recalibracao'; version: number; data: string; text: string }
   | { kind: 'quitacao'; version: number; data: string; text: string }
+  | { kind: 'atualizacao'; version: number; data: string; text: string }
   | { kind: 'cadastro'; version: number; data: string; text: string };
 
 // Empate na mesma data: lançamentos do dia vêm antes do baseline que os
-// superou (recalibração/quitação) e o cadastro fica por último.
+// superou (recalibração/quitação/atualização) e o cadastro fica por último.
 const RANK: Record<TimelineEvent['kind'], number> = {
   parcela: 0,
   amortizacao: 1,
   recalibracao: 2,
   quitacao: 2,
+  atualizacao: 2,
   cadastro: 3,
 };
 
+/** Percentual pt-BR a partir da fração (0,105 → '10,5%'), sem zeros à direita. */
+function formatPct(value: number): string {
+  const pct = Math.round(value * 100 * 1e4) / 1e4;
+  return `${String(pct).replace('.', ',')}%`;
+}
+
+function atualizacaoText(atual: ContractStateSummary, anterior: ContractStateSummary | undefined): string {
+  if (!anterior) return 'Contrato atualizado';
+  const partes: string[] = [];
+  if (atual.bank !== anterior.bank) partes.push(`banco ${anterior.bank} → ${atual.bank}`);
+  if (atual.system !== anterior.system) partes.push(`sistema ${anterior.system} → ${atual.system}`);
+  if (atual.annualRate !== anterior.annualRate) {
+    partes.push(`taxa ${formatPct(anterior.annualRate)} → ${formatPct(atual.annualRate)} a.a.`);
+  }
+  if (atual.trMonthly !== anterior.trMonthly) {
+    partes.push(`TR ${formatPct(anterior.trMonthly)} → ${formatPct(atual.trMonthly)} a.m.`);
+  }
+  if (atual.insuranceMonthly !== anterior.insuranceMonthly) {
+    partes.push(`seguro ${formatBRL(anterior.insuranceMonthly)} → ${formatBRL(atual.insuranceMonthly)}`);
+  }
+  if (atual.parcelasTotais !== anterior.parcelasTotais) {
+    partes.push(`parcelas ${anterior.parcelasTotais} → ${atual.parcelasTotais}`);
+  }
+  return partes.length > 0 ? `Contrato atualizado: ${partes.join(', ')}` : 'Contrato atualizado';
+}
+
 /**
  * Eventos da timeline unificada: parcelas pagas e amortizações do baseline
- * vigente + histórico de baselines (cadastro, recalibrações e quitação).
- * Ordenação por data DESC; empates resolvidos por tipo e, dentro do tipo, por
- * número (parcela/versão) DESC.
+ * vigente + histórico de baselines (cadastro, recalibrações, quitação e
+ * atualizações contratuais). Ordenação por data DESC; empates resolvidos por
+ * tipo e, dentro do tipo, por número (parcela/versão) DESC.
  */
 export function buildTimeline(state: Pick<PageState, 'pagas' | 'extras' | 'states'>): TimelineEvent[] {
+  const porVersao = new Map(state.states.map((s) => [s.version, s]));
   const stateEvents: { event: TimelineEvent; sortNum: number }[] = [];
   for (const s of state.states) {
     if (s.version === 1) {
@@ -71,6 +100,16 @@ export function buildTimeline(state: Pick<PageState, 'pagas' | 'extras' | 'state
           version: s.version,
           data: s.dataBase,
           text: `Saldo recalibrado pelo extrato: ${formatBRL(s.saldoDevedor)}`,
+        },
+        sortNum: s.version,
+      });
+    } else if (s.source === 'atualizacao') {
+      stateEvents.push({
+        event: {
+          kind: 'atualizacao',
+          version: s.version,
+          data: s.dataBase,
+          text: atualizacaoText(s, porVersao.get(s.version - 1)),
         },
         sortNum: s.version,
       });

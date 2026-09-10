@@ -30,7 +30,14 @@ export interface ContractStateSummary {
   version: number;
   saldoDevedor: number;
   dataBase: string;
-  source: 'cadastro' | 'recalibracao' | 'quitacao';
+  source: 'cadastro' | 'recalibracao' | 'quitacao' | 'atualizacao';
+  /** Parâmetros contratuais vigentes nesta versão (para a timeline comparar). */
+  bank: string;
+  system: ContractSystem;
+  annualRate: number;
+  trMonthly: number;
+  insuranceMonthly: number;
+  parcelasTotais: number;
   createdAt: string;
 }
 
@@ -44,7 +51,7 @@ export interface PageState {
   baseline: Baseline;
   pagas: ParcelaPagaComId[];
   extras: AmortizacaoComId[];
-  /** Histórico de baselines (cadastro e recalibrações) para a timeline. */
+  /** Histórico de baselines (cadastro, recalibrações e atualizações) para a timeline. */
   states: ContractStateSummary[];
   projecao: Projecao;
   /** Contrato quitado segundo o BANCO (baseline vigente com saldo 0 /
@@ -81,6 +88,9 @@ export interface RecalibrateInput {
   proximaParcelaNumero: number;
 }
 
+/** Portabilidade/mudança de taxa ou sistema: mesmos campos do cadastro. */
+export type UpdateContractInput = CreateContractInput;
+
 export interface EditMovementPatch {
   valor?: number;
   dataPagamento?: string;
@@ -88,14 +98,14 @@ export interface EditMovementPatch {
   modo?: 'term' | 'payment';
 }
 
-export function toContractParams(row: Contract): ContractParams {
+export function toContractParams(state: ContractState): ContractParams {
   return {
-    bank: row.bank,
-    system: row.system as ContractSystem,
-    annualRate: row.annualRate,
-    trMonthly: row.trMonthly,
-    insuranceMonthly: row.insuranceMonthly,
-    parcelasTotais: row.parcelasTotais,
+    bank: state.bank,
+    system: state.system as ContractSystem,
+    annualRate: state.annualRate,
+    trMonthly: state.trMonthly,
+    insuranceMonthly: state.insuranceMonthly,
+    parcelasTotais: state.parcelasTotais,
   };
 }
 
@@ -153,6 +163,12 @@ export async function recomputeState(userId: string): Promise<PageState> {
       saldoDevedor: s.saldoDevedor,
       dataBase: s.dataBase,
       source: s.source as ContractStateSummary['source'],
+      bank: s.bank,
+      system: s.system as ContractSystem,
+      annualRate: s.annualRate,
+      trMonthly: s.trMonthly,
+      insuranceMonthly: s.insuranceMonthly,
+      parcelasTotais: s.parcelasTotais,
       createdAt: s.createdAt.toISOString(),
     })),
     projecao: projecao(data.params, data.baseline, pagas, extras),
@@ -190,7 +206,7 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
     // parcelaNumero e o NULL deixa a ordem do Postgres não determinística):
     // a UI lista na ordem em que foram registrados.
     .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero), asc(schema.movements.createdAt));
-  return { contract, state, states, params: toContractParams(contract), baseline: toBaseline(state), movements };
+  return { contract, state, states, params: toContractParams(state), baseline: toBaseline(state), movements };
 }
 
 export async function getContract(userId: string): Promise<ContractBundle | null> {

@@ -123,7 +123,17 @@ export const contractStates = pgTable('contract_states', {
   saldoDevedor: doublePrecision('saldo_devedor').notNull(),
   dataBase: text('data_base').notNull(), // 'YYYY-MM-DD'
   proximaParcelaNumero: integer('proxima_parcela_numero').notNull(), // 1..parcelasTotais
-  source: text('source').notNull(), // 'cadastro' | 'recalibracao' | 'quitacao'
+  source: text('source').notNull(), // 'cadastro' | 'recalibracao' | 'quitacao' | 'atualizacao'
+  // Parâmetros contratuais versionados: portabilidade/mudança de taxa ou
+  // sistema grava uma versão nova e congela o passado (movements do estado
+  // antigo não são reaplicados). `contracts` mantém o cadastro original como
+  // metadado.
+  bank: text('bank').notNull(),
+  system: text('system').notNull(), // 'PRICE' | 'SAC'
+  annualRate: doublePrecision('annual_rate').notNull(), // efetiva a.a. (0..1)
+  trMonthly: doublePrecision('tr_monthly').notNull(), // 0..0.1
+  insuranceMonthly: doublePrecision('insurance_monthly').notNull(),
+  parcelasTotais: integer('parcelas_totais').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   uniqueIndex('contract_states_contract_version_unique').on(table.contractId, table.version),

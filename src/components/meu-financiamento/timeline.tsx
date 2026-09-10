@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Landmark, Pencil, RefreshCw, Trash2, TrendingDown } from 'lucide-react';
+import { Check, FilePen, Landmark, Pencil, RefreshCw, Trash2, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -48,6 +48,12 @@ function TimelineIcon({ kind }: { kind: TimelineEvent['kind'] }) {
       return (
         <span className={`${wrapper} bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300`}>
           <Check className="size-4" />
+        </span>
+      );
+    case 'atualizacao':
+      return (
+        <span className={`${wrapper} bg-muted text-muted-foreground`}>
+          <FilePen className="size-4" />
         </span>
       );
     case 'cadastro':
@@ -380,7 +386,8 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
 
 /**
  * Histórico unificado do contrato: parcelas pagas e amortizações do baseline
- * vigente + cadastro, recalibrações e quitação do histórico de baselines.
+ * vigente + cadastro, recalibrações, quitações e atualizações contratuais do
+ * histórico de baselines.
  * Ordem por data DESC, no máximo 12 eventos por vez. Ações de editar/apagar
  * só existem fora do readOnly; os guards de lacuna/estado superado ficam nas
  * actions.

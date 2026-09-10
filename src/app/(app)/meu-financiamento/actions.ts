@@ -11,6 +11,7 @@ import type {
   EditMovementPatch,
   MutationResult,
   RecalibrateInput,
+  UpdateContractInput,
 } from '@/lib/meu-financiamento/repo';
 import { isValidDateString, primeiraPendente, projecao, validateContractInput } from '@/lib/finance/meu-financiamento/model';
 import type { Baseline, ContractParams } from '@/lib/finance/meu-financiamento/model';
@@ -157,6 +158,12 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
       dataBase: v.dataBase,
       proximaParcelaNumero: v.proximaParcelaNumero,
       source: 'cadastro',
+      bank: v.bank,
+      system: v.system,
+      annualRate: v.annualRate,
+      trMonthly: v.trMonthly,
+      insuranceMonthly: v.insuranceMonthly,
+      parcelasTotais: v.parcelasTotais,
     });
     await tx.delete(schema.contractDrafts).where(eq(schema.contractDrafts.userId, userId));
     return { ok: true };
@@ -203,7 +210,7 @@ export async function payInstallment(input: {
     if (!state) return { ok: false, error: 'Contrato sem estado' };
     if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
 
-    const params = toContractParams(contract);
+    const params = toContractParams(state);
     const baseline = toBaseline(state);
     const movements = await tx
       .select()
@@ -344,7 +351,7 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
     }
     if (!isValidDateString(dataBase)) return { ok: false, error: 'Data-base inválida' };
 
-    const params = toContractParams(contract);
+    const params = toContractParams(state);
     const baseline = toBaseline(state);
     if (dataBase < baseline.dataBase) return { ok: false, error: 'Data-base anterior à vigente' };
     if (typeof proximaParcelaNumero !== 'number' || !Number.isInteger(proximaParcelaNumero)
@@ -393,6 +400,111 @@ export async function recalibrate(input: RecalibrateInput): Promise<MutationResu
       dataBase,
       proximaParcelaNumero,
       source: saldoDevedor === 0 ? 'quitacao' : 'recalibracao',
+      bank: params.bank,
+      system: params.system,
+      annualRate: params.annualRate,
+      trMonthly: params.trMonthly,
+      insuranceMonthly: params.insuranceMonthly,
+      parcelasTotais: params.parcelasTotais,
+    });
+    return { ok: true };
+  });
+
+  if (!outcome.ok) return outcome;
+  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
+}
+
+export async function updateContract(input: UpdateContractInput): Promise<MutationResult> {
+  const userId = await requireUser();
+  const limited = await unlimitedError(userId);
+  if (limited) return { ok: false, error: limited };
+
+  const parsed = validateContractInput(input);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const v = parsed.value;
+
+  // Portabilidade, mudança de taxa/sistema ou acordo de prazo: grava uma
+  // versão nova do baseline com os parâmetros novos. Os movements do estado
+  // vigente ficam congelados (nunca são reaplicados), então o histórico
+  // anterior não é recalculado. Mesma tx com lock do usuário do recalibrate.
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+    const contract = await tx.query.contracts.findFirst({
+      where: eq(schema.contracts.userId, userId),
+    });
+    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
+    const [state] = await tx
+      .select()
+      .from(schema.contractStates)
+      .where(eq(schema.contractStates.contractId, contract.id))
+      .orderBy(desc(schema.contractStates.version))
+      .limit(1);
+    if (!state) return { ok: false, error: 'Contrato sem estado' };
+
+    const baseline = toBaseline(state);
+    if (v.dataBase < baseline.dataBase) return { ok: false, error: 'Data-base anterior à vigente' };
+
+    // Guarda de contiguidade: movimentos do estado vigente (o que será
+    // superado); lançamentos de estados mais antigos já viraram histórico.
+    const movements = await tx
+      .select()
+      .from(schema.movements)
+      .where(and(
+        eq(schema.movements.contractId, contract.id),
+        eq(schema.movements.stateId, state.id),
+      ));
+    const { pagas } = splitMovements(movements);
+    const primeira = primeiraPendente(toContractParams(state), baseline, pagas);
+    if (v.proximaParcelaNumero < primeira) return { ok: false, error: 'Parcela anterior à pendente' };
+
+    // Paridade total: gravar versão nova sem nenhuma mudança esconderia os
+    // lançamentos do usuário (movements do estado superado viram histórico)
+    // sem efeito. Saldo em centavos: valores de ponto flutuante da mesma origem.
+    const saldoIgual = Math.round(v.saldoDevedor * 100) === Math.round(state.saldoDevedor * 100);
+    const nadaMudou = saldoIgual
+      && v.dataBase === state.dataBase
+      && v.proximaParcelaNumero === state.proximaParcelaNumero
+      && v.bank === state.bank
+      && v.system === state.system
+      && v.annualRate === state.annualRate
+      && v.trMonthly === state.trMonthly
+      && v.insuranceMonthly === state.insuranceMonthly
+      && v.parcelasTotais === state.parcelasTotais;
+    if (nadaMudou) return { ok: false, error: 'Nada a atualizar: os dados são os atuais' };
+
+    const novosParams: ContractParams = {
+      bank: v.bank,
+      system: v.system,
+      annualRate: v.annualRate,
+      trMonthly: v.trMonthly,
+      insuranceMonthly: v.insuranceMonthly,
+      parcelasTotais: v.parcelasTotais,
+    };
+    const novoBaseline: Baseline = {
+      version: state.version + 1,
+      saldoDevedor: v.saldoDevedor,
+      dataBase: v.dataBase,
+      proximaParcelaNumero: v.proximaParcelaNumero,
+    };
+    // Dry-run da projeção do estado novo (movimentos vazios) antes do insert:
+    // combinação no range validado que a engine rejeita não pode gravar uma
+    // versão que o recompute não consegue projetar.
+    if (!projecaoValida(novosParams, novoBaseline)) return { ok: false, error: NAO_AMORTIZA };
+
+    await tx.insert(schema.contractStates).values({
+      contractId: contract.id,
+      version: state.version + 1,
+      saldoDevedor: v.saldoDevedor,
+      dataBase: v.dataBase,
+      proximaParcelaNumero: v.proximaParcelaNumero,
+      source: 'atualizacao',
+      bank: v.bank,
+      system: v.system,
+      annualRate: v.annualRate,
+      trMonthly: v.trMonthly,
+      insuranceMonthly: v.insuranceMonthly,
+      parcelasTotais: v.parcelasTotais,
     });
     return { ok: true };
   });
