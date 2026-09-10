@@ -370,6 +370,8 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
     'Confirmar pagamento',
     'Registrar amortização extra',
     'Confirmar amortização',
+    'Editar contrato',
+    'Salvar alterações',
     'Recalibrar saldo',
     'Recalibrar pelo extrato',
     'Confirmar recalibração',
@@ -509,6 +511,41 @@ test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(500000, 2);
   await expect(page.getByRole('button', { name: 'Paguei esta parcela', exact: true })).toBeVisible();
+});
+
+test('editar contrato troca banco e taxa, congela o passado e derruba a próxima parcela', async ({ page }) => {
+  const conta = await criarConta(page, 'Editar Contrato');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  const proximaAntes = parseBRL(await proximaCard(page).innerText());
+
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  // Prefill do estado vigente: saldo, data-base e próxima parcela mantidos.
+  await expect(dialog.locator('#editBank')).toHaveValue('Caixa');
+  await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(1000000, 2);
+  await expect(dialog.locator('#editDataBase')).toHaveValue(todayISO());
+  await expect(dialog.locator('#editParcela')).toHaveValue('141');
+  await expect(dialog.getByText('A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.'))
+    .toBeVisible();
+
+  await dialog.locator('#editBank').fill('Itaú');
+  await dialog.locator('#editAnnualRate').fill('9,8');
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+
+  // O chip do hero passa a mostrar o banco novo.
+  await expect(page.getByText('Itaú · PRICE · Parcela 141 de 360')).toBeVisible({ timeout: 20_000 });
+  // Taxa menor derruba a próxima parcela projetada.
+  await expect
+    .poll(async () => parseBRL(await proximaCard(page).innerText()), { timeout: 20_000 })
+    .toBeLessThan(proximaAntes);
+  // Timeline registra a atualização contratual com os dois bancos.
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
+  await expect(historico.getByText(/Caixa → Itaú/)).toBeVisible();
 });
 
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
