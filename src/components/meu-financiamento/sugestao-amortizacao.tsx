@@ -52,7 +52,16 @@ export function SugestaoAmortizacao({
 }) {
   const hoje = todayISO();
   const { limiar, chips } = useMemo(() => {
-    const baseQuita = atual.quitaEm;
+    // O fluxo real paga a parcela do mês JUNTO com o aporte. A sugestão é
+    // calculada com essa parcela já quitada para o "quita 1 parcela antes" e o
+    // "corta k parcelas" valerem para a ação completa, não só para o aporte
+    // isolado (o limiar de centavo muda quando a parcela também é paga).
+    const primeira = atual.parcelas[0];
+    const pagasComParcela: ParcelaPaga[] = primeira
+      ? [...pagas, { parcelaNumero: primeira.parcelaNumero, valor: primeira.parcela, dataPagamento: hoje }]
+      : pagas;
+    const semAporte = projecao(params, baseline, pagasComParcela, extras);
+    const baseQuita = semAporte.quitaEm;
     const chipsVisiveis: ChipSugestao[] = CHIPS.filter((chip) => chip.valor <= atual.saldoEfetivo).map(
       (chip) => {
         const aporte: AmortizacaoExtra = {
@@ -61,11 +70,11 @@ export function SugestaoAmortizacao({
           origem: 'proprio',
           modo: 'term',
         };
-        const comAporte = projecao(params, baseline, pagas, [...extras, aporte]);
+        const comAporte = projecao(params, baseline, pagasComParcela, [...extras, aporte]);
         const parcelas = baseQuita == null
           ? 0
           : comAporte.saldoEfetivo === 0
-            ? baseQuita - atual.primeiraPendente + 1
+            ? baseQuita - semAporte.primeiraPendente + 1
             : comAporte.quitaEm == null
               ? 0
               : baseQuita - comAporte.quitaEm;
@@ -76,12 +85,12 @@ export function SugestaoAmortizacao({
           // Economia MARGINAL do aporte: a diferença desconta a economia já
           // atribuída aos extras existentes (senão o chip roubaria para si a
           // economia de amortizações antigas).
-          economia: economiaAmortizacoes(params, baseline, pagas, [...extras, aporte])
-            - economiaAmortizacoes(params, baseline, pagas, extras),
+          economia: economiaAmortizacoes(params, baseline, pagasComParcela, [...extras, aporte])
+            - economiaAmortizacoes(params, baseline, pagasComParcela, extras),
         };
       },
     );
-    return { limiar: limiarUmaParcela(params, baseline, pagas, extras), chips: chipsVisiveis };
+    return { limiar: limiarUmaParcela(params, baseline, pagasComParcela, extras), chips: chipsVisiveis };
   }, [params, baseline, pagas, extras, atual, hoje]);
 
   return (
@@ -90,23 +99,30 @@ export function SugestaoAmortizacao({
       className="flex flex-col gap-3 rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-3"
     >
       <p className="text-sm font-medium">Quer amortizar junto?</p>
-      <p className="text-sm text-muted-foreground">
-        {limiar != null ? (
-          <>
+      {limiar != null ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
             + <span className="font-mono font-semibold tabular-nums text-foreground">{formatBRL(limiar)}</span> e
             quita 1 parcela antes
-          </>
-        ) : (
-          'Sem efeito no prazo neste cenário'
-        )}
-      </p>
+          </p>
+          <Button type="button" size="sm" onClick={() => onAplicar(limiar)}>
+            Aplicar {formatBRL(limiar)}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Sem efeito no prazo neste cenário</p>
+      )}
       {chips.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {chips.map((chip) => (
             <div
               key={chip.valor}
               data-aporte={chip.valor}
-              className="flex min-w-44 flex-col gap-2 rounded-xl border border-border bg-card p-3"
+              className={`flex min-w-44 flex-col gap-2 rounded-xl border bg-card p-3 ${
+                chip.parcelas > 0
+                  ? 'border-[#820AD1]/50 ring-1 ring-[#820AD1]/20'
+                  : 'border-border'
+              }`}
             >
               <button
                 type="button"
@@ -115,10 +131,10 @@ export function SugestaoAmortizacao({
               >
                 {chip.label}
               </button>
-              <p className="text-xs text-muted-foreground">
+              <p className={`text-xs ${chip.parcelas > 0 ? 'font-medium text-[#820AD1]' : 'text-muted-foreground'}`}>
                 {chip.parcelas > 0
-                  ? `quita ${chip.parcelas} ${chip.parcelas === 1 ? 'parcela' : 'parcelas'} antes · economiza ${formatBRL(chip.economia)}`
-                  : `não encurta o prazo · economiza ${formatBRL(chip.economia)}`}
+                  ? `corta ${chip.parcelas} ${chip.parcelas === 1 ? 'parcela' : 'parcelas'} · evita ${formatBRL(chip.economia)} em juros e encargos`
+                  : `abate ${formatBRL(chip.valor)} do saldo · evita ${formatBRL(chip.economia)} em juros e encargos`}
               </p>
               <Button type="button" variant="outline" size="sm" onClick={() => onAplicar(chip.valor)}>
                 Aplicar

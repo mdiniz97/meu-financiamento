@@ -248,7 +248,7 @@ test('sugestão de amortização preenche o pagamento com o split e antecipa a q
 
   // R$ 1.000 não encurta o prazo neste cenário (o limiar é maior); o chip de
   // R$ 2.000 é o menor atalho com efeito observável na quitação.
-  await expect(page.locator('[data-aporte="2000"]')).toContainText('quita 1 parcela antes');
+  await expect(page.locator('[data-aporte="2000"]')).toContainText('corta 1 parcela');
   await page.getByRole('button', { name: 'R$ 2.000', exact: true }).click();
   await page.locator('[data-aporte="2000"]').getByRole('button', { name: 'Aplicar', exact: true }).click();
 
@@ -285,6 +285,27 @@ test('sugestão de amortização preenche o pagamento com o split e antecipa a q
   await expect
     .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
     .toBeLessThan(quitacaoAntes);
+  const quitacaoDepoisChip = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
+
+  // Botão do limiar: aplica o valor exato sugerido (não só os chips) e o form
+  // abre com o split preenchido com esse valor.
+  const botaoLimiar = page.getByRole('button', { name: /^Aplicar R\$/ }).first();
+  await expect(botaoLimiar).toBeVisible();
+  const limiar = parseBRL(await botaoLimiar.innerText());
+  expect(limiar).toBeGreaterThan(0);
+  await botaoLimiar.click();
+
+  const boxLimiar = page.locator('[data-pay-installment]');
+  await expect(boxLimiar).toBeVisible();
+  await expect(boxLimiar.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
+  const amortizacaoLimiar = parseBRL(await boxLimiar.locator('strong').last().innerText());
+  expect(amortizacaoLimiar).toBeCloseTo(limiar, 2);
+
+  await boxLimiar.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(boxLimiar).toHaveCount(0, { timeout: 20_000 });
+  await expect
+    .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
+    .toBeLessThan(quitacaoDepoisChip);
 });
 
 test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue o modelo', async ({ page }) => {
