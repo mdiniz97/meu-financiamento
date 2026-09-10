@@ -162,6 +162,14 @@ export function PayInstallment({
           <p className="text-xs text-muted-foreground">
             O excedente será registrado como amortização extra (dinheiro próprio).
           </p>
+          {excedenteModo === 'payment' && (
+            <p
+              role="status"
+              className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+            >
+              No modo &apos;reduzir a parcela&apos; o prazo não encurta; a economia vem da parcela menor.
+            </p>
+          )}
         </div>
       )}
       {error && (

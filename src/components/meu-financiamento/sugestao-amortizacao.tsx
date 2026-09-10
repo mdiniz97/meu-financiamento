@@ -26,6 +26,8 @@ interface Opcao {
   aporte: number;
   /** Economia total (métrica do E se?) da ação completa: parcela + aporte. */
   economia: number;
+  /** Efeito no prazo (só o ideal): "elimina 1 parcela (R$ ...)". */
+  efeito?: string;
 }
 
 function roundCents(value: number): number {
@@ -87,6 +89,7 @@ export function SugestaoAmortizacao({
     const limiarModelo = limiarUmaParcela(params, baseline, pagas, extras);
     const limiarEngine = limiarParcelaEngine(input);
     let ideal: number | null = null;
+    let idealEfeito: string | undefined;
     if (limiarModelo != null && limiarEngine != null) {
       const baseModelo = projecao(params, baseline, pagasComParcela, extras).quitaEm;
       const baseEngineZero = simulate(input).metrics.saldoZeroAt;
@@ -105,12 +108,23 @@ export function SugestaoAmortizacao({
       for (let tentativa = 0; tentativa < 20 && (!modeloCorta(candidato) || !engineCorta(candidato)); tentativa += 1) {
         candidato = roundCents(candidato + 0.01);
       }
-      if (modeloCorta(candidato) && engineCorta(candidato)) ideal = candidato;
+      if (modeloCorta(candidato) && engineCorta(candidato)) {
+        ideal = candidato;
+        // Efeito exibido no cenário ATUAL (sem a parcela do mês): quantas
+        // parcelas o aporte elimina da projeção vigente e o valor da última
+        // parcela que deixa de existir.
+        const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(candidato)]);
+        const eliminadas = Math.max(1, atual.parcelas.length - comAporte.parcelas.length);
+        const valorUltima = atual.parcelas.at(-1)?.parcela;
+        idealEfeito = `elimina ${eliminadas} ${eliminadas === 1 ? 'parcela' : 'parcelas'}${
+          valorUltima != null ? ` (${formatBRL(valorUltima)})` : ''
+        }`;
+      }
     }
 
     const candidatas: Omit<Opcao, 'economia'>[] = [];
     if (ideal != null) {
-      candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: ideal });
+      candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: ideal, efeito: idealEfeito });
     }
     candidatas.push({
       id: 'meia',
@@ -157,6 +171,7 @@ export function SugestaoAmortizacao({
                   ? `Economia total de ${formatBRL(opcao.economia)}`
                   : 'sem economia no modelo'}
               </p>
+              {opcao.efeito && <p className="text-xs text-muted-foreground">{opcao.efeito}</p>}
               <Button
                 type="button"
                 variant={opcao.id === 'ideal' ? 'default' : 'outline'}

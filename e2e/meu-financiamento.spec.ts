@@ -251,6 +251,7 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   // EXATAMENTE 1 e o split do form recebe o aporte exibido.
   const cardIdeal = page.locator('[data-opcao="ideal"]');
   await expect(cardIdeal).toContainText('Economia total de R$');
+  await expect(cardIdeal).toContainText(/elimina 1 parcela \(R\$\s*[\d.,]+\)/);
   expect(parseBRL(await cardIdeal.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const ideal = parseBRL(await cardIdeal.innerText());
   expect(ideal).toBeGreaterThan(0);
@@ -261,6 +262,15 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await expect(box.getByText(/Parcela .* \+ amortização extra/)).toBeVisible();
   await expect(box.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
   expect(parseBRL(await box.locator('strong').last().innerText())).toBeCloseTo(ideal, 1);
+
+  // Modo "Reduziu a parcela" avisa que o prazo não encurta; voltar para o
+  // term restaura o default da sugestão.
+  await box.getByRole('radio', { name: 'Reduziu a parcela (prazo igual)' }).click();
+  await expect(
+    box.getByText("No modo 'reduzir a parcela' o prazo não encurta; a economia vem da parcela menor."),
+  ).toBeVisible();
+  await box.getByRole('radio', { name: 'Reduziu o prazo (parcela igual)' }).click();
+  await expect(box.getByText(/No modo 'reduzir a parcela'/)).toHaveCount(0);
 
   await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(box).toHaveCount(0, { timeout: 20_000 });
