@@ -143,6 +143,9 @@ export const movements = pgTable('movements', {
   dataPagamento: text('data_pagamento').notNull(), // 'YYYY-MM-DD'
   origem: text('origem'), // 'proprio' | 'fgts' (só amortizacao)
   modo: text('modo'), // 'term' | 'payment' (só amortizacao)
+  // Vincula parcela + amortização do excedente do mesmo pagamento (sem FK):
+  // apagar a parcela apaga o grupo inteiro.
+  groupId: uuid('group_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   uniqueIndex('movements_contract_parcela_unique')

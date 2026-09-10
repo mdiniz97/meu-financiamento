@@ -1,0 +1,1 @@
+ALTER TABLE "movements" ADD COLUMN "group_id" uuid;

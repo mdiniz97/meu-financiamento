@@ -14,6 +14,7 @@ import type {
 } from '@/lib/meu-financiamento/repo';
 import { isValidDateString, primeiraPendente, projecao, validateContractInput } from '@/lib/finance/meu-financiamento/model';
 import type { Baseline, ContractParams } from '@/lib/finance/meu-financiamento/model';
+import { splitPagamento } from '@/lib/finance/meu-financiamento/split-payment';
 import { todayISO } from '@/lib/meu-financiamento/dates';
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
@@ -164,16 +165,23 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
-export async function payInstallment(input: { valor: number; dataPagamento: string }): Promise<MutationResult> {
+export async function payInstallment(input: {
+  valor: number;
+  dataPagamento: string;
+  excedenteModo?: 'term' | 'payment';
+}): Promise<MutationResult> {
   const userId = await requireUser();
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  const { valor, dataPagamento } = input ?? {};
+  const { valor, dataPagamento, excedenteModo } = input ?? {};
   if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) {
     return { ok: false, error: 'Valor inválido' };
   }
   if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
+  if (excedenteModo !== undefined && excedenteModo !== 'term' && excedenteModo !== 'payment') {
+    return { ok: false, error: 'Modo inválido' };
+  }
 
   // Transação com lock do usuário: recalibração concorrente não pode intercalar
   // entre a leitura do baseline e o insert (senão o lançamento gravaria com o
@@ -204,22 +212,50 @@ export async function payInstallment(input: { valor: number; dataPagamento: stri
         eq(schema.movements.contractId, contract.id),
         eq(schema.movements.stateId, state.id),
       ));
-    const { pagas } = splitMovements(movements);
+    const { pagas, extras } = splitMovements(movements);
     const primeira = primeiraPendente(params, baseline, pagas);
     if (primeira > params.parcelasTotais) return { ok: false, error: 'Contrato já quitado' };
 
+    // Parcela projetada da primeira pendente: alvo do split entre parcela e
+    // amortização extra. Sem parcela projetada (saldo já zerado no modelo) não
+    // há boleto a pagar.
+    let projetada: number | undefined;
+    try {
+      projetada = projecao(params, baseline, pagas, extras).parcelas[0]?.parcela;
+    } catch {
+      return { ok: false, error: 'Não foi possível projetar a próxima parcela' };
+    }
+    if (projetada === undefined) return { ok: false, error: 'Sem parcela projetada para pagar' };
+
+    const split = splitPagamento(projetada, valor);
+    const groupId = split.amortizacao > 0 ? crypto.randomUUID() : null;
     try {
       await tx.insert(schema.movements).values({
         contractId: contract.id,
         stateId: state.id,
         type: 'parcela',
         parcelaNumero: primeira,
-        valor,
+        valor: split.parcela,
         dataPagamento,
+        groupId,
       });
+      if (split.amortizacao > 0) {
+        await tx.insert(schema.movements).values({
+          contractId: contract.id,
+          stateId: state.id,
+          type: 'amortizacao',
+          parcelaNumero: null,
+          valor: split.amortizacao,
+          dataPagamento,
+          origem: 'proprio',
+          modo: excedenteModo ?? 'term',
+          groupId,
+        });
+      }
     } catch (e) {
       // 23505: parcela já registrada por outro fluxo — re-leitura idempotente
-      // (recompute abaixo reflete a linha que já existe).
+      // (recompute abaixo reflete a linha que já existe). O groupId novo a cada
+      // tentativa não conflita: a unique é da parcela.
       if (!isUniqueViolation(e)) throw e;
     }
     return { ok: true };
@@ -445,6 +481,8 @@ export async function deleteMovement(id: string): Promise<MutationResult> {
     // Apagar parcela do meio do bloco quebra a contiguidade que o modelo exige
     // (projecao lança 'Parcelas pagas não são contínuas') e trava o contrato:
     // só a parcela de maior número entre as pagas do estado vigente pode sair.
+    // A amortização vinculada (groupId) não entra em pagas, então o guard segue
+    // valendo só para a parcela.
     const { pagas } = splitMovements(data.movements);
     const maxPaga = pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
     if (movement.parcelaNumero !== maxPaga) {
@@ -452,8 +490,21 @@ export async function deleteMovement(id: string): Promise<MutationResult> {
     }
   }
 
-  await db
-    .delete(schema.movements)
-    .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
+  // Pagamento com excedente: parcela e amortização extra foram gravadas com o
+  // mesmo groupId; apagar a parcela apaga o grupo inteiro na mesma tx.
+  await db.transaction(async (tx) => {
+    if (movement.type === 'parcela' && movement.groupId) {
+      await tx
+        .delete(schema.movements)
+        .where(and(
+          eq(schema.movements.contractId, data.contract.id),
+          eq(schema.movements.groupId, movement.groupId),
+        ));
+      return;
+    }
+    await tx
+      .delete(schema.movements)
+      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
+  });
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
