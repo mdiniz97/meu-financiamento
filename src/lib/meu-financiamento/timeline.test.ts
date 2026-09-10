@@ -18,13 +18,15 @@ const cadastro: ContractStateSummary = {
 };
 
 function estado(over: {
-  pagas?: { id: string; parcelaNumero: number; valor: number; dataPagamento: string }[];
-  extras?: { id: string; valor: number; dataPagamento: string; origem: 'proprio' | 'fgts'; modo: 'term' | 'payment' }[];
+  pagas?: { id: string; stateId: string; parcelaNumero: number; valor: number; dataPagamento: string }[];
+  extras?: { id: string; stateId: string; valor: number; dataPagamento: string; origem: 'proprio' | 'fgts'; modo: 'term' | 'payment' }[];
   states?: ContractStateSummary[];
 }) {
   return {
-    pagas: over.pagas ?? [],
-    extras: over.extras ?? [],
+    historico: {
+      pagas: over.pagas ?? [],
+      extras: over.extras ?? [],
+    },
     states: over.states ?? [cadastro],
   };
 }
@@ -36,7 +38,7 @@ describe('buildTimeline', () => {
 
   it('inclui o cadastro inicial quando há lançamentos', () => {
     const eventos = buildTimeline(estado({
-      pagas: [{ id: 'p1', parcelaNumero: 141, valor: 12345.67, dataPagamento: '2026-10-05' }],
+      pagas: [{ id: 'p1', stateId: 'state-1', parcelaNumero: 141, valor: 12345.67, dataPagamento: '2026-10-05' }],
     }));
     expect(eventos.map((e) => e.kind)).toEqual(['parcela', 'cadastro']);
     expect(eventos[0].text).toBe(`Parcela 141 · ${formatBRL(12345.67)} · paga em 05/10/2026`);
@@ -45,7 +47,7 @@ describe('buildTimeline', () => {
 
   it('formata a amortização com origem e modo', () => {
     const [evento] = buildTimeline(estado({
-      extras: [{ id: 'a1', valor: 100000, dataPagamento: '2026-10-06', origem: 'proprio', modo: 'term' }],
+      extras: [{ id: 'a1', stateId: 'state-1', valor: 100000, dataPagamento: '2026-10-06', origem: 'proprio', modo: 'term' }],
     }));
     expect(evento.kind).toBe('amortizacao');
     expect(evento.text).toBe(
@@ -55,7 +57,7 @@ describe('buildTimeline', () => {
 
   it('marca FGTS e redução de parcela', () => {
     const [evento] = buildTimeline(estado({
-      extras: [{ id: 'a1', valor: 500, dataPagamento: '2026-10-06', origem: 'fgts', modo: 'payment' }],
+      extras: [{ id: 'a1', stateId: 'state-1', valor: 500, dataPagamento: '2026-10-06', origem: 'fgts', modo: 'payment' }],
     }));
     expect(evento.text).toBe(`Amortização extra de ${formatBRL(500)} · FGTS · Reduziu a parcela (prazo igual)`);
   });
@@ -120,13 +122,45 @@ describe('buildTimeline', () => {
     expect(eventos[0].text).toBe('Contrato atualizado');
   });
 
+  it('ignora ruído de ponto flutuante na comparação da atualização', () => {
+    const eventos = buildTimeline(estado({
+      states: [
+        cadastro,
+        {
+          ...cadastro,
+          version: 2,
+          saldoDevedor: 990000,
+          dataBase: '2026-10-01',
+          source: 'atualizacao',
+          annualRate: 0.105 + 1e-12,
+          trMonthly: 0.0017 + 1e-12,
+          insuranceMonthly: 100 + 1e-9,
+          createdAt: '2026-10-01T10:00:00.000Z',
+        },
+      ],
+    }));
+    expect(eventos[0].text).toBe('Contrato atualizado');
+  });
+
+  it('mantém lançamentos de estados superados no histórico', () => {
+    const eventos = buildTimeline(estado({
+      pagas: [{ id: 'p141', stateId: 'state-1', parcelaNumero: 141, valor: 1000, dataPagamento: '2026-10-05' }],
+      states: [
+        cadastro,
+        { ...cadastro, version: 2, saldoDevedor: 990000, dataBase: '2026-10-06', source: 'recalibracao', createdAt: '2026-10-06T10:00:00.000Z' },
+      ],
+    }));
+    expect(eventos.map((e) => e.kind)).toEqual(['recalibracao', 'parcela', 'cadastro']);
+    expect(eventos[1]).toMatchObject({ kind: 'parcela', id: 'p141', stateId: 'state-1' });
+  });
+
   it('ordena por data DESC e desempata o dia: lançamento antes do baseline', () => {
     const eventos = buildTimeline(estado({
       pagas: [
-        { id: 'p141', parcelaNumero: 141, valor: 1000, dataPagamento: '2026-10-05' },
-        { id: 'p142', parcelaNumero: 142, valor: 1001, dataPagamento: '2026-10-05' },
+        { id: 'p141', stateId: 'state-1', parcelaNumero: 141, valor: 1000, dataPagamento: '2026-10-05' },
+        { id: 'p142', stateId: 'state-1', parcelaNumero: 142, valor: 1001, dataPagamento: '2026-10-05' },
       ],
-      extras: [{ id: 'a1', valor: 2000, dataPagamento: '2026-10-05', origem: 'fgts', modo: 'term' }],
+      extras: [{ id: 'a1', stateId: 'state-1', valor: 2000, dataPagamento: '2026-10-05', origem: 'fgts', modo: 'term' }],
       states: [
         cadastro,
         { ...cadastro, version: 2, saldoDevedor: 500000, dataBase: '2026-10-05', source: 'recalibracao', createdAt: '2026-10-05T18:00:00.000Z' },

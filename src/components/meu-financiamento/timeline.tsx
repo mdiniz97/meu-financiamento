@@ -385,19 +385,19 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
 }
 
 /**
- * Histórico unificado do contrato: parcelas pagas e amortizações do baseline
- * vigente + cadastro, recalibrações, quitações e atualizações contratuais do
- * histórico de baselines.
- * Ordem por data DESC, no máximo 12 eventos por vez. Ações de editar/apagar
- * só existem fora do readOnly; os guards de lacuna/estado superado ficam nas
- * actions.
+ * Histórico unificado do contrato: TODOS os lançamentos (incluindo os de
+ * baselines superados) + cadastro, recalibrações, quitações e atualizações
+ * contratuais do histórico de baselines. Ordem por data DESC, no máximo 12
+ * eventos por vez. Ações de editar/apagar só existem fora do readOnly e para
+ * lançamentos do baseline vigente; os guards de lacuna/estado superado ficam
+ * nas actions.
  */
 export function Timeline({
   state,
   readOnly,
   quitado,
 }: {
-  state: Pick<PageState, 'pagas' | 'extras' | 'states'>;
+  state: Pick<PageState, 'historico' | 'states' | 'stateId'>;
   readOnly: boolean;
   quitado: boolean;
 }) {
@@ -416,10 +416,22 @@ export function Timeline({
           <ol className="flex flex-col rounded-2xl bg-card px-4 shadow-sm ring-1 ring-foreground/10">
             {visiveis.map((evento) => {
               if (evento.kind === 'parcela') {
-                return <ParcelaItem key={`parcela-${evento.id}`} event={evento} podeAgir={podeAgir} />;
+                return (
+                  <ParcelaItem
+                    key={`parcela-${evento.id}`}
+                    event={evento}
+                    podeAgir={podeAgir && evento.stateId === state.stateId}
+                  />
+                );
               }
               if (evento.kind === 'amortizacao') {
-                return <AmortizacaoItem key={`amortizacao-${evento.id}`} event={evento} podeAgir={podeAgir} />;
+                return (
+                  <AmortizacaoItem
+                    key={`amortizacao-${evento.id}`}
+                    event={evento}
+                    podeAgir={podeAgir && evento.stateId === state.stateId}
+                  />
+                );
               }
               return (
                 <li key={`${evento.kind}-${evento.version}`} className="flex gap-3 border-b border-border/60 py-3 last:border-b-0">

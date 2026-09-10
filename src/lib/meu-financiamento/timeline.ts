@@ -11,10 +11,11 @@ export function modoLabel(modo: 'term' | 'payment'): string {
 }
 
 export type TimelineEvent =
-  | { kind: 'parcela'; id: string; numero: number; valor: number; data: string; text: string }
+  | { kind: 'parcela'; id: string; stateId: string; numero: number; valor: number; data: string; text: string }
   | {
       kind: 'amortizacao';
       id: string;
+      stateId: string;
       valor: number;
       data: string;
       origem: 'proprio' | 'fgts';
@@ -43,18 +44,28 @@ function formatPct(value: number): string {
   return `${String(pct).replace('.', ',')}%`;
 }
 
+/** Comparações arredondadas: 4 casas percentuais para taxa/TR e centavos para
+ *  dinheiro, para ruído de ponto flutuante não virar linha no diff. */
+function rateMudou(a: number, b: number): boolean {
+  return Math.round(a * 1e6) !== Math.round(b * 1e6);
+}
+
+function dinheiroMudou(a: number, b: number): boolean {
+  return Math.round(a * 100) !== Math.round(b * 100);
+}
+
 function atualizacaoText(atual: ContractStateSummary, anterior: ContractStateSummary | undefined): string {
   if (!anterior) return 'Contrato atualizado';
   const partes: string[] = [];
   if (atual.bank !== anterior.bank) partes.push(`banco ${anterior.bank} → ${atual.bank}`);
   if (atual.system !== anterior.system) partes.push(`sistema ${anterior.system} → ${atual.system}`);
-  if (atual.annualRate !== anterior.annualRate) {
+  if (rateMudou(atual.annualRate, anterior.annualRate)) {
     partes.push(`taxa ${formatPct(anterior.annualRate)} → ${formatPct(atual.annualRate)} a.a.`);
   }
-  if (atual.trMonthly !== anterior.trMonthly) {
+  if (rateMudou(atual.trMonthly, anterior.trMonthly)) {
     partes.push(`TR ${formatPct(anterior.trMonthly)} → ${formatPct(atual.trMonthly)} a.m.`);
   }
-  if (atual.insuranceMonthly !== anterior.insuranceMonthly) {
+  if (dinheiroMudou(atual.insuranceMonthly, anterior.insuranceMonthly)) {
     partes.push(`seguro ${formatBRL(anterior.insuranceMonthly)} → ${formatBRL(atual.insuranceMonthly)}`);
   }
   if (atual.parcelasTotais !== anterior.parcelasTotais) {
@@ -64,12 +75,12 @@ function atualizacaoText(atual: ContractStateSummary, anterior: ContractStateSum
 }
 
 /**
- * Eventos da timeline unificada: parcelas pagas e amortizações do baseline
- * vigente + histórico de baselines (cadastro, recalibrações, quitação e
- * atualizações contratuais). Ordenação por data DESC; empates resolvidos por
- * tipo e, dentro do tipo, por número (parcela/versão) DESC.
+ * Eventos da timeline unificada: TODOS os lançamentos do contrato (histórico,
+ * incluindo os de baselines superados) + histórico de baselines (cadastro,
+ * recalibrações, quitação e atualizações contratuais). Ordenação por data DESC;
+ * empates resolvidos por tipo e, dentro do tipo, por número (parcela/versão) DESC.
  */
-export function buildTimeline(state: Pick<PageState, 'pagas' | 'extras' | 'states'>): TimelineEvent[] {
+export function buildTimeline(state: Pick<PageState, 'historico' | 'states'>): TimelineEvent[] {
   const porVersao = new Map(state.states.map((s) => [s.version, s]));
   const stateEvents: { event: TimelineEvent; sortNum: number }[] = [];
   for (const s of state.states) {
@@ -117,10 +128,11 @@ export function buildTimeline(state: Pick<PageState, 'pagas' | 'extras' | 'state
   }
 
   const sortable: { event: TimelineEvent; sortNum: number }[] = [
-    ...state.pagas.map((p) => ({
+    ...state.historico.pagas.map((p) => ({
       event: {
         kind: 'parcela' as const,
         id: p.id,
+        stateId: p.stateId,
         numero: p.parcelaNumero,
         valor: p.valor,
         data: p.dataPagamento,
@@ -128,10 +140,11 @@ export function buildTimeline(state: Pick<PageState, 'pagas' | 'extras' | 'state
       },
       sortNum: p.parcelaNumero,
     })),
-    ...state.extras.map((e, index) => ({
+    ...state.historico.extras.map((e, index) => ({
       event: {
         kind: 'amortizacao' as const,
         id: e.id,
+        stateId: e.stateId,
         valor: e.valor,
         data: e.dataPagamento,
         origem: e.origem,

@@ -94,9 +94,11 @@ function EditContractForm({
     onClose();
   }
 
+  // Limites do modelo: taxa efetiva 0..100% a.a., TR 0..10% a.m., seguro >= 0.
   const invalido = bank.trim() === ''
-    || annualRate === undefined || !Number.isFinite(annualRate) || annualRate <= 0
-    || trMonthly === undefined || !Number.isFinite(trMonthly) || trMonthly < 0
+    || annualRate === undefined || !Number.isFinite(annualRate) || annualRate <= 0 || annualRate > 100
+    || trMonthly === undefined || !Number.isFinite(trMonthly) || trMonthly < 0 || trMonthly > 10
+    || !Number.isFinite(insuranceMonthly) || insuranceMonthly < 0
     || !Number.isInteger(parcelasTotais) || parcelasTotais < 1 || parcelasTotais > 600
     || !Number.isFinite(saldoDevedor) || saldoDevedor <= 0
     || !dataBase
@@ -104,159 +106,167 @@ function EditContractForm({
 
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-      <DialogHeader>
-        <DialogTitle>Editar contrato</DialogTitle>
-        <DialogDescription>
-          Portabilidade, nova taxa ou sistema, acordo de prazo. O passado fica congelado; informe o saldo do extrato.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editBank" className="text-sm font-medium text-foreground">
-              Banco
-            </label>
-            <Input
-              id="editBank"
-              name="bank"
-              value={bank}
-              onChange={(e) => setBank(e.target.value)}
-              disabled={pending}
-              required
-            />
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSubmit();
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Editar contrato</DialogTitle>
+          <DialogDescription>
+            Portabilidade, nova taxa ou sistema, acordo de prazo. O passado fica congelado; informe o saldo do extrato.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editBank" className="text-sm font-medium text-foreground">
+                Banco
+              </label>
+              <Input
+                id="editBank"
+                name="bank"
+                value={bank}
+                onChange={(e) => setBank(e.target.value)}
+                disabled={pending}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-foreground">Sistema</span>
+              <Select
+                value={system}
+                onValueChange={(next) => {
+                  if (next === 'PRICE' || next === 'SAC') setSystem(next);
+                }}
+                disabled={pending}
+              >
+                <SelectTrigger aria-label="Sistema" className="w-full">
+                  <SelectValue>{system}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PRICE">PRICE</SelectItem>
+                  <SelectItem value="SAC">SAC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editAnnualRate" className="text-sm font-medium text-foreground">
+                Taxa anual efetiva (%)
+              </label>
+              <NumericInput
+                id="editAnnualRate"
+                name="annualRate"
+                value={annualRate}
+                parse={parseDecimal}
+                onValid={setAnnualRate}
+                disabled={pending}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editTrMonthly" className="text-sm font-medium text-foreground">
+                TR mensal (%)
+              </label>
+              <NumericInput
+                id="editTrMonthly"
+                name="trMonthly"
+                value={trMonthly}
+                parse={parseDecimal}
+                onValid={setTrMonthly}
+                disabled={pending}
+              />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editInsurance" className="text-sm font-medium text-foreground">
+                Seguro mensal (R$)
+              </label>
+              <MoneyInput
+                id="editInsurance"
+                name="insuranceMonthly"
+                value={insuranceMonthly}
+                onValid={setInsuranceMonthly}
+                disabled={pending}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editParcelasTotais" className="text-sm font-medium text-foreground">
+                Total de parcelas
+              </label>
+              <NumericInput
+                id="editParcelasTotais"
+                name="parcelasTotais"
+                value={parcelasTotais}
+                parse={parseIntStrict}
+                onValid={setParcelasTotais}
+                disabled={pending}
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Sistema</span>
-            <Select
-              value={system}
-              onValueChange={(next) => {
-                if (next === 'PRICE' || next === 'SAC') setSystem(next);
-              }}
-              disabled={pending}
-            >
-              <SelectTrigger aria-label="Sistema" className="w-full">
-                <SelectValue>{system}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PRICE">PRICE</SelectItem>
-                <SelectItem value="SAC">SAC</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editAnnualRate" className="text-sm font-medium text-foreground">
-              Taxa anual efetiva (%)
-            </label>
-            <NumericInput
-              id="editAnnualRate"
-              name="annualRate"
-              value={annualRate}
-              parse={parseDecimal}
-              onValid={setAnnualRate}
-              disabled={pending}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editTrMonthly" className="text-sm font-medium text-foreground">
-              TR mensal (%)
-            </label>
-            <NumericInput
-              id="editTrMonthly"
-              name="trMonthly"
-              value={trMonthly}
-              parse={parseDecimal}
-              onValid={setTrMonthly}
-              disabled={pending}
-            />
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editInsurance" className="text-sm font-medium text-foreground">
-              Seguro mensal (R$)
+            <label htmlFor="editSaldo" className="text-sm font-medium text-foreground">
+              Saldo devedor atual (R$)
             </label>
             <MoneyInput
-              id="editInsurance"
-              name="insuranceMonthly"
-              value={insuranceMonthly}
-              onValid={setInsuranceMonthly}
+              id="editSaldo"
+              name="saldoDevedor"
+              value={saldoDevedor}
+              onValid={setSaldoDevedor}
               disabled={pending}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editParcelasTotais" className="text-sm font-medium text-foreground">
-              Total de parcelas
-            </label>
-            <NumericInput
-              id="editParcelasTotais"
-              name="parcelasTotais"
-              value={parcelasTotais}
-              parse={parseIntStrict}
-              onValid={setParcelasTotais}
-              disabled={pending}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editDataBase" className="text-sm font-medium text-foreground">
+                Data-base
+              </label>
+              <Input
+                id="editDataBase"
+                name="dataBase"
+                type="date"
+                value={dataBase}
+                onChange={(e) => setDataBase(e.target.value)}
+                disabled={pending}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="editParcela" className="text-sm font-medium text-foreground">
+                Número da próxima parcela
+              </label>
+              <NumericInput
+                id="editParcela"
+                name="proximaParcelaNumero"
+                value={proximaParcela}
+                parse={parseIntStrict}
+                onValid={setProximaParcela}
+                disabled={pending}
+              />
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="editSaldo" className="text-sm font-medium text-foreground">
-            Saldo devedor atual (R$)
-          </label>
-          <MoneyInput
-            id="editSaldo"
-            name="saldoDevedor"
-            value={saldoDevedor}
-            onValid={setSaldoDevedor}
-            disabled={pending}
-          />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editDataBase" className="text-sm font-medium text-foreground">
-              Data-base
-            </label>
-            <Input
-              id="editDataBase"
-              name="dataBase"
-              type="date"
-              value={dataBase}
-              onChange={(e) => setDataBase(e.target.value)}
-              disabled={pending}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="editParcela" className="text-sm font-medium text-foreground">
-              Número da próxima parcela
-            </label>
-            <NumericInput
-              id="editParcela"
-              name="proximaParcelaNumero"
-              value={proximaParcela}
-              parse={parseIntStrict}
-              onValid={setProximaParcela}
-              disabled={pending}
-            />
-          </div>
-        </div>
-        <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-          A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.
-        </p>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
+          <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.
           </p>
-        )}
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
-          Cancelar
-        </Button>
-        <Button type="button" onClick={() => void handleSubmit()} disabled={pending || invalido}>
-          {pending ? 'Salvando...' : 'Salvar alterações'}
-        </Button>
-      </DialogFooter>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={pending || invalido}>
+            {pending ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </DialogFooter>
+      </form>
     </DialogContent>
   );
 }

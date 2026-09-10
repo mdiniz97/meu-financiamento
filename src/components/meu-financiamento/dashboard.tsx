@@ -33,7 +33,7 @@ export function Dashboard({
   selicAnnual?: number | null;
 }) {
   const router = useRouter();
-  const { params, baseline, pagas, extras, projecao } = state;
+  const { params, baseline, pagas, projecao } = state;
   const { parcelas, quitaEm, divergencia, saldoEfetivo, primeiraPendente } = projecao;
   const primeiraProjetada = parcelas[0] ?? null;
   const [showPay, setShowPay] = useState(false);
@@ -62,7 +62,10 @@ export function Dashboard({
     ? Math.min(100, Math.max(0, Math.round(((primeiraPendente - 1) / params.parcelasTotais) * 100)))
     : 0;
 
-  const totalPago = pagas.reduce((soma, p) => soma + p.valor, 0) + extras.reduce((soma, e) => soma + e.valor, 0);
+  // Total pago usa o HISTÓRICO completo: recalibração/atualização congelam o
+  // passado, mas os lançamentos continuam visíveis e somando.
+  const totalPago = state.historico.pagas.reduce((soma, p) => soma + p.valor, 0)
+    + state.historico.extras.reduce((soma, e) => soma + e.valor, 0);
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
   // (apagar pela timeline ou recalibrar some com a linha e com o Desfazer).

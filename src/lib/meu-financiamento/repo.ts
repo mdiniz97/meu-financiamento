@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import type { Contract, ContractState, Movement } from '@/db/schema';
 import { isUnlimited } from './auth';
@@ -23,6 +23,8 @@ export interface ContractBundle extends ContractData {
   state: ContractState;
   /** Todos os baselines do contrato em ordem de versão (histórico da timeline). */
   states: ContractState[];
+  /** TODOS os lançamentos do contrato (todos os baselines), em ordem. */
+  historico: Movement[];
 }
 
 /** Baseline serializável para a timeline (createdAt como ISO string). */
@@ -49,8 +51,14 @@ export interface PageData {
 export interface PageState {
   params: ContractParams;
   baseline: Baseline;
+  /** Lançamentos do baseline VIGENTE: base do cálculo/projeção e dos guards de edição. */
   pagas: ParcelaPagaComId[];
   extras: AmortizacaoComId[];
+  /** Lançamentos de TODOS os baselines: a timeline e o total pago continuam
+   *  visíveis após recalibração/atualização, que congelam o passado. */
+  historico: { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] };
+  /** Id do baseline vigente: a UI só edita/apaga lançamentos deste estado. */
+  stateId: string;
   /** Histórico de baselines (cadastro, recalibrações e atualizações) para a timeline. */
   states: ContractStateSummary[];
   projecao: Projecao;
@@ -118,11 +126,12 @@ export function toBaseline(row: ContractState): Baseline {
   };
 }
 
-/** Parcela paga com o id do lançamento (movements.id), necessário para editar/apagar na UI. */
-export type ParcelaPagaComId = ParcelaPaga & { id: string; groupId?: string | null };
+/** Parcela paga com o id do lançamento (movements.id) e o baseline em que foi
+ *  registrada, necessário para editar/apagar na UI e separar histórico. */
+export type ParcelaPagaComId = ParcelaPaga & { id: string; groupId?: string | null; stateId: string };
 
-/** Amortização extra com o id do lançamento, necessário para editar/apagar na UI. */
-export type AmortizacaoComId = AmortizacaoExtra & { id: string; groupId?: string | null };
+/** Amortização extra com o id do lançamento e o baseline em que foi registrada. */
+export type AmortizacaoComId = AmortizacaoExtra & { id: string; groupId?: string | null; stateId: string };
 
 export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] } {
   const pagas = movements
@@ -130,6 +139,7 @@ export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId
     .map((m) => ({
       id: m.id,
       groupId: m.groupId,
+      stateId: m.stateId,
       parcelaNumero: m.parcelaNumero as number,
       valor: m.valor,
       dataPagamento: m.dataPagamento,
@@ -140,6 +150,7 @@ export function splitMovements(movements: Movement[]): { pagas: ParcelaPagaComId
     .map((m) => ({
       id: m.id,
       groupId: m.groupId,
+      stateId: m.stateId,
       dataPagamento: m.dataPagamento,
       valor: m.valor,
       origem: (m.origem ?? 'proprio') as 'proprio' | 'fgts',
@@ -153,11 +164,14 @@ export async function recomputeState(userId: string): Promise<PageState> {
   const data = await getContract(userId);
   if (!data) throw new Error('Contrato não encontrado');
   const { pagas, extras } = splitMovements(data.movements);
+  const historico = splitMovements(data.historico);
   return {
     params: data.params,
     baseline: data.baseline,
     pagas,
     extras,
+    historico,
+    stateId: data.state.id,
     states: data.states.map((s) => ({
       version: s.version,
       saldoDevedor: s.saldoDevedor,
@@ -189,24 +203,28 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
     .orderBy(asc(schema.contractStates.version));
   const state = states[states.length - 1];
   if (!state) throw new Error('Contrato sem estado');
-  // Movements são lançamentos DO ESTADO VIGENTE: cada linha aponta para o
-  // contract_states em que foi registrada (stateId). Lançamentos de baselines
-  // antigos são histórico — a recalibração já os incorporou no novo saldo e
-  // na nova parcela pendente — e NUNCA são reaplicados: incluí-los aqui
-  // recontaria parcelas pagas/amortizações de estados superados (duplo
-  // desconto) e quebraria a contiguidade esperada pelo modelo.
-  const movements = await db
+  // Movements de TODOS os baselines: os do estado vigente entram no cálculo
+  // (pagas/extras) e os de estados superados alimentam apenas o histórico
+  // visível (timeline/total pago) — nunca são reaplicados no modelo, porque a
+  // recalibração/atualização já os incorporou no saldo do estado novo.
+  const todos = await db
     .select()
     .from(schema.movements)
-    .where(and(
-      eq(schema.movements.contractId, contract.id),
-      eq(schema.movements.stateId, state.id),
-    ))
+    .where(eq(schema.movements.contractId, contract.id))
     // created_at desempata lançamentos do mesmo dia (amortizações não têm
     // parcelaNumero e o NULL deixa a ordem do Postgres não determinística):
     // a UI lista na ordem em que foram registrados.
     .orderBy(asc(schema.movements.dataPagamento), asc(schema.movements.parcelaNumero), asc(schema.movements.createdAt));
-  return { contract, state, states, params: toContractParams(state), baseline: toBaseline(state), movements };
+  const movements = todos.filter((m) => m.stateId === state.id);
+  return {
+    contract,
+    state,
+    states,
+    params: toContractParams(state),
+    baseline: toBaseline(state),
+    movements,
+    historico: todos,
+  };
 }
 
 export async function getContract(userId: string): Promise<ContractBundle | null> {

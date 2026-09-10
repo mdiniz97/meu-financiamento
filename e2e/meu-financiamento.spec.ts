@@ -47,6 +47,8 @@ const saldoCard = (page: Page): Locator =>
   page.getByText('Saldo devedor atual', { exact: true }).locator('..');
 const proximaCard = (page: Page): Locator =>
   page.getByText('Próxima parcela', { exact: true }).locator('..');
+const totalCard = (page: Page): Locator =>
+  page.getByText('Total pago', { exact: true }).locator('..');
 const quitacaoCard = (page: Page): Locator =>
   page.getByText('Quitação estimada', { exact: true }).locator('..');
 
@@ -518,16 +520,22 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
+  // Paga a parcela 141 ANTES de editar: o lançamento vira passado congelado.
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  const totalAntes = parseBRL(await totalCard(page).innerText());
+  const saldoAntes = parseBRL(await saldoCard(page).innerText());
   const proximaAntes = parseBRL(await proximaCard(page).innerText());
+  expect(totalAntes).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  // Prefill do estado vigente: saldo, data-base e próxima parcela mantidos.
+  // Prefill do estado vigente: saldo efetivo, data-base de hoje e parcela 142.
   await expect(dialog.locator('#editBank')).toHaveValue('Caixa');
-  await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(1000000, 2);
+  await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(saldoAntes, 2);
   await expect(dialog.locator('#editDataBase')).toHaveValue(todayISO());
-  await expect(dialog.locator('#editParcela')).toHaveValue('141');
+  await expect(dialog.locator('#editParcela')).toHaveValue('142');
   await expect(dialog.getByText('A mudança vale da próxima parcela em diante; o histórico anterior não é recalculado.'))
     .toBeVisible();
 
@@ -537,15 +545,22 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
   // O chip do hero passa a mostrar o banco novo.
-  await expect(page.getByText('Itaú · PRICE · Parcela 141 de 360')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Itaú · PRICE · Parcela 142 de 360')).toBeVisible({ timeout: 20_000 });
   // Taxa menor derruba a próxima parcela projetada.
   await expect
     .poll(async () => parseBRL(await proximaCard(page).innerText()), { timeout: 20_000 })
     .toBeLessThan(proximaAntes);
-  // Timeline registra a atualização contratual com os dois bancos.
+  // O passado congelado continua visível: timeline e Total pago preservados.
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
   await expect(historico.getByText(/Caixa → Itaú/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  await expect
+    .poll(async () => parseBRL(await totalCard(page).innerText()), { timeout: 20_000 })
+    .toBeCloseTo(totalAntes, 2);
+  // Lançamento de estado superado não é editável nem apagável.
+  await expect(page.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toHaveCount(0);
 });
 
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {

@@ -441,6 +441,9 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       .orderBy(desc(schema.contractStates.version))
       .limit(1);
     if (!state) return { ok: false, error: 'Contrato sem estado' };
+    // Contrato quitado não é editável pela UI; reativar saldo tem fluxo
+    // próprio (recalibrar pelo extrato), que grava source 'recalibracao'.
+    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
 
     const baseline = toBaseline(state);
     if (v.dataBase < baseline.dataBase) return { ok: false, error: 'Data-base anterior à vigente' };
@@ -460,16 +463,19 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
 
     // Paridade total: gravar versão nova sem nenhuma mudança esconderia os
     // lançamentos do usuário (movements do estado superado viram histórico)
-    // sem efeito. Saldo em centavos: valores de ponto flutuante da mesma origem.
-    const saldoIgual = Math.round(v.saldoDevedor * 100) === Math.round(state.saldoDevedor * 100);
-    const nadaMudou = saldoIgual
+    // sem efeito. Comparações arredondadas (taxa/TR em 4 casas percentuais,
+    // dinheiro em centavos) para ruído de ponto flutuante não gravar versão
+    // "sem mudança".
+    const rateEq = (a: number, b: number) => Math.round(a * 1e6) === Math.round(b * 1e6);
+    const centsEq = (a: number, b: number) => Math.round(a * 100) === Math.round(b * 100);
+    const nadaMudou = centsEq(v.saldoDevedor, state.saldoDevedor)
       && v.dataBase === state.dataBase
       && v.proximaParcelaNumero === state.proximaParcelaNumero
       && v.bank === state.bank
       && v.system === state.system
-      && v.annualRate === state.annualRate
-      && v.trMonthly === state.trMonthly
-      && v.insuranceMonthly === state.insuranceMonthly
+      && rateEq(v.annualRate, state.annualRate)
+      && rateEq(v.trMonthly, state.trMonthly)
+      && centsEq(v.insuranceMonthly, state.insuranceMonthly)
       && v.parcelasTotais === state.parcelasTotais;
     if (nadaMudou) return { ok: false, error: 'Nada a atualizar: os dados são os atuais' };
 
