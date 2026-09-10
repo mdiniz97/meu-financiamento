@@ -24,17 +24,20 @@ function roundCents(value: number): number {
 export function PayInstallment({
   parcelaNumero,
   defaultValor,
+  initialValor,
   onCancel,
   onDone,
 }: {
   parcelaNumero: number;
   defaultValor: number;
+  /** Valor inicial do campo; defaultValor quando ausente (sugestão de amortização). */
+  initialValor?: number;
   onCancel: () => void;
   /** Chamado após o pagamento registrado e o refresh; fecha o form. */
   onDone: () => void;
 }) {
   const router = useRouter();
-  const [valor, setValor] = useState(roundCents(defaultValor));
+  const [valor, setValor] = useState(roundCents(initialValor ?? defaultValor));
   const [dataPagamento, setDataPagamento] = useState(todayISO());
   const [excedenteModo, setExcedenteModo] = useState<'term' | 'payment'>('term');
   const [pending, setPending] = useState(false);

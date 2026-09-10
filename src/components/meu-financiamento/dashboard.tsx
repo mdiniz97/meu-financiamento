@@ -9,12 +9,15 @@ import { ExclusiveCard } from '@/components/exclusive-card';
 import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
+import { economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
 import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
 import { Timeline } from './timeline';
+import { TodasParcelas } from './todas-parcelas';
+import { SugestaoAmortizacao } from './sugestao-amortizacao';
 import { EsePanel } from './e-se-panel';
 import { InvestPanel } from './invest-panel';
 
@@ -33,10 +36,11 @@ export function Dashboard({
   selicAnnual?: number | null;
 }) {
   const router = useRouter();
-  const { params, baseline, pagas, projecao } = state;
+  const { params, baseline, pagas, extras, projecao } = state;
   const { parcelas, quitaEm, divergencia, saldoEfetivo, primeiraPendente } = projecao;
   const primeiraProjetada = parcelas[0] ?? null;
   const [showPay, setShowPay] = useState(false);
+  const [aporteSugerido, setAporteSugerido] = useState<number | null>(null);
   const [recalibrando, setRecalibrando] = useState(false);
   const [editandoContrato, setEditandoContrato] = useState(false);
   const [amortizando, setAmortizando] = useState(false);
@@ -66,6 +70,12 @@ export function Dashboard({
   // passado, mas os lançamentos continuam visíveis e somando.
   const totalPago = state.historico.pagas.reduce((soma, p) => soma + p.valor, 0)
     + state.historico.extras.reduce((soma, e) => soma + e.valor, 0);
+
+  // Economia usa o estado VIGENTE (extras atuais), nunca o histórico: as
+  // amortizações de baselines superados já estão incorporadas no saldo do
+  // baseline novo e reaplicá-las duplicaria a economia.
+  const economia = economiaAmortizacoes(params, baseline, pagas, extras);
+  const economiaPositiva = Math.round(economia * 100) > 0;
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
   // (apagar pela timeline ou recalibrar some com a linha e com o Desfazer).
@@ -142,7 +152,7 @@ export function Dashboard({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
             <p className="text-xs font-medium text-muted-foreground">Próxima parcela</p>
             <p className="font-mono text-lg font-semibold tabular-nums">
@@ -159,6 +169,17 @@ export function Dashboard({
             <p className="text-xs font-medium text-muted-foreground">Total pago</p>
             <p className="font-mono text-lg font-semibold tabular-nums">{formatBRL(totalPago)}</p>
             <p className="text-xs text-muted-foreground">Parcelas e amortizações extras registradas</p>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
+            <p className="text-xs font-medium text-muted-foreground">Economizado com amortizações</p>
+            <p className="font-mono text-lg font-semibold tabular-nums">
+              {economiaPositiva ? formatBRL(economia) : '—'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {economiaPositiva
+                ? 'juros, correção e seguro evitados no modelo'
+                : 'registre uma amortização para ver a economia'}
+            </p>
           </div>
         </div>
       </section>
@@ -328,6 +349,7 @@ export function Dashboard({
                 onClick={() => {
                   // Nunca coexistir com o alerta do Desfazer no mesmo card.
                   setDesfazerError('');
+                  setAporteSugerido(null);
                   setShowPay(true);
                 }}
               >
@@ -335,13 +357,33 @@ export function Dashboard({
               </Button>
             )}
           </div>
+          {!readOnly && (
+            <SugestaoAmortizacao
+              params={params}
+              baseline={baseline}
+              pagas={pagas}
+              extras={extras}
+              projecao={projecao}
+              onAplicar={(aporte) => {
+                setDesfazerError('');
+                setAporteSugerido(aporte);
+                setShowPay(true);
+              }}
+            />
+          )}
           {!readOnly && showPay && (
             <PayInstallment
+              key={aporteSugerido ?? 'sem-aporte'}
               parcelaNumero={primeiraProjetada.parcelaNumero}
               defaultValor={primeiraProjetada.parcela}
-              onCancel={() => setShowPay(false)}
+              initialValor={aporteSugerido != null ? primeiraProjetada.parcela + aporteSugerido : undefined}
+              onCancel={() => {
+                setAporteSugerido(null);
+                setShowPay(false);
+              }}
               onDone={() => {
                 setUltimaPaga({ numero: primeiraProjetada.parcelaNumero });
+                setAporteSugerido(null);
                 setShowPay(false);
               }}
             />
@@ -366,6 +408,8 @@ export function Dashboard({
       )}
 
       <Timeline state={state} readOnly={readOnly} quitado={quitado} />
+
+      <TodasParcelas state={state} />
 
       {parcelas.length > 0 && (
         <section className="flex flex-col gap-3">

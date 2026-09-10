@@ -51,6 +51,8 @@ const totalCard = (page: Page): Locator =>
   page.getByText('Total pago', { exact: true }).locator('..');
 const quitacaoCard = (page: Page): Locator =>
   page.getByText('Quitação estimada', { exact: true }).locator('..');
+const economiaCard = (page: Page): Locator =>
+  page.getByText('Economizado com amortizações', { exact: true }).locator('..');
 
 async function criarConta(page: Page, nome: string): Promise<{ id: string; email: string }> {
   const email = `mf9-${crypto.randomUUID()}@teste.com`;
@@ -203,6 +205,71 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
 
+test('accordion "Todas as parcelas" lista o cronograma e carrega mais 24 por vez', async ({ page }) => {
+  const conta = await criarConta(page, 'Todas as Parcelas');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  const resumo = page.getByText('Todas as parcelas', { exact: true });
+  await expect(resumo).toBeVisible();
+  // Fechado por padrão: as linhas existem no DOM (details), mas ocultas.
+  await expect(page.getByText('Parcela 141', { exact: true })).toBeHidden();
+
+  await resumo.click();
+  await expect(page.getByText('Parcela 141', { exact: true })).toBeVisible();
+  // 24 linhas por vez: a 164 fecha o primeiro bloco, a 165 só com "Mostrar mais".
+  await expect(page.getByText('Parcela 164', { exact: true })).toBeVisible();
+  await expect(page.getByText('Parcela 165', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Em aberto').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Mostrar mais', exact: true }).click();
+  await expect(page.getByText('Parcela 165', { exact: true })).toBeVisible();
+
+  // Pagar a 141 reescreve a linha com o valor real e a data (destaque verde).
+  await pagarProxima(page);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  // O refresh pode manter o details aberto ou fechá-lo; abre só se preciso.
+  const pagaLinha = page.getByText(/Paga em \d{2}\/\d{2}\/\d{4}/).first();
+  if (!(await pagaLinha.isVisible())) await resumo.click();
+  await expect(pagaLinha).toBeVisible();
+});
+
+test('sugestão de amortização preenche o pagamento com o split e antecipa a quitação', async ({ page }) => {
+  const conta = await criarConta(page, 'Sugestão de Amortização');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  const quitacaoAntes = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
+  expect(quitacaoAntes).toBe(360);
+
+  await page.getByText('Quer amortizar junto?', { exact: true }).click();
+  // Menor aporte com efeito no prazo, calculado pelo modelo.
+  await expect(page.getByText(/\+ R\$\s*[\d.,]+ e quita 1 parcela antes/)).toBeVisible();
+
+  // R$ 1.000 não encurta o prazo neste cenário (o limiar é maior); o chip de
+  // R$ 2.000 é o menor atalho com efeito observável na quitação.
+  await expect(page.locator('[data-aporte="2000"]')).toContainText('quita 1 parcela antes');
+  await page.getByRole('button', { name: 'R$ 2.000', exact: true }).click();
+  await page.locator('[data-aporte="2000"]').getByRole('button', { name: 'Aplicar', exact: true }).click();
+
+  const box = page.locator('[data-pay-installment]');
+  await expect(box).toBeVisible();
+  await expect(box.getByText(/Parcela .* \+ amortização extra/)).toBeVisible();
+  await expect(box.getByText(/R\$\s*2\.000,00/)).toBeVisible();
+  await expect(box.getByText('Reduziu o prazo (parcela igual)', { exact: true })).toBeVisible();
+
+  await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(box).toHaveCount(0, { timeout: 20_000 });
+
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
+  await expect(historico).toContainText(/R\$\s*2\.000,00/);
+  await expect(historico).toContainText(/Parcela 141 ·/);
+  await expect
+    .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
+    .toBeLessThan(quitacaoAntes);
+});
+
 test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue o modelo', async ({ page }) => {
   const conta = await criarConta(page, 'Marcar Boleto');
   await assinar(page, conta.id);
@@ -331,6 +398,10 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
   await expect(historico).toContainText(/R\$\s*100\.000,00/);
 
+  // Hero: a amortização liga a micro-métrica de economia (antes mostrava "—").
+  await expect(economiaCard(page)).toContainText(/R\$\s*[\d.,]+/);
+  expect(parseBRL(await economiaCard(page).innerText())).toBeGreaterThan(0);
+
   const quitacaoDepois = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   // Oráculo do modelo: o mesmo pagamento de R$ 100.000 no modelo puro deriva a
   // parcela de quitação — o número cravado (310) viraria manutenção silenciosa
@@ -386,6 +457,7 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await expect(page.getByRole('heading', { name: 'Recomendações', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Quer amortizar junto?', { exact: true })).toHaveCount(0);
 });
 
 test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela para 141', async ({ page }) => {
