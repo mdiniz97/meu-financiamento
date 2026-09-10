@@ -22,6 +22,34 @@ function pctAnual(valor: number): string {
   return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.`;
 }
 
+interface Veredito {
+  vencedor: 'amortizar' | 'investir';
+  diferenca: number;
+  amortizarJuros: number;
+  investirJuros: number;
+}
+
+/**
+ * Veredito do painel: compara a melhor estratégia de amortização com investir
+ * pelo que sobra no fim (juros economizados + dinheiro que permanece no bolso,
+ * na conta do modelo). Investir sempre mantém o valor aplicado.
+ */
+function vereditoDe(resultado: InvestResult, valor: number): Veredito {
+  const amortizarJuros = Math.max(
+    resultado.estrategias['reduzir-parcela'].economiaJuros,
+    resultado.estrategias['reduzir-prazo'].economiaJuros,
+  );
+  const investirJuros = resultado.estrategias['investir-rendimento'].economiaJuros;
+  const amortizarTotal = amortizarJuros;
+  const investirTotal = investirJuros + valor;
+  return {
+    vencedor: amortizarTotal >= investirTotal ? 'amortizar' : 'investir',
+    diferenca: Math.abs(amortizarTotal - investirTotal),
+    amortizarJuros,
+    investirJuros,
+  };
+}
+
 function EstrategiaCard({
   cenario,
   resultado,
@@ -53,7 +81,7 @@ function EstrategiaCard({
   };
   return (
     <Card
-      className={`rounded-2xl shadow-sm ${vencedor ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}
+      className={`min-w-0 rounded-2xl shadow-sm ${vencedor ? 'ring-2 ring-[#820AD1] dark:ring-[#a44ce0]' : ''}`}
     >
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -64,9 +92,9 @@ function EstrategiaCard({
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>{descricoes[cenario]}</CardDescription>
+        <CardDescription className="break-words">{descricoes[cenario]}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm">
+      <CardContent className="flex min-w-0 flex-col gap-3 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span className="text-muted-foreground">Quita a dívida em</span>
           <span className="font-mono font-semibold tabular-nums">
@@ -127,6 +155,8 @@ export function InvestPanel({
   const [resultado, setResultado] = useState<InvestResult | null>(null);
   const [error, setError] = useState('');
 
+  const veredito = resultado ? vereditoDe(resultado, valor) : null;
+
   function calcular() {
     setError('');
     if (!(valor > 0)) {
@@ -169,17 +199,17 @@ export function InvestPanel({
   }
 
   return (
-    <Card className="flex flex-col rounded-2xl shadow-sm">
+    <Card className="flex w-full min-w-0 flex-col rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle role="heading" aria-level={3} className="flex items-center gap-2 text-lg">
           <Scale className="size-5 text-[#820AD1]" /> Investir ou amortizar
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="break-words">
           Com dinheiro disponível hoje, compare investir na Selic com amortizar este contrato ({pctAnual(params.annualRate * 100)}{' '}
           {params.system === 'SAC' ? 'no SAC' : 'no PRICE'}).
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex min-w-0 flex-col gap-4">
         <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300">
           <Info className="mt-0.5 size-4 shrink-0" />
           <span>
@@ -187,7 +217,7 @@ export function InvestPanel({
           </span>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="invPValor" className="text-sm font-medium text-foreground">
               Valor disponível (R$)
@@ -239,37 +269,34 @@ export function InvestPanel({
           </Button>
         </div>
 
-        {resultado && (
-          <div className="flex flex-col gap-4 border-t border-border pt-4">
-            <div className="rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-4">
-              <p className="text-sm">
-                <strong className="text-[#820AD1]">
-                  Maior economia de juros:{' '}
-                  {resultado.melhorEconomia === 'reduzir-parcela'
-                    ? 'reduzir a parcela'
-                    : resultado.melhorEconomia === 'reduzir-prazo'
-                      ? 'reduzir o prazo'
-                      : 'investir e amortizar com o rendimento'}
-                </strong>{' '}
-                <strong className="font-mono tabular-nums">
-                  {formatBRL(resultado.estrategias[resultado.melhorEconomia].economiaJuros)}
-                </strong>{' '}
-                de juros até quitar, nas condições simuladas. Não indica maior patrimônio final; o rendimento do
-                investimento depende da Selic futura.
+        {resultado && veredito && (
+          <div className="flex min-w-0 flex-col gap-4 border-t border-border pt-4">
+            <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-5">
+              <p className="text-xl font-semibold break-words">
+                {veredito.vencedor === 'amortizar' ? 'Amortizar' : 'Investir'} deixa você{' '}
+                <span className="font-mono tabular-nums">{formatBRL(veredito.diferenca)}</span> à frente
               </p>
-              {resultado.melhorEconomia !== 'investir-rendimento' && (
-                <p className="mt-2 text-xs text-muted-foreground">
+              <div className="flex min-w-0 flex-col gap-1 text-sm text-muted-foreground">
+                <p className="break-words">
                   Amortizar economiza{' '}
-                  <strong className="font-mono tabular-nums">
-                    {formatBRL(
-                      resultado.estrategias[resultado.melhorEconomia].economiaJuros -
-                        resultado.estrategias['investir-rendimento'].economiaJuros,
-                    )}
+                  <strong className="font-mono tabular-nums text-foreground">
+                    {formatBRL(veredito.amortizarJuros)}
                   </strong>{' '}
-                  a mais de juros, mas quem investe termina com os{' '}
-                  <strong className="font-mono tabular-nums">{formatBRL(valor)} no bolso</strong>.
+                  de juros, mas usa os {formatBRL(valor)} no abate.
                 </p>
-              )}
+                <p className="break-words">
+                  Investir economiza{' '}
+                  <strong className="font-mono tabular-nums text-foreground">
+                    {formatBRL(veredito.investirJuros)}
+                  </strong>{' '}
+                  de juros e você termina com{' '}
+                  <strong className="font-mono tabular-nums text-foreground">{formatBRL(valor)}</strong> ainda no bolso.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Conta do modelo: juros economizados até quitar mais o dinheiro que sobra. Não considera reinvestir as
+                parcelas poupadas nem mudanças futuras da Selic.
+              </p>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">

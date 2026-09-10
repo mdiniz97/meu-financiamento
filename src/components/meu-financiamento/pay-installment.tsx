@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { payInstallment } from '@/app/(app)/meu-financiamento/actions';
 import { todayISO } from '@/lib/meu-financiamento/dates';
+import { splitPagamento } from '@/lib/finance/meu-financiamento/split-payment';
 import { formatBRL } from '@/lib/utils';
 
 function roundCents(value: number): number {
@@ -34,8 +36,12 @@ export function PayInstallment({
   const router = useRouter();
   const [valor, setValor] = useState(roundCents(defaultValor));
   const [dataPagamento, setDataPagamento] = useState(todayISO());
+  const [excedenteModo, setExcedenteModo] = useState<'term' | 'payment'>('term');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+
+  const split = splitPagamento(defaultValor, valor);
+  const temExcedente = split.amortizacao > 0;
 
   async function handleSubmit() {
     if (pending || valor <= 0 || !dataPagamento) return;
@@ -43,7 +49,11 @@ export function PayInstallment({
     setError('');
     let result;
     try {
-      result = await payInstallment({ valor, dataPagamento });
+      result = await payInstallment({
+        valor,
+        dataPagamento,
+        excedenteModo: temExcedente ? excedenteModo : undefined,
+      });
     } catch {
       setPending(false);
       setError('Sessão expirada, entre novamente');
@@ -109,6 +119,38 @@ export function PayInstallment({
           </Button>
         </div>
       </div>
+      {temExcedente && (
+        <div className="flex flex-col gap-2 rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-3">
+          <p className="text-sm">
+            Parcela{' '}
+            <strong className="font-mono font-semibold tabular-nums">{formatBRL(split.parcela)}</strong> + amortização
+            extra{' '}
+            <strong className="font-mono font-semibold tabular-nums">{formatBRL(split.amortizacao)}</strong>
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-foreground">O que o banco fez com a amortização</span>
+            <RadioGroup
+              value={excedenteModo}
+              onValueChange={(v) => setExcedenteModo(v as 'term' | 'payment')}
+              aria-label="O que o banco fez com a amortização"
+              className="justify-start gap-6"
+              disabled={pending}
+            >
+              <label className="flex items-center gap-1.5 text-sm">
+                <RadioGroupItem value="term" />
+                Reduziu o prazo (parcela igual)
+              </label>
+              <label className="flex items-center gap-1.5 text-sm">
+                <RadioGroupItem value="payment" />
+                Reduziu a parcela (prazo igual)
+              </label>
+            </RadioGroup>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O excedente será registrado como amortização extra (dinheiro próprio).
+          </p>
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

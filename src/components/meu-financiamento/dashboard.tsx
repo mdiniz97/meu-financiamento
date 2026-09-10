@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Landmark } from 'lucide-react';
+import { Landmark, PiggyBank } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
@@ -95,27 +95,15 @@ export function Dashboard({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
           <Landmark className="size-3.5 text-[#820AD1]" />
           {params.bank} · {params.system} · Parcela {primeiraPendente} de {params.parcelasTotais}
         </p>
-        {!readOnly && (
-          <div className="flex flex-wrap items-center gap-2">
-            {!quitado && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setAmortizando(true)}>
-                Registrei amortização
-              </Button>
-            )}
-            <Button type="button" variant="outline" size="sm" onClick={() => setRecalibrando(true)}>
-              Recalibrar saldo
-            </Button>
-          </div>
-        )}
       </div>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-[#820AD1]/20 bg-primary/[0.04] p-5 sm:p-6">
+      <section className="flex flex-col gap-4 rounded-2xl border border-[#820AD1]/20 bg-primary/[0.04] p-6">
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-xs font-medium text-muted-foreground">Saldo devedor atual</p>
           <p className="font-mono text-3xl font-semibold tabular-nums sm:text-4xl">{formatBRL(saldoEfetivo)}</p>
@@ -169,6 +157,45 @@ export function Dashboard({
           </div>
         </div>
       </section>
+
+      {!readOnly && !quitado && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            aria-label="Registrar amortização extra"
+            aria-describedby="acao-amortizar-desc"
+            onClick={() => setAmortizando(true)}
+            className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-[#820AD1]/50 hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <span className="rounded-xl bg-[#820AD1]/10 p-2 text-[#820AD1]">
+              <PiggyBank className="size-5" />
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-medium">Registrar amortização extra</span>
+              <span id="acao-amortizar-desc" className="text-xs text-muted-foreground">
+                Aporte separado do boleto, com FGTS ou dinheiro próprio.
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Recalibrar pelo extrato"
+            aria-describedby="acao-recalibrar-desc"
+            onClick={() => setRecalibrando(true)}
+            className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-[#820AD1]/50 hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <span className="rounded-xl bg-[#820AD1]/10 p-2 text-[#820AD1]">
+              <Landmark className="size-5" />
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-medium">Recalibrar pelo extrato</span>
+              <span id="acao-recalibrar-desc" className="text-xs text-muted-foreground">
+                Corrija o saldo devedor com o valor que aparece no banco.
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
 
       {quitado ? (
         <div
@@ -333,7 +360,7 @@ export function Dashboard({
           <h2 className="font-display text-lg font-semibold">Recomendações</h2>
           <div
             key={`${saldoEfetivo}:${primeiraPendente}:${quitaEm}`}
-            className="grid items-start gap-4 lg:grid-cols-2"
+            className="flex flex-col gap-6"
           >
             <EsePanel params={state.params} projecao={state.projecao} />
             <InvestPanel params={state.params} projecao={state.projecao} selicAnnual={selicAnnual} />

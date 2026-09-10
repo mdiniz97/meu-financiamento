@@ -170,14 +170,14 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
 
   if (quitaEm === null) {
     return (
-      <Card className="flex flex-col rounded-2xl shadow-sm">
+      <Card className="flex w-full min-w-0 flex-col rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle role="heading" aria-level={3} className="flex items-center gap-2 text-lg">
             <Zap className="size-5 text-[#820AD1]" /> E se?
           </CardTitle>
           <CardDescription>Simule um aporte extra no seu contrato e veja o efeito no prazo e no total pago.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex min-w-0 flex-col gap-3">
           <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
             Este contrato não quita dentro do prazo no modelo, então não há quitação para comparar. Confira o saldo no
             extrato e recalibre para tentar de novo.
@@ -267,14 +267,14 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
   }
 
   return (
-    <Card className="flex flex-col rounded-2xl shadow-sm">
+    <Card className="flex w-full min-w-0 flex-col rounded-2xl shadow-sm">
       <CardHeader>
         <CardTitle role="heading" aria-level={3} className="flex items-center gap-2 text-lg">
           <Zap className="size-5 text-[#820AD1]" /> E se?
         </CardTitle>
         <CardDescription>Simule um aporte extra no seu contrato e veja o efeito no prazo e no total pago.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex min-w-0 flex-col gap-4">
         <RadioGroup
           value={tipo}
           onValueChange={(v) => {
@@ -283,7 +283,7 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
             setError('');
           }}
           aria-label="Tipo de aporte"
-          className="grid-flow-col justify-start gap-6"
+          className="flex flex-wrap gap-x-6 gap-y-2"
         >
           <label className="flex items-center gap-1.5 text-sm">
             <RadioGroupItem value="pontual" />
@@ -317,7 +317,7 @@ export function EsePanel({ params, projecao }: { params: ContractParams; projeca
                 setResultado(null);
               }}
               aria-label="Modo de redução do aporte mensal"
-              className="grid-flow-col justify-start gap-6"
+              className="flex flex-wrap gap-x-6 gap-y-2"
             >
               <label className="flex items-center gap-1.5 text-sm">
                 <RadioGroupItem value="term" />
