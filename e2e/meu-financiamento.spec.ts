@@ -368,6 +368,27 @@ test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela p
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
 
+test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', async ({ page }) => {
+  const conta = await criarConta(page, 'Desfazer Pagamento');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  await pagarProxima(page);
+  await expect(page.getByText(/Parcela 141 paga em/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+
+  // O refresh apaga a confirmação, devolve a parcela 141 para o card e zera a
+  // timeline (só o cadastro restava, e ele não conta como lançamento).
+  await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Sua parcela deste mês', exact: true })).toBeVisible();
+  await expect(page.getByText(/Parcela 141 ·/)).toHaveCount(0);
+  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+});
+
 test('amortização do saldo inteiro zera o modelo, mostra o aviso âmbar e recalibrar restaura', async ({ page }) => {
   const conta = await criarConta(page, 'Zero por Lançamento');
   await assinar(page, conta.id);

@@ -54,8 +54,10 @@ export function Dashboard({
 
   const vencimentoPrimeira = primeiraProjetada ? vencimentoEstimado(primeiraProjetada.parcelaNumero) : null;
   const vencida = vencimentoPrimeira != null && vencimentoPrimeira < hoje;
+  // Clamp defensivo 0..100: dado legado fora da faixa não pode estourar a
+  // largura da barra nem divergir do aria-valuenow.
   const pctContrato = params.parcelasTotais > 0
-    ? Math.round(((primeiraPendente - 1) / params.parcelasTotais) * 100)
+    ? Math.min(100, Math.max(0, Math.round(((primeiraPendente - 1) / params.parcelasTotais) * 100)))
     : 0;
 
   const totalPago = pagas.reduce((soma, p) => soma + p.valor, 0) + extras.reduce((soma, e) => soma + e.valor, 0);
@@ -270,7 +272,15 @@ export function Dashboard({
               </p>
             </div>
             {!readOnly && !showPay && (
-              <Button type="button" size="lg" onClick={() => setShowPay(true)}>
+              <Button
+                type="button"
+                size="lg"
+                onClick={() => {
+                  // Nunca coexistir com o alerta do Desfazer no mesmo card.
+                  setDesfazerError('');
+                  setShowPay(true);
+                }}
+              >
                 Paguei esta parcela
               </Button>
             )}
