@@ -187,41 +187,25 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   let divergencia = 0;
   const pagasPorNumero = new Map(pagas.map((p) => [p.parcelaNumero, p]));
   const pagasDetalhadas: ParcelaPagaDetalhada[] = [];
-  // Composição das pagas: as amortizações extras do estado vigente entram no
-  // encadeamento pela DATA (extra com dataPagamento <= data da paga reduz o
-  // saldo antes de compor a competência; empate entra antes). Assim os juros,
-  // a correção, a amortização e o saldo da paga refletem o saldo real; extras
-  // posteriores à última paga não entram aqui e seguem compondo o saldoEfetivo.
-  // Hipótese: as pagas têm dataPagamento não decrescente por número de parcela.
-  const extrasPorData = [...extras].sort((a, b) => a.dataPagamento.localeCompare(b.dataPagamento));
-  let extraIndice = 0;
-  let saldoComExtras = baseline.saldoDevedor;
+  // Composição das pagas pelo encadeamento SEM extras: o saldo por competência
+  // não representa o saldo real quando há amortização extra aplicável, por isso
+  // a tabela exibe "—" no Saldo dessas pagas (ver parcelas-do-financiamento.tsx).
   for (const n of numeros) {
     const paga = pagasPorNumero.get(n)!;
     const projetada = cronoOriginal.installments[indexOriginal(n)].parcela;
-    while (extraIndice < extrasPorData.length && extrasPorData[extraIndice].dataPagamento <= paga.dataPagamento) {
-      saldoComExtras = Math.max(0, saldoComExtras - extrasPorData[extraIndice].valor);
-      extraIndice += 1;
-    }
     const juros = saldo * m;
     const correcao = saldo * params.trMonthly;
     const saldoCorrigido = saldo + correcao;
     const amortizacao = Math.min(Math.max(paga.valor - juros - params.insuranceMonthly, 0), saldoCorrigido);
     saldo = Math.max(0, saldoCorrigido - amortizacao);
-
-    const jurosP = saldoComExtras * m;
-    const correcaoP = saldoComExtras * params.trMonthly;
-    const saldoCorrigidoP = saldoComExtras + correcaoP;
-    const amortizacaoP = Math.min(Math.max(paga.valor - jurosP - params.insuranceMonthly, 0), saldoCorrigidoP);
-    saldoComExtras = Math.max(0, saldoCorrigidoP - amortizacaoP);
     pagasDetalhadas.push({
       parcelaNumero: n,
       parcelaReal: paga.valor,
-      juros: jurosP,
-      correcao: correcaoP,
+      juros,
+      correcao,
       seguro: params.insuranceMonthly,
-      amortizacao: amortizacaoP,
-      saldo: saldoComExtras,
+      amortizacao,
+      saldo,
       dataPagamento: paga.dataPagamento,
     });
     divergencia += paga.valor - projetada;

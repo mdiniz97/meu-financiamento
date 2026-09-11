@@ -256,9 +256,12 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await expect(linhaPaga).toContainText(formatBRL(pg.correcao));
   await expect(linhaPaga).toContainText(formatBRL(pg.seguro));
   await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
+  // Sem extras no estado, o Saldo da paga é o do encadeamento sem extras.
+  await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText(formatBRL(pg.saldo));
 
-  // Amortização extra no mesmo dia da paga entra antes da composição: o saldo
-  // da 141 cai e bate com o oráculo do model (data extra ≤ data da paga).
+  // Com amortização extra no estado vigente até a data da paga, o saldo do
+  // encadeamento sem extras deixa de representar o saldo real: vira "—" (a
+  // composição juros/correção/seguro/amortização segue inalterada).
   const valorExtra = 100000;
   await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -268,11 +271,9 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
   if (!(await linhaPaga.isVisible())) await resumo.click();
-  const pgComExtra = projecao(PARAMS_E2E, baselineDeHoje(), [
-    { parcelaNumero: 141, valor: paga, dataPagamento: todayISO() },
-  ], [{ dataPagamento: todayISO(), valor: valorExtra, origem: 'proprio', modo: 'term' }]).pagas[0];
-  await expect(linhaPaga).toContainText(formatBRL(pgComExtra.saldo));
-  expect(pgComExtra.saldo).toBeLessThan(pg.saldo);
+  await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText('—');
+  await expect(linhaPaga).toContainText(formatBRL(pg.juros));
+  await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
 });
 
 test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {

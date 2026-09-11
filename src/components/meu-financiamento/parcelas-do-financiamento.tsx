@@ -26,6 +26,16 @@ function celulaValor(valor: number | undefined): string {
   return valor == null ? '—' : formatBRL(valor);
 }
 
+/** O saldo por competência das pagas é o do encadeamento SEM extras; quando
+ *  existe amortização extra do estado vigente até a data da paga ele deixa de
+ *  representar o saldo real e vira "—", para não conflitar com o saldo efetivo
+ *  do estado. Nas parcelas em aberto o saldo é sempre exibido. */
+function saldoParcela(linha: CronogramaParcela, extraAplicavel: (data: string) => boolean): string {
+  if (!linha.composicao) return '—';
+  if (linha.situacao !== 'aberta' && extraAplicavel(linha.paga?.dataPagamento ?? '')) return '—';
+  return formatBRL(linha.composicao.saldo);
+}
+
 const STICKY_BG: Record<CronogramaParcela['situacao'], string> = {
   paga: 'bg-emerald-50 dark:bg-emerald-950',
   historico: 'bg-muted',
@@ -71,18 +81,21 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
  * pura, inclusive no readOnly.
  *
  * As pagas do estado vigente exibem a composição calculada pelo mesmo
- * encadeamento do model (`projecao.pagas`); as pagas de baselines anteriores
- * não são reconstruíveis e aparecem como "Histórico", com apenas o valor real,
- * a data e "—" nas células de composição.
+ * encadeamento do model (`projecao.pagas`, sem extras); as pagas de baselines
+ * anteriores não são reconstruíveis e aparecem como "Histórico", com apenas o
+ * valor real, a data e "—" nas células de composição. O Saldo das pagas vira
+ * "—" quando há amortização extra do estado vigente até a data da paga, porque
+ * o encadeamento sem extras não representa o saldo real daquele ponto.
  */
 export function ParcelasDoFinanciamento({
   state,
 }: {
-  state: Pick<PageState, 'baseline' | 'projecao' | 'historico'>;
+  state: Pick<PageState, 'baseline' | 'projecao' | 'historico' | 'extras'>;
 }) {
   const [limite, setLimite] = useState(LINHAS_POR_VEZ);
   const linhas = buildCronograma(state.baseline, state.projecao, state.historico);
   const visiveis = linhas.slice(0, limite);
+  const temExtraAplicavel = (data: string) => state.extras.some((e) => e.dataPagamento <= data);
 
   return (
     <details className="group rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10">
@@ -153,7 +166,9 @@ export function ParcelasDoFinanciamento({
                         <TableCell className="text-right">{celulaValor(linha.composicao?.amortizacao)}</TableCell>
                         <TableCell className="text-right">{celulaValor(linha.composicao?.seguro)}</TableCell>
                         <TableCell className="text-right">{celulaValor(linha.composicao?.correcao)}</TableCell>
-                        <TableCell className="text-right">{celulaValor(linha.composicao?.saldo)}</TableCell>
+                        <TableCell data-cell="saldo" className="text-right">
+                          {saldoParcela(linha, temExtraAplicavel)}
+                        </TableCell>
                         <TableCell>
                           <Situacao linha={linha} />
                         </TableCell>
