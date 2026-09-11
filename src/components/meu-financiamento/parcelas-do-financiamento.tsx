@@ -14,25 +14,21 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
-import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
+import { editPayment, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { AmortizacaoComId, PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import {
   buildCronograma,
-  distribuirAportes,
   type CronogramaParcela,
 } from '@/lib/meu-financiamento/cronograma';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PayInstallmentDialog } from './pay-installment';
+import { PayInstallmentDialog, ModoRadios } from './pay-installment';
 import { ConfirmDialog } from './confirm-dialog';
-import { ModoRadios, OrigemRadios } from './amortization-form';
 
 const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground';
 
-type ApagarAlvo =
-  | { tipo: 'parcela'; id: string; numero: number; valor: number }
-  | { tipo: 'amortizacao'; id: string; numero: number; valor: number };
+type ApagarAlvo = { tipo: 'parcela'; id: string; numero: number; valor: number };
 
 function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
@@ -91,14 +87,17 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
   );
 }
 
-/** Dialog de edição de uma parcela paga do estado vigente (valor + data).
- *  Reusa a action `editMovement`; o conteúdo só monta com o dialog aberto e o
- *  erro sai no `role="alert"` local. */
-function EditarParcelaDialog({
+/** Dialog de edição de um pagamento do estado vigente: valor/data e, quando o
+ *  lançamento tem aporte vinculado (groupId), o valor e o modo da amortização,
+ *  salvos juntos na mesma transação (`editPayment`). O conteúdo só monta com o
+ *  dialog aberto e o erro sai no `role="alert"` local. */
+function EditarPagamentoDialog({
   paga,
+  aporte,
   onOpenChange,
 }: {
   paga: ParcelaPagaComId | null;
+  aporte: AmortizacaoComId | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const [pending, setPending] = useState(false);
@@ -111,9 +110,10 @@ function EditarParcelaDialog({
       }}
     >
       {paga && (
-        <EditarParcelaContent
+        <EditarPagamentoContent
           key={paga.id}
           paga={paga}
+          aporte={aporte}
           pending={pending}
           onPendingChange={setPending}
           onClose={() => onOpenChange(false)}
@@ -123,13 +123,15 @@ function EditarParcelaDialog({
   );
 }
 
-function EditarParcelaContent({
+function EditarPagamentoContent({
   paga,
+  aporte,
   pending,
   onPendingChange,
   onClose,
 }: {
   paga: ParcelaPagaComId;
+  aporte: AmortizacaoComId | null;
   pending: boolean;
   onPendingChange: (v: boolean) => void;
   onClose: () => void;
@@ -137,7 +139,10 @@ function EditarParcelaContent({
   const router = useRouter();
   const [valor, setValor] = useState(() => roundCents(paga.valor));
   const [dataPagamento, setDataPagamento] = useState(paga.dataPagamento);
+  const [aporteValor, setAporteValor] = useState(() => (aporte ? roundCents(aporte.valor) : 0));
+  const [modo, setModo] = useState<'term' | 'payment'>(aporte?.modo ?? 'term');
   const [error, setError] = useState('');
+  const temAporte = aporte !== null;
 
   async function salvar() {
     if (pending || valor <= 0 || !dataPagamento) return;
@@ -145,7 +150,13 @@ function EditarParcelaContent({
     setError('');
     let result;
     try {
-      result = await editMovement(paga.id, { valor, dataPagamento });
+      result = await editPayment(paga.id, {
+        valor,
+        dataPagamento,
+        // Valor 0 remove o aporte e desfaz o vínculo; é a forma de zerar a
+        // amortização pela edição do próprio pagamento.
+        ...(temAporte ? { aporte: { valor: aporteValor, modo } } : {}),
+      });
     } catch {
       onPendingChange(false);
       setError('Sessão expirada, entre novamente');
@@ -162,158 +173,32 @@ function EditarParcelaContent({
   }
 
   return (
-    <DialogContent className="sm:max-w-md" data-edit-parcela>
+    <DialogContent className="sm:max-w-md" data-edit-pagamento>
       <DialogHeader>
-        <DialogTitle>Editar parcela {paga.parcelaNumero}</DialogTitle>
+        <DialogTitle>Editar pagamento da parcela {paga.parcelaNumero}</DialogTitle>
         <DialogDescription>
-          Ajuste o valor pago e a data do pagamento registrado.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${paga.id}-valor`} className="text-sm font-medium text-foreground">
-            Valor pago (R$)
-          </label>
-          <MoneyInput
-            id={`${paga.id}-valor`}
-            value={valor}
-            onValid={setValor}
-            disabled={pending}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${paga.id}-data`} className="text-sm font-medium text-foreground">
-            Data do pagamento
-          </label>
-          <Input
-            id={`${paga.id}-data`}
-            type="date"
-            value={dataPagamento}
-            onChange={(e) => setDataPagamento(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          onClick={() => void salvar()}
-          disabled={pending || valor <= 0 || !dataPagamento}
-        >
-          {pending ? 'Salvando...' : 'Salvar'}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-}
-
-/** Dialog de edição de uma amortização extra do estado vigente (valor, data,
- *  origem e modo). Reusa a action `editMovement`; o conteúdo só monta com o
- *  dialog aberto e o erro sai no `role="alert"` local. */
-function EditarAmortizacaoDialog({
-  amortizacao,
-  onOpenChange,
-}: {
-  amortizacao: AmortizacaoComId | null;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [pending, setPending] = useState(false);
-
-  return (
-    <Dialog
-      open={amortizacao !== null}
-      onOpenChange={(v) => {
-        if (v || !pending) onOpenChange(v);
-      }}
-    >
-      {amortizacao && (
-        <EditarAmortizacaoContent
-          key={amortizacao.id}
-          amortizacao={amortizacao}
-          pending={pending}
-          onPendingChange={setPending}
-          onClose={() => onOpenChange(false)}
-        />
-      )}
-    </Dialog>
-  );
-}
-
-function EditarAmortizacaoContent({
-  amortizacao,
-  pending,
-  onPendingChange,
-  onClose,
-}: {
-  amortizacao: AmortizacaoComId;
-  pending: boolean;
-  onPendingChange: (v: boolean) => void;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [valor, setValor] = useState(() => roundCents(amortizacao.valor));
-  const [dataPagamento, setDataPagamento] = useState(amortizacao.dataPagamento);
-  const [origem, setOrigem] = useState<'proprio' | 'fgts'>(amortizacao.origem);
-  const [modo, setModo] = useState<'term' | 'payment'>(amortizacao.modo);
-  const [error, setError] = useState('');
-
-  async function salvar() {
-    if (pending || valor <= 0 || !dataPagamento) return;
-    onPendingChange(true);
-    setError('');
-    let result;
-    try {
-      result = await editMovement(amortizacao.id, { valor, dataPagamento, origem, modo });
-    } catch {
-      onPendingChange(false);
-      setError('Sessão expirada, entre novamente');
-      return;
-    }
-    if ('error' in result) {
-      onPendingChange(false);
-      setError(result.error);
-      return;
-    }
-    await router.refresh();
-    onPendingChange(false);
-    onClose();
-  }
-
-  return (
-    <DialogContent className="sm:max-w-lg" data-edit-amortizacao>
-      <DialogHeader>
-        <DialogTitle>Editar amortização extra</DialogTitle>
-        <DialogDescription>
-          Ajuste o valor, a data, a origem e o que o banco fez com o aporte.
+          Ajuste o valor pago, a data e, se houver, a amortização extra vinculada.
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${amortizacao.id}-valor`} className="text-sm font-medium text-foreground">
-              Valor amortizado (R$)
+            <label htmlFor={`${paga.id}-valor`} className="text-sm font-medium text-foreground">
+              Valor pago (R$)
             </label>
             <MoneyInput
-              id={`${amortizacao.id}-valor`}
+              id={`${paga.id}-valor`}
               value={valor}
               onValid={setValor}
               disabled={pending}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${amortizacao.id}-data`} className="text-sm font-medium text-foreground">
+            <label htmlFor={`${paga.id}-data`} className="text-sm font-medium text-foreground">
               Data do pagamento
             </label>
             <Input
-              id={`${amortizacao.id}-data`}
+              id={`${paga.id}-data`}
               type="date"
               value={dataPagamento}
               onChange={(e) => setDataPagamento(e.target.value)}
@@ -321,14 +206,29 @@ function EditarAmortizacaoContent({
             />
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-foreground">Origem</span>
-          <OrigemRadios value={origem} onChange={setOrigem} disabled={pending} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-foreground">O que o banco fez</span>
-          <ModoRadios value={modo} onChange={setModo} disabled={pending} />
-        </div>
+        {temAporte && (
+          <div className="flex flex-col gap-3 rounded-xl border border-[#820AD1]/30 bg-primary/[0.04] p-3">
+            <p className="text-sm font-medium text-foreground">Amortização extra vinculada</p>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={`${paga.id}-aporte`} className="text-sm font-medium text-foreground">
+                Amortização extra (R$)
+              </label>
+              <MoneyInput
+                id={`${paga.id}-aporte`}
+                value={aporteValor}
+                onValid={setAporteValor}
+                disabled={pending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Zerar o valor remove o aporte deste pagamento.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-foreground">O que o banco fez</span>
+              <ModoRadios value={modo} onChange={setModo} disabled={pending} />
+            </div>
+          </div>
+        )}
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -359,13 +259,15 @@ function EditarAmortizacaoContent({
  *
  * Ações por linha (ausentes em readOnly e no contrato quitado):
  * - primeira parcela pendente: botão "Pagar" abre o `PayInstallmentDialog` do
- *   card do mês (com "Definir hoje" e o eventual split de amortização);
- * - pagas do estado vigente: Editar (dialog) e Apagar (`ConfirmDialog`). O
- *   Editar some quando a parcela tem amortização vinculada (groupId), recusada
- *   pela action; o Apagar só aparece na ÚLTIMA paga, única removível sem criar
- *   lacuna. O vínculo com o estado é feito por `state.pagas` (não pelo histórico);
- * - amortizações extras do estado vigente: Editar/Apagar na coluna "Aporte" da
- *   linha onde o aporte aparece, com os guards do servidor respeitados;
+ *   card do mês (com "Definir hoje" e a seção de amortização extra opcional);
+ * - pagas do estado vigente: Editar (dialog de pagamento: valor, data e aporte
+ *   vinculado) e Apagar (`ConfirmDialog`). O Apagar só aparece na ÚLTIMA paga,
+ *   única removível sem criar lacuna e remove o grupo inteiro (parcela +
+ *   aporte). O vínculo com o estado é feito por `state.pagas`;
+ * - amortizações extras: moram na coluna "Aporte" como VALOR, sem ações
+ *   próprias. A edição/exclusão acontece pelo pagamento vinculado (mesmo
+ *   groupId). Amortizações legadas sem groupId não são editáveis nem apagáveis
+ *   por aqui (ficam só exibidas, em linha própria quando não vinculadas);
  * - pagas de períodos anteriores: selo "Histórico", sem ações (o servidor já
  *   recusa editar/apagar estado superado).
  *
@@ -384,8 +286,7 @@ export function ParcelasDoFinanciamento({
 }) {
   const router = useRouter();
   const [pagando, setPagando] = useState<{ numero: number; valor: number; vencimento: string } | null>(null);
-  const [editandoParcela, setEditandoParcela] = useState<ParcelaPagaComId | null>(null);
-  const [editandoAmortizacao, setEditandoAmortizacao] = useState<AmortizacaoComId | null>(null);
+  const [editandoPagamento, setEditandoPagamento] = useState<ParcelaPagaComId | null>(null);
   const [apagarAlvo, setApagarAlvo] = useState<ApagarAlvo | null>(null);
 
   const linhas = buildCronograma(state.baseline, state.projecao, state.historico, state.extras);
@@ -394,9 +295,12 @@ export function ParcelasDoFinanciamento({
   // selos das pagas de períodos anteriores, nunca para mirar movements editáveis.
   const pagaPorNumero = new Map(state.pagas.map((p) => [p.parcelaNumero, p]));
   const ultimaPaga = state.pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
-  const aportesPorLinha = distribuirAportes(linhas, state.extras);
   const primeiraAberta = linhas.find((l) => l.situacao === 'aberta') ?? null;
   const podeAgir = !readOnly && !quitado;
+  // Aporte vinculado do pagamento em edição: mesmo groupId.
+  const aporteDoPagamento = editandoPagamento?.groupId
+    ? state.extras.find((e) => e.groupId === editandoPagamento.groupId) ?? null
+    : null;
 
   async function apagar() {
     const result = await deleteMovement(apagarAlvo!.id);
@@ -433,7 +337,6 @@ export function ParcelasDoFinanciamento({
               {linhas.map((linha) => {
                 const pagaMov = pagaPorNumero.get(linha.numero);
                 const ehPrimeiraAberta = primeiraAberta?.numero === linha.numero;
-                const extrasDaLinha = aportesPorLinha.get(linha.numero) ?? [];
                 return (
                   <TableRow
                     key={`parcela-${linha.numero}`}
@@ -451,53 +354,7 @@ export function ParcelasDoFinanciamento({
                     <TableCell data-cell="parcela" className="text-right">{formatBRL(linha.valor)}</TableCell>
                     <TableCell data-cell="aporte" className="text-right">
                       {linha.aporte > 0 ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
-                          {podeAgir && extrasDaLinha.length > 0 && (
-                            <span className="flex shrink-0 items-center gap-0.5">
-                              {extrasDaLinha.map((extra, index) => {
-                                // Com mais de uma extra na mesma linha o rótulo
-                                // repetido colidiria no E2E/leitor de tela;
-                                // a posição e o valor desambiguam.
-                                const sufixo =
-                                  extrasDaLinha.length > 1
-                                    ? ` ${index + 1} (${formatBRL(extra.valor)})`
-                                    : '';
-                                return (
-                                  <span key={extra.id} className="flex shrink-0 items-center gap-0.5">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setEditandoAmortizacao(extra)}
-                                      aria-label={`Editar amortização${sufixo}`}
-                                      className="size-8 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <Pencil className="size-3.5" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        setApagarAlvo({
-                                          tipo: 'amortizacao',
-                                          id: extra.id,
-                                          numero: linha.numero,
-                                          valor: extra.valor,
-                                        })
-                                      }
-                                      aria-label={`Apagar amortização${sufixo}`}
-                                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                    </Button>
-                                  </span>
-                                );
-                              })}
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
                       ) : '-'}
                     </TableCell>
                     <TableCell data-cell="total" className="text-right font-semibold">
@@ -529,18 +386,16 @@ export function ParcelasDoFinanciamento({
                         )}
                         {podeAgir && linha.situacao === 'paga' && pagaMov && (
                           <div className="flex shrink-0 items-center gap-1">
-                            {!pagaMov.groupId && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditandoParcela(pagaMov)}
-                                aria-label={`Editar parcela ${linha.numero}`}
-                                className="size-8 text-muted-foreground hover:text-foreground"
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditandoPagamento(pagaMov)}
+                              aria-label={`Editar parcela ${linha.numero}`}
+                              className="size-8 text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
                             {linha.numero === ultimaPaga && (
                               <Button
                                 type="button"
@@ -587,16 +442,11 @@ export function ParcelasDoFinanciamento({
           projecao: state.projecao,
         }}
       />
-      <EditarParcelaDialog
-        paga={editandoParcela}
+      <EditarPagamentoDialog
+        paga={editandoPagamento}
+        aporte={aporteDoPagamento}
         onOpenChange={(v) => {
-          if (!v) setEditandoParcela(null);
-        }}
-      />
-      <EditarAmortizacaoDialog
-        amortizacao={editandoAmortizacao}
-        onOpenChange={(v) => {
-          if (!v) setEditandoAmortizacao(null);
+          if (!v) setEditandoPagamento(null);
         }}
       />
       <ConfirmDialog
@@ -606,11 +456,7 @@ export function ParcelasDoFinanciamento({
         }}
         title="Apagar lançamento?"
         description={
-          apagarAlvo
-            ? apagarAlvo.tipo === 'parcela'
-              ? `Parcela ${apagarAlvo.numero} · ${formatBRL(apagarAlvo.valor)}`
-              : `Amortização extra de ${formatBRL(apagarAlvo.valor)}`
-            : ''
+          apagarAlvo ? `Parcela ${apagarAlvo.numero} · ${formatBRL(apagarAlvo.valor)}` : ''
         }
         confirmLabel="Apagar"
         pendingLabel="Apagando..."

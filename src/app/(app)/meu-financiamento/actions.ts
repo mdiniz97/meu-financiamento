@@ -6,9 +6,8 @@ import { db, schema } from '@/db';
 import { requireUnlimited } from '@/lib/meu-financiamento/auth';
 import { getContract, recomputeState, splitMovements, toBaseline, toContractParams, upsertDraft } from '@/lib/meu-financiamento/repo';
 import type {
-  AmortizacaoInput,
   CreateContractInput,
-  EditMovementPatch,
+  EditPaymentPatch,
   MutationResult,
   RecalibrateInput,
   UpdateContractInput,
@@ -16,7 +15,6 @@ import type {
 import { isValidDateString, primeiraPendente, projecao, validateContractInput } from '@/lib/finance/meu-financiamento/model';
 import type { Baseline, ContractParams } from '@/lib/finance/meu-financiamento/model';
 import { splitPagamento } from '@/lib/finance/meu-financiamento/split-payment';
-import { todayISO } from '@/lib/meu-financiamento/dates';
 
 const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 const NAO_AMORTIZA = 'Dados não amortizam no modelo; revise taxa, TR e prazo';
@@ -305,58 +303,6 @@ export async function payInstallment(input: {
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
-export async function registerAmortization(input: AmortizacaoInput): Promise<MutationResult> {
-  const userId = await requireUser();
-  const limited = await unlimitedError(userId);
-  if (limited) return { ok: false, error: limited };
-
-  const { valor, dataPagamento, origem, modo } = input ?? {};
-  if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) {
-    return { ok: false, error: 'Valor inválido' };
-  }
-  if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
-  if (dataPagamento > todayISO()) return { ok: false, error: 'Data futura' };
-  if (origem !== 'proprio' && origem !== 'fgts') return { ok: false, error: 'Origem inválida' };
-  if (modo !== 'term' && modo !== 'payment') return { ok: false, error: 'Modo inválido' };
-
-  // Transação com lock do usuário serializa duplo clique e revalida contra o
-  // baseline vigente no commit (recalibração concorrente não furar a regra de
-  // data). Não há índice único: amortizações legítimas repetem valor/data; a
-  // proteção de duplo clique na UI (botão desabilitado durante pending) é a
-  // Task 6.
-  type Outcome = { ok: true } | { ok: false; error: string };
-  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
-    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
-    const contract = await tx.query.contracts.findFirst({
-      where: eq(schema.contracts.userId, userId),
-    });
-    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
-    const [state] = await tx
-      .select()
-      .from(schema.contractStates)
-      .where(eq(schema.contractStates.contractId, contract.id))
-      .orderBy(desc(schema.contractStates.version))
-      .limit(1);
-    if (!state) return { ok: false, error: 'Contrato sem estado' };
-    if (state.saldoDevedor === 0) return { ok: false, error: 'Contrato já quitado' };
-    if (dataPagamento < state.dataBase) return { ok: false, error: 'Data anterior à data-base' };
-
-    await tx.insert(schema.movements).values({
-      contractId: contract.id,
-      stateId: state.id,
-      type: 'amortizacao',
-      parcelaNumero: null,
-      valor,
-      dataPagamento,
-      origem,
-      modo,
-    });
-    return { ok: true };
-  });
-  if (!outcome.ok) return outcome;
-  return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
-}
-
 export async function recalibrate(input: RecalibrateInput): Promise<MutationResult> {
   const userId = await requireUser();
   const limited = await unlimitedError(userId);
@@ -602,68 +548,140 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 
-export async function editMovement(id: string, patch: EditMovementPatch): Promise<MutationResult> {
+export async function editPayment(id: string, patch: EditPaymentPatch): Promise<MutationResult> {
   const userId = await requireUser();
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  const data = await getContract(userId);
-  if (!data) return { ok: false, error: 'Contrato não encontrado' };
-  const [movement] = await db
-    .select()
-    .from(schema.movements)
-    .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)))
-    .limit(1);
-  if (!movement) return { ok: false, error: 'Movimento não encontrado' };
-  // Só o estado VIGENTE é editável: lançamento de baseline superado já foi
-  // absorvido pela recalibração (histórico) e alterá-lo não muda a projeção.
-  if (movement.stateId !== data.state.id) {
-    return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
-  }
-  // Parcela com excedente tem amortização vinculada (groupId): editar só a
-  // parcela deixaria o excedente contado em dobro pelo modelo. A amortização
-  // isolada continua editável.
-  if (movement.type === 'parcela' && movement.groupId) {
-    return {
-      ok: false,
-      error: 'Parcela com amortização extra vinculada não pode ser editada; apague o lançamento e registre novamente',
-    };
-  }
-
   const patchObj = patch ?? {};
-  const set: { valor?: number; dataPagamento?: string; origem?: string; modo?: string } = {};
-
   if (patchObj.valor !== undefined) {
     if (typeof patchObj.valor !== 'number' || !Number.isFinite(patchObj.valor) || patchObj.valor <= 0) {
       return { ok: false, error: 'Valor inválido' };
     }
-    set.valor = patchObj.valor;
   }
-  if (patchObj.dataPagamento !== undefined) {
-    if (!isValidDateString(patchObj.dataPagamento)) return { ok: false, error: 'Data inválida' };
-    if (movement.type === 'amortizacao' && patchObj.dataPagamento < data.baseline.dataBase) {
-      return { ok: false, error: 'Data anterior à data-base' };
-    }
-    set.dataPagamento = patchObj.dataPagamento;
+  if (patchObj.dataPagamento !== undefined && !isValidDateString(patchObj.dataPagamento)) {
+    return { ok: false, error: 'Data inválida' };
   }
-  if (patchObj.origem !== undefined || patchObj.modo !== undefined) {
-    if (movement.type !== 'amortizacao') {
-      return { ok: false, error: 'Parcela não aceita origem ou modo' };
+  const aportePatch = patchObj.aporte;
+  if (aportePatch !== undefined) {
+    if (typeof aportePatch.valor !== 'number' || !Number.isFinite(aportePatch.valor) || aportePatch.valor < 0) {
+      return { ok: false, error: 'Aporte inválido' };
     }
-    const origem = patchObj.origem ?? movement.origem ?? 'proprio';
-    const modo = patchObj.modo ?? movement.modo ?? 'term';
-    if (origem !== 'proprio' && origem !== 'fgts') return { ok: false, error: 'Origem inválida' };
-    if (modo !== 'term' && modo !== 'payment') return { ok: false, error: 'Modo inválido' };
-    set.origem = origem;
-    set.modo = modo;
+    if (aportePatch.modo !== 'term' && aportePatch.modo !== 'payment') {
+      return { ok: false, error: 'Modo inválido' };
+    }
   }
 
-  if (Object.keys(set).length > 0) {
-    await db
-      .update(schema.movements)
-      .set(set)
-      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
-  }
+  // Parcela + amortização vinculada (mesmo groupId) formam UM lançamento:
+  // atualizar os dois na mesma transação, com o lock do usuário que serializa
+  // pagamentos/recalibrações concorrentes. A guarda de estado é revalidada no
+  // commit contra a versão vigente.
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+    const contract = await tx.query.contracts.findFirst({
+      where: eq(schema.contracts.userId, userId),
+    });
+    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
+    const [state] = await tx
+      .select()
+      .from(schema.contractStates)
+      .where(eq(schema.contractStates.contractId, contract.id))
+      .orderBy(desc(schema.contractStates.version))
+      .limit(1);
+    if (!state) return { ok: false, error: 'Contrato sem estado' };
+
+    const [movement] = await tx
+      .select()
+      .from(schema.movements)
+      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, contract.id)))
+      .limit(1);
+    if (!movement) return { ok: false, error: 'Movimento não encontrado' };
+    // Só o estado VIGENTE é editável: lançamento de baseline superado já foi
+    // absorvido pela recalibração (histórico) e alterá-lo não muda a projeção.
+    if (movement.stateId !== state.id) {
+      return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
+    }
+    // A edição de pagamento cobre a parcela (e a amortização vinculada); a
+    // amortização avulsa legada (sem groupId) não tem ação na UI.
+    if (movement.type !== 'parcela') {
+      return { ok: false, error: 'Só o pagamento da parcela é editável por aqui' };
+    }
+
+    const [amortizacaoAtual] = movement.groupId
+      ? await tx
+          .select()
+          .from(schema.movements)
+          .where(and(
+            eq(schema.movements.contractId, contract.id),
+            eq(schema.movements.groupId, movement.groupId),
+            eq(schema.movements.type, 'amortizacao'),
+          ))
+          .limit(1)
+      : [];
+
+    const novaData = patchObj.dataPagamento ?? movement.dataPagamento;
+    // A amortização vinculada segue a mesma data do pagamento; a regra de não
+    // ser anterior à data-base (como na amortização avulsa) continua valendo.
+    if (aportePatch && aportePatch.valor > 0 && novaData < state.dataBase) {
+      return { ok: false, error: 'Data anterior à data-base' };
+    }
+
+    const parcelaSet: { valor?: number; dataPagamento?: string; groupId?: string | null } = {};
+    if (patchObj.valor !== undefined) parcelaSet.valor = patchObj.valor;
+    if (patchObj.dataPagamento !== undefined) parcelaSet.dataPagamento = patchObj.dataPagamento;
+
+    let grupoNovo = movement.groupId;
+    if (aportePatch !== undefined) {
+      if (aportePatch.valor <= 0) {
+        // Zero remove a amortização e desfaz o vínculo do grupo.
+        if (amortizacaoAtual) {
+          await tx.delete(schema.movements).where(eq(schema.movements.id, amortizacaoAtual.id));
+        }
+        grupoNovo = null;
+        parcelaSet.groupId = null;
+      } else {
+        if (!grupoNovo) {
+          grupoNovo = crypto.randomUUID();
+          parcelaSet.groupId = grupoNovo;
+        }
+        if (amortizacaoAtual) {
+          await tx
+            .update(schema.movements)
+            .set({ valor: aportePatch.valor, modo: aportePatch.modo, dataPagamento: novaData })
+            .where(eq(schema.movements.id, amortizacaoAtual.id));
+        } else {
+          await tx.insert(schema.movements).values({
+            contractId: contract.id,
+            stateId: state.id,
+            type: 'amortizacao',
+            parcelaNumero: null,
+            valor: aportePatch.valor,
+            dataPagamento: novaData,
+            origem: 'proprio',
+            modo: aportePatch.modo,
+            groupId: grupoNovo,
+          });
+        }
+      }
+    } else if (amortizacaoAtual && patchObj.dataPagamento !== undefined) {
+      // Sem mexer no aporte, a data do grupo acompanha a do pagamento.
+      await tx
+        .update(schema.movements)
+        .set({ dataPagamento: novaData })
+        .where(eq(schema.movements.id, amortizacaoAtual.id));
+    }
+
+    if (Object.keys(parcelaSet).length > 0) {
+      await tx
+        .update(schema.movements)
+        .set(parcelaSet)
+        .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, contract.id)));
+    }
+    return { ok: true };
+  });
+
+  if (!outcome.ok) return outcome;
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }
 

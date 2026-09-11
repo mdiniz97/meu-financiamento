@@ -91,13 +91,6 @@ export interface CreateContractInput {
   diaVencimento: number;
 }
 
-export interface AmortizacaoInput {
-  valor: number;
-  dataPagamento: string;
-  origem: 'proprio' | 'fgts';
-  modo: 'term' | 'payment';
-}
-
 export interface RecalibrateInput {
   saldoDevedor: number;
   dataBase: string;
@@ -115,11 +108,12 @@ export type UpdateContractInput = CreateContractInput & {
   primeiraPendente: number;
 };
 
-export interface EditMovementPatch {
+export interface EditPaymentPatch {
   valor?: number;
   dataPagamento?: string;
-  origem?: 'proprio' | 'fgts';
-  modo?: 'term' | 'payment';
+  /** Aporte vinculado ao pagamento (mesmo groupId). `valor` 0 remove o aporte
+   *  e desfaz o grupo; ausente mantém. */
+  aporte?: { valor: number; modo: 'term' | 'payment' };
 }
 
 export function toContractParams(state: ContractState): ContractParams {

@@ -23,7 +23,6 @@ import { economiaAcumulada, economiaAmortizacoes } from '@/lib/finance/meu-finan
 import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { DEFAULT_FORM, SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
 import { PayInstallmentDialog } from './pay-installment';
-import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
 import { ConfirmDialog } from './confirm-dialog';
@@ -109,7 +108,6 @@ export function Dashboard({
   } | null>(null);
   const [recalibrando, setRecalibrando] = useState(false);
   const [editandoContrato, setEditandoContrato] = useState(false);
-  const [amortizando, setAmortizando] = useState(false);
   const [ultimaPaga, setUltimaPaga] = useState<{ numero: number } | null>(null);
   const [desfazerAlvo, setDesfazerAlvo] = useState<{ id: string; numero: number; valor: number } | null>(null);
 
@@ -369,24 +367,7 @@ export function Dashboard({
         </div>
 
       {!readOnly && !quitado && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            aria-label="Registrar amortização extra"
-            aria-describedby="acao-amortizar-desc"
-            onClick={() => setAmortizando(true)}
-            className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-[#820AD1]/50 hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <span className="rounded-xl bg-[#820AD1]/10 p-2 text-[#820AD1]">
-              <PiggyBank className="size-5" />
-            </span>
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-medium">Registrar amortização extra</span>
-              <span id="acao-amortizar-desc" className="text-xs text-muted-foreground">
-                Aporte separado do boleto, com FGTS ou dinheiro próprio.
-              </span>
-            </span>
-          </button>
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             aria-label="Recalibrar pelo extrato"
@@ -626,11 +607,6 @@ export function Dashboard({
         primeiraPendente={primeiraPendente}
         diaVencimento={diaVencimento}
         stateVersion={baseline.version}
-      />
-      <AmortizacaoDialog
-        open={amortizando}
-        onOpenChange={setAmortizando}
-        estado={{ params, baseline, pagas, extras, projecao }}
       />
       <PayInstallmentDialog
         open={pay !== null}

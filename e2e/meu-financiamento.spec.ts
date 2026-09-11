@@ -127,13 +127,6 @@ function baselineDeHoje() {
 // contrato padrão) já passou; mantém o assert exato em qualquer data.
 const TITULO_CARD_MES = Number(todayISO().slice(8, 10)) > 10 ? 'Parcela em aberto' : 'Sua parcela deste mês';
 
-function amanhaISO(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 // O banner de estado expõe "Recalibrar saldo" quando visível; os fluxos de
 // teste clicam o CTA do banner (o botão "Recalibrar pelo extrato" fica na faixa
 // de ações do topo).
@@ -164,9 +157,9 @@ async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
 }
 
 /** Paga a primeira parcela pendente PELA TABELA (botão "Pagar" da linha em
- *  aberto), exercitando o mesmo formulário do card com split de excedente.
- *  Devolve o valor sugerido usado. */
-async function pagarProximaNaTabela(page: Page, extraReais = 0): Promise<number> {
+ *  aberto), preenchendo a seção de amortização extra quando `aporteReais` > 0.
+ *  Devolve o valor sugerido da parcela usado. */
+async function pagarProximaNaTabela(page: Page, aporteReais = 0): Promise<number> {
   const linha = page.locator('tr[data-situacao="aberta"]').first();
   await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -179,8 +172,8 @@ async function pagarProximaNaTabela(page: Page, extraReais = 0): Promise<number>
   await box.getByRole('button', { name: 'Definir hoje', exact: true }).click();
   await expect(box.getByLabel('Data do pagamento')).toHaveValue(todayISO());
   const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
-  if (extraReais !== 0) {
-    await box.getByLabel('Valor pago (R$)').fill(centsOf(sugestao + extraReais));
+  if (aporteReais !== 0) {
+    await box.getByLabel('Amortização extra (R$)').fill(centsOf(aporteReais));
   }
   await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(box).toHaveCount(0, { timeout: 20_000 });
@@ -282,8 +275,8 @@ test('tabela "Parcelas do Financiamento" lista todas as parcelas e paga a primei
   await expect(linha141.getByRole('button', { name: 'Pagar', exact: true })).toBeVisible();
   await expect(page.locator('tr[data-numero="142"]').getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(0);
 
-  // Pagar a 141 PELA TABELA com excedente de R$ 500: o mesmo form do card faz o
-  // split parcela + amortização extra e a ação move para a próxima pendente.
+  // Pagar a 141 PELA TABELA com amortização extra de R$ 500 pelo campo próprio
+  // do modal; a ação move para a próxima pendente.
   const paga = await pagarProximaNaTabela(page, 500);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   await expect(linha141).toContainText('Paga');
@@ -306,9 +299,9 @@ test('tabela "Parcelas do Financiamento" lista todas as parcelas e paga a primei
   const totalAporte = parseBRL(await linha141.locator('[data-cell="total"]').innerText());
   expect(totalAporte).toBeCloseTo(parcelaAporte + valorExtra, 2);
 
-  // Parcela com amortização vinculada (groupId) não é editável; é a última paga,
-  // então o Apagar existe.
-  await expect(linha141.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
+  // A parcela com amortização vinculada (groupId) é editável junto do aporte:
+  // o Editar existe e o Apagar (última paga) remove o grupo inteiro.
+  await expect(linha141.getByRole('button', { name: 'Editar parcela 141', exact: true })).toBeVisible();
   await expect(linha141.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toBeVisible();
 
   // A 141 paga não tem mais "Pagar"; a ação passou para a 142.
@@ -494,8 +487,7 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
-  const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
-  await box.getByLabel('Valor pago (R$)').fill(centsOf(sugestao + 500));
+  await box.getByLabel('Amortização extra (R$)').fill(centsOf(500));
 
   // Split em tempo real: parcela + amortização extra, modo default e nota.
   await expect(box.getByText(/Parcela .* \+ amortização extra/)).toBeVisible();
@@ -529,7 +521,7 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
 });
 
-test('amortização extra modo term encurta a quitação e aparece na tabela', async ({ page }) => {
+test('amortização extra pelo modal de pagamento encurta a quitação e aparece na tabela', async ({ page }) => {
   const conta = await criarConta(page, 'Amortização Extra');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
@@ -543,27 +535,26 @@ test('amortização extra modo term encurta a quitação e aparece na tabela', a
   const valorPequeno = Math.round(saldoInicial * 0.0001);
   const valorGrande = Math.round(saldoInicial * 0.2);
 
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('#amortValor').fill(centsOf(valorPequeno));
-  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
-  await dialog.locator('#amortValor').fill(centsOf(valorGrande));
-  await expect(dialog.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
+  await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
+  const box = page.locator('[data-pay-installment]');
+  await expect(box).toBeVisible();
+  await box.getByRole('button', { name: 'Definir hoje', exact: true }).click();
+  const campoAporte = box.getByLabel('Amortização extra (R$)');
+  await campoAporte.fill(centsOf(valorPequeno));
+  await expect(box.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
+  await campoAporte.fill(centsOf(valorGrande));
+  await expect(box.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
   // Modo payment: o prazo não muda e o preview estima a parcela seguinte (mês 2
   // da engine); voltar ao term restaura o efeito no prazo.
-  await dialog.getByRole('radio', { name: 'Reduziu a parcela (prazo igual)' }).click();
-  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
-  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('Parcela estimada:');
-  await dialog.getByRole('radio', { name: 'Reduziu o prazo (parcela igual)' }).click();
-  await expect(dialog.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
-  await dialog.locator('#amortData').fill(todayISO());
-  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+  await box.getByRole('radio', { name: 'Reduziu a parcela (prazo igual)' }).click();
+  await expect(box.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
+  await expect(box.locator('[data-efeito-aporte]')).toContainText('Parcela estimada:');
+  await box.getByRole('radio', { name: 'Reduziu o prazo (parcela igual)' }).click();
+  await expect(box.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
+  await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(box).toHaveCount(0, { timeout: 20_000 });
 
-  // Espera o refresh refletir a amortização na tabela ANTES de ler a quitação
-  // (o banner de divergência não existe neste fluxo, então o count-0 não
-  // sincroniza com o router.refresh). Sem pagas, o aporte cai na primeira
-  // parcela em aberto (141).
+  // Sem pagas antes, o aporte cai na linha da paga (141) com o valor exato.
   await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText(
     formatBRL(valorGrande),
     { timeout: 20_000 },
@@ -574,53 +565,15 @@ test('amortização extra modo term encurta a quitação e aparece na tabela', a
   expect(parseBRL(await economiaCard(page).innerText())).toBeGreaterThan(0);
 
   const quitacaoDepois = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
-  // Oráculo do modelo: a mesma amortização no modelo puro deriva a parcela de
-  // quitação — o número cravado viraria manutenção silenciosa se a engine mudar.
-  const oracle = projecao(PARAMS_E2E, baselineDeHoje(), [], [
+  // Oráculo do modelo: a parcela paga (valor projetado) + a mesma amortização
+  // no modelo puro derivam a parcela de quitação.
+  const parcelaPaga = projecao(PARAMS_E2E, baselineDeHoje(), [], []).parcelas[0].parcela;
+  const oracle = projecao(PARAMS_E2E, baselineDeHoje(), [
+    { parcelaNumero: 141, valor: parcelaPaga, dataPagamento: todayISO() },
+  ], [
     { dataPagamento: todayISO(), valor: valorGrande, origem: 'proprio', modo: 'term' },
   ]);
   expect(quitacaoDepois).toBe(oracle.quitaEm);
-});
-
-test('editar e apagar amortização extra pela coluna Aporte da tabela', async ({ page }) => {
-  const conta = await criarConta(page, 'Editar Amortização');
-  await assinar(page, conta.id);
-  await criarContrato(page, todayISO());
-
-  // Sem pagas, o aporte de R$ 50.000 cai na linha da primeira parcela em aberto.
-  const valorOriginal = 50000;
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('#amortValor').fill(centsOf(valorOriginal));
-  await dialog.locator('#amortData').fill(todayISO());
-  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
-  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
-
-  const linha = page.locator('tr[data-numero="141"]');
-  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorOriginal), { timeout: 20_000 });
-
-  // Editar o aporte pela tabela: o dialog envia valor/data/origem/modo.
-  await linha.getByRole('button', { name: 'Editar amortização', exact: true }).click();
-  const editor = page.getByRole('dialog');
-  await expect(editor).toBeVisible();
-  const campoValor = editor.getByLabel('Valor amortizado (R$)');
-  await expect(campoValor).toBeVisible();
-  const valorEditado = 20000;
-  await campoValor.fill(centsOf(valorEditado));
-  await editor.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(editor).toHaveCount(0, { timeout: 20_000 });
-  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorEditado), { timeout: 20_000 });
-
-  // Apagar o aporte pela tabela (ConfirmDialog) zera a coluna.
-  await linha.getByRole('button', { name: 'Apagar amortização', exact: true }).click();
-  const apagarDialog = page.getByRole('dialog');
-  await expect(apagarDialog).toBeVisible();
-  await expect(apagarDialog.getByText('Apagar lançamento?')).toBeVisible();
-  await expect(apagarDialog.getByText(/Amortização extra de R\$\s*20\.000,00/)).toBeVisible();
-  await apagarDialog.getByRole('button', { name: 'Apagar', exact: true }).click();
-  await expect(apagarDialog).toHaveCount(0, { timeout: 20_000 });
-  await expect(linha.locator('[data-cell="aporte"]')).toHaveText('-', { timeout: 20_000 });
 });
 
 test('Levar ao Simulador transfere o cenário vigente para /simulacao', async ({ page }) => {
@@ -663,44 +616,47 @@ test('Levar ao Simulador transfere o cenário vigente para /simulacao', async ({
   await expect(page.getByText('Total pago', { exact: true }).first()).toBeVisible();
 });
 
-test('editar a segunda amortização da mesma linha não reusa o estado da primeira', async ({ page }) => {
-  const conta = await criarConta(page, 'Duas Amortizações');
+test('editar o pagamento com aporte atualiza parcela e amortização juntas', async ({ page }) => {
+  const conta = await criarConta(page, 'Editar Pagamento com Aporte');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  // Duas extras sem pagas caem na MESMA linha (141); cada uma com seu par
-  // Editar/Apagar.
-  for (const valor of [50000, 20000]) {
-    await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await dialog.locator('#amortValor').fill(centsOf(valor));
-    await dialog.locator('#amortData').fill(todayISO());
-    await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
-    await expect(dialog).toHaveCount(0, { timeout: 20_000 });
-  }
-
+  // Paga a 141 com amortização extra de R$ 500 pela tabela.
+  await pagarProximaNaTabela(page, 500);
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   const linha = page.locator('tr[data-numero="141"]');
-  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(70000), { timeout: 20_000 });
+  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(500), { timeout: 20_000 });
 
-  // Abre o dialog da 1ª, fecha e abre o da 2ª: sem o remount por `key` o form
-  // herdaria o valor da 1ª (estado stale) por reaproveitar a instância.
-  await linha.getByRole('button', { name: /Editar amortização 1/ }).click();
-  let editor = page.getByRole('dialog');
-  await expect(editor.getByLabel('Valor amortizado (R$)')).toHaveValue(/50\.000,00/);
-  await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(editor).toHaveCount(0);
-
-  await linha.getByRole('button', { name: /Editar amortização 2/ }).click();
-  editor = page.getByRole('dialog');
-  const campoValor = editor.getByLabel('Valor amortizado (R$)');
-  await expect(campoValor).toHaveValue(/20\.000,00/);
-
-  const valorEditado = 30000;
-  await campoValor.fill(centsOf(valorEditado));
+  // Editar o pagamento: valor/data + aporte vinculado saem no mesmo modal.
+  await linha.getByRole('button', { name: 'Editar parcela 141', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await expect(editor.getByLabel('Amortização extra (R$)')).toHaveValue(/500,00/);
+  await editor.getByLabel('Amortização extra (R$)').fill(centsOf(800));
   await editor.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(editor).toHaveCount(0, { timeout: 20_000 });
-  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(80000), { timeout: 20_000 });
+  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(800), { timeout: 20_000 });
+  const parcela = parseBRL(await linha.locator('[data-cell="parcela"]').innerText());
+  const total = parseBRL(await linha.locator('[data-cell="total"]').innerText());
+  expect(total).toBeCloseTo(parcela + 800, 2);
+
+  // Zerar o aporte remove a amortização vinculada e mantém a parcela paga.
+  await linha.getByRole('button', { name: 'Editar parcela 141', exact: true }).click();
+  const editor2 = page.getByRole('dialog');
+  await editor2.getByLabel('Amortização extra (R$)').fill('0');
+  await editor2.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(editor2).toHaveCount(0, { timeout: 20_000 });
+  await expect(linha.locator('[data-cell="aporte"]')).toHaveText('-', { timeout: 20_000 });
+  await expect(linha).toContainText('Paga');
+
+  // Apagar o pagamento volta a parcela para 141 e zera a coluna Aporte.
+  await linha.getByRole('button', { name: 'Apagar parcela 141', exact: true }).click();
+  const apagarDialog = page.getByRole('dialog');
+  await expect(apagarDialog).toBeVisible();
+  await apagarDialog.getByRole('button', { name: 'Apagar', exact: true }).click();
+  await expect(apagarDialog).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
 });
 
 test('expiração do plano congela a leitura e mostra o paywall sem ações', async ({ page }) => {
@@ -731,8 +687,6 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
   for (const name of [
     'Paguei esta parcela',
     'Confirmar pagamento',
-    'Registrar amortização extra',
-    'Confirmar amortização',
     'Editar contrato',
     'Salvar alterações',
     'Recalibrar saldo',
@@ -821,29 +775,31 @@ test('amortização do saldo inteiro zera o modelo, mostra o aviso âmbar e reca
   await criarContrato(page, todayISO());
   await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0);
 
-  // Lançamento equivocado: amortização pelo saldo devedor inteiro. O contrato
-  // segue ativo no banco (baseline R$ 1.000.000), só o MODELO zera.
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  // Lançamento equivocado: paga a parcela com amortização extra pelo saldo
+  // devedor inteiro. O contrato segue ativo no banco (baseline R$ 1.000.000),
+  // só o MODELO zera.
+  await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
+  const dialog = page.locator('[data-pay-installment]');
   await expect(dialog).toBeVisible();
-  await dialog.locator('#amortValor').fill('100000000');
-  await dialog.locator('#amortData').fill(todayISO());
-  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+  await dialog.getByLabel('Amortização extra (R$)').fill('200000000');
+  await dialog.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
   await expect(page.getByText(/zeraram o saldo no modelo/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('Financiamento quitado', { exact: true })).toHaveCount(0);
   await expect(recalibrarNoBanner(page)).toBeVisible();
 
   // Extrato do banco mostra R$ 990.000: recalibra e o modelo volta a projetar.
+  // A parcela 141 já foi paga, então a recalibração retoma da 142.
   await recalibrarNoBanner(page).click();
   const rec = page.getByRole('dialog');
   await expect(rec).toBeVisible();
-  await expect(rec.locator('#recParcela')).toHaveValue('141');
+  await expect(rec.locator('#recParcela')).toHaveValue('142');
   await rec.locator('#recSaldo').fill('99000000');
   await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
 
   await expect(page.getByText(/zeraram o saldo no modelo/)).toHaveCount(0, { timeout: 20_000 });
-  await expect(proximaCard(page)).toContainText('Parcela 141 de 360', { timeout: 20_000 });
+  await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   await expect
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(990000, 2);
@@ -973,25 +929,25 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await expect(economiaSituacaoCard(page)).toContainText('—');
   await expect(page.getByText('sem amortizações nesta situação', { exact: true })).toBeVisible();
 
-  // Registra amortização extra para haver economia antes da edição.
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const amort = page.getByRole('dialog');
+  // Paga a parcela com amortização extra para haver economia antes da edição.
+  await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
+  const amort = page.locator('[data-pay-installment]');
   await expect(amort).toBeVisible();
-  await amort.locator('#amortValor').fill('10000000');
-  await amort.locator('#amortData').fill(todayISO());
-  await amort.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+  await amort.getByRole('button', { name: 'Definir hoje', exact: true }).click();
+  await amort.getByLabel('Amortização extra (R$)').fill('10000000');
+  await amort.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(amort).toHaveCount(0, { timeout: 20_000 });
 
-  // Sem pagas, o aporte de R$ 100.000 cai na primeira parcela em aberto (141).
+  // A paga 141 recebe o aporte de R$ 100.000 (última paga até a data).
   await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText(
     formatBRL(100000),
     { timeout: 20_000 },
   );
 
-  // Faixa global: acumulado do contrato inteiro (uma amortização, sem pagas).
+  // Faixa global: acumulado do contrato inteiro (um pagamento com amortização).
   // "Pagamentos registrados" conta lançamentos de pagamento, sem competir com a
   // "Parcela N de M" da situação atual: só a contagem, sem "de 360".
-  await expect(pagamentosCard(page)).toContainText('0');
+  await expect(pagamentosCard(page)).toContainText('1');
   await expect(pagamentosCard(page)).not.toContainText('de 360');
   await expect(valorOriginalCard(page)).toContainText(/R\$\s*1\.000\.000,00/);
   await expect(quantoFaltaCard(page)).toContainText(/R\$\s*[\d.,]+/);
@@ -1109,21 +1065,4 @@ test('editar contrato recusa submit quando outra aba muda o estado', async ({ pa
   await page.reload();
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 143 de 360', { timeout: 30_000 });
   await expect(page.locator('tr[data-numero="142"]')).toContainText('Paga');
-});
-
-test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
-  const conta = await criarConta(page, 'Data Futura');
-  await assinar(page, conta.id);
-  await criarContrato(page, todayISO());
-
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('#amortValor').fill('10000000');
-  await dialog.locator('#amortData').fill(amanhaISO());
-  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
-
-  await expect(dialog.getByText('Data futura', { exact: true })).toBeVisible({ timeout: 20_000 });
-  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
 });
