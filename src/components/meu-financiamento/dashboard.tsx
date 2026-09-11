@@ -1,8 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, FilePen, Landmark, PiggyBank } from 'lucide-react';
+import {
+  ArrowRight,
+  FilePen,
+  Gauge,
+  Landmark,
+  ListChecks,
+  PiggyBank,
+  Target,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
@@ -12,7 +22,7 @@ import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-fi
 import { economiaAcumulada, economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
 import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { DEFAULT_FORM, SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
-import { PayInstallment } from './pay-installment';
+import { PayInstallmentDialog } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
@@ -23,6 +33,57 @@ import { EsePanel } from './e-se-panel';
 import { InvestPanel } from './invest-panel';
 
 const DIVERGENCIA_BANNER_LIMITE = 200;
+
+/** Métrica da faixa "Visão global": ícone discreto, rótulo e valor grande em
+ *  mono tabular. O `dt` e o `dd` ficam irmãos no container para o locator do
+ *  E2E (`getByText(label).locator('..')`) continuar lendo o valor. */
+function MetricaGlobal({
+  icon: Icon,
+  label,
+  valor,
+  caption,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  valor: ReactNode;
+  caption?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      <span className="shrink-0 rounded-lg bg-[#820AD1]/10 p-2 text-[#820AD1]">
+        <Icon className="size-4" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+        <dd className="font-mono text-xl font-semibold tabular-nums break-words">{valor}</dd>
+        {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Grupo de métricas da faixa "Visão global" com título e ícone próprios. */
+function GrupoGlobal({
+  icon: Icon,
+  titulo,
+  children,
+}: {
+  icon: typeof Wallet;
+  titulo: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <span className="rounded-lg bg-[#820AD1]/10 p-1.5 text-[#820AD1]">
+          <Icon className="size-4" />
+        </span>
+        {titulo}
+      </p>
+      {children}
+    </div>
+  );
+}
 
 export function Dashboard({
   state,
@@ -40,8 +101,12 @@ export function Dashboard({
   const { params, baseline, pagas, extras, projecao } = state;
   const { parcelas, quitaEm, divergencia, saldoEfetivo, primeiraPendente } = projecao;
   const primeiraProjetada = parcelas[0] ?? null;
-  const [showPay, setShowPay] = useState(false);
-  const [aporteSugerido, setAporteSugerido] = useState<number | null>(null);
+  const [pay, setPay] = useState<{
+    parcelaNumero: number;
+    defaultValor: number;
+    vencimento: string;
+    aporte?: number;
+  } | null>(null);
   const [recalibrando, setRecalibrando] = useState(false);
   const [editandoContrato, setEditandoContrato] = useState(false);
   const [amortizando, setAmortizando] = useState(false);
@@ -86,6 +151,15 @@ export function Dashboard({
   const pagamentosRegistrados = state.historico.pagas.length;
   const estadoInicial = state.states[0];
   const valorOriginal = estadoInicial ? estadoInicial.saldoDevedor : baseline.saldoDevedor;
+
+  // Barra "pago vs falta" do global: pago = valor original menos o saldo
+  // efetivo atual; a largura usa a fração paga (clamp 0..100) e o `pago`
+  // exibido nunca é negativo (o saldo pode subir por TR/correção no início).
+  const pagoOriginal = valorOriginal - saldoEfetivo;
+  const pagoOriginalExibido = Math.max(0, pagoOriginal);
+  const pctPagoOriginal = valorOriginal > 0
+    ? Math.min(100, Math.max(0, Math.round((pagoOriginal / valorOriginal) * 100)))
+    : null;
 
   // Estatísticas da SITUAÇÃO ATUAL: usam só os extras do estado vigente (os
   // períodos superados já foram incorporados ao saldo do baseline novo).
@@ -154,35 +228,58 @@ export function Dashboard({
             desde o início do contrato, somando atualizações e portabilidades
           </p>
         </div>
-        <dl className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Total pago</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(totalPago)}</dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Amortizado</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(totalAmortizado)}</dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Economizado</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">
-              {economiaPositiva ? formatBRL(economia) : '—'}
-            </dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Pagamentos registrados</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">{pagamentosRegistrados}</dd>
-            <p className="text-xs text-muted-foreground">parcelas pagas nos períodos</p>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Valor original</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(valorOriginal)}</dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Quanto falta</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(saldoEfetivo)}</dd>
-          </div>
-        </dl>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <GrupoGlobal icon={Wallet} titulo="Você pagou">
+            <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+              <MetricaGlobal icon={Wallet} label="Total pago" valor={formatBRL(totalPago)} />
+              <MetricaGlobal icon={TrendingUp} label="Amortizado" valor={formatBRL(totalAmortizado)} />
+              <MetricaGlobal
+                icon={PiggyBank}
+                label="Economizado"
+                valor={economiaPositiva ? formatBRL(economia) : '—'}
+              />
+            </dl>
+          </GrupoGlobal>
+
+          <GrupoGlobal icon={ListChecks} titulo="Progresso">
+            <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+              <MetricaGlobal
+                icon={ListChecks}
+                label="Pagamentos registrados"
+                valor={pagamentosRegistrados}
+                caption="parcelas pagas nos períodos"
+              />
+              <MetricaGlobal icon={Landmark} label="Valor original" valor={formatBRL(valorOriginal)} />
+              <MetricaGlobal icon={Target} label="Quanto falta" valor={formatBRL(saldoEfetivo)} />
+            </dl>
+          </GrupoGlobal>
+
+          <GrupoGlobal icon={Gauge} titulo="Pago vs falta">
+            {pctPagoOriginal == null ? (
+              <p className="text-sm text-muted-foreground">Valor original indisponível para medir o progresso.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="font-mono text-xl font-semibold tabular-nums break-words">{pctPagoOriginal}%</p>
+                <div
+                  role="progressbar"
+                  aria-label="Pago em relação ao valor original"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={pctPagoOriginal}
+                  className="h-2 w-full overflow-hidden rounded-full bg-[#820AD1]/10"
+                >
+                  <div
+                    className="h-full rounded-full bg-[#820AD1]"
+                    style={{ width: `${pctPagoOriginal}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatBRL(pagoOriginalExibido)} pago · {formatBRL(saldoEfetivo)} falta
+                </p>
+              </div>
+            )}
+          </GrupoGlobal>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">
@@ -433,13 +530,16 @@ export function Dashboard({
             <p className="font-mono text-2xl font-semibold tabular-nums sm:text-3xl">
               {formatBRL(primeiraProjetada.parcela)}
             </p>
-            {!readOnly && !showPay && (
+            {!readOnly && (
               <Button
                 type="button"
-                onClick={() => {
-                  setAporteSugerido(null);
-                  setShowPay(true);
-                }}
+                onClick={() =>
+                  setPay({
+                    parcelaNumero: primeiraProjetada.parcelaNumero,
+                    defaultValor: primeiraProjetada.parcela,
+                    vencimento: vencimentoPrimeira ?? hoje,
+                  })
+                }
               >
                 Paguei esta parcela
               </Button>
@@ -455,30 +555,15 @@ export function Dashboard({
                 extras={extras}
                 projecao={projecao}
                 onAplicar={(aporte) => {
-                  setAporteSugerido(aporte);
-                  setShowPay(true);
+                  setPay({
+                    parcelaNumero: primeiraProjetada.parcelaNumero,
+                    defaultValor: primeiraProjetada.parcela,
+                    vencimento: vencimentoPrimeira ?? hoje,
+                    aporte,
+                  });
                 }}
               />
             </>
-          )}
-          {!readOnly && showPay && (
-            <PayInstallment
-              key={aporteSugerido ?? 'sem-aporte'}
-              parcelaNumero={primeiraProjetada.parcelaNumero}
-              defaultValor={primeiraProjetada.parcela}
-              dataVencimento={vencimentoPrimeira ?? hoje}
-              initialAporte={aporteSugerido ?? undefined}
-              estado={{ params, baseline, pagas, extras, projecao }}
-              onCancel={() => {
-                setAporteSugerido(null);
-                setShowPay(false);
-              }}
-              onDone={() => {
-                setUltimaPaga({ numero: primeiraProjetada.parcelaNumero });
-                setAporteSugerido(null);
-                setShowPay(false);
-              }}
-            />
           )}
         </section>
       )}
@@ -546,6 +631,20 @@ export function Dashboard({
         open={amortizando}
         onOpenChange={setAmortizando}
         estado={{ params, baseline, pagas, extras, projecao }}
+      />
+      <PayInstallmentDialog
+        open={pay !== null}
+        onOpenChange={(v) => {
+          if (!v) setPay(null);
+        }}
+        parcelaNumero={pay?.parcelaNumero ?? primeiraPendente}
+        defaultValor={pay?.defaultValor ?? 0}
+        dataVencimento={pay?.vencimento ?? hoje}
+        initialAporte={pay?.aporte}
+        estado={{ params, baseline, pagas, extras, projecao }}
+        onDone={() => {
+          if (pay) setUltimaPaga({ numero: pay.parcelaNumero });
+        }}
       />
       <ConfirmDialog
         open={desfazerAlvo !== null}

@@ -145,6 +145,7 @@ const recalibrarNoBanner = (page: Page): Locator =>
  *  "Definir hoje", mantendo a data do pagamento determinística nos fluxos. */
 async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
   const titulo = await box.getByText(/Pagamento da parcela \d+/).innerText();
@@ -168,6 +169,7 @@ async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
 async function pagarProximaNaTabela(page: Page, extraReais = 0): Promise<number> {
   const linha = page.locator('tr[data-situacao="aberta"]').first();
   await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
   const titulo = await box.getByText(/Pagamento da parcela \d+/).innerText();
@@ -598,16 +600,17 @@ test('editar e apagar amortização extra pela coluna Aporte da tabela', async (
   const linha = page.locator('tr[data-numero="141"]');
   await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorOriginal), { timeout: 20_000 });
 
-  // Editar o aporte pela tabela: o editor inline envia valor/data/origem/modo.
+  // Editar o aporte pela tabela: o dialog envia valor/data/origem/modo.
   await linha.getByRole('button', { name: 'Editar amortização', exact: true }).click();
-  const editorValor = page.locator('input[id^="editarAmortValor-"]');
-  await expect(editorValor).toBeVisible();
+  const editor = page.getByRole('dialog');
+  await expect(editor).toBeVisible();
+  const campoValor = editor.getByLabel('Valor amortizado (R$)');
+  await expect(campoValor).toBeVisible();
   const valorEditado = 20000;
-  await editorValor.fill(centsOf(valorEditado));
-  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await campoValor.fill(centsOf(valorEditado));
+  await editor.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(editor).toHaveCount(0, { timeout: 20_000 });
   await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorEditado), { timeout: 20_000 });
-  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(page.locator('input[id^="editarAmortValor-"]')).toHaveCount(0);
 
   // Apagar o aporte pela tabela (ConfirmDialog) zera a coluna.
   await linha.getByRole('button', { name: 'Apagar amortização', exact: true }).click();
@@ -680,17 +683,23 @@ test('editar a segunda amortização da mesma linha não reusa o estado da prime
   const linha = page.locator('tr[data-numero="141"]');
   await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(70000), { timeout: 20_000 });
 
-  // Abre o editor da 1ª e depois o da 2ª: sem `key` o form herdaria o valor
-  // da 1ª (estado stale) por reaproveitar a instância do componente.
+  // Abre o dialog da 1ª, fecha e abre o da 2ª: sem o remount por `key` o form
+  // herdaria o valor da 1ª (estado stale) por reaproveitar a instância.
   await linha.getByRole('button', { name: /Editar amortização 1/ }).click();
-  const editorValor = page.locator('input[id^="editarAmortValor-"]');
-  await expect(editorValor).toBeVisible();
+  let editor = page.getByRole('dialog');
+  await expect(editor.getByLabel('Valor amortizado (R$)')).toHaveValue(/50\.000,00/);
+  await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+
   await linha.getByRole('button', { name: /Editar amortização 2/ }).click();
-  await expect.poll(async () => parseBRL(await editorValor.inputValue())).toBe(20000);
+  editor = page.getByRole('dialog');
+  const campoValor = editor.getByLabel('Valor amortizado (R$)');
+  await expect(campoValor).toHaveValue(/20\.000,00/);
 
   const valorEditado = 30000;
-  await editorValor.fill(centsOf(valorEditado));
-  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await campoValor.fill(centsOf(valorEditado));
+  await editor.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(editor).toHaveCount(0, { timeout: 20_000 });
   await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(80000), { timeout: 20_000 });
 });
 
@@ -754,17 +763,19 @@ test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela p
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
 
-  // Corrige o valor da parcela registrada (painel de edição inline fica aberto
-  // após o refresh do Salvar) e depois fecha com Cancelar antes de apagar.
+  // Corrige o valor da parcela registrada pelo dialog de edição e depois apaga.
   await page.getByRole('button', { name: 'Editar parcela 141', exact: true }).click();
-  const valorEditado = page.locator('input[id^="editarValor-"]');
-  await expect(valorEditado).toBeVisible();
+  const editor = page.getByRole('dialog');
+  await expect(editor).toBeVisible();
+  const valorEditado = editor.getByLabel('Valor pago (R$)');
   const atual = parseBRL(await valorEditado.inputValue());
   await valorEditado.fill(centsOf(atual + 100));
-  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(page.locator('input[id^="editarValor-"]')).toHaveCount(1, { timeout: 20_000 });
-  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(page.locator('input[id^="editarValor-"]')).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(editor).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator('tr[data-numero="141"] [data-cell="parcela"]')).toHaveText(
+    formatBRL(atual + 100),
+    { timeout: 20_000 },
+  );
 
   await page.getByRole('button', { name: 'Apagar parcela 141', exact: true }).click();
   const apagarDialog = page.getByRole('dialog');
@@ -946,6 +957,15 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await expect(
     page.getByText('situação vigente a partir da última atualização', { exact: true }),
   ).toBeVisible();
+
+  // Visão global em 3 grupos com ícones e a barra "pago vs falta".
+  await expect(page.getByText('Você pagou', { exact: true })).toBeVisible();
+  await expect(page.getByText('Progresso', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pago vs falta', { exact: true })).toBeVisible();
+  const barraGlobal = page.getByRole('progressbar', { name: 'Pago em relação ao valor original' });
+  await expect(barraGlobal).toBeVisible();
+  await expect(barraGlobal).toHaveAttribute('aria-valuenow', /^\d+$/);
+  await expect(page.getByText(/pago · R\$\s*[\d.,]+ falta/)).toBeVisible();
 
   // Sem amortizações no período vigente, as estatísticas da situação atual
   // aparecem como "—" com a legenda discreta.

@@ -1,9 +1,17 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
@@ -16,17 +24,11 @@ import {
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PayInstallment } from './pay-installment';
+import { PayInstallmentDialog } from './pay-installment';
 import { ConfirmDialog } from './confirm-dialog';
 import { ModoRadios, OrigemRadios } from './amortization-form';
 
 const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground';
-const COLUNAS = 11;
-
-type Editor =
-  | { tipo: 'pagar'; numero: number }
-  | { tipo: 'editar'; numero: number }
-  | { tipo: 'editar-amortizacao'; numero: number; amortizacaoId: string };
 
 type ApagarAlvo =
   | { tipo: 'parcela'; id: string; numero: number; valor: number }
@@ -89,185 +91,263 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
   );
 }
 
-/** Editor inline de uma parcela paga do estado vigente (valor + data). Reusa a
- *  action `editMovement`; o editor permanece aberto após Salvar (fecha no
- *  Cancelar) e o erro sai no `role="alert"` local. */
-function EditarParcela({ paga, onClose }: { paga: ParcelaPagaComId; onClose: () => void }) {
+/** Dialog de edição de uma parcela paga do estado vigente (valor + data).
+ *  Reusa a action `editMovement`; o conteúdo só monta com o dialog aberto e o
+ *  erro sai no `role="alert"` local. */
+function EditarParcelaDialog({
+  paga,
+  onOpenChange,
+}: {
+  paga: ParcelaPagaComId | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [pending, setPending] = useState(false);
+
+  return (
+    <Dialog
+      open={paga !== null}
+      onOpenChange={(v) => {
+        if (v || !pending) onOpenChange(v);
+      }}
+    >
+      {paga && (
+        <EditarParcelaContent
+          key={paga.id}
+          paga={paga}
+          pending={pending}
+          onPendingChange={setPending}
+          onClose={() => onOpenChange(false)}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function EditarParcelaContent({
+  paga,
+  pending,
+  onPendingChange,
+  onClose,
+}: {
+  paga: ParcelaPagaComId;
+  pending: boolean;
+  onPendingChange: (v: boolean) => void;
+  onClose: () => void;
+}) {
   const router = useRouter();
-  const [valor, setValor] = useState(roundCents(paga.valor));
+  const [valor, setValor] = useState(() => roundCents(paga.valor));
   const [dataPagamento, setDataPagamento] = useState(paga.dataPagamento);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function salvar() {
-    if (busy || valor <= 0 || !dataPagamento) return;
-    setBusy(true);
+    if (pending || valor <= 0 || !dataPagamento) return;
+    onPendingChange(true);
     setError('');
     let result;
     try {
       result = await editMovement(paga.id, { valor, dataPagamento });
     } catch {
-      setBusy(false);
+      onPendingChange(false);
       setError('Sessão expirada, entre novamente');
       return;
     }
     if ('error' in result) {
-      setBusy(false);
+      onPendingChange(false);
       setError(result.error);
       return;
     }
     await router.refresh();
-    setBusy(false);
+    onPendingChange(false);
+    onClose();
   }
 
   return (
-    <TableRow data-row-editor="parcela" className="bg-muted/20">
-      <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
-        <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex w-56 flex-col gap-1.5">
-              <label htmlFor={`editarValor-${paga.id}`} className="text-sm font-medium text-foreground">
-                Valor pago (R$)
-              </label>
-              <MoneyInput
-                id={`editarValor-${paga.id}`}
-                value={valor}
-                onValid={setValor}
-                disabled={busy}
-              />
-            </div>
-            <div className="flex w-48 flex-col gap-1.5">
-              <label htmlFor={`editarData-${paga.id}`} className="text-sm font-medium text-foreground">
-                Data do pagamento
-              </label>
-              <Input
-                id={`editarData-${paga.id}`}
-                type="date"
-                value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void salvar()}
-                disabled={busy || valor <= 0 || !dataPagamento}
-              >
-                {busy ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+    <DialogContent className="sm:max-w-md" data-edit-parcela>
+      <DialogHeader>
+        <DialogTitle>Editar parcela {paga.parcelaNumero}</DialogTitle>
+        <DialogDescription>
+          Ajuste o valor pago e a data do pagamento registrado.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${paga.id}-valor`} className="text-sm font-medium text-foreground">
+            Valor pago (R$)
+          </label>
+          <MoneyInput
+            id={`${paga.id}-valor`}
+            value={valor}
+            onValid={setValor}
+            disabled={pending}
+          />
         </div>
-      </TableCell>
-    </TableRow>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${paga.id}-data`} className="text-sm font-medium text-foreground">
+            Data do pagamento
+          </label>
+          <Input
+            id={`${paga.id}-data`}
+            type="date"
+            value={dataPagamento}
+            onChange={(e) => setDataPagamento(e.target.value)}
+            disabled={pending}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void salvar()}
+          disabled={pending || valor <= 0 || !dataPagamento}
+        >
+          {pending ? 'Salvando...' : 'Salvar'}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
-/** Editor inline de uma amortização extra do estado vigente (valor, data,
- *  origem e modo). Reusa a action `editMovement`; permanece aberto após Salvar e
- *  o erro sai no `role="alert"` local. */
-function EditarAmortizacao({
+/** Dialog de edição de uma amortização extra do estado vigente (valor, data,
+ *  origem e modo). Reusa a action `editMovement`; o conteúdo só monta com o
+ *  dialog aberto e o erro sai no `role="alert"` local. */
+function EditarAmortizacaoDialog({
   amortizacao,
+  onOpenChange,
+}: {
+  amortizacao: AmortizacaoComId | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [pending, setPending] = useState(false);
+
+  return (
+    <Dialog
+      open={amortizacao !== null}
+      onOpenChange={(v) => {
+        if (v || !pending) onOpenChange(v);
+      }}
+    >
+      {amortizacao && (
+        <EditarAmortizacaoContent
+          key={amortizacao.id}
+          amortizacao={amortizacao}
+          pending={pending}
+          onPendingChange={setPending}
+          onClose={() => onOpenChange(false)}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function EditarAmortizacaoContent({
+  amortizacao,
+  pending,
+  onPendingChange,
   onClose,
 }: {
   amortizacao: AmortizacaoComId;
+  pending: boolean;
+  onPendingChange: (v: boolean) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [valor, setValor] = useState(roundCents(amortizacao.valor));
+  const [valor, setValor] = useState(() => roundCents(amortizacao.valor));
   const [dataPagamento, setDataPagamento] = useState(amortizacao.dataPagamento);
   const [origem, setOrigem] = useState<'proprio' | 'fgts'>(amortizacao.origem);
   const [modo, setModo] = useState<'term' | 'payment'>(amortizacao.modo);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function salvar() {
-    if (busy || valor <= 0 || !dataPagamento) return;
-    setBusy(true);
+    if (pending || valor <= 0 || !dataPagamento) return;
+    onPendingChange(true);
     setError('');
     let result;
     try {
       result = await editMovement(amortizacao.id, { valor, dataPagamento, origem, modo });
     } catch {
-      setBusy(false);
+      onPendingChange(false);
       setError('Sessão expirada, entre novamente');
       return;
     }
     if ('error' in result) {
-      setBusy(false);
+      onPendingChange(false);
       setError(result.error);
       return;
     }
     await router.refresh();
-    setBusy(false);
+    onPendingChange(false);
+    onClose();
   }
 
   return (
-    <TableRow data-row-editor="amortizacao" className="bg-muted/20">
-      <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
-        <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-            <div className="flex w-56 flex-col gap-1.5">
-              <label htmlFor={`editarAmortValor-${amortizacao.id}`} className="text-sm font-medium text-foreground">
-                Valor amortizado (R$)
-              </label>
-              <MoneyInput
-                id={`editarAmortValor-${amortizacao.id}`}
-                value={valor}
-                onValid={setValor}
-                disabled={busy}
-              />
-            </div>
-            <div className="flex w-48 flex-col gap-1.5">
-              <label htmlFor={`editarAmortData-${amortizacao.id}`} className="text-sm font-medium text-foreground">
-                Data do pagamento
-              </label>
-              <Input
-                id={`editarAmortData-${amortizacao.id}`}
-                type="date"
-                value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-foreground">Origem</span>
-              <OrigemRadios value={origem} onChange={setOrigem} disabled={busy} />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-sm font-medium text-foreground">O que o banco fez</span>
-              <ModoRadios value={modo} onChange={setModo} disabled={busy} />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void salvar()}
-                disabled={busy || valor <= 0 || !dataPagamento}
-              >
-                {busy ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
+    <DialogContent className="sm:max-w-lg" data-edit-amortizacao>
+      <DialogHeader>
+        <DialogTitle>Editar amortização extra</DialogTitle>
+        <DialogDescription>
+          Ajuste o valor, a data, a origem e o que o banco fez com o aporte.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${amortizacao.id}-valor`} className="text-sm font-medium text-foreground">
+              Valor amortizado (R$)
+            </label>
+            <MoneyInput
+              id={`${amortizacao.id}-valor`}
+              value={valor}
+              onValid={setValor}
+              disabled={pending}
+            />
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${amortizacao.id}-data`} className="text-sm font-medium text-foreground">
+              Data do pagamento
+            </label>
+            <Input
+              id={`${amortizacao.id}-data`}
+              type="date"
+              value={dataPagamento}
+              onChange={(e) => setDataPagamento(e.target.value)}
+              disabled={pending}
+            />
+          </div>
         </div>
-      </TableCell>
-    </TableRow>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-foreground">Origem</span>
+          <OrigemRadios value={origem} onChange={setOrigem} disabled={pending} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-foreground">O que o banco fez</span>
+          <ModoRadios value={modo} onChange={setModo} disabled={pending} />
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void salvar()}
+          disabled={pending || valor <= 0 || !dataPagamento}
+        >
+          {pending ? 'Salvando...' : 'Salvar'}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
@@ -278,10 +358,10 @@ function EditarAmortizacao({
  * paginação: TODAS as competências ficam no DOM dentro do scroll `h-[480px]`.
  *
  * Ações por linha (ausentes em readOnly e no contrato quitado):
- * - primeira parcela pendente: botão "Pagar" abre inline o `PayInstallment` do
+ * - primeira parcela pendente: botão "Pagar" abre o `PayInstallmentDialog` do
  *   card do mês (com "Definir hoje" e o eventual split de amortização);
- * - pagas do estado vigente: Editar (editor inline) e Apagar (`ConfirmDialog`).
- *   O Editar some quando a parcela tem amortização vinculada (groupId), recusada
+ * - pagas do estado vigente: Editar (dialog) e Apagar (`ConfirmDialog`). O
+ *   Editar some quando a parcela tem amortização vinculada (groupId), recusada
  *   pela action; o Apagar só aparece na ÚLTIMA paga, única removível sem criar
  *   lacuna. O vínculo com o estado é feito por `state.pagas` (não pelo histórico);
  * - amortizações extras do estado vigente: Editar/Apagar na coluna "Aporte" da
@@ -303,7 +383,9 @@ export function ParcelasDoFinanciamento({
   quitado?: boolean;
 }) {
   const router = useRouter();
-  const [editor, setEditor] = useState<Editor | null>(null);
+  const [pagando, setPagando] = useState<{ numero: number; valor: number; vencimento: string } | null>(null);
+  const [editandoParcela, setEditandoParcela] = useState<ParcelaPagaComId | null>(null);
+  const [editandoAmortizacao, setEditandoAmortizacao] = useState<AmortizacaoComId | null>(null);
   const [apagarAlvo, setApagarAlvo] = useState<ApagarAlvo | null>(null);
 
   const linhas = buildCronograma(state.baseline, state.projecao, state.historico, state.extras);
@@ -352,175 +434,171 @@ export function ParcelasDoFinanciamento({
                 const pagaMov = pagaPorNumero.get(linha.numero);
                 const ehPrimeiraAberta = primeiraAberta?.numero === linha.numero;
                 const extrasDaLinha = aportesPorLinha.get(linha.numero) ?? [];
-                const extraEmEdicao =
-                  editor?.tipo === 'editar-amortizacao' && editor.numero === linha.numero
-                    ? extrasDaLinha.find((e) => e.id === editor.amortizacaoId)
-                    : undefined;
                 return (
-                  <Fragment key={`parcela-${linha.numero}`}>
-                    <TableRow
-                      data-row="parcela"
-                      data-numero={linha.numero}
-                      data-situacao={linha.situacao}
-                      className={ROW_BG[linha.situacao]}
+                  <TableRow
+                    key={`parcela-${linha.numero}`}
+                    data-row="parcela"
+                    data-numero={linha.numero}
+                    data-situacao={linha.situacao}
+                    className={ROW_BG[linha.situacao]}
+                  >
+                    <TableCell
+                      className={`sticky left-0 z-10 border-r border-border font-medium ${STICKY_BG[linha.situacao]}`}
                     >
-                      <TableCell
-                        className={`sticky left-0 z-10 border-r border-border font-medium ${STICKY_BG[linha.situacao]}`}
-                      >
-                        {linha.numero}
-                      </TableCell>
-                      <TableCell>{formatDataBr(linha.vencimento)}</TableCell>
-                      <TableCell data-cell="parcela" className="text-right">{formatBRL(linha.valor)}</TableCell>
-                      <TableCell data-cell="aporte" className="text-right">
-                        {linha.aporte > 0 ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
-                            {podeAgir && extrasDaLinha.length > 0 && (
-                              <span className="flex shrink-0 items-center gap-0.5">
-                                {extrasDaLinha.map((extra, index) => {
-                                  // Com mais de uma extra na mesma linha o rótulo
-                                  // repetido colidiria no E2E/leitor de tela;
-                                  // a posição e o valor desambiguam.
-                                  const sufixo =
-                                    extrasDaLinha.length > 1
-                                      ? ` ${index + 1} (${formatBRL(extra.valor)})`
-                                      : '';
-                                  return (
-                                    <Fragment key={extra.id}>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                          setEditor({ tipo: 'editar-amortizacao', numero: linha.numero, amortizacaoId: extra.id })
-                                        }
-                                        aria-label={`Editar amortização${sufixo}`}
-                                        className="size-8 text-muted-foreground hover:text-foreground"
-                                      >
-                                        <Pencil className="size-3.5" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                          setApagarAlvo({
-                                            tipo: 'amortizacao',
-                                            id: extra.id,
-                                            numero: linha.numero,
-                                            valor: extra.valor,
-                                          })
-                                        }
-                                        aria-label={`Apagar amortização${sufixo}`}
-                                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                      >
-                                        <Trash2 className="size-3.5" />
-                                      </Button>
-                                    </Fragment>
-                                  );
-                                })}
-                              </span>
-                            )}
-                          </div>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell data-cell="total" className="text-right font-semibold">
-                        {formatBRL(linha.valor + linha.aporte)}
-                      </TableCell>
-                      <TableCell className="text-right">{celulaValor(linha.composicao?.juros)}</TableCell>
-                      <TableCell className="text-right">{celulaValor(linha.composicao?.amortizacao)}</TableCell>
-                      <TableCell className="text-right">{celulaValor(linha.composicao?.seguro)}</TableCell>
-                      <TableCell className="text-right">{celulaValor(linha.composicao?.correcao)}</TableCell>
-                      <TableCell data-cell="saldo" className="text-right">
-                        {saldoParcela(linha, temExtraAplicavel)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-between gap-2">
-                          <Situacao linha={linha} />
-                          {podeAgir && linha.situacao === 'aberta' && ehPrimeiraAberta && (
-                            <Button
-                              type="button"
-                              onClick={() => setEditor({ tipo: 'pagar', numero: linha.numero })}
-                            >
-                              Pagar
-                            </Button>
-                          )}
-                          {podeAgir && linha.situacao === 'paga' && pagaMov && (
-                            <div className="flex shrink-0 items-center gap-1">
-                              {!pagaMov.groupId && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setEditor({ tipo: 'editar', numero: linha.numero })}
-                                  aria-label={`Editar parcela ${linha.numero}`}
-                                  className="size-8 text-muted-foreground hover:text-foreground"
-                                >
-                                  <Pencil className="size-3.5" />
-                                </Button>
-                              )}
-                              {linha.numero === ultimaPaga && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    setApagarAlvo({
-                                      tipo: 'parcela',
-                                      id: pagaMov.id,
-                                      numero: linha.numero,
-                                      valor: pagaMov.valor,
-                                    })
-                                  }
-                                  aria-label={`Apagar parcela ${linha.numero}`}
-                                  className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              )}
-                            </div>
+                      {linha.numero}
+                    </TableCell>
+                    <TableCell>{formatDataBr(linha.vencimento)}</TableCell>
+                    <TableCell data-cell="parcela" className="text-right">{formatBRL(linha.valor)}</TableCell>
+                    <TableCell data-cell="aporte" className="text-right">
+                      {linha.aporte > 0 ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
+                          {podeAgir && extrasDaLinha.length > 0 && (
+                            <span className="flex shrink-0 items-center gap-0.5">
+                              {extrasDaLinha.map((extra, index) => {
+                                // Com mais de uma extra na mesma linha o rótulo
+                                // repetido colidiria no E2E/leitor de tela;
+                                // a posição e o valor desambiguam.
+                                const sufixo =
+                                  extrasDaLinha.length > 1
+                                    ? ` ${index + 1} (${formatBRL(extra.valor)})`
+                                    : '';
+                                return (
+                                  <span key={extra.id} className="flex shrink-0 items-center gap-0.5">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setEditandoAmortizacao(extra)}
+                                      aria-label={`Editar amortização${sufixo}`}
+                                      className="size-8 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setApagarAlvo({
+                                          tipo: 'amortizacao',
+                                          id: extra.id,
+                                          numero: linha.numero,
+                                          valor: extra.valor,
+                                        })
+                                      }
+                                      aria-label={`Apagar amortização${sufixo}`}
+                                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  </span>
+                                );
+                              })}
+                            </span>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                    {editor?.numero === linha.numero && editor.tipo === 'editar' && pagaMov && (
-                      <EditarParcela paga={pagaMov} onClose={() => setEditor(null)} />
-                    )}
-                    {editor?.numero === linha.numero && editor.tipo === 'editar-amortizacao' && extraEmEdicao && (
-                      <EditarAmortizacao
-                        key={extraEmEdicao.id}
-                        amortizacao={extraEmEdicao}
-                        onClose={() => setEditor(null)}
-                      />
-                    )}
-                    {editor?.numero === linha.numero && editor.tipo === 'pagar' && (
-                      <TableRow data-row-editor="pagar" className="bg-muted/20">
-                        <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
-                          <PayInstallment
-                            key={`pagar-${linha.numero}`}
-                            parcelaNumero={linha.numero}
-                            defaultValor={linha.valor}
-                            dataVencimento={linha.vencimento}
-                            estado={{
-                              params: state.params,
-                              baseline: state.baseline,
-                              pagas: state.pagas,
-                              extras: state.extras,
-                              projecao: state.projecao,
-                            }}
-                            onCancel={() => setEditor(null)}
-                            onDone={() => setEditor(null)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </Fragment>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell data-cell="total" className="text-right font-semibold">
+                      {formatBRL(linha.valor + linha.aporte)}
+                    </TableCell>
+                    <TableCell className="text-right">{celulaValor(linha.composicao?.juros)}</TableCell>
+                    <TableCell className="text-right">{celulaValor(linha.composicao?.amortizacao)}</TableCell>
+                    <TableCell className="text-right">{celulaValor(linha.composicao?.seguro)}</TableCell>
+                    <TableCell className="text-right">{celulaValor(linha.composicao?.correcao)}</TableCell>
+                    <TableCell data-cell="saldo" className="text-right">
+                      {saldoParcela(linha, temExtraAplicavel)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-between gap-2">
+                        <Situacao linha={linha} />
+                        {podeAgir && linha.situacao === 'aberta' && ehPrimeiraAberta && (
+                          <Button
+                            type="button"
+                            onClick={() =>
+                              setPagando({
+                                numero: linha.numero,
+                                valor: linha.valor,
+                                vencimento: linha.vencimento,
+                              })
+                            }
+                          >
+                            Pagar
+                          </Button>
+                        )}
+                        {podeAgir && linha.situacao === 'paga' && pagaMov && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            {!pagaMov.groupId && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditandoParcela(pagaMov)}
+                                aria-label={`Editar parcela ${linha.numero}`}
+                                className="size-8 text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                            )}
+                            {linha.numero === ultimaPaga && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  setApagarAlvo({
+                                    tipo: 'parcela',
+                                    id: pagaMov.id,
+                                    numero: linha.numero,
+                                    valor: pagaMov.valor,
+                                  })
+                                }
+                                aria-label={`Apagar parcela ${linha.numero}`}
+                                className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>
           </table>
         </div>
       )}
+      <PayInstallmentDialog
+        open={pagando !== null}
+        onOpenChange={(v) => {
+          if (!v) setPagando(null);
+        }}
+        parcelaNumero={pagando?.numero ?? primeiraAberta?.numero ?? 0}
+        defaultValor={pagando?.valor ?? primeiraAberta?.valor ?? 0}
+        dataVencimento={pagando?.vencimento ?? primeiraAberta?.vencimento ?? ''}
+        estado={{
+          params: state.params,
+          baseline: state.baseline,
+          pagas: state.pagas,
+          extras: state.extras,
+          projecao: state.projecao,
+        }}
+      />
+      <EditarParcelaDialog
+        paga={editandoParcela}
+        onOpenChange={(v) => {
+          if (!v) setEditandoParcela(null);
+        }}
+      />
+      <EditarAmortizacaoDialog
+        amortizacao={editandoAmortizacao}
+        onOpenChange={(v) => {
+          if (!v) setEditandoAmortizacao(null);
+        }}
+      />
       <ConfirmDialog
         open={apagarAlvo !== null}
         onOpenChange={(v) => {
