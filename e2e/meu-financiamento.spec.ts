@@ -256,6 +256,23 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await expect(linhaPaga).toContainText(formatBRL(pg.correcao));
   await expect(linhaPaga).toContainText(formatBRL(pg.seguro));
   await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
+
+  // Amortização extra no mesmo dia da paga entra antes da composição: o saldo
+  // da 141 cai e bate com o oráculo do model (data extra ≤ data da paga).
+  const valorExtra = 100000;
+  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#amortValor').fill(centsOf(valorExtra));
+  await dialog.locator('#amortData').fill(todayISO());
+  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+  if (!(await linhaPaga.isVisible())) await resumo.click();
+  const pgComExtra = projecao(PARAMS_E2E, baselineDeHoje(), [
+    { parcelaNumero: 141, valor: paga, dataPagamento: todayISO() },
+  ], [{ dataPagamento: todayISO(), valor: valorExtra, origem: 'proprio', modo: 'term' }]).pagas[0];
+  await expect(linhaPaga).toContainText(formatBRL(pgComExtra.saldo));
+  expect(pgComExtra.saldo).toBeLessThan(pg.saldo);
 });
 
 test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {

@@ -100,7 +100,7 @@ export function ParcelasDoFinanciamento({
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col" className={`${HEAD_BASE} sticky left-0 z-20 border-r border-border`}>
-                      Parcela
+                      Nº
                     </TableHead>
                     <TableHead scope="col" className={HEAD_BASE}>Vencimento</TableHead>
                     <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Parcela</TableHead>

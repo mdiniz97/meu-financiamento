@@ -66,6 +66,48 @@ it('pagas vazio sem movimentos', () => {
   expect(projecao(PARAMS, BASELINE, [], []).pagas).toEqual([]);
 });
 
+it('pagas intercala amortização extra por data e recomputa a composição depois dela', () => {
+  const movimentos = [
+    { parcelaNumero: 141, valor: 10050, dataPagamento: '2026-10-05' },
+    { parcelaNumero: 142, valor: 10050, dataPagamento: '2026-11-05' },
+  ];
+  const semExtra = projecao(PARAMS, BASELINE, movimentos, []);
+  const comExtra = projecao(PARAMS, BASELINE, movimentos, [
+    { dataPagamento: '2026-10-20', valor: 100000, origem: 'proprio', modo: 'term' },
+  ]);
+  const p141a = semExtra.pagas.find((p) => p.parcelaNumero === 141)!;
+  const p141b = comExtra.pagas.find((p) => p.parcelaNumero === 141)!;
+  const p142a = semExtra.pagas.find((p) => p.parcelaNumero === 142)!;
+  const p142b = comExtra.pagas.find((p) => p.parcelaNumero === 142)!;
+  // extra posterior à 141 (não afeta a composição dela)
+  expect(p141b).toEqual(p141a);
+  // extra anterior à 142: saldo menor, juros e correção menores na competência
+  expect(p142b.juros).toBeLessThan(p142a.juros);
+  expect(p142b.correcao).toBeLessThan(p142a.correcao);
+  expect(p142b.saldo).toBeLessThan(p142a.saldo);
+});
+
+it('pagas aplica extra no mesmo dia da paga antes de compor (data extra ≤ data da paga)', () => {
+  const comExtra = projecao(PARAMS, BASELINE, [
+    { parcelaNumero: 141, valor: 10050, dataPagamento: '2026-10-05' },
+  ], [{ dataPagamento: '2026-10-05', valor: 100000, origem: 'proprio', modo: 'term' }]);
+  const semExtra = projecao(PARAMS, BASELINE, [
+    { parcelaNumero: 141, valor: 10050, dataPagamento: '2026-10-05' },
+  ], []);
+  expect(comExtra.pagas[0].juros).toBeLessThan(semExtra.pagas[0].juros);
+  expect(comExtra.pagas[0].saldo).toBeLessThan(semExtra.pagas[0].saldo);
+});
+
+it('pagas não incorpora amortização extra posterior à última paga (fica no saldoEfetivo)', () => {
+  const movimentos = [{ parcelaNumero: 141, valor: 10050, dataPagamento: '2026-10-05' }];
+  const semExtra = projecao(PARAMS, BASELINE, movimentos, []);
+  const comExtra = projecao(PARAMS, BASELINE, movimentos, [
+    { dataPagamento: '2026-10-06', valor: 100000, origem: 'proprio', modo: 'term' },
+  ]);
+  expect(comExtra.pagas[0]).toEqual(semExtra.pagas[0]);
+  expect(comExtra.saldoEfetivo).toBeCloseTo(semExtra.saldoEfetivo - 100000, 6);
+});
+
 it('valor real maior que o projetado não vira amortização extra; vira divergência', () => {
   const semMov = projecao(PARAMS, BASELINE, [], []);
   const projetada = semMov.parcelas[0].parcela;
