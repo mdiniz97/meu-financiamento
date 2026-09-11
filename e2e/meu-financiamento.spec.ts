@@ -162,6 +162,29 @@ async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   return sugestao;
 }
 
+/** Paga a primeira parcela pendente PELA TABELA (botão "Pagar" da linha em
+ *  aberto), exercitando o mesmo formulário do card com split de excedente.
+ *  Devolve o valor sugerido usado. */
+async function pagarProximaNaTabela(page: Page, extraReais = 0): Promise<number> {
+  const linha = page.locator('tr[data-situacao="aberta"]').first();
+  await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
+  const box = page.locator('[data-pay-installment]');
+  await expect(box).toBeVisible();
+  const titulo = await box.getByText(/Pagamento da parcela \d+/).innerText();
+  const parcelaNumero = Number(titulo.match(/\d+/)![0]);
+  const vencimento = addMonthsISO(todayISO(), parcelaNumero - 141, 10);
+  await expect(box.locator('#payData')).toHaveValue(vencimento);
+  await box.getByRole('button', { name: 'Definir hoje', exact: true }).click();
+  await expect(box.locator('#payData')).toHaveValue(todayISO());
+  const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
+  if (extraReais !== 0) {
+    await box.locator('#payValor').fill(centsOf(sugestao + extraReais));
+  }
+  await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  await expect(box).toHaveCount(0, { timeout: 20_000 });
+  return sugestao;
+}
+
 test('onboarding salva rascunho e continua após reload', async ({ page }) => {
   await criarConta(page, 'Onboarding');
   await page.goto('/meu-financiamento');
@@ -207,7 +230,7 @@ test('criação exige Ilimitado: wizard completo mostra UpgradeCard sem contrato
   await expect(page.getByText('Crie seu financiamento com o plano Ilimitado')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: /Assinar Ilimitado/ })).toBeVisible();
   await expect(page.getByText('Saldo devedor atual', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toHaveCount(0);
 
   if (hasPsql) {
     const count = psql(
@@ -228,11 +251,9 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
   await expect(proximaCard(page)).toContainText(/R\$\s*[\d.,]+/);
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360');
-  await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toBeVisible();
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toBeVisible();
 
   // O dia do vencimento informado no wizard (10) vale para a tabela de parcelas.
-  await page.getByText('Parcelas do Financiamento', { exact: true }).click();
   await expect(page.getByRole('columnheader', { name: 'Vencimento' })).toBeVisible();
   const primeira = page.locator('tr[data-numero="141"]');
   await expect(primeira).toBeVisible();
@@ -240,70 +261,53 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(primeira).toContainText('Em aberto');
 });
 
-test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 por vez', async ({ page }) => {
+test('tabela "Parcelas do Financiamento" lista todas as parcelas e paga a primeira pendente com split', async ({ page }) => {
   const conta = await criarConta(page, 'Parcelas do Financiamento');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  const resumo = page.getByText('Parcelas do Financiamento', { exact: true });
-  await expect(resumo).toBeVisible();
-  // Fechado por padrão: as linhas existem no DOM (details), mas ocultas.
-  await expect(page.locator('tr[data-numero="141"]')).toBeHidden();
+  // Sem accordion e sem "Mostrar mais": todas as competências ficam no DOM.
+  await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mostrar mais', exact: true })).toHaveCount(0);
 
-  await resumo.click();
-  await expect(page.locator('tr[data-numero="141"]')).toBeVisible();
-  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
-  // 24 linhas por vez: a 164 fecha o primeiro bloco, a 165 só com "Mostrar mais".
-  await expect(page.locator('tr[data-numero="164"]')).toBeVisible();
-  await expect(page.locator('tr[data-numero="165"]')).toHaveCount(0);
-  await expect(page.getByText('Em aberto').first()).toBeVisible();
-
-  await page.getByRole('button', { name: 'Mostrar mais', exact: true }).click();
+  const linha141 = page.locator('tr[data-numero="141"]');
+  await expect(linha141).toBeVisible();
+  await expect(linha141).toContainText('Em aberto');
   await expect(page.locator('tr[data-numero="165"]')).toBeVisible();
+  await expect(page.locator('tr[data-numero="360"]')).toBeVisible();
+  // O botão "Pagar" existe só na primeira parcela pendente (a 141).
+  await expect(page.getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(1);
+  await expect(linha141.getByRole('button', { name: 'Pagar', exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="142"]').getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(0);
 
-  // Pagar a 141 reescreve a linha como "Paga" com a composição do encadeamento
-  // do model (juros, correção, seguro e amortização) do valor real pago.
-  const paga = await pagarProxima(page);
+  // Pagar a 141 PELA TABELA com excedente de R$ 500: o mesmo form do card faz o
+  // split parcela + amortização extra e a ação move para a próxima pendente.
+  const paga = await pagarProximaNaTabela(page, 500);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
-  // O refresh pode manter o details aberto ou fechá-lo; abre só se preciso.
-  const linhaPaga = page.locator('tr[data-numero="141"]');
-  if (!(await linhaPaga.isVisible())) await resumo.click();
-  await expect(linhaPaga).toContainText('Paga');
+  await expect(linha141).toContainText('Paga');
+  // A composição exibida é a do encadeamento do model (sem extras) do valor real.
   const pg = projecao(PARAMS_E2E, baselineDeHoje(), [
     { parcelaNumero: 141, valor: paga, dataPagamento: todayISO() },
   ], []).pagas[0];
-  await expect(linhaPaga).toContainText(formatBRL(pg.juros));
-  await expect(linhaPaga).toContainText(formatBRL(pg.correcao));
-  await expect(linhaPaga).toContainText(formatBRL(pg.seguro));
-  await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
-  // Sem extras no estado, o Saldo da paga é o do encadeamento sem extras e não
-  // há aporte na linha.
-  await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText(formatBRL(pg.saldo));
-  await expect(linhaPaga.locator('[data-cell="aporte"]')).toHaveText('-');
-
-  // Com amortização extra no estado vigente até a data da paga, o saldo do
-  // encadeamento sem extras deixa de representar o saldo real: vira "—" (a
-  // composição juros/correção/seguro/amortização segue inalterada).
-  const valorExtra = 100000;
-  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('#amortValor').fill(centsOf(valorExtra));
-  await dialog.locator('#amortData').fill(todayISO());
-  await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
-  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
-  if (!(await linhaPaga.isVisible())) await resumo.click();
-  await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText('—');
-  await expect(linhaPaga).toContainText(formatBRL(pg.juros));
-  await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
-  // O aporte fica na linha da última paga anterior à data (a 141, paga hoje), e
+  await expect(linha141).toContainText(formatBRL(pg.juros));
+  await expect(linha141).toContainText(formatBRL(pg.correcao));
+  await expect(linha141).toContainText(formatBRL(pg.seguro));
+  await expect(linha141).toContainText(formatBRL(pg.amortizacao));
+  // Com amortização extra do estado vigente até a data da paga, o Saldo do
+  // encadeamento sem extras deixa de representar o saldo real: vira "—".
+  await expect(linha141.locator('[data-cell="saldo"]')).toHaveText('—');
+  // O aporte fica na linha da última paga anterior à data (a 141, paga hoje) e
   // o Total soma Parcela + Aporte.
-  const numeroAporte = 141;
-  const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
-  await expect(linhaAporte.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorExtra));
-  const parcelaAporte = parseBRL(await linhaAporte.locator('[data-cell="parcela"]').innerText());
-  const totalAporte = parseBRL(await linhaAporte.locator('[data-cell="total"]').innerText());
+  const valorExtra = 500;
+  await expect(linha141.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorExtra));
+  const parcelaAporte = parseBRL(await linha141.locator('[data-cell="parcela"]').innerText());
+  const totalAporte = parseBRL(await linha141.locator('[data-cell="total"]').innerText());
   expect(totalAporte).toBeCloseTo(parcelaAporte + valorExtra, 2);
+
+  // A 141 paga não tem mais "Pagar"; a ação passou para a 142.
+  await expect(linha141.getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(0);
+  await expect(page.locator('tr[data-numero="142"]').getByRole('button', { name: 'Pagar', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(1);
 });
 
 test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {
@@ -350,23 +354,16 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
     .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
     .toBe(quitacaoAntes - 1);
 
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
-  await expect(historico).toContainText(/Parcela 141 paga/);
-  // O valor REGISTRADO da amortização é exatamente o aporte exibido no card
-  // (aporte explícito no servidor), não alguns reais a menos.
-  const eventoAmortizacao = historico.locator('[data-timeline-evento="amortizacao"]').first();
-  await expect(eventoAmortizacao).toBeVisible();
-  expect(parseBRL(await eventoAmortizacao.locator('[data-timeline-valor]').innerText())).toBeCloseTo(ideal, 2);
+  // O pagamento move a linha 141 para "Paga" e o aporte REGISTRADO é exatamente
+  // o exibido no card (aporte explícito no servidor), não alguns reais a menos.
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga', { timeout: 20_000 });
 
   // Tabela de parcelas: o aporte fica na linha da última paga anterior à data
   // (a 141, paga com o aporte), com o valor exato registrado e Total = Parcela +
-  // Aporte. Origem/modo/data ficam no histórico da timeline (asserts acima).
-  await page.getByText('Parcelas do Financiamento', { exact: true }).click();
+  // Aporte.
   const numeroAporte = 141;
   const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
-  await expect(linhaAporte.locator('[data-cell="aporte"]')).toBeVisible();
-  expect(parseBRL(await linhaAporte.locator('[data-cell="aporte"]').innerText())).toBeCloseTo(ideal, 2);
+  await expect(linhaAporte.locator('[data-cell="aporte"]')).toHaveText(formatBRL(ideal), { timeout: 20_000 });
   const parcelaAporte = parseBRL(await linhaAporte.locator('[data-cell="parcela"]').innerText());
   const totalAporte = parseBRL(await linhaAporte.locator('[data-cell="total"]').innerText());
   expect(totalAporte).toBeCloseTo(parcelaAporte + ideal, 2);
@@ -398,12 +395,13 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await boxExtra.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(boxExtra).toHaveCount(0, { timeout: 20_000 });
   // O mesmo caminho de aporte explícito vale para meia/extra: a amortização
-  // registrada é o valor exibido (busca entre os eventos do período, sem
-  // depender da ordem).
+  // registrada é o valor exibido (busca na coluna Aporte das linhas, sem
+  // depender de qual competência recebeu o aporte).
   await expect
     .poll(
       async () =>
-        (await historico.locator('[data-timeline-evento="amortizacao"] [data-timeline-valor]').allInnerTexts())
+        (await page.locator('tr[data-row="parcela"] [data-cell="aporte"]').allInnerTexts())
+          .filter((texto) => texto.trim() !== '-')
           .map(parseBRL)
           .some((v) => Math.abs(v - extra) < 0.005),
       { timeout: 20_000 },
@@ -432,9 +430,8 @@ test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue
   expect(saldoDepois).toBeCloseTo(esperado, 2);
   expect(paga).toBeGreaterThan(0);
 
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
-  await expect(historico.getByText(/R\$\s*[\d.,]+/).first()).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga');
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
 });
 
@@ -470,10 +467,10 @@ test('pagamento divergente sugere recalibração e o banner some após recalibra
   await expect
     .poll(async () => parseBRL(await saldoCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(saldoDivergente, 2);
-  // A recalibração vira marco na timeline; os lançamentos do baseline
-  // superado continuam visíveis no grupo do período anterior.
-  await expect(page.getByText(/Saldo recalibrado pelo extrato/)).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toHaveCount(0);
+  // Os lançamentos do baseline superado continuam visíveis na tabela, agora com
+  // o selo "Histórico" e sem ações (o servidor recusa editar estado superado).
+  await expect(page.locator('tr[data-numero="142"]')).toContainText('Histórico', { timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Editar parcela 142', exact: true })).toHaveCount(0);
 });
 
 test('excedente do pagamento vira amortização extra vinculada e desfazer apaga o grupo', async ({ page }) => {
@@ -495,17 +492,14 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await box.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(box).toHaveCount(0, { timeout: 20_000 });
 
-  // Excedente vira amortização: sem banner de divergência e com os dois
-  // eventos na timeline.
+  // Excedente vira amortização: sem banner de divergência e com o aporte na
+  // coluna Aporte da linha da paga (141).
   await expect(page.getByText(/Parcela 141 paga em/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
 
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
-  await expect(historico).toContainText('Dinheiro próprio');
-  await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
-  await expect(historico).toContainText(/R\$\s*500,00/);
-  await expect(historico).toContainText(/Parcela 141 paga/);
+  const linha141Excedente = page.locator('tr[data-numero="141"]');
+  await expect(linha141Excedente).toContainText('Paga', { timeout: 20_000 });
+  await expect(linha141Excedente.locator('[data-cell="aporte"]')).toHaveText(/R\$\s*500,00/);
 
   // Desfazer a parcela apaga o grupo inteiro (parcela + amortização extra).
   await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
@@ -518,11 +512,11 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: TITULO_CARD_MES, exact: true })).toBeVisible();
-  await expect(historico).not.toContainText('Amortização extra');
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
 });
 
-test('amortização extra modo term encurta a quitação e aparece no histórico', async ({ page }) => {
+test('amortização extra modo term encurta a quitação e aparece na tabela', async ({ page }) => {
   const conta = await criarConta(page, 'Amortização Extra');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
@@ -553,14 +547,14 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   await dialog.locator('#amortData').fill(todayISO());
   await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
 
-  // Espera o refresh refletir a amortização no histórico ANTES de ler a
-  // quitação (o banner de divergência não existe neste fluxo, então o count-0
-  // não sincroniza com o router.refresh).
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
-  await expect(historico).toContainText('Dinheiro próprio');
-  await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
-  await expect(historico).toContainText(formatBRL(valorGrande));
+  // Espera o refresh refletir a amortização na tabela ANTES de ler a quitação
+  // (o banner de divergência não existe neste fluxo, então o count-0 não
+  // sincroniza com o router.refresh). Sem pagas, o aporte cai na primeira
+  // parcela em aberto (141).
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText(
+    formatBRL(valorGrande),
+    { timeout: 20_000 },
+  );
 
   // Hero: a amortização liga a micro-métrica de economia (antes mostrava "—").
   await expect(economiaCard(page)).toContainText(/R\$\s*[\d.,]+/);
@@ -591,8 +585,7 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
 
   await expect(page.getByText('Saldo devedor atual', { exact: true })).toBeVisible({ timeout: 60_000 });
   expect(parseBRL(await saldoCard(page).innerText())).toBeCloseTo(saldoAntes, 2);
-  await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toBeVisible();
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toBeVisible();
   await expect(page.locator('main').getByText('Plano Ilimitado', { exact: true })).toHaveCount(0);
   await expect(
     page.getByText('Registre boletos pagos, amortizações extras e recalibre o saldo pelo extrato do banco.', {
@@ -621,6 +614,10 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
   }
   await expect(page.getByRole('heading', { name: 'Recomendações', exact: true })).toHaveCount(0);
   await expect(page.getByText('Quer amortizar junto?', { exact: true })).toHaveCount(0);
+  // A tabela de parcelas segue como leitura, sem ação de pagar/editar/apagar.
+  await expect(page.getByRole('button', { name: 'Pagar', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Editar parcela \d+/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Apagar parcela \d+/ })).toHaveCount(0);
 });
 
 test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela para 141', async ({ page }) => {
@@ -655,10 +652,10 @@ test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela p
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   expect(parseBRL(await saldoCard(page).innerText())).toBeCloseTo(saldoOriginal, 2);
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
 });
 
-test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', async ({ page }) => {
+test('desfazer o pagamento pelo card volta a parcela 141 e limpa a tabela', async ({ page }) => {
   const conta = await criarConta(page, 'Desfazer Pagamento');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
@@ -666,6 +663,7 @@ test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', as
   await pagarProxima(page);
   await expect(page.getByText(/Parcela 141 paga em/)).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 142 de 360', { timeout: 20_000 });
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga');
 
   await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
   const desfazerDialog = page.getByRole('dialog');
@@ -674,12 +672,11 @@ test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', as
   await expect(desfazerDialog).toHaveCount(0, { timeout: 20_000 });
 
   // O refresh apaga a confirmação, devolve a parcela 141 para o card e zera a
-  // timeline (só o cadastro restava, e ele não conta como lançamento).
+  // tabela (a linha volta a "Em aberto").
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: TITULO_CARD_MES, exact: true })).toBeVisible();
-  await expect(page.getByText(/Parcela 141 paga/)).toHaveCount(0);
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
 });
 
 test('amortização do saldo inteiro zera o modelo, mostra o aviso âmbar e recalibrar restaura', async ({ page }) => {
@@ -752,7 +749,8 @@ test('recalibração com saldo 0 encerra o contrato e recalibrar de novo reativa
   await rec.locator('#recData').fill(todayISO());
   await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
 
-  // O banner some; o marco de quitação permanece na timeline como histórico.
+  // O banner some e a página volta a projetar normalmente; os lançamentos do
+  // período quitado seguem visíveis na tabela como histórico.
   await expect(
     page.locator('[data-state-banner]').getByText('Financiamento quitado', { exact: true }),
   ).toHaveCount(0, { timeout: 20_000 });
@@ -798,16 +796,9 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   await expect
     .poll(async () => parseBRL(await proximaCard(page).innerText()), { timeout: 20_000 })
     .toBeLessThan(proximaAntes);
-  // O passado congelado continua visível: timeline e Total pago preservados.
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
-  await expect(historico.getByText(/Caixa → Itaú/)).toBeVisible();
-  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
-  // O lançamento anterior à edição fica no período congelado, com o selo e o
-  // marco do cadastro; o período vigente é o da atualização.
-  const periodoAnterior = historico.locator('li').filter({ hasText: 'período anterior' });
-  await expect(periodoAnterior).toContainText('Contrato cadastrado');
-  await expect(periodoAnterior).toContainText('Parcela 141 paga');
+  // O passado congelado continua visível na tabela: a parcela 141 (paga antes
+  // da edição) vira selo "Histórico" sem ações, e o Total pago é preservado.
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Histórico', { timeout: 20_000 });
   await expect
     .poll(async () => parseBRL(await totalCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(totalAntes, 2);
@@ -846,8 +837,11 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await amort.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
   await expect(amort).toHaveCount(0, { timeout: 20_000 });
 
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
+  // Sem pagas, o aporte de R$ 100.000 cai na primeira parcela em aberto (141).
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText(
+    formatBRL(100000),
+    { timeout: 20_000 },
+  );
 
   // Faixa global: acumulado do contrato inteiro (uma amortização, sem pagas).
   // "Pagamentos registrados" conta lançamentos de pagamento, sem competir com a
@@ -877,7 +871,9 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await dialog.locator('#editAnnualRate').fill('9,8');
   await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
-  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
+  // A amortização virou passado congelado: o aporte some da linha (o novo estado
+  // não tem extras) e a situação atual volta a "—".
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-', { timeout: 20_000 });
 
   // A faixa global mantém o total pago, o amortizado e a economia (não zera).
   await expect
@@ -902,8 +898,7 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   // Paga a 141: o lançamento entra no estado vigente.
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga');
   const saldoAntes = parseBRL(await saldoCard(page).innerText());
 
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
@@ -929,16 +924,16 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
   // A página volta a mostrar a parcela 141; o lançamento do estado superado foi
-  // removido (não aparece em lugar nenhum) e a timeline só tem a atualização.
+  // removido (não aparece em lugar nenhum) e a linha volta a "Em aberto".
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
-  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible();
-  await expect(historico.getByText(/Parcela 141 paga/)).toHaveCount(0);
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
+  await expect(page.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
 
   // A parcela reaberta pode ser paga de novo, sem colisão no unique.
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
-  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga');
 });
 
 test('editar contrato recusa submit quando outra aba muda o estado', async ({ page, context }) => {
@@ -968,8 +963,7 @@ test('editar contrato recusa submit quando outra aba muda o estado', async ({ pa
 
   await page.reload();
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 143 de 360', { timeout: 30_000 });
-  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 142 paga/)).toBeVisible();
+  await expect(page.locator('tr[data-numero="142"]')).toContainText('Paga');
 });
 
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
@@ -986,5 +980,5 @@ test('amortização com data futura é recusada sem gravar lançamento', async (
 
   await expect(dialog.getByText('Data futura', { exact: true })).toBeVisible({ timeout: 20_000 });
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"] [data-cell="aporte"]')).toHaveText('-');
 });

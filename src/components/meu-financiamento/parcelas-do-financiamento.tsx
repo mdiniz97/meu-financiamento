@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { PageState } from '@/lib/meu-financiamento/repo';
+import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
+import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
+import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import {
   buildCronograma,
   type CronogramaParcela,
@@ -11,9 +15,15 @@ import {
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PayInstallment } from './pay-installment';
+import { ConfirmDialog } from './confirm-dialog';
 
-const LINHAS_POR_VEZ = 24;
 const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground';
+const COLUNAS = 11;
+
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 /** Célula numérica da composição: "—" quando o encadeamento não reconstruiu a
  *  paga (período anterior), senão o valor projetado/real em BRL. */
@@ -68,66 +78,164 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
   );
 }
 
+/** Editor inline de uma parcela paga do estado vigente (valor + data). Reusa a
+ *  action `editMovement`; a linhagem de amortização vinculada é recusada pelo
+ *  servidor e o erro sai no `role="alert"` local. */
+function EditarParcela({ paga, onClose }: { paga: ParcelaPagaComId; onClose: () => void }) {
+  const router = useRouter();
+  const [valor, setValor] = useState(roundCents(paga.valor));
+  const [dataPagamento, setDataPagamento] = useState(paga.dataPagamento);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function salvar() {
+    if (busy || valor <= 0 || !dataPagamento) return;
+    setBusy(true);
+    setError('');
+    let result;
+    try {
+      result = await editMovement(paga.id, { valor, dataPagamento });
+    } catch {
+      setBusy(false);
+      setError('Sessão expirada, entre novamente');
+      return;
+    }
+    if ('error' in result) {
+      setBusy(false);
+      setError(result.error);
+      return;
+    }
+    await router.refresh();
+    setBusy(false);
+  }
+
+  return (
+    <TableRow data-row-editor="parcela" className="bg-muted/20">
+      <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
+        <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex w-56 flex-col gap-1.5">
+              <label htmlFor={`editarValor-${paga.id}`} className="text-sm font-medium text-foreground">
+                Valor pago (R$)
+              </label>
+              <MoneyInput
+                id={`editarValor-${paga.id}`}
+                value={valor}
+                onValid={setValor}
+                disabled={busy}
+              />
+            </div>
+            <div className="flex w-48 flex-col gap-1.5">
+              <label htmlFor={`editarData-${paga.id}`} className="text-sm font-medium text-foreground">
+                Data do pagamento
+              </label>
+              <Input
+                id={`editarData-${paga.id}`}
+                type="date"
+                value={dataPagamento}
+                onChange={(e) => setDataPagamento(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void salvar()}
+                disabled={busy || valor <= 0 || !dataPagamento}
+              >
+                {busy ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 /**
- * Accordion "Parcelas do Financiamento": cronograma completo a partir do
- * estado vigente (projetadas + pagas do histórico) no padrão da tabela do
- * simulador (scroll interno, header sticky e primeira coluna sticky). As
- * amortizações extras do estado vigente entram na coluna "Aporte" da linha da
- * competência correspondente; as de baselines superados já estão absorvidas
- * pelo saldo vigente e não geram linha. Fechado por padrão e sem ações: leitura
- * pura, inclusive no readOnly.
+ * Tabela "Parcelas do Financiamento": cronograma completo a partir do estado
+ * vigente (projetadas + pagas do histórico) no padrão da tabela do simulador
+ * (scroll interno, header sticky e primeira coluna sticky). Sem accordion e sem
+ * paginação: TODAS as competências ficam no DOM dentro do scroll `h-[480px]`.
  *
- * As pagas do estado vigente exibem a composição calculada pelo mesmo
- * encadeamento do model (`projecao.pagas`, sem extras); as pagas de baselines
- * anteriores não são reconstruíveis e aparecem como "Histórico", com apenas o
- * valor real, a data e "—" nas células de composição. O Saldo das pagas vira
- * "—" quando há amortização extra do estado vigente até a data da paga, porque
- * o encadeamento sem extras não representa o saldo real daquele ponto.
+ * Ações por linha (ausentes em readOnly e no contrato quitado):
+ * - primeira parcela pendente: botão "Pagar" abre inline o `PayInstallment` do
+ *   card do mês (com "Definir hoje" e o eventual split de amortização);
+ * - parcelas pagas do estado vigente: Editar (editor inline) e Apagar
+ *   (`ConfirmDialog`), migrando as ações que viviam no histórico;
+ * - pagas de períodos anteriores: selo "Histórico", sem ações (o servidor já
+ *   recusa editar/apagar estado superado).
+ *
+ * As amortizações extras do estado vigente entram na coluna "Aporte" da linha
+ * da última paga anterior (ou da primeira em aberto, sem paga); as de baselines
+ * superados já estão absorvidas pelo saldo vigente e não geram linha.
  */
 export function ParcelasDoFinanciamento({
   state,
+  readOnly = false,
+  quitado = false,
 }: {
-  state: Pick<PageState, 'baseline' | 'projecao' | 'historico' | 'extras'>;
+  state: Pick<PageState, 'params' | 'baseline' | 'pagas' | 'extras' | 'projecao' | 'historico'>;
+  readOnly?: boolean;
+  quitado?: boolean;
 }) {
-  const [limite, setLimite] = useState(LINHAS_POR_VEZ);
+  const router = useRouter();
+  const [editor, setEditor] = useState<{ numero: number; tipo: 'pagar' | 'editar' } | null>(null);
+  const [apagarAlvo, setApagarAlvo] = useState<{ id: string; numero: number; valor: number } | null>(null);
+
   const linhas = buildCronograma(state.baseline, state.projecao, state.historico, state.extras);
-  const visiveis = linhas.slice(0, limite);
   const temExtraAplicavel = (data: string) => state.extras.some((e) => e.dataPagamento <= data);
+  const pagaPorNumero = new Map(state.historico.pagas.map((p) => [p.parcelaNumero, p]));
+  const primeiraAberta = linhas.find((l) => l.situacao === 'aberta') ?? null;
+  const podeAgir = !readOnly && !quitado;
+
+  async function apagar() {
+    const result = await deleteMovement(apagarAlvo!.id);
+    if (result.ok) await router.refresh();
+    return result;
+  }
 
   return (
-    <details className="group rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 font-display text-lg font-semibold [&::-webkit-details-marker]:hidden">
-        Parcelas do Financiamento
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="flex flex-col gap-3 border-t border-border/60 px-4 py-3">
-        {linhas.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma parcela para exibir.</p>
-        ) : (
-          <>
-            <div className="h-[480px] overflow-auto rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10">
-              <table className="w-full caption-bottom border-separate border-spacing-0 font-mono tabular-nums text-sm">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead scope="col" className={`${HEAD_BASE} sticky left-0 z-20 border-r border-border`}>
-                      Nº
-                    </TableHead>
-                    <TableHead scope="col" className={HEAD_BASE}>Vencimento</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Parcela</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Aporte</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Total</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Juros</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Amortização</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Seguro</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Correção</TableHead>
-                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Saldo</TableHead>
-                    <TableHead scope="col" className={HEAD_BASE}>Situação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visiveis.map((linha) => (
+    <section className="flex flex-col gap-3">
+      <h2 className="font-display text-lg font-semibold">Parcelas do Financiamento</h2>
+      {linhas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma parcela para exibir.</p>
+      ) : (
+        <div className="h-[480px] overflow-auto rounded-2xl bg-card shadow-sm ring-1 ring-foreground/10">
+          <table className="w-full caption-bottom border-separate border-spacing-0 font-mono tabular-nums text-sm">
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col" className={`${HEAD_BASE} sticky left-0 z-20 border-r border-border`}>
+                  Nº
+                </TableHead>
+                <TableHead scope="col" className={HEAD_BASE}>Vencimento</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Parcela</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Aporte</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Total</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Juros</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Amortização</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Seguro</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Correção</TableHead>
+                <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Saldo</TableHead>
+                <TableHead scope="col" className={HEAD_BASE}>Situação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.map((linha) => {
+                const pagaMov = pagaPorNumero.get(linha.numero);
+                const ehPrimeiraAberta = primeiraAberta?.numero === linha.numero;
+                return (
+                  <Fragment key={`parcela-${linha.numero}`}>
                     <TableRow
-                      key={`parcela-${linha.numero}`}
                       data-row="parcela"
                       data-numero={linha.numero}
                       data-situacao={linha.situacao}
@@ -156,27 +264,85 @@ export function ParcelasDoFinanciamento({
                         {saldoParcela(linha, temExtraAplicavel)}
                       </TableCell>
                       <TableCell>
-                        <Situacao linha={linha} />
+                        <div className="flex items-center justify-between gap-2">
+                          <Situacao linha={linha} />
+                          {podeAgir && linha.situacao === 'aberta' && ehPrimeiraAberta && (
+                            <Button
+                              type="button"
+                              onClick={() => setEditor({ numero: linha.numero, tipo: 'pagar' })}
+                            >
+                              Pagar
+                            </Button>
+                          )}
+                          {podeAgir && linha.situacao === 'paga' && pagaMov && (
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditor({ numero: linha.numero, tipo: 'editar' })}
+                                aria-label={`Editar parcela ${linha.numero}`}
+                                className="size-8 text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setApagarAlvo({ id: pagaMov.id, numero: linha.numero, valor: pagaMov.valor })}
+                                aria-label={`Apagar parcela ${linha.numero}`}
+                                className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </table>
-            </div>
-            {limite < linhas.length && (
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLimite((atual) => atual + LINHAS_POR_VEZ)}
-                >
-                  Mostrar mais
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </details>
+                    {editor?.numero === linha.numero && editor.tipo === 'editar' && pagaMov && (
+                      <EditarParcela paga={pagaMov} onClose={() => setEditor(null)} />
+                    )}
+                    {editor?.numero === linha.numero && editor.tipo === 'pagar' && (
+                      <TableRow data-row-editor="pagar" className="bg-muted/20">
+                        <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
+                          <PayInstallment
+                            key={`pagar-${linha.numero}`}
+                            parcelaNumero={linha.numero}
+                            defaultValor={linha.valor}
+                            dataVencimento={linha.vencimento}
+                            estado={{
+                              params: state.params,
+                              baseline: state.baseline,
+                              pagas: state.pagas,
+                              extras: state.extras,
+                              projecao: state.projecao,
+                            }}
+                            onCancel={() => setEditor(null)}
+                            onDone={() => setEditor(null)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          </table>
+        </div>
+      )}
+      <ConfirmDialog
+        open={apagarAlvo !== null}
+        onOpenChange={(v) => {
+          if (!v) setApagarAlvo(null);
+        }}
+        title="Apagar lançamento?"
+        description={apagarAlvo ? `Parcela ${apagarAlvo.numero} · ${formatBRL(apagarAlvo.valor)}` : ''}
+        confirmLabel="Apagar"
+        pendingLabel="Apagando..."
+        onConfirm={apagar}
+      />
+    </section>
   );
 }

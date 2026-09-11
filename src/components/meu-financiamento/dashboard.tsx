@@ -16,7 +16,6 @@ import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
 import { ConfirmDialog } from './confirm-dialog';
-import { Timeline } from './timeline';
 import { ParcelasDoFinanciamento } from './parcelas-do-financiamento';
 import { SugestaoAmortizacao } from './sugestao-amortizacao';
 import { EsePanel } from './e-se-panel';
@@ -95,7 +94,7 @@ export function Dashboard({
   const semAmortizacoesVigentes = extras.length === 0;
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
-  // (apagar pela timeline ou recalibrar some com a linha e com o Desfazer).
+  // (apagar pela tabela ou recalibrar some com a linha e com o Desfazer).
   const pagaConfirmada = ultimaPaga
     ? (pagas.find((p) => p.parcelaNumero === ultimaPaga.numero) ?? null)
     : null;
@@ -451,9 +450,7 @@ export function Dashboard({
       )}
       </section>
 
-      <Timeline state={state} readOnly={readOnly} quitado={quitado} />
-
-      <ParcelasDoFinanciamento state={state} />
+      <ParcelasDoFinanciamento state={state} readOnly={readOnly} quitado={quitado} />
 
       {parcelas.length > 0 && (
         <section className="flex flex-col gap-3">
