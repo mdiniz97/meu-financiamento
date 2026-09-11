@@ -633,7 +633,6 @@ export function OnboardingWizard({ draft }: { draft: unknown }) {
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 disabled={saveState === 'saving'}
                 onClick={() => {
                   void (async () => {

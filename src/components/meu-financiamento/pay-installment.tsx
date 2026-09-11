@@ -136,7 +136,7 @@ export function PayInstallment({
               onClick={() => setDataPagamento(todayISO())}
               disabled={pending}
             >
-              Usar hoje
+              Definir hoje
             </Button>
           </div>
         </div>

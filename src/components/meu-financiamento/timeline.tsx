@@ -13,6 +13,7 @@ import type { TimelineEvent } from '@/lib/meu-financiamento/timeline';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { OrigemRadios, ModoRadios } from './amortization-form';
+import { ConfirmDialog } from './confirm-dialog';
 
 const LIMITE_POR_PERIODO = 6;
 const PASSO_MOSTRAR_MAIS = 6;
@@ -71,7 +72,8 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState(roundCents(event.valor));
   const [dataPagamento, setDataPagamento] = useState(event.data);
-  const [busy, setBusy] = useState<'edit' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'edit' | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [error, setError] = useState('');
 
   function abrirEdicao() {
@@ -103,30 +105,9 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
   }
 
   async function apagar() {
-    if (busy) return;
-    // Confirmar é barreira explícita: a action ainda valida a regra de lacuna
-    // e o erro dela é exibido caso o apagamento crie uma.
-    const confirma = window.confirm(
-      `Apagar o lançamento da parcela ${event.numero}? Essa ação não pode ser desfeita.`,
-    );
-    if (!confirma) return;
-    setBusy('delete');
-    setError('');
-    let result;
-    try {
-      result = await deleteMovement(event.id);
-    } catch {
-      setBusy(null);
-      setError('Sessão expirada, entre novamente');
-      return;
-    }
-    if ('error' in result) {
-      setBusy(null);
-      setError(result.error);
-      return;
-    }
-    await router.refresh();
-    setBusy(null);
+    const result = await deleteMovement(event.id);
+    if (result.ok) await router.refresh();
+    return result;
   }
 
   return (
@@ -161,31 +142,26 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
                 >
                   <Pencil className="size-3.5" />
                 </Button>
-                {busy === 'delete' ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled
-                    aria-label={`Apagar parcela ${event.numero}`}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                    Apagando...
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void apagar()}
-                    disabled={busy !== null}
-                    aria-label={`Apagar parcela ${event.numero}`}
-                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setConfirmando(true)}
+                  disabled={busy !== null}
+                  aria-label={`Apagar parcela ${event.numero}`}
+                  className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+                <ConfirmDialog
+                  open={confirmando}
+                  onOpenChange={setConfirmando}
+                  title="Apagar lançamento?"
+                  description={`Parcela ${event.numero} · ${formatBRL(event.valor)}`}
+                  confirmLabel="Apagar"
+                  pendingLabel="Apagando..."
+                  onConfirm={apagar}
+                />
               </>
             )}
           </div>
@@ -217,12 +193,11 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
                 />
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditando(false)} disabled={busy !== null}>
+                <Button type="button" variant="outline" onClick={() => setEditando(false)} disabled={busy !== null}>
                   Cancelar
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   onClick={() => void salvar()}
                   disabled={busy !== null || valor <= 0 || !dataPagamento}
                 >
@@ -254,7 +229,8 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
   const [dataPagamento, setDataPagamento] = useState(event.data);
   const [origem, setOrigem] = useState<'proprio' | 'fgts'>(event.origem);
   const [modo, setModo] = useState<'term' | 'payment'>(event.modo);
-  const [busy, setBusy] = useState<'edit' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'edit' | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [error, setError] = useState('');
 
   function abrirEdicao() {
@@ -288,28 +264,9 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
   }
 
   async function apagar() {
-    if (busy) return;
-    const confirma = window.confirm(
-      `Apagar a amortização de ${formatBRL(event.valor)}? Essa ação não pode ser desfeita.`,
-    );
-    if (!confirma) return;
-    setBusy('delete');
-    setError('');
-    let result;
-    try {
-      result = await deleteMovement(event.id);
-    } catch {
-      setBusy(null);
-      setError('Sessão expirada, entre novamente');
-      return;
-    }
-    if ('error' in result) {
-      setBusy(null);
-      setError(result.error);
-      return;
-    }
-    await router.refresh();
-    setBusy(null);
+    const result = await deleteMovement(event.id);
+    if (result.ok) await router.refresh();
+    return result;
   }
 
   return (
@@ -343,31 +300,26 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
                 >
                   <Pencil className="size-3.5" />
                 </Button>
-                {busy === 'delete' ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled
-                    aria-label="Apagar amortização"
-                    className="text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                    Apagando...
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void apagar()}
-                    disabled={busy !== null}
-                    aria-label="Apagar amortização"
-                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setConfirmando(true)}
+                  disabled={busy !== null}
+                  aria-label="Apagar amortização"
+                  className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+                <ConfirmDialog
+                  open={confirmando}
+                  onOpenChange={setConfirmando}
+                  title="Apagar lançamento?"
+                  description={`Amortização extra de ${formatBRL(event.valor)}`}
+                  confirmLabel="Apagar"
+                  pendingLabel="Apagando..."
+                  onConfirm={apagar}
+                />
               </>
             )}
           </div>
@@ -407,12 +359,11 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
                 <ModoRadios value={modo} onChange={setModo} disabled={busy !== null} />
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditando(false)} disabled={busy !== null}>
+                <Button type="button" variant="outline" onClick={() => setEditando(false)} disabled={busy !== null}>
                   Cancelar
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   onClick={() => void salvar()}
                   disabled={busy !== null || valor <= 0 || !dataPagamento}
                 >
@@ -548,7 +499,6 @@ export function Timeline({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => setLimite((atual) => atual + PASSO_MOSTRAR_MAIS)}
               >
                 Mostrar mais

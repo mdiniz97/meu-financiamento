@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
 import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
-import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
+import type { PageState } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
 import { economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
 import { formatBRL } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
+import { ConfirmDialog } from './confirm-dialog';
 import { Timeline } from './timeline';
 import { ParcelasDoFinanciamento } from './parcelas-do-financiamento';
 import { SugestaoAmortizacao } from './sugestao-amortizacao';
@@ -45,8 +46,7 @@ export function Dashboard({
   const [editandoContrato, setEditandoContrato] = useState(false);
   const [amortizando, setAmortizando] = useState(false);
   const [ultimaPaga, setUltimaPaga] = useState<{ numero: number } | null>(null);
-  const [desfazendo, setDesfazendo] = useState(false);
-  const [desfazerError, setDesfazerError] = useState('');
+  const [desfazerAlvo, setDesfazerAlvo] = useState<{ id: string; numero: number; valor: number } | null>(null);
 
   const quitado = state.quitado;
   const hoje = todayISO();
@@ -84,30 +84,13 @@ export function Dashboard({
     ? (pagas.find((p) => p.parcelaNumero === ultimaPaga.numero) ?? null)
     : null;
 
-  async function desfazer(paga: ParcelaPagaComId) {
-    if (desfazendo) return;
-    const confirma = window.confirm(
-      `Desfazer o pagamento da parcela ${paga.parcelaNumero}? Essa ação não pode ser desfeita.`,
-    );
-    if (!confirma) return;
-    setDesfazendo(true);
-    setDesfazerError('');
-    let result;
-    try {
-      result = await deleteMovement(paga.id);
-    } catch {
-      setDesfazendo(false);
-      setDesfazerError('Sessão expirada, entre novamente');
-      return;
+  async function desfazer(alvo: { id: string }) {
+    const result = await deleteMovement(alvo.id);
+    if (result.ok) {
+      await router.refresh();
+      setUltimaPaga(null);
     }
-    if ('error' in result) {
-      setDesfazendo(false);
-      setDesfazerError(result.error);
-      return;
-    }
-    await router.refresh();
-    setUltimaPaga(null);
-    setDesfazendo(false);
+    return result;
   }
 
   return (
@@ -256,7 +239,7 @@ export function Dashboard({
             </p>
           </div>
           {!readOnly && (
-            <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+            <Button type="button" onClick={() => setRecalibrando(true)}>
               Recalibrar saldo
             </Button>
           )}
@@ -276,7 +259,7 @@ export function Dashboard({
             </p>
           </div>
           {!readOnly && (
-            <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+            <Button type="button" onClick={() => setRecalibrando(true)}>
               Recalibrar saldo
             </Button>
           )}
@@ -292,7 +275,7 @@ export function Dashboard({
               e recalibre.
             </p>
             {!readOnly && (
-              <Button type="button" size="sm" onClick={() => setRecalibrando(true)}>
+              <Button type="button" onClick={() => setRecalibrando(true)}>
                 Recalibrar saldo
               </Button>
             )}
@@ -317,11 +300,15 @@ export function Dashboard({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                onClick={() => void desfazer(pagaConfirmada)}
-                disabled={desfazendo}
+                onClick={() =>
+                  setDesfazerAlvo({
+                    id: pagaConfirmada.id,
+                    numero: pagaConfirmada.parcelaNumero,
+                    valor: pagaConfirmada.valor,
+                  })
+                }
               >
-                {desfazendo ? 'Desfazendo...' : 'Desfazer'}
+                Desfazer
               </Button>
             </div>
           )}
@@ -346,10 +333,7 @@ export function Dashboard({
             {!readOnly && !showPay && (
               <Button
                 type="button"
-                size="lg"
                 onClick={() => {
-                  // Nunca coexistir com o alerta do Desfazer no mesmo card.
-                  setDesfazerError('');
                   setAporteSugerido(null);
                   setShowPay(true);
                 }}
@@ -368,7 +352,6 @@ export function Dashboard({
                 extras={extras}
                 projecao={projecao}
                 onAplicar={(aporte) => {
-                  setDesfazerError('');
                   setAporteSugerido(aporte);
                   setShowPay(true);
                 }}
@@ -393,11 +376,6 @@ export function Dashboard({
                 setShowPay(false);
               }}
             />
-          )}
-          {desfazerError && (
-            <p role="alert" className="text-sm text-destructive">
-              {desfazerError}
-            </p>
           )}
         </section>
       )}
@@ -466,6 +444,17 @@ export function Dashboard({
         open={amortizando}
         onOpenChange={setAmortizando}
         estado={{ params, baseline, pagas, extras, projecao }}
+      />
+      <ConfirmDialog
+        open={desfazerAlvo !== null}
+        onOpenChange={(v) => {
+          if (!v) setDesfazerAlvo(null);
+        }}
+        title="Desfazer pagamento?"
+        description={desfazerAlvo ? `Parcela ${desfazerAlvo.numero} · ${formatBRL(desfazerAlvo.valor)}` : ''}
+        confirmLabel="Desfazer"
+        pendingLabel="Desfazendo..."
+        onConfirm={() => desfazer(desfazerAlvo!)}
       />
     </div>
   );

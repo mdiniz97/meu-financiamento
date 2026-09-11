@@ -205,7 +205,6 @@ export function SugestaoAmortizacao({
               <Button
                 type="button"
                 variant={opcao.id === 'ideal' ? 'default' : 'outline'}
-                size="sm"
                 className="mt-auto"
                 aria-label={`Aplicar ${opcao.aria}`}
                 onClick={() => onAplicar(opcao.aporte)}

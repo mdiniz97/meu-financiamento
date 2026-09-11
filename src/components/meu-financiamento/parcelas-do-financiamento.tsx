@@ -168,7 +168,6 @@ export function ParcelasDoFinanciamento({
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
                   onClick={() => setLimite((atual) => atual + LINHAS_POR_VEZ)}
                 >
                   Mostrar mais

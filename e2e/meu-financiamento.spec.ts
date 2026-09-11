@@ -130,7 +130,7 @@ const recalibrarNoBanner = (page: Page): Locator =>
 
 /** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado.
  *  Valida o prefill do vencimento estimado e normaliza para hoje via o atalho
- *  "Usar hoje", mantendo a data do pagamento determinística nos fluxos. */
+ *  "Definir hoje", mantendo a data do pagamento determinística nos fluxos. */
 async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
   const box = page.locator('[data-pay-installment]');
@@ -139,7 +139,7 @@ async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   const parcelaNumero = Number(titulo.match(/\d+/)![0]);
   const vencimento = addMonthsISO(todayISO(), parcelaNumero - 141, 10);
   await expect(box.locator('#payData')).toHaveValue(vencimento);
-  await box.getByRole('button', { name: 'Usar hoje', exact: true }).click();
+  await box.getByRole('button', { name: 'Definir hoje', exact: true }).click();
   await expect(box.locator('#payData')).toHaveValue(todayISO());
   const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
   if (extraReais !== 0) {
@@ -496,8 +496,12 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await expect(historico).toContainText(/Parcela 141 paga/);
 
   // Desfazer a parcela apaga o grupo inteiro (parcela + amortização extra).
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+  const desfazerDialog = page.getByRole('dialog');
+  await expect(desfazerDialog).toBeVisible();
+  await expect(desfazerDialog.getByText(`Parcela 141 ·`)).toBeVisible();
+  await desfazerDialog.getByRole('button', { name: 'Desfazer', exact: true }).click();
+  await expect(desfazerDialog).toHaveCount(0, { timeout: 20_000 });
 
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
@@ -628,8 +632,13 @@ test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela p
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.locator('input[id^="editarValor-"]')).toHaveCount(0);
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Apagar parcela 141', exact: true }).click();
+  const apagarDialog = page.getByRole('dialog');
+  await expect(apagarDialog).toBeVisible();
+  await expect(apagarDialog.getByText('Apagar lançamento?')).toBeVisible();
+  await expect(apagarDialog.getByText('Parcela 141 ·')).toBeVisible();
+  await apagarDialog.getByRole('button', { name: 'Apagar', exact: true }).click();
+  await expect(apagarDialog).toHaveCount(0, { timeout: 20_000 });
 
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   expect(parseBRL(await saldoCard(page).innerText())).toBeCloseTo(saldoOriginal, 2);
@@ -646,8 +655,11 @@ test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', as
   await expect(page.getByText(/Parcela 141 paga em/)).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 142 de 360', { timeout: 20_000 });
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+  const desfazerDialog = page.getByRole('dialog');
+  await expect(desfazerDialog).toBeVisible();
+  await desfazerDialog.getByRole('button', { name: 'Desfazer', exact: true }).click();
+  await expect(desfazerDialog).toHaveCount(0, { timeout: 20_000 });
 
   // O refresh apaga a confirmação, devolve a parcela 141 para o card e zera a
   // timeline (só o cadastro restava, e ele não conta como lançamento).
