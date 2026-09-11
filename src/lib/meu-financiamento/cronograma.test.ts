@@ -47,6 +47,20 @@ function paga(numero: number, valor: number, dataPagamento: string, stateId = 's
   return { id: `p-${numero}-${stateId}`, stateId, parcelaNumero: numero, valor, dataPagamento };
 }
 
+/** Paga do estado vigente (existe em `projecao.pagas`, tem composição). */
+function pagaDetalhada(numero: number, dataPagamento: string): Projecao['pagas'][number] {
+  return {
+    parcelaNumero: numero,
+    parcelaReal: 10000 + numero,
+    juros: 0,
+    correcao: 0,
+    seguro: 0,
+    amortizacao: 0,
+    saldo: 0,
+    dataPagamento,
+  };
+}
+
 function amortizacao(
   valor: number,
   dataPagamento: string,
@@ -66,11 +80,16 @@ function amortizacao(
 interface LinhaAporte {
   numero: number;
   vencimento: string;
-  paga: { dataPagamento: string } | null;
+  paga: { dataPagamento: string; vigente: boolean } | null;
 }
 
-function linha(numero: number, vencimento: string, pagaEm: string | null = null): LinhaAporte {
-  return { numero, vencimento, paga: pagaEm ? { dataPagamento: pagaEm } : null };
+function linha(
+  numero: number,
+  vencimento: string,
+  pagaEm: string | null = null,
+  vigente = true,
+): LinhaAporte {
+  return { numero, vencimento, paga: pagaEm ? { dataPagamento: pagaEm, vigente } : null };
 }
 
 // 141 e 142 pagas com atraso (20/09 e 20/10, após o vencimento), 143 em aberto.
@@ -144,6 +163,27 @@ it('distribuirAportes mantém as duas extras na mesma linha', () => {
   expect(mapa.get(141)?.map((e) => e.valor)).toEqual([100, 50]);
 });
 
+it('distribuirAportes ignora paga de período anterior na escolha do alvo', () => {
+  const parcelas: LinhaAporte[] = [
+    linha(17, '2026-09-10', '2026-09-10', true),
+    linha(217, '2026-09-10', '2026-09-10', false),
+  ];
+  const mapa = distribuirAportes(parcelas, [amortizacao(1733.73, '2026-09-10')]);
+  expect(mapa.get(17)?.map((e) => e.valor)).toEqual([1733.73]);
+  expect(mapa.get(217)).toBeUndefined();
+});
+
+it('extra anterior à paga vigente cai na primeira em aberto mesmo com paga antiga na data', () => {
+  const parcelas: LinhaAporte[] = [
+    linha(17, '2026-09-10', '2026-09-20', true),
+    linha(18, '2026-10-10'),
+    linha(217, '2026-09-10', '2026-09-15', false),
+  ];
+  const mapa = distribuirAportes(parcelas, [amortizacao(500, '2026-09-10')]);
+  expect(mapa.get(18)?.map((e) => e.valor)).toEqual([500]);
+  expect(mapa.get(217)).toBeUndefined();
+});
+
 it('sem parcelas, extras não geram linhas', () => {
   expect(agregarAportes([], [{ dataPagamento: '2026-08-01', valor: 100 }]).size).toBe(0);
 });
@@ -173,8 +213,12 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
   });
 });
 
-it('mapeia o aporte do estado vigente para a linha da última paga anterior', () => {
-  const linhas = buildCronograma(BASELINE, projetadas(143), {
+it('mapeia o aporte do estado vigente para a linha da última paga vigente anterior', () => {
+  const proj: Pick<Projecao, 'parcelas' | 'pagas'> = {
+    ...projetadas(143),
+    pagas: [pagaDetalhada(141, '2026-09-20'), pagaDetalhada(142, '2026-10-20')],
+  };
+  const linhas = buildCronograma(BASELINE, proj, {
     pagas: [paga(141, 9999, '2026-09-20'), paga(142, 10001, '2026-10-20')],
   }, [
     amortizacao(500, '2026-09-25'),
@@ -185,6 +229,75 @@ it('mapeia o aporte do estado vigente para a linha da última paga anterior', ()
     [142, 100],
     [143, 0],
   ]);
+});
+
+it('marca como vigente só a paga que existe em projecao.pagas', () => {
+  const proj: Pick<Projecao, 'parcelas' | 'pagas'> = {
+    ...projetadas(143),
+    pagas: [pagaDetalhada(141, '2026-09-20')],
+  };
+  const linhas = buildCronograma(BASELINE, proj, {
+    pagas: [paga(141, 9999, '2026-09-20', 's1'), paga(217, 10001, '2026-09-20', 's0')],
+  });
+  expect(linhas.find((l) => l.numero === 141)!.paga).toEqual({
+    dataPagamento: '2026-09-20',
+    vigente: true,
+  });
+  expect(linhas.find((l) => l.numero === 217)!.paga).toEqual({
+    dataPagamento: '2026-09-20',
+    vigente: false,
+  });
+});
+
+it('mapeia a extra para a paga vigente com paga anterior na mesma data e número maior', () => {
+  const proj: Pick<Projecao, 'parcelas' | 'pagas'> = {
+    ...projetadas(18, 19),
+    pagas: [pagaDetalhada(17, '2026-09-10')],
+  };
+  const linhas = buildCronograma(
+    { dataBase: '2026-09-10', proximaParcelaNumero: 17 },
+    proj,
+    { pagas: [paga(17, 10000, '2026-09-10', 's1'), paga(217, 12000, '2026-09-10', 's0')] },
+    [amortizacao(1733.73, '2026-09-10')],
+  );
+  const p17 = linhas.find((l) => l.numero === 17)!;
+  const p217 = linhas.find((l) => l.numero === 217)!;
+  expect(p17.situacao).toBe('paga');
+  expect(p17.paga).toEqual({ dataPagamento: '2026-09-10', vigente: true });
+  expect(p17.aporte).toBe(1733.73);
+  expect(p217.situacao).toBe('historico');
+  expect(p217.paga).toEqual({ dataPagamento: '2026-09-10', vigente: false });
+  expect(p217.aporte).toBe(0);
+});
+
+it('extra anterior à paga vigente cai na primeira em aberto ignorando a paga histórica', () => {
+  const proj: Pick<Projecao, 'parcelas' | 'pagas'> = {
+    ...projetadas(18),
+    pagas: [pagaDetalhada(17, '2026-09-20')],
+  };
+  const linhas = buildCronograma(
+    { dataBase: '2026-09-10', proximaParcelaNumero: 17 },
+    proj,
+    { pagas: [paga(17, 10000, '2026-09-20', 's1'), paga(217, 12000, '2026-09-15', 's0')] },
+    [amortizacao(500, '2026-09-10')],
+  );
+  expect(linhas.find((l) => l.numero === 18)!.aporte).toBe(500);
+  expect(linhas.find((l) => l.numero === 217)!.aporte).toBe(0);
+});
+
+it('múltiplas extras caem na paga vigente mesmo com paga anterior na mesma data', () => {
+  const proj: Pick<Projecao, 'parcelas' | 'pagas'> = {
+    ...projetadas(18),
+    pagas: [pagaDetalhada(17, '2026-09-10')],
+  };
+  const linhas = buildCronograma(
+    { dataBase: '2026-09-10', proximaParcelaNumero: 17 },
+    proj,
+    { pagas: [paga(17, 10000, '2026-09-10', 's1'), paga(217, 12000, '2026-09-10', 's0')] },
+    [amortizacao(500, '2026-09-10'), amortizacao(100, '2026-09-11')],
+  );
+  expect(linhas.find((l) => l.numero === 17)!.aporte).toBe(600);
+  expect(linhas.find((l) => l.numero === 217)!.aporte).toBe(0);
 });
 
 it('marca a composição das pagas do estado vigente e o histórico das anteriores', () => {

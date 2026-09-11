@@ -20,7 +20,10 @@ export interface CronogramaParcela {
   vencimento: string;
   /** Valor real (paga) ou projetado (em aberto). */
   valor: number;
-  paga: { dataPagamento: string } | null;
+  /** `vigente` distingue a paga do estado vigente (tem composição em
+   *  `projecao.pagas`) das pagas de períodos anteriores; só as primeiras são
+   *  alvo da distribuição das amortizações extras do estado vigente. */
+  paga: { dataPagamento: string; vigente: boolean } | null;
   /** Paga no baseline vigente, em aberto ou paga de um período anterior. */
   situacao: CronogramaSituacao;
   /** Decomposição do encadeamento do estado vigente; null nas pagas de
@@ -36,12 +39,14 @@ export interface CronogramaParcela {
  * Distribui cada amortização extra do estado vigente para a linha-alvo (mesma
  * regra do `agregarAportes`) preservando o vínculo com o lançamento, para a UI
  * conseguir agrupar a amortização ao pagamento pelo `groupId`. Cada extra entra
- * na linha da ÚLTIMA parcela PAGA cuja `dataPagamento` é <= a data do aporte;
- * sem paga até a data, cai na PRIMEIRA parcela em aberto; sem aberta, na última
- * linha (defensivo).
+ * na linha da ÚLTIMA parcela PAGA DO ESTADO VIGENTE (`paga.vigente`) cuja
+ * `dataPagamento` é <= a data do aporte; pagas de períodos anteriores nunca são
+ * alvo (o vínculo só existe com o pagamento do período atual). Sem paga vigente
+ * até a data, cai na PRIMEIRA parcela em aberto; sem aberta, na última linha
+ * (defensivo).
  */
 export function distribuirAportes<T extends { dataPagamento: string; valor: number }>(
-  parcelas: readonly { numero: number; paga: { dataPagamento: string } | null }[],
+  parcelas: readonly { numero: number; paga: { dataPagamento: string; vigente: boolean } | null }[],
   extras: readonly T[],
 ): Map<number, T[]> {
   const porNumero = new Map<number, T[]>();
@@ -49,8 +54,8 @@ export function distribuirAportes<T extends { dataPagamento: string; valor: numb
   const pagas: { numero: number; dataPagamento: string }[] = [];
   const abertas: number[] = [];
   for (const p of parcelas) {
-    if (p.paga) pagas.push({ numero: p.numero, dataPagamento: p.paga.dataPagamento });
-    else abertas.push(p.numero);
+    if (p.paga?.vigente) pagas.push({ numero: p.numero, dataPagamento: p.paga.dataPagamento });
+    else if (!p.paga) abertas.push(p.numero);
   }
   const primeiraAberta = abertas[0] ?? parcelas[parcelas.length - 1].numero;
   for (const extra of extras) {
@@ -73,7 +78,11 @@ export function distribuirAportes<T extends { dataPagamento: string; valor: numb
  * `distribuirAportes`). Mantido para os totais exibidos na coluna Aporte.
  */
 export function agregarAportes(
-  parcelas: readonly { numero: number; vencimento: string; paga: { dataPagamento: string } | null }[],
+  parcelas: readonly {
+    numero: number;
+    vencimento: string;
+    paga: { dataPagamento: string; vigente: boolean } | null;
+  }[],
   extras: readonly { dataPagamento: string; valor: number }[],
 ): Map<number, number> {
   const porNumero = new Map<number, number>();
@@ -139,7 +148,7 @@ export function buildCronograma(
         numero,
         vencimento: vencimento(numero),
         valor: paga?.valor ?? projetada?.parcela ?? 0,
-        paga: paga ? { dataPagamento: paga.dataPagamento } : null,
+        paga: paga ? { dataPagamento: paga.dataPagamento, vigente: detalhe != null } : null,
         situacao,
         composicao,
         aporte: 0,
