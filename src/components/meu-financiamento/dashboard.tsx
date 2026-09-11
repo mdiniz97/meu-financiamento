@@ -380,6 +380,7 @@ export function Dashboard({
               key={aporteSugerido ?? 'sem-aporte'}
               parcelaNumero={primeiraProjetada.parcelaNumero}
               defaultValor={primeiraProjetada.parcela}
+              dataVencimento={vencimentoPrimeira ?? hoje}
               initialAporte={aporteSugerido ?? undefined}
               estado={{ params, baseline, pagas, extras, projecao }}
               onCancel={() => {

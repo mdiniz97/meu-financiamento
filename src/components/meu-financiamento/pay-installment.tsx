@@ -25,6 +25,7 @@ function roundCents(value: number): number {
 export function PayInstallment({
   parcelaNumero,
   defaultValor,
+  dataVencimento,
   initialValor,
   initialAporte,
   estado,
@@ -33,6 +34,8 @@ export function PayInstallment({
 }: {
   parcelaNumero: number;
   defaultValor: number;
+  /** Vencimento estimado da parcela; pré-preenche a data do pagamento. */
+  dataVencimento: string;
   /** Valor inicial do campo; defaultValor quando ausente. */
   initialValor?: number;
   /**
@@ -52,7 +55,7 @@ export function PayInstallment({
     if (initialAporte != null) return roundCents(roundCents(defaultValor) + initialAporte);
     return roundCents(initialValor ?? defaultValor);
   });
-  const [dataPagamento, setDataPagamento] = useState(todayISO());
+  const [dataPagamento, setDataPagamento] = useState(dataVencimento);
   const [excedenteModo, setExcedenteModo] = useState<'term' | 'payment'>('term');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -117,15 +120,26 @@ export function PayInstallment({
           <label htmlFor="payData" className="text-sm font-medium text-foreground">
             Data do pagamento
           </label>
-          <Input
-            id="payData"
-            name="dataPagamento"
-            type="date"
-            value={dataPagamento}
-            onChange={(e) => setDataPagamento(e.target.value)}
-            disabled={pending}
-            required
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="payData"
+              name="dataPagamento"
+              type="date"
+              value={dataPagamento}
+              onChange={(e) => setDataPagamento(e.target.value)}
+              disabled={pending}
+              required
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDataPagamento(todayISO())}
+              disabled={pending}
+            >
+              Usar hoje
+            </Button>
+          </div>
         </div>
         <div className="flex items-end gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>

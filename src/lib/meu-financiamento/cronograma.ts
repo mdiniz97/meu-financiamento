@@ -27,31 +27,46 @@ export interface CronogramaParcela {
    *  períodos anteriores (o modelo não as reconstrói) e nas linhas sem dados. */
   composicao: CronogramaComposicao | null;
   /** Soma das amortizações extras do estado vigente que caem nesta competência
-   *  (data do aporte até o vencimento estimado desta parcela). */
+   *  (após o pagamento desta parcela e até o pagamento da próxima, ou no
+   *  vencimento em aberto quando não há paga anterior). */
   aporte: number;
 }
 
 /**
  * Agrega o valor das amortizações extras do estado vigente por parcela: cada
- * extra entra na PRIMEIRA parcela cujo vencimento estimado é >= a data do
- * aporte. Extras anteriores à primeira parcela caem nela; extras entre duas
- * competências caem na seguinte. `parcelas` deve estar ordenada por vencimento
- * ascendente (é a ordem natural do cronograma por número). Extras posteriores
- * ao vencimento da última parcela caem nela, defensivamente, porque as actions
- * rejeitam data futura e o cronograma cobre todas as competências.
+ * extra entra na linha da ÚLTIMA parcela PAGA cuja `dataPagamento` é <= a data
+ * do aporte (o aporte aconteceu depois desse pagamento). Aportes no mesmo dia de
+ * uma paga entram nessa paga; os posteriores à última paga mas anteriores ao
+ * próximo vencimento continuam nela. Sem paga até a data do aporte, cai na
+ * PRIMEIRA parcela em aberto (a pendente do estado). `parcelas` deve estar
+ * ordenada por vencimento ascendente (é a ordem natural do cronograma por
+ * número).
  *
  * Extras de períodos anteriores ficam de fora: já foram absorvidos pelo saldo
  * do baseline vigente e reaplicá-los duplicaria a amortização.
  */
 export function agregarAportes(
-  parcelas: readonly { numero: number; vencimento: string }[],
+  parcelas: readonly { numero: number; vencimento: string; paga: { dataPagamento: string } | null }[],
   extras: readonly { dataPagamento: string; valor: number }[],
 ): Map<number, number> {
   const porNumero = new Map<number, number>();
   if (parcelas.length === 0) return porNumero;
+  const pagas: { numero: number; dataPagamento: string }[] = [];
+  const abertas: number[] = [];
+  for (const p of parcelas) {
+    if (p.paga) pagas.push({ numero: p.numero, dataPagamento: p.paga.dataPagamento });
+    else abertas.push(p.numero);
+  }
+  const primeiraAberta = abertas[0] ?? parcelas[parcelas.length - 1].numero;
   for (const extra of extras) {
-    const alvo = parcelas.find((p) => p.vencimento >= extra.dataPagamento) ?? parcelas[parcelas.length - 1];
-    porNumero.set(alvo.numero, (porNumero.get(alvo.numero) ?? 0) + extra.valor);
+    let alvo: { numero: number; dataPagamento: string } | null = null;
+    for (const p of pagas) {
+      if (p.dataPagamento <= extra.dataPagamento && (alvo == null || p.dataPagamento >= alvo.dataPagamento)) {
+        alvo = p;
+      }
+    }
+    const numero = alvo?.numero ?? primeiraAberta;
+    porNumero.set(numero, (porNumero.get(numero) ?? 0) + extra.valor);
   }
   return porNumero;
 }

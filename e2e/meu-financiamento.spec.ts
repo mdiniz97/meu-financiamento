@@ -111,16 +111,6 @@ function baselineDeHoje() {
   return { version: 1, saldoDevedor: 1000000, dataBase: todayISO(), proximaParcelaNumero: 141 };
 }
 
-/** Primeira parcela cujo vencimento estimado é >= a data do aporte (regra da
- *  coluna Aporte). Nos testes a data-base é hoje e o vencimento é dia 10, então
- *  o aporte cai na 141 ou na 142 conforme o dia do mês. */
-function numeroDaCompetencia(dataPagamento: string): number {
-  for (let n = 141; n <= 360; n += 1) {
-    if (addMonthsISO(todayISO(), n - 141, 10) >= dataPagamento) return n;
-  }
-  return 360;
-}
-
 // O card do mês alterna o título quando o vencimento estimado (dia 10 no
 // contrato padrão) já passou; mantém o assert exato em qualquer data.
 const TITULO_CARD_MES = Number(todayISO().slice(8, 10)) > 10 ? 'Parcela em aberto' : 'Sua parcela deste mês';
@@ -138,11 +128,19 @@ function amanhaISO(): string {
 const recalibrarNoBanner = (page: Page): Locator =>
   page.locator('[data-state-banner]').getByRole('button', { name: 'Recalibrar saldo', exact: true });
 
-/** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado. */
+/** Marca a próxima parcela pendente como paga; devolve o valor sugerido usado.
+ *  Valida o prefill do vencimento estimado e normaliza para hoje via o atalho
+ *  "Usar hoje", mantendo a data do pagamento determinística nos fluxos. */
 async function pagarProxima(page: Page, extraReais = 0): Promise<number> {
   await page.getByRole('button', { name: 'Paguei esta parcela', exact: true }).click();
   const box = page.locator('[data-pay-installment]');
   await expect(box).toBeVisible();
+  const titulo = await box.getByText(/Pagamento da parcela \d+/).innerText();
+  const parcelaNumero = Number(titulo.match(/\d+/)![0]);
+  const vencimento = addMonthsISO(todayISO(), parcelaNumero - 141, 10);
+  await expect(box.locator('#payData')).toHaveValue(vencimento);
+  await box.getByRole('button', { name: 'Usar hoje', exact: true }).click();
+  await expect(box.locator('#payData')).toHaveValue(todayISO());
   const sugestao = parseBRL(await box.getByText(/Valor sugerido da parcela projetada/).innerText());
   if (extraReais !== 0) {
     await box.locator('#payValor').fill(centsOf(sugestao + extraReais));
@@ -286,9 +284,9 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText('—');
   await expect(linhaPaga).toContainText(formatBRL(pg.juros));
   await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
-  // A amortização entra na coluna Aporte da primeira competência com vencimento
-  // estimado >= a data do aporte, e o Total soma Parcela + Aporte.
-  const numeroAporte = numeroDaCompetencia(todayISO());
+  // O aporte fica na linha da última paga anterior à data (a 141, paga hoje), e
+  // o Total soma Parcela + Aporte.
+  const numeroAporte = 141;
   const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
   await expect(linhaAporte.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorExtra));
   const parcelaAporte = parseBRL(await linhaAporte.locator('[data-cell="parcela"]').innerText());
@@ -349,12 +347,11 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await expect(eventoAmortizacao).toBeVisible();
   expect(parseBRL(await eventoAmortizacao.innerText())).toBeCloseTo(ideal, 2);
 
-  // Tabela de parcelas: o aporte (data de hoje) aparece na coluna Aporte da
-  // primeira competência com vencimento estimado >= a data do aporte, com o
-  // valor exato registrado e Total = Parcela + Aporte. Origem/modo/data ficam
-  // no histórico da timeline (asserts acima).
+  // Tabela de parcelas: o aporte fica na linha da última paga anterior à data
+  // (a 141, paga com o aporte), com o valor exato registrado e Total = Parcela +
+  // Aporte. Origem/modo/data ficam no histórico da timeline (asserts acima).
   await page.getByText('Parcelas do Financiamento', { exact: true }).click();
-  const numeroAporte = numeroDaCompetencia(todayISO());
+  const numeroAporte = 141;
   const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
   await expect(linhaAporte.locator('[data-cell="aporte"]')).toBeVisible();
   expect(parseBRL(await linhaAporte.locator('[data-cell="aporte"]').innerText())).toBeCloseTo(ideal, 2);

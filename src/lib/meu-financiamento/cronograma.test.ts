@@ -63,40 +63,68 @@ function amortizacao(
   };
 }
 
-const VENCIMENTOS = [
-  { numero: 141, vencimento: '2026-09-10' },
-  { numero: 142, vencimento: '2026-10-10' },
-  { numero: 143, vencimento: '2026-11-10' },
+interface LinhaAporte {
+  numero: number;
+  vencimento: string;
+  paga: { dataPagamento: string } | null;
+}
+
+function linha(numero: number, vencimento: string, pagaEm: string | null = null): LinhaAporte {
+  return { numero, vencimento, paga: pagaEm ? { dataPagamento: pagaEm } : null };
+}
+
+// 141 e 142 pagas com atraso (20/09 e 20/10, após o vencimento), 143 em aberto.
+const PARCELAS_APORTE: LinhaAporte[] = [
+  linha(141, '2026-09-10', '2026-09-20'),
+  linha(142, '2026-10-10', '2026-10-20'),
+  linha(143, '2026-11-10'),
 ];
 
-it('agrega aporte anterior à primeira parcela na primeira linha', () => {
-  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-08-01', valor: 100 }]);
+const PARCELAS_ABERTAS: LinhaAporte[] = [
+  linha(141, '2026-09-10'),
+  linha(142, '2026-10-10'),
+  linha(143, '2026-11-10'),
+];
+
+it('agrega aporte depois da paga 1 e antes da paga 2 na linha da paga 1', () => {
+  const mapa = agregarAportes(PARCELAS_APORTE, [{ dataPagamento: '2026-09-25', valor: 100 }]);
   expect(mapa.get(141)).toBe(100);
   expect(mapa.get(142)).toBeUndefined();
 });
 
-it('agrega aporte entre duas competências na parcela seguinte', () => {
-  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-09-15', valor: 250 }]);
+it('agrega aporte depois da paga 2 na linha da paga 2', () => {
+  const mapa = agregarAportes(PARCELAS_APORTE, [{ dataPagamento: '2026-10-25', valor: 250 }]);
   expect(mapa.get(142)).toBe(250);
   expect(mapa.get(141)).toBeUndefined();
 });
 
-it('agrega aporte no próprio vencimento naquela parcela (>=)', () => {
-  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-10-10', valor: 300 }]);
+it('agrega aporte no mesmo dia de uma paga naquela paga', () => {
+  const mapa = agregarAportes(PARCELAS_APORTE, [{ dataPagamento: '2026-10-20', valor: 300 }]);
   expect(mapa.get(142)).toBe(300);
 });
 
-it('soma múltiplos aportes na mesma competência', () => {
-  const mapa = agregarAportes(VENCIMENTOS, [
-    { dataPagamento: '2026-08-01', valor: 100 },
-    { dataPagamento: '2026-09-05', valor: 50 },
+it('sem paga até a data, cai na primeira parcela em aberto', () => {
+  const mapa = agregarAportes(PARCELAS_ABERTAS, [{ dataPagamento: '2026-09-15', valor: 250 }]);
+  expect(mapa.get(141)).toBe(250);
+  expect(mapa.get(142)).toBeUndefined();
+});
+
+it('aporte anterior a toda paga cai na primeira parcela em aberto', () => {
+  const mapa = agregarAportes(PARCELAS_APORTE, [{ dataPagamento: '2026-08-01', valor: 100 }]);
+  expect(mapa.get(143)).toBe(100);
+});
+
+it('soma múltiplos aportes na mesma paga', () => {
+  const mapa = agregarAportes(PARCELAS_APORTE, [
+    { dataPagamento: '2026-09-21', valor: 100 },
+    { dataPagamento: '2026-09-24', valor: 50 },
   ]);
   expect(mapa.get(141)).toBe(150);
   expect([...mapa.keys()]).toEqual([141]);
 });
 
 it('sem extra devolve mapa vazio', () => {
-  expect(agregarAportes(VENCIMENTOS, []).size).toBe(0);
+  expect(agregarAportes(PARCELAS_APORTE, []).size).toBe(0);
 });
 
 it('sem parcelas, extras não geram linhas', () => {
@@ -128,14 +156,17 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
   });
 });
 
-it('mapeia o aporte do estado vigente para a linha da parcela', () => {
-  const linhas = buildCronograma(BASELINE, projetadas(141, 142), { pagas: [] }, [
-    amortizacao(500, addMonthsISO(BASELINE.dataBase, 1)),
-    amortizacao(100, addMonthsISO(BASELINE.dataBase, -1)),
+it('mapeia o aporte do estado vigente para a linha da última paga anterior', () => {
+  const linhas = buildCronograma(BASELINE, projetadas(143), {
+    pagas: [paga(141, 9999, '2026-09-20'), paga(142, 10001, '2026-10-20')],
+  }, [
+    amortizacao(500, '2026-09-25'),
+    amortizacao(100, '2026-10-25'),
   ]);
   expect(linhas.map((l) => [l.numero, l.aporte])).toEqual([
-    [141, 100],
-    [142, 500],
+    [141, 500],
+    [142, 100],
+    [143, 0],
   ]);
 });
 
