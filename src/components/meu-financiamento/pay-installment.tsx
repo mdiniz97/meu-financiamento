@@ -178,7 +178,10 @@ function PayInstallmentForm({
   const amortizacao = temAporte ? aporte : split.amortizacao;
   const temAmortizacao = amortizacao > 0.005;
   const parcelaEfetiva = temAporte ? parcelaProjetada : split.parcela;
-  const total = roundCents(valorPago + aporte);
+  // O Total reflete o que a action grava: com aporte, o servidor fixa a parcela
+  // na projetada e soma o aporte (ignora um "Valor pago" custom, que fica
+  // travado); sem aporte, parcela + amortização do split do próprio valor pago.
+  const total = roundCents(parcelaEfetiva + amortizacao);
 
   async function handleSubmit() {
     if (pending || valorPago <= 0 || !dataPagamento) return;

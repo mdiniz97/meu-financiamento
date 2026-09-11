@@ -193,6 +193,10 @@ export async function payInstallment(input: {
   if (!usarAporte && (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0)) {
     return { ok: false, error: 'Valor inválido' };
   }
+  // Sem guarda de data futura de propósito: o default do campo é o VENCIMENTO
+  // estimado da parcela, que pode cair no futuro, e o usuário registra o
+  // pagamento na data do vencimento. Não "restaure" o bloqueio da amortização
+  // avulsa aqui sem revisar o fluxo de pagamento.
   if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
   if (excedenteModo !== undefined && excedenteModo !== 'term' && excedenteModo !== 'payment') {
     return { ok: false, error: 'Modo inválido' };

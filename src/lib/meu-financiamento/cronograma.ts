@@ -35,9 +35,10 @@ export interface CronogramaParcela {
 /**
  * Distribui cada amortização extra do estado vigente para a linha-alvo (mesma
  * regra do `agregarAportes`) preservando o vínculo com o lançamento, para a UI
- * poder oferecer Editar/Apagar por aporte. Cada extra entra na linha da ÚLTIMA
- * parcela PAGA cuja `dataPagamento` é <= a data do aporte; sem paga até a data,
- * cai na PRIMEIRA parcela em aberto; sem aberta, na última linha (defensivo).
+ * conseguir agrupar a amortização ao pagamento pelo `groupId`. Cada extra entra
+ * na linha da ÚLTIMA parcela PAGA cuja `dataPagamento` é <= a data do aporte;
+ * sem paga até a data, cai na PRIMEIRA parcela em aberto; sem aberta, na última
+ * linha (defensivo).
  */
 export function distribuirAportes<T extends { dataPagamento: string; valor: number }>(
   parcelas: readonly { numero: number; paga: { dataPagamento: string } | null }[],
