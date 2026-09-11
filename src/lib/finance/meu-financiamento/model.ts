@@ -40,8 +40,24 @@ export interface ParcelaProjetada {
   parcela: number;
   juros: number;
   seguro: number;
+  correcao: number;
   amortizacao: number;
   saldo: number;
+}
+
+/** Decomposição de uma parcela paga pelo MESMO encadeamento do estado vigente
+ *  (juros e correção sobre o saldo da competência, seguro contratual e a
+ *  amortização derivada do valor pago). Só existe para as pagas do baseline
+ *  atual; as de períodos anteriores não são reconstruíveis pelo modelo. */
+export interface ParcelaPagaDetalhada {
+  parcelaNumero: number;
+  parcelaReal: number;
+  juros: number;
+  correcao: number;
+  seguro: number;
+  amortizacao: number;
+  saldo: number;
+  dataPagamento: string;
 }
 
 export interface Projecao {
@@ -49,6 +65,8 @@ export interface Projecao {
   saldoEfetivo: number;
   saldoAntesExtras: number;
   parcelas: ParcelaProjetada[];
+  /** Pagas do baseline vigente com a composição do encadeamento. */
+  pagas: ParcelaPagaDetalhada[];
   quitaEm: number | null;
   divergencia: number;
 }
@@ -158,7 +176,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   // movimentos (as actions bloqueiam) nem futuro a projetar, e a engine recusa
   // principal 0 — projeção vazia sem lançar.
   if (baseline.saldoDevedor === 0) {
-    return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras: 0, parcelas: [], quitaEm: null, divergencia: 0 };
+    return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras: 0, parcelas: [], pagas: [], quitaEm: null, divergencia: 0 };
   }
 
   const m = convertAnnualToMonthly(params.annualRate);
@@ -168,6 +186,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   let saldo = baseline.saldoDevedor;
   let divergencia = 0;
   const pagasPorNumero = new Map(pagas.map((p) => [p.parcelaNumero, p]));
+  const pagasDetalhadas: ParcelaPagaDetalhada[] = [];
   for (const n of numeros) {
     const paga = pagasPorNumero.get(n)!;
     const projetada = cronoOriginal.installments[indexOriginal(n)].parcela;
@@ -176,6 +195,16 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
     const saldoCorrigido = saldo + correcao;
     const amortizacao = Math.min(Math.max(paga.valor - juros - params.insuranceMonthly, 0), saldoCorrigido);
     saldo = Math.max(0, saldoCorrigido - amortizacao);
+    pagasDetalhadas.push({
+      parcelaNumero: n,
+      parcelaReal: paga.valor,
+      juros,
+      correcao,
+      seguro: params.insuranceMonthly,
+      amortizacao,
+      saldo,
+      dataPagamento: paga.dataPagamento,
+    });
     divergencia += paga.valor - projetada;
   }
   const saldoAntesExtras = saldo;
@@ -183,7 +212,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   const saldoEfetivo = Math.max(0, saldoAntesExtras - totalExtras);
 
   if (saldoEfetivo === 0) {
-    return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras, parcelas: [], quitaEm: null, divergencia };
+    return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras, parcelas: [], pagas: pagasDetalhadas, quitaEm: null, divergencia };
   }
 
   const defaultMeses = params.parcelasTotais - primeira + 1;
@@ -194,7 +223,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   // A action deve tratar esse caso (contrato encerrado com saldo > 0) como
   // estado de recalibração, não como pagamento normal.
   if (defaultMeses < 1) {
-    return { primeiraPendente: primeira, saldoEfetivo, saldoAntesExtras, parcelas: [], quitaEm: null, divergencia };
+    return { primeiraPendente: primeira, saldoEfetivo, saldoAntesExtras, parcelas: [], pagas: pagasDetalhadas, quitaEm: null, divergencia };
   }
   let mesesFuturos = defaultMeses;
   const temTerm = extras.some((e) => e.modo === 'term');
@@ -227,6 +256,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
       ...ultima,
       amortizacao: ultima.amortizacao + fantasma.amortizacao,
       juros: ultima.juros + fantasma.juros,
+      correcao: ultima.correcao + fantasma.correcao,
       parcela: ultima.parcela + fantasma.amortizacao + fantasma.juros,
       saldo: 0,
     };
@@ -241,9 +271,10 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
     parcela: row.parcela,
     juros: row.juros,
     seguro: row.seguro,
+    correcao: row.correcao,
     amortizacao: row.amortizacao,
     saldo: row.saldo,
   }));
 
-  return { primeiraPendente: primeira, saldoEfetivo, saldoAntesExtras, parcelas, quitaEm, divergencia };
+  return { primeiraPendente: primeira, saldoEfetivo, saldoAntesExtras, parcelas, pagas: pagasDetalhadas, quitaEm, divergencia };
 }

@@ -29,6 +29,43 @@ it('pagamento com valor da tabela encadeia e não cria divergência', () => {
   expect(p.parcelas[0].parcelaNumero).toBe(142);
 });
 
+it('expõe a correção (TR) de cada parcela projetada', () => {
+  const p = projecao(PARAMS, BASELINE, [], []);
+  expect(p.parcelas[0].correcao).toBeCloseTo(1000000 * PARAMS.trMonthly, 6);
+  expect(p.parcelas[0].correcao).toBeGreaterThan(0);
+});
+
+it('pagas decompõe o encadeamento das parcelas pagas do estado vigente', () => {
+  const semMov = projecao(PARAMS, BASELINE, [], []);
+  const projetada141 = semMov.parcelas[0].parcela;
+  const p = projecao(PARAMS, BASELINE, [
+    { parcelaNumero: 141, valor: projetada141, dataPagamento: '2026-10-05' },
+  ], []);
+  expect(p.pagas).toHaveLength(1);
+  const pg = p.pagas[0];
+  const m = Math.pow(1 + PARAMS.annualRate, 1 / 12) - 1;
+  expect(pg.parcelaNumero).toBe(141);
+  expect(pg.parcelaReal).toBe(projetada141);
+  expect(pg.juros).toBeCloseTo(1000000 * m, 6);
+  expect(pg.correcao).toBeCloseTo(1000000 * PARAMS.trMonthly, 6);
+  expect(pg.seguro).toBe(PARAMS.insuranceMonthly);
+  expect(pg.amortizacao).toBeCloseTo(projetada141 - pg.juros - PARAMS.insuranceMonthly, 6);
+  expect(pg.saldo).toBeCloseTo(semMov.parcelas[0].saldo, 6);
+  expect(pg.dataPagamento).toBe('2026-10-05');
+});
+
+it('pagas: pagamento parcial zera a amortização e o saldo cresce só pela correção', () => {
+  const p = projecao(PARAMS, BASELINE, [
+    { parcelaNumero: 141, valor: 1, dataPagamento: '2026-10-05' },
+  ], []);
+  expect(p.pagas[0].amortizacao).toBe(0);
+  expect(p.pagas[0].saldo).toBeCloseTo(1001700, 4);
+});
+
+it('pagas vazio sem movimentos', () => {
+  expect(projecao(PARAMS, BASELINE, [], []).pagas).toEqual([]);
+});
+
 it('valor real maior que o projetado não vira amortização extra; vira divergência', () => {
   const semMov = projecao(PARAMS, BASELINE, [], []);
   const projetada = semMov.parcelas[0].parcela;
