@@ -142,7 +142,10 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
             <p className="text-xs text-muted-foreground">em {formatDataBr(event.data)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <span className="font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+            <span
+              data-timeline-valor
+              className="font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
+            >
               {formatBRL(event.valor)}
             </span>
             {podeAgir && (
@@ -158,17 +161,31 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
                 >
                   <Pencil className="size-3.5" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => void apagar()}
-                  disabled={busy !== null}
-                  aria-label={`Apagar parcela ${event.numero}`}
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {busy === 'delete' ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled
+                    aria-label={`Apagar parcela ${event.numero}`}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Apagando...
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void apagar()}
+                    disabled={busy !== null}
+                    aria-label={`Apagar parcela ${event.numero}`}
+                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -326,17 +343,31 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
                 >
                   <Pencil className="size-3.5" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => void apagar()}
-                  disabled={busy !== null}
-                  aria-label="Apagar amortização"
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {busy === 'delete' ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled
+                    aria-label="Apagar amortização"
+                    className="text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Apagando...
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void apagar()}
+                    disabled={busy !== null}
+                    aria-label="Apagar amortização"
+                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </>
             )}
           </div>
