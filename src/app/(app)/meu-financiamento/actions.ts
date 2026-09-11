@@ -175,7 +175,11 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
 }
 
 export async function payInstallment(input: {
-  valor: number;
+  valor?: number;
+  /** Aporte extra explícito (sugestão): o servidor calcula o total como
+   *  `projetada recalculada + aporte`, então o split vira exatamente o aporte
+   *  pedido, sem depender do arredondamento do cliente. */
+  aporte?: number;
   dataPagamento: string;
   excedenteModo?: 'term' | 'payment';
 }): Promise<MutationResult> {
@@ -183,8 +187,12 @@ export async function payInstallment(input: {
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  const { valor, dataPagamento, excedenteModo } = input ?? {};
-  if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) {
+  const { valor, aporte, dataPagamento, excedenteModo } = input ?? {};
+  if (aporte !== undefined && (!Number.isFinite(aporte) || aporte < 0)) {
+    return { ok: false, error: 'Aporte inválido' };
+  }
+  const usarAporte = typeof aporte === 'number' && aporte > 0;
+  if (!usarAporte && (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0)) {
     return { ok: false, error: 'Valor inválido' };
   }
   if (!isValidDateString(dataPagamento)) return { ok: false, error: 'Data inválida' };
@@ -236,7 +244,12 @@ export async function payInstallment(input: {
     }
     if (projetada === undefined) return { ok: false, error: 'Sem parcela projetada para pagar' };
 
-    const split = splitPagamento(projetada, valor);
+    // Sugestão: o cliente manda o aporte explícito; o total é a projetada
+    // recalculada in-tx + aporte, então a amortização gravada é exatamente o
+    // aporte pedido. Sem aporte, mantém o fluxo antigo (valor como total).
+    const split = usarAporte
+      ? { parcela: projetada, amortizacao: aporte as number }
+      : splitPagamento(projetada, valor as number);
     const groupId = split.amortizacao > 0 ? crypto.randomUUID() : null;
     // Colisão de parcela: o unique é (contractId, parcelaNumero). Se a parcela
     // já tem lançamento de um estado ANTERIOR (edição retroativa que reabriu a

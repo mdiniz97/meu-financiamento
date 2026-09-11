@@ -104,16 +104,30 @@ export function SugestaoAmortizacao({
           extraLumpSum: [{ month: 1, amount: valor, reduceMode: 'term' }],
           reduceMode: 'term',
         }).metrics.saldoZeroAt < baseEngineZero;
-      let candidato = Math.ceil(Math.max(limiarModelo, limiarEngine) * 100) / 100;
-      for (let tentativa = 0; tentativa < 20 && (!modeloCorta(candidato) || !engineCorta(candidato)); tentativa += 1) {
-        candidato = roundCents(candidato + 0.01);
+      const corta = (valor: number): boolean => modeloCorta(valor) && engineCorta(valor);
+      // Menor centavo que corta nas duas camadas (model e engine).
+      let minimo = Math.ceil(Math.max(limiarModelo, limiarEngine) * 100) / 100;
+      for (let tentativa = 0; tentativa < 20 && !corta(minimo); tentativa += 1) {
+        minimo = roundCents(minimo + 0.01);
       }
-      if (modeloCorta(candidato) && engineCorta(candidato)) {
-        ideal = candidato;
+      if (corta(minimo)) {
+        // Folga de R$ 1,00: o ideal exibido/aplicado ainda precisa cortar 1 real
+        // abaixo, absorvendo divergências de arredondamento/estado entre o
+        // cliente e o servidor. Sem folga encontrada, cai no mínimo validado.
+        let comFolga = minimo;
+        for (
+          let tentativa = 0;
+          tentativa < 200 && !(corta(comFolga) && corta(roundCents(comFolga - 1)));
+          tentativa += 1
+        ) {
+          comFolga = roundCents(comFolga + 0.01);
+        }
+        const idealValor = corta(comFolga) && corta(roundCents(comFolga - 1)) ? comFolga : minimo;
+        ideal = idealValor;
         // Efeito exibido no cenário ATUAL (sem a parcela do mês): quantas
         // parcelas o aporte elimina da projeção vigente e o valor da última
         // parcela que deixa de existir.
-        const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(candidato)]);
+        const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(idealValor)]);
         const eliminadas = Math.max(1, atual.parcelas.length - comAporte.parcelas.length);
         const valorUltima = atual.parcelas.at(-1)?.parcela;
         idealEfeito = `elimina ${eliminadas} ${eliminadas === 1 ? 'parcela' : 'parcelas'}${

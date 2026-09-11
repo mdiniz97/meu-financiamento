@@ -60,10 +60,14 @@ export function PayInstallment({
     if (pending || valor <= 0 || !dataPagamento) return;
     setPending(true);
     setError('');
+    // Vindo da sugestão, o aporte é enviado explícito: o servidor soma à
+    // parcela projetada recalculada e o split grava exatamente esse valor.
+    const aporteEfetivo = initialAporte != null ? roundCents(valor - roundCents(defaultValor)) : 0;
     let result;
     try {
       result = await payInstallment({
         valor,
+        aporte: aporteEfetivo > 0 ? aporteEfetivo : undefined,
         dataPagamento,
         excedenteModo: temExcedente ? excedenteModo : undefined,
       });

@@ -110,6 +110,10 @@ function baselineDeHoje() {
   return { version: 1, saldoDevedor: 1000000, dataBase: todayISO(), proximaParcelaNumero: 141 };
 }
 
+// O card do mês alterna o título quando o vencimento estimado (dia 10 no
+// contrato padrão) já passou; mantém o assert exato em qualquer data.
+const TITULO_CARD_MES = Number(todayISO().slice(8, 10)) > 10 ? 'Parcela em aberto' : 'Sua parcela deste mês';
+
 function amanhaISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -287,6 +291,11 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
   await expect(historico).toContainText(/Parcela 141 ·/);
+  // O valor REGISTRADO da amortização é exatamente o aporte exibido no card
+  // (aporte explícito no servidor), não alguns reais a menos.
+  const eventoAmortizacao = historico.getByText(/Amortização extra de/).first();
+  await expect(eventoAmortizacao).toBeVisible();
+  expect(parseBRL(await eventoAmortizacao.innerText())).toBeCloseTo(ideal, 2);
 
   // Accordion: a amortização (data de hoje, igual ao vencimento estimado da
   // 141) aparece intercalada entre as parcelas 141 e 142, com origem e modo.
@@ -327,6 +336,18 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   expect(parseBRL(await boxExtra.locator('strong').last().innerText())).toBeCloseTo(extra, 1);
   await boxExtra.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
   await expect(boxExtra).toHaveCount(0, { timeout: 20_000 });
+  // O mesmo caminho de aporte explícito vale para meia/extra: a amortização
+  // registrada é o valor exibido (busca entre os eventos do período, sem
+  // depender da ordem).
+  await expect
+    .poll(
+      async () =>
+        (await historico.getByText(/Amortização extra de/).allInnerTexts())
+          .map(parseBRL)
+          .some((v) => Math.abs(v - extra) < 0.005),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
   await expect
     .poll(async () => parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText()), { timeout: 20_000 })
     .toBeLessThanOrEqual(quitacaoAntesExtra);
@@ -431,7 +452,7 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
 
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: 'Sua parcela deste mês', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: TITULO_CARD_MES, exact: true })).toBeVisible();
   await expect(historico).not.toContainText('Amortização extra');
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
@@ -568,7 +589,7 @@ test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', as
   // timeline (só o cadastro restava, e ele não conta como lançamento).
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: 'Sua parcela deste mês', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: TITULO_CARD_MES, exact: true })).toBeVisible();
   await expect(page.getByText(/Parcela 141 ·/)).toHaveCount(0);
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
