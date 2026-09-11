@@ -16,7 +16,7 @@ import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
 import { EditContractDialog } from './edit-contract-dialog';
 import { Timeline } from './timeline';
-import { TodasParcelas } from './todas-parcelas';
+import { ParcelasDoFinanciamento } from './parcelas-do-financiamento';
 import { SugestaoAmortizacao } from './sugestao-amortizacao';
 import { EsePanel } from './e-se-panel';
 import { InvestPanel } from './invest-panel';
@@ -414,7 +414,7 @@ export function Dashboard({
 
       <Timeline state={state} readOnly={readOnly} quitado={quitado} />
 
-      <TodasParcelas state={state} />
+      <ParcelasDoFinanciamento state={state} />
 
       {parcelas.length > 0 && (
         <section className="flex flex-col gap-3">

@@ -2,6 +2,17 @@ import { addMonthsISO } from './dates';
 import type { Baseline, Projecao } from '@/lib/finance/meu-financiamento/model';
 import type { AmortizacaoComId, ParcelaPagaComId } from './repo';
 
+/** Composição da competência pelo encadeamento do baseline vigente. */
+export interface CronogramaComposicao {
+  juros: number;
+  correcao: number;
+  seguro: number;
+  amortizacao: number;
+  saldo: number;
+}
+
+export type CronogramaSituacao = 'paga' | 'aberta' | 'historico';
+
 export interface CronogramaParcela {
   kind: 'parcela';
   numero: number;
@@ -10,6 +21,11 @@ export interface CronogramaParcela {
   /** Valor real (paga) ou projetado (em aberto). */
   valor: number;
   paga: { dataPagamento: string } | null;
+  /** Paga no baseline vigente, em aberto ou paga de um período anterior. */
+  situacao: CronogramaSituacao;
+  /** Decomposição do encadeamento do estado vigente; null nas pagas de
+   *  períodos anteriores (o modelo não as reconstrói) e nas linhas sem dados. */
+  composicao: CronogramaComposicao | null;
 }
 
 export interface CronogramaAmortizacao {
@@ -41,13 +57,14 @@ interface Ordenavel {
  */
 export function buildCronograma(
   baseline: Pick<Baseline, 'dataBase' | 'proximaParcelaNumero' | 'diaVencimento'>,
-  projecao: Pick<Projecao, 'parcelas'>,
+  projecao: Pick<Projecao, 'parcelas' | 'pagas'>,
   historico: { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] },
 ): CronogramaLinha[] {
   const vencimento = (numero: number) =>
     addMonthsISO(baseline.dataBase, numero - baseline.proximaParcelaNumero, baseline.diaVencimento);
   const pagasPorNumero = new Map(historico.pagas.map((p) => [p.parcelaNumero, p]));
   const projetadasPorNumero = new Map(projecao.parcelas.map((p) => [p.parcelaNumero, p]));
+  const detalhesPorNumero = new Map(projecao.pagas.map((p) => [p.parcelaNumero, p]));
   const numeros = new Set<number>([
     ...projecao.parcelas.map((p) => p.parcelaNumero),
     ...historico.pagas.map((p) => p.parcelaNumero),
@@ -57,6 +74,28 @@ export function buildCronograma(
     .sort((a, b) => a - b)
     .map((numero) => {
       const paga = pagasPorNumero.get(numero);
+      const projetada = projetadasPorNumero.get(numero);
+      const detalhe = detalhesPorNumero.get(numero);
+      const situacao: CronogramaSituacao = paga
+        ? (detalhe ? 'paga' : 'historico')
+        : 'aberta';
+      const composicao: CronogramaComposicao | null = detalhe
+        ? {
+            juros: detalhe.juros,
+            correcao: detalhe.correcao,
+            seguro: detalhe.seguro,
+            amortizacao: detalhe.amortizacao,
+            saldo: detalhe.saldo,
+          }
+        : projetada
+          ? {
+              juros: projetada.juros,
+              correcao: projetada.correcao,
+              seguro: projetada.seguro,
+              amortizacao: projetada.amortizacao,
+              saldo: projetada.saldo,
+            }
+          : null;
       return {
         ordem: numero,
         rank: 0,
@@ -66,8 +105,10 @@ export function buildCronograma(
           kind: 'parcela',
           numero,
           vencimento: vencimento(numero),
-          valor: paga?.valor ?? projetadasPorNumero.get(numero)?.parcela ?? 0,
+          valor: paga?.valor ?? projetada?.parcela ?? 0,
           paga: paga ? { dataPagamento: paga.dataPagamento } : null,
+          situacao,
+          composicao,
         },
       };
     });

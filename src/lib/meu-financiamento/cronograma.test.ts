@@ -1,21 +1,45 @@
 import { expect, it } from 'vitest';
-import { buildCronograma } from './cronograma';
+import { buildCronograma, type CronogramaParcela } from './cronograma';
 import { addMonthsISO } from './dates';
 import type { Projecao } from '@/lib/finance/meu-financiamento/model';
 import type { AmortizacaoComId, ParcelaPagaComId } from './repo';
 
 const BASELINE = { dataBase: '2026-09-08', proximaParcelaNumero: 141 };
 
-function projetadas(...numeros: number[]): Pick<Projecao, 'parcelas'> {
+function projetadas(...numeros: number[]): Pick<Projecao, 'parcelas' | 'pagas'> {
   return {
     parcelas: numeros.map((n) => ({
       parcelaNumero: n,
       parcela: 10000 + n,
       juros: 0,
       seguro: 0,
+      correcao: 0,
       amortizacao: 0,
       saldo: 0,
     })),
+    pagas: [],
+  };
+}
+
+/** Projeção sintética com composição não nula: paga 141 no encadeamento do
+ *  estado vigente e futura 143 em aberto. */
+function projecaoComposta(): Pick<Projecao, 'parcelas' | 'pagas'> {
+  return {
+    parcelas: [
+      { parcelaNumero: 143, parcela: 10043, juros: 1, seguro: 2, correcao: 3, amortizacao: 4, saldo: 5 },
+    ],
+    pagas: [
+      {
+        parcelaNumero: 141,
+        parcelaReal: 9999,
+        juros: 10,
+        correcao: 11,
+        seguro: 12,
+        amortizacao: 13,
+        saldo: 14,
+        dataPagamento: '2026-08-05',
+      },
+    ],
   };
 }
 
@@ -48,6 +72,8 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
     vencimento: BASELINE.dataBase,
     valor: 10141,
     paga: null,
+    situacao: 'aberta',
+    composicao: { juros: 0, correcao: 0, seguro: 0, amortizacao: 0, saldo: 0 },
   });
   expect(linhas[1]).toEqual({
     kind: 'parcela',
@@ -55,7 +81,29 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
     vencimento: addMonthsISO(BASELINE.dataBase, 1),
     valor: 10142,
     paga: null,
+    situacao: 'aberta',
+    composicao: { juros: 0, correcao: 0, seguro: 0, amortizacao: 0, saldo: 0 },
   });
+});
+
+it('marca a composição das pagas do estado vigente e o histórico das anteriores', () => {
+  const linhas = buildCronograma(BASELINE, projecaoComposta(), {
+    pagas: [paga(141, 9999, '2026-08-05', 's1'), paga(142, 10001, '2026-09-05', 's0')],
+    extras: [],
+  });
+  const p141 = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 141)!;
+  const p142 = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 142)!;
+  expect(p141.situacao).toBe('paga');
+  expect(p141.composicao).toEqual({ juros: 10, correcao: 11, seguro: 12, amortizacao: 13, saldo: 14 });
+  expect(p142.situacao).toBe('historico');
+  expect(p142.composicao).toBeNull();
+});
+
+it('compõe a parcela projetada com juros, correção, seguro, amortização e saldo', () => {
+  const linhas = buildCronograma(BASELINE, projecaoComposta(), { pagas: [], extras: [] });
+  const aberta = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 143)!;
+  expect(aberta.situacao).toBe('aberta');
+  expect(aberta.composicao).toEqual({ juros: 1, correcao: 3, seguro: 2, amortizacao: 4, saldo: 5 });
 });
 
 it('inclui parcelas pagas de estados anteriores com valor real e sem duplicar projetadas', () => {
