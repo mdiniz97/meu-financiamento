@@ -211,38 +211,51 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(page.getByRole('heading', { name: 'Histórico', exact: true })).toBeVisible();
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 
-  // Dia do vencimento informado no wizard (10) vale para a estimativa do accordion.
-  await page.getByText('Todas as parcelas', { exact: true }).click();
-  await expect(page.getByText(/Vencimento estimado: 10\//).first()).toBeVisible();
+  // O dia do vencimento informado no wizard (10) vale para a tabela de parcelas.
+  await page.getByText('Parcelas do Financiamento', { exact: true }).click();
+  await expect(page.getByRole('columnheader', { name: 'Vencimento' })).toBeVisible();
+  const primeira = page.locator('tr[data-numero="141"]');
+  await expect(primeira).toBeVisible();
+  await expect(primeira).toContainText('10/');
+  await expect(primeira).toContainText('Em aberto');
 });
 
-test('accordion "Todas as parcelas" lista o cronograma e carrega mais 24 por vez', async ({ page }) => {
-  const conta = await criarConta(page, 'Todas as Parcelas');
+test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 por vez', async ({ page }) => {
+  const conta = await criarConta(page, 'Parcelas do Financiamento');
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
-  const resumo = page.getByText('Todas as parcelas', { exact: true });
+  const resumo = page.getByText('Parcelas do Financiamento', { exact: true });
   await expect(resumo).toBeVisible();
   // Fechado por padrão: as linhas existem no DOM (details), mas ocultas.
-  await expect(page.getByText('Parcela 141', { exact: true })).toBeHidden();
+  await expect(page.locator('tr[data-numero="141"]')).toBeHidden();
 
   await resumo.click();
-  await expect(page.getByText('Parcela 141', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toBeVisible();
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
   // 24 linhas por vez: a 164 fecha o primeiro bloco, a 165 só com "Mostrar mais".
-  await expect(page.getByText('Parcela 164', { exact: true })).toBeVisible();
-  await expect(page.getByText('Parcela 165', { exact: true })).toHaveCount(0);
+  await expect(page.locator('tr[data-numero="164"]')).toBeVisible();
+  await expect(page.locator('tr[data-numero="165"]')).toHaveCount(0);
   await expect(page.getByText('Em aberto').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Mostrar mais', exact: true }).click();
-  await expect(page.getByText('Parcela 165', { exact: true })).toBeVisible();
+  await expect(page.locator('tr[data-numero="165"]')).toBeVisible();
 
-  // Pagar a 141 reescreve a linha com o valor real e a data (destaque verde).
-  await pagarProxima(page);
+  // Pagar a 141 reescreve a linha como "Paga" com a composição do encadeamento
+  // do model (juros, correção, seguro e amortização) do valor real pago.
+  const paga = await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   // O refresh pode manter o details aberto ou fechá-lo; abre só se preciso.
-  const pagaLinha = page.getByText(/Paga em \d{2}\/\d{2}\/\d{4}/).first();
-  if (!(await pagaLinha.isVisible())) await resumo.click();
-  await expect(pagaLinha).toBeVisible();
+  const linhaPaga = page.locator('tr[data-numero="141"]');
+  if (!(await linhaPaga.isVisible())) await resumo.click();
+  await expect(linhaPaga).toContainText('Paga');
+  const pg = projecao(PARAMS_E2E, baselineDeHoje(), [
+    { parcelaNumero: 141, valor: paga, dataPagamento: todayISO() },
+  ], []).pagas[0];
+  await expect(linhaPaga).toContainText(formatBRL(pg.juros));
+  await expect(linhaPaga).toContainText(formatBRL(pg.correcao));
+  await expect(linhaPaga).toContainText(formatBRL(pg.seguro));
+  await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
 });
 
 test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {
@@ -298,20 +311,21 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await expect(eventoAmortizacao).toBeVisible();
   expect(parseBRL(await eventoAmortizacao.innerText())).toBeCloseTo(ideal, 2);
 
-  // Accordion: a amortização (data de hoje, igual ao vencimento estimado da
-  // 141) aparece intercalada entre as parcelas 141 e 142, com origem e modo.
-  await page.getByText('Todas as parcelas', { exact: true }).click();
-  const linhas = page.locator('details ol li');
+  // Tabela de parcelas: a amortização (data de hoje, igual ao vencimento
+  // estimado da 141) aparece intercalada entre as parcelas 141 e 142, com
+  // origem e modo.
+  await page.getByText('Parcelas do Financiamento', { exact: true }).click();
+  const linhas = page.locator('details table tbody tr');
   const textos = await linhas.allInnerTexts();
   const amortizacao = textos.findIndex((t) => t.includes('Amortização extra de'));
-  const parcela141 = textos.findIndex((t) => t.startsWith('Parcela 141'));
-  const parcela142 = textos.findIndex((t) => t.startsWith('Parcela 142'));
+  const parcela141 = textos.findIndex((t) => t.startsWith('141'));
+  const parcela142 = textos.findIndex((t) => t.startsWith('142'));
   expect(parcela141).toBeGreaterThanOrEqual(0);
   expect(amortizacao).toBeGreaterThan(parcela141);
   expect(amortizacao).toBeLessThan(parcela142);
   expect(textos[amortizacao]).toContain('Dinheiro próprio');
   expect(textos[amortizacao]).toContain('Reduziu o prazo');
-  expect(textos[amortizacao]).toMatch(/em \d{2}\/\d{2}\/\d{4}/);
+  expect(textos[amortizacao]).toMatch(/\d{2}\/\d{2}\/\d{4}/);
 
   // Meia parcela: economia exibida, efeito no prazo e aporte aplicado no split.
   const cardMeia = page.locator('[data-opcao="meia"]');
