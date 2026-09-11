@@ -26,7 +26,7 @@ interface Opcao {
   aporte: number;
   /** Economia total (métrica do E se?) da ação completa: parcela + aporte. */
   economia: number;
-  /** Efeito no prazo (só o ideal): "elimina 1 parcela (R$ ...)". */
+  /** Efeito no prazo: "elimina N parcela(s)" (ideal com o valor da última) ou "não reduz o prazo". */
   efeito?: string;
 }
 
@@ -136,21 +136,36 @@ export function SugestaoAmortizacao({
       }
     }
 
+    // Efeito no prazo das opções meia/extra: mesma conta do card ideal,
+    // quantas parcelas a projeção vigente perde com o aporte term. Zero vira
+    // "não reduz o prazo" (amortização pequena pode não cortar parcela).
+    const efeitoPrazo = (aporte: number): string => {
+      const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(aporte)]);
+      const eliminadas = atual.parcelas.length - comAporte.parcelas.length;
+      return eliminadas > 0
+        ? `elimina ${eliminadas} ${eliminadas === 1 ? 'parcela' : 'parcelas'}`
+        : 'não reduz o prazo';
+    };
+
     const candidatas: Omit<Opcao, 'economia'>[] = [];
     if (ideal != null) {
       candidatas.push({ id: 'ideal', titulo: 'Ideal calculado', aria: 'ideal', aporte: ideal, efeito: idealEfeito });
     }
+    const meia = roundCents(primeira.parcela * 0.5);
+    const extra = roundCents(primeira.parcela);
     candidatas.push({
       id: 'meia',
       titulo: 'Meia parcela',
       aria: 'meia parcela',
-      aporte: roundCents(primeira.parcela * 0.5),
+      aporte: meia,
+      efeito: efeitoPrazo(meia),
     });
     candidatas.push({
       id: 'extra',
       titulo: 'Parcela extra',
       aria: 'parcela extra',
-      aporte: roundCents(primeira.parcela),
+      aporte: extra,
+      efeito: efeitoPrazo(extra),
     });
     return candidatas.map((candidata) => ({
       ...candidata,

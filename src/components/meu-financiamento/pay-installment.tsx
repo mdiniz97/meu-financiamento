@@ -10,6 +10,7 @@ import { payInstallment } from '@/app/(app)/meu-financiamento/actions';
 import { todayISO } from '@/lib/meu-financiamento/dates';
 import { splitPagamento } from '@/lib/finance/meu-financiamento/split-payment';
 import { formatBRL } from '@/lib/utils';
+import { EfeitoAporte, type EstadoProjecao } from './efeito-aporte';
 
 function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
@@ -26,6 +27,7 @@ export function PayInstallment({
   defaultValor,
   initialValor,
   initialAporte,
+  estado,
   onCancel,
   onDone,
 }: {
@@ -39,6 +41,8 @@ export function PayInstallment({
    * do servidor receber o aporte pedido (ou até centavos acima).
    */
   initialAporte?: number;
+  /** Estado vigente para pré-visualizar o efeito do excedente amortizado. */
+  estado: EstadoProjecao;
   onCancel: () => void;
   /** Chamado após o pagamento registrado e o refresh; fecha o form. */
   onDone: () => void;
@@ -166,6 +170,12 @@ export function PayInstallment({
           <p className="text-xs text-muted-foreground">
             O excedente será registrado como amortização extra (dinheiro próprio).
           </p>
+          <EfeitoAporte
+            estado={estado}
+            aporte={split.amortizacao}
+            modo={excedenteModo}
+            mostrarParcelaEstimada
+          />
           {excedenteModo === 'payment' && (
             <p
               role="status"

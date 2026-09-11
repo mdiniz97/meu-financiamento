@@ -312,9 +312,10 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   expect(textos[amortizacao]).toContain('Reduziu o prazo');
   expect(textos[amortizacao]).toMatch(/em \d{2}\/\d{2}\/\d{4}/);
 
-  // Meia parcela: economia exibida e aporte aplicado no split.
+  // Meia parcela: economia exibida, efeito no prazo e aporte aplicado no split.
   const cardMeia = page.locator('[data-opcao="meia"]');
   await expect(cardMeia).toContainText('Economia total de R$');
+  await expect(cardMeia).toContainText(/elimina \d+ parcela|não reduz o prazo/);
   expect(parseBRL(await cardMeia.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const meia = parseBRL(await cardMeia.innerText());
   await page.getByRole('button', { name: 'Aplicar meia parcela', exact: true }).click();
@@ -324,10 +325,11 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await boxMeia.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(boxMeia).toHaveCount(0);
 
-  // Parcela extra: economia exibida, aplica e a quitação não piora.
+  // Parcela extra: economia exibida, efeito no prazo, aplica e a quitação não piora.
   const quitacaoAntesExtra = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   const cardExtra = page.locator('[data-opcao="extra"]');
   await expect(cardExtra).toContainText('Economia total de R$');
+  await expect(cardExtra).toContainText(/elimina \d+ parcela|não reduz o prazo/);
   expect(parseBRL(await cardExtra.getByText(/Economia total de/).innerText())).toBeGreaterThan(0);
   const extra = parseBRL(await cardExtra.innerText());
   await page.getByRole('button', { name: 'Aplicar parcela extra', exact: true }).click();
@@ -468,7 +470,11 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
+  // Preview antes de aplicar: valor pequeno não corta parcela; valor grande sim.
+  await dialog.locator('#amortValor').fill('1000');
+  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
   await dialog.locator('#amortValor').fill('10000000');
+  await expect(dialog.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
   await dialog.locator('#amortData').fill(todayISO());
   await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
 

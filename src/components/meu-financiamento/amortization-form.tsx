@@ -16,6 +16,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { registerAmortization } from '@/app/(app)/meu-financiamento/actions';
 import { todayISO } from '@/lib/meu-financiamento/dates';
+import { EfeitoAporte, type EstadoProjecao } from './efeito-aporte';
 
 export function OrigemRadios({
   value,
@@ -86,10 +87,12 @@ function AmortizacaoForm({
   pending,
   onPendingChange,
   onClose,
+  estado,
 }: {
   pending: boolean;
   onPendingChange: (v: boolean) => void;
   onClose: () => void;
+  estado: EstadoProjecao;
 }) {
   const router = useRouter();
   const [valor, setValor] = useState(0);
@@ -134,6 +137,12 @@ function AmortizacaoForm({
             Valor amortizado (R$)
           </label>
           <MoneyInput id="amortValor" name="valor" value={valor} onValid={setValor} disabled={pending} />
+          <EfeitoAporte
+            estado={estado}
+            aporte={valor}
+            modo={modo}
+            caption="neste modo a parcela cai; o prazo não muda."
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="amortData" className="text-sm font-medium text-foreground">
@@ -183,9 +192,11 @@ function AmortizacaoForm({
 export function AmortizacaoDialog({
   open,
   onOpenChange,
+  estado,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  estado: EstadoProjecao;
 }) {
   const [pending, setPending] = useState(false);
 
@@ -197,7 +208,12 @@ export function AmortizacaoDialog({
       }}
     >
       {open && (
-        <AmortizacaoForm pending={pending} onPendingChange={setPending} onClose={() => onOpenChange(false)} />
+        <AmortizacaoForm
+          pending={pending}
+          onPendingChange={setPending}
+          onClose={() => onOpenChange(false)}
+          estado={estado}
+        />
       )}
     </Dialog>
   );

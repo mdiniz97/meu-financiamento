@@ -381,6 +381,7 @@ export function Dashboard({
               parcelaNumero={primeiraProjetada.parcelaNumero}
               defaultValor={primeiraProjetada.parcela}
               initialAporte={aporteSugerido ?? undefined}
+              estado={{ params, baseline, pagas, extras, projecao }}
               onCancel={() => {
                 setAporteSugerido(null);
                 setShowPay(false);
@@ -460,7 +461,11 @@ export function Dashboard({
         diaVencimento={diaVencimento}
         stateVersion={baseline.version}
       />
-      <AmortizacaoDialog open={amortizando} onOpenChange={setAmortizando} />
+      <AmortizacaoDialog
+        open={amortizando}
+        onOpenChange={setAmortizando}
+        estado={{ params, baseline, pagas, extras, projecao }}
+      />
     </div>
   );
 }
