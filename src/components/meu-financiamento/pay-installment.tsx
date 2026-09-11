@@ -133,7 +133,6 @@ export function PayInstallment({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setDataPagamento(todayISO())}
               disabled={pending}
             >
