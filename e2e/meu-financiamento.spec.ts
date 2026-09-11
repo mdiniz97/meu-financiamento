@@ -54,14 +54,12 @@ const amortizadoCard = (page: Page): Locator =>
   page.getByText('Amortizado', { exact: true }).locator('..');
 const pagamentosCard = (page: Page): Locator =>
   page.getByText('Pagamentos registrados', { exact: true }).locator('..');
-const valorOriginalCard = (page: Page): Locator =>
-  page.getByText('Valor original', { exact: true }).locator('..');
-const quantoFaltaCard = (page: Page): Locator =>
-  page.getByText('Quanto falta', { exact: true }).locator('..');
+const faltaPagarCard = (page: Page): Locator =>
+  page.getByText('Falta pagar', { exact: true }).locator('..');
 const quitacaoCard = (page: Page): Locator =>
   page.getByText('Quitação estimada', { exact: true }).locator('..');
 const economiaCard = (page: Page): Locator =>
-  page.getByText('Economizado', { exact: true }).locator('..');
+  page.getByText('Já economizado', { exact: true }).locator('..');
 const amortizadoSituacaoCard = (page: Page): Locator =>
   page.getByText('Amortizado nesta situação', { exact: true }).locator('..');
 const economiaSituacaoCard = (page: Page): Locator =>
@@ -914,14 +912,18 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
     page.getByText('situação vigente a partir da última atualização', { exact: true }),
   ).toBeVisible();
 
-  // Visão global em 3 grupos com ícones e a barra "pago vs falta".
-  await expect(page.getByText('Você pagou', { exact: true })).toBeVisible();
-  await expect(page.getByText('Progresso', { exact: true })).toBeVisible();
-  await expect(page.getByText('Pago vs falta', { exact: true })).toBeVisible();
-  const barraGlobal = page.getByRole('progressbar', { name: 'Pago em relação ao valor original' });
+  // Destaque principal (falta pagar e economia), resumo, barra de capital e
+  // secundários (total pago, amortizado e contagem).
+  await expect(page.getByText('Falta pagar', { exact: true })).toBeVisible();
+  await expect(page.getByText('Já economizado', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Você financiou R\$\s*1\.000\.000,00/)).toBeVisible();
+  const barraGlobal = page.getByRole('progressbar', { name: 'Capital pago em relação ao valor original' });
   await expect(barraGlobal).toBeVisible();
   await expect(barraGlobal).toHaveAttribute('aria-valuenow', /^\d+$/);
-  await expect(page.getByText(/pago · R\$\s*[\d.,]+ falta/)).toBeVisible();
+  await expect(page.getByText(/pago · R\$\s*[\d.,]+ restante/)).toBeVisible();
+  await expect(page.getByText('Total pago', { exact: true })).toBeVisible();
+  await expect(page.getByText('Amortizado', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pagamentos registrados', { exact: true })).toBeVisible();
 
   // Sem amortizações no período vigente, as estatísticas da situação atual
   // aparecem como "—" com a legenda discreta.
@@ -949,8 +951,9 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   // "Parcela N de M" da situação atual: só a contagem, sem "de 360".
   await expect(pagamentosCard(page)).toContainText('1');
   await expect(pagamentosCard(page)).not.toContainText('de 360');
-  await expect(valorOriginalCard(page)).toContainText(/R\$\s*1\.000\.000,00/);
-  await expect(quantoFaltaCard(page)).toContainText(/R\$\s*[\d.,]+/);
+  // O valor original aparece no resumo (o card dedicado foi removido).
+  await expect(page.getByText(/Você financiou R\$\s*1\.000\.000,00/)).toBeVisible();
+  await expect(faltaPagarCard(page)).toContainText(/R\$\s*[\d.,]+/);
   const totalAntes = parseBRL(await totalCard(page).innerText());
   const amortizadoAntes = parseBRL(await amortizadoCard(page).innerText());
   const economiaAntes = parseBRL(await economiaCard(page).innerText());

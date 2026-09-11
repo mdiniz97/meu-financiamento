@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   FilePen,
-  Gauge,
   Landmark,
   ListChecks,
   PiggyBank,
@@ -33,9 +32,53 @@ import { InvestPanel } from './invest-panel';
 
 const DIVERGENCIA_BANNER_LIMITE = 200;
 
-/** Métrica da faixa "Visão global": ícone discreto, rótulo e valor grande em
- *  mono tabular. O `dt` e o `dd` ficam irmãos no container para o locator do
- *  E2E (`getByText(label).locator('..')`) continuar lendo o valor. */
+/** Destaque principal da faixa "Visão global": número grande em mono tabular,
+ *  com ícone e legenda própria. O `dt` e o `dd` ficam irmãos no container para
+ *  o locator do E2E (`getByText(label).locator('..')`) ler o valor. */
+function DestaqueGlobal({
+  icon: Icon,
+  label,
+  valor,
+  caption,
+  tone = 'primary',
+}: {
+  icon: typeof Wallet;
+  label: string;
+  valor: ReactNode;
+  caption?: string;
+  tone?: 'primary' | 'emerald';
+}) {
+  const emerald = tone === 'emerald';
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      <span
+        className={
+          emerald
+            ? 'shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400'
+            : 'shrink-0 rounded-lg bg-[#820AD1]/10 p-2 text-[#820AD1]'
+        }
+      >
+        <Icon className="size-4" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+        <dd
+          className={
+            emerald
+              ? 'font-mono text-2xl font-semibold tabular-nums break-words text-emerald-600 dark:text-emerald-400 sm:text-3xl'
+              : 'font-mono text-2xl font-semibold tabular-nums break-words sm:text-3xl'
+          }
+        >
+          {valor}
+        </dd>
+        {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Métrica secundária da faixa "Visão global": menor que o destaque e com
+ *  ícone discreto. Mantém o par `dt`/`dd` irmãos para o locator do E2E. */
 function MetricaGlobal({
   icon: Icon,
   label,
@@ -49,37 +92,14 @@ function MetricaGlobal({
 }) {
   return (
     <div className="flex min-w-0 items-start gap-3">
-      <span className="shrink-0 rounded-lg bg-[#820AD1]/10 p-2 text-[#820AD1]">
+      <span className="shrink-0 rounded-lg bg-muted p-2 text-muted-foreground">
         <Icon className="size-4" />
       </span>
       <div className="flex min-w-0 flex-col gap-0.5">
         <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-        <dd className="font-mono text-xl font-semibold tabular-nums break-words">{valor}</dd>
+        <dd className="font-mono text-lg font-semibold tabular-nums break-words">{valor}</dd>
         {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
       </div>
-    </div>
-  );
-}
-
-/** Grupo de métricas da faixa "Visão global" com título e ícone próprios. */
-function GrupoGlobal({
-  icon: Icon,
-  titulo,
-  children,
-}: {
-  icon: typeof Wallet;
-  titulo: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold">
-        <span className="rounded-lg bg-[#820AD1]/10 p-1.5 text-[#820AD1]">
-          <Icon className="size-4" />
-        </span>
-        {titulo}
-      </p>
-      {children}
     </div>
   );
 }
@@ -150,14 +170,20 @@ export function Dashboard({
   const estadoInicial = state.states[0];
   const valorOriginal = estadoInicial ? estadoInicial.saldoDevedor : baseline.saldoDevedor;
 
-  // Barra "pago vs falta" do global: pago = valor original menos o saldo
-  // efetivo atual; a largura usa a fração paga (clamp 0..100) e o `pago`
-  // exibido nunca é negativo (o saldo pode subir por TR/correção no início).
+  // Barra de CAPITAL do global: pago = valor original menos o saldo efetivo
+  // atual; a largura usa a fração paga (clamp 0..100) e o `pago` exibido nunca
+  // é negativo (o saldo pode subir por TR/correção no início).
   const pagoOriginal = valorOriginal - saldoEfetivo;
   const pagoOriginalExibido = Math.max(0, pagoOriginal);
   const pctPagoOriginal = valorOriginal > 0
     ? Math.min(100, Math.max(0, Math.round((pagoOriginal / valorOriginal) * 100)))
     : null;
+
+  // Resumo em uma linha do acumulado do contrato. O percentual é o capital
+  // quitado (original menos saldo) clampado 0..100.
+  const resumoGlobal = valorOriginal > 0
+    ? `Você financiou ${formatBRL(valorOriginal)} e já pagou ${formatBRL(totalPago)} (${formatBRL(totalAmortizado)} em amortizações). Faltam ${formatBRL(saldoEfetivo)} do valor original; já quitou ${pctPagoOriginal ?? 0}%.`
+    : `Você já pagou ${formatBRL(totalPago)} (${formatBRL(totalAmortizado)} em amortizações).`;
 
   // Estatísticas da SITUAÇÃO ATUAL: usam só os extras do estado vigente (os
   // períodos superados já foram incorporados ao saldo do baseline novo).
@@ -226,57 +252,56 @@ export function Dashboard({
             desde o início do contrato, somando atualizações e portabilidades
           </p>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <GrupoGlobal icon={Wallet} titulo="Você pagou">
-            <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-              <MetricaGlobal icon={Wallet} label="Total pago" valor={formatBRL(totalPago)} />
-              <MetricaGlobal icon={TrendingUp} label="Amortizado" valor={formatBRL(totalAmortizado)} />
-              <MetricaGlobal
-                icon={PiggyBank}
-                label="Economizado"
-                valor={economiaPositiva ? formatBRL(economia) : '—'}
-              />
-            </dl>
-          </GrupoGlobal>
+        <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <DestaqueGlobal
+              icon={Target}
+              label="Falta pagar"
+              valor={formatBRL(saldoEfetivo)}
+              caption="saldo devedor projetado"
+            />
+            <DestaqueGlobal
+              icon={PiggyBank}
+              label="Já economizado"
+              valor={economiaPositiva ? formatBRL(economia) : '—'}
+              caption={economiaPositiva ? 'juros, correção e seguro evitados' : 'registre amortizações'}
+              tone="emerald"
+            />
+          </dl>
 
-          <GrupoGlobal icon={ListChecks} titulo="Progresso">
-            <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-              <MetricaGlobal
-                icon={ListChecks}
-                label="Pagamentos registrados"
-                valor={pagamentosRegistrados}
-                caption="parcelas pagas nos períodos"
-              />
-              <MetricaGlobal icon={Landmark} label="Valor original" valor={formatBRL(valorOriginal)} />
-              <MetricaGlobal icon={Target} label="Quanto falta" valor={formatBRL(saldoEfetivo)} />
-            </dl>
-          </GrupoGlobal>
+          <p className="text-sm text-muted-foreground">{resumoGlobal}</p>
 
-          <GrupoGlobal icon={Gauge} titulo="Pago vs falta">
-            {pctPagoOriginal == null ? (
-              <p className="text-sm text-muted-foreground">Valor original indisponível para medir o progresso.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="font-mono text-xl font-semibold tabular-nums break-words">{pctPagoOriginal}%</p>
+          {pctPagoOriginal != null && (
+            <div className="flex flex-col gap-1.5">
+              <div
+                role="progressbar"
+                aria-label="Capital pago em relação ao valor original"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={pctPagoOriginal}
+                className="h-2 w-full overflow-hidden rounded-full bg-[#820AD1]/10"
+              >
                 <div
-                  role="progressbar"
-                  aria-label="Pago em relação ao valor original"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={pctPagoOriginal}
-                  className="h-2 w-full overflow-hidden rounded-full bg-[#820AD1]/10"
-                >
-                  <div
-                    className="h-full rounded-full bg-[#820AD1]"
-                    style={{ width: `${pctPagoOriginal}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatBRL(pagoOriginalExibido)} pago · {formatBRL(saldoEfetivo)} falta
-                </p>
+                  className="h-full rounded-full bg-[#820AD1]"
+                  style={{ width: `${pctPagoOriginal}%` }}
+                />
               </div>
-            )}
-          </GrupoGlobal>
+              <p className="text-xs text-muted-foreground">
+                {formatBRL(pagoOriginalExibido)} pago · {formatBRL(saldoEfetivo)} restante
+              </p>
+            </div>
+          )}
+
+          <dl className="grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
+            <MetricaGlobal icon={Wallet} label="Total pago" valor={formatBRL(totalPago)} />
+            <MetricaGlobal icon={TrendingUp} label="Amortizado" valor={formatBRL(totalAmortizado)} />
+            <MetricaGlobal
+              icon={ListChecks}
+              label="Pagamentos registrados"
+              valor={pagamentosRegistrados}
+              caption="parcelas pagas nos períodos"
+            />
+          </dl>
         </div>
       </section>
 
