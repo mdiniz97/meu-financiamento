@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
@@ -14,11 +14,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
+import { CompareChart } from '@/components/simulation/charts/CompareChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
 import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
 import { economiaAcumulada, economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
+import { projecao as projetar } from '@/lib/finance/meu-financiamento/model';
 import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { DEFAULT_FORM, SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
 import { PayInstallmentDialog } from './pay-installment';
@@ -191,6 +193,26 @@ export function Dashboard({
   const economiaVigente = economiaAmortizacoes(params, baseline, pagas, extras);
   const economiaVigentePositiva = Math.round(economiaVigente * 100) > 0;
   const semAmortizacoesVigentes = extras.length === 0;
+
+  // Seção "Contratado vs real": o cenário CONTRATADO é o estado vigente SEM as
+  // amortizações extras (quita no prazo original); o REAL é a projeção vigente
+  // (state.projecao). Só calcula o contratado quando há extras: sem eles os dois
+  // cenários seriam idênticos. Ambas as curvas começam no saldo atual (antes das
+  // extras no contratado, saldoEfetivo no real) para deixar a divergência clara.
+  const projecaoContratada = useMemo(
+    () => (extras.length > 0 ? projetar(params, baseline, pagas, []) : null),
+    [extras.length, params, baseline, pagas],
+  );
+  const contratadoSaldos = useMemo(
+    () =>
+      projecaoContratada
+        ? [projecaoContratada.saldoEfetivo, ...projecaoContratada.parcelas.map((p) => p.saldo)]
+        : [],
+    [projecaoContratada],
+  );
+  // Mesmo eixo de parcelas futuras das duas curvas: o ponto 0 é o saldo atual.
+  const realSaldos = useMemo(() => [saldoEfetivo, ...parcelas.map((p) => p.saldo)], [saldoEfetivo, parcelas]);
+  const compararCenarios = extras.length > 0 && contratadoSaldos.length > 1;
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
   // (apagar pela tabela ou recalibrar some com a linha e com o Desfazer).
@@ -588,12 +610,40 @@ export function Dashboard({
 
       <ParcelasDoFinanciamento state={state} readOnly={readOnly} quitado={quitado} />
 
-      {parcelas.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg font-semibold">Projeção do saldo</h2>
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-display text-lg font-semibold">Contratado vs real</h2>
+          <p className="text-xs text-muted-foreground">
+            {compararCenarios
+              ? 'Estimativa do modelo a partir do saldo atual: quanto você pagaria sem amortizações e o que está acontecendo com elas.'
+              : parcelas.length > 0
+                ? 'Estimativa do modelo a partir do saldo atual. Registre uma amortização extra para comparar o contratado com o real.'
+                : 'Sem parcelas futuras para projetar neste momento.'}
+          </p>
+        </div>
+        {compararCenarios ? (
+          <div className="flex min-w-0 flex-col gap-2">
+            <CompareChart
+              base={contratadoSaldos}
+              withStrategy={realSaldos}
+              baseName="Contratado (sem amortizações)"
+              strategyName="Real (com suas amortizações)"
+            />
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <span className="h-2 w-4 shrink-0 rounded-full bg-[#9CA3AF]" aria-hidden />
+                Contratado (sem amortizações)
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-2 w-4 shrink-0 rounded-full bg-[#820AD1]" aria-hidden />
+                Real (com suas amortizações)
+              </li>
+            </ul>
+          </div>
+        ) : parcelas.length > 0 ? (
           <BalanceChart data={parcelas.map((p) => ({ month: p.parcelaNumero, saldo: p.saldo }))} />
-        </section>
-      )}
+        ) : null}
+      </section>
 
       {state.isUnlimited && !readOnly && !quitado && saldoEfetivo > 0 && (
         // Recomendações são exclusivas do plano Ilimitado; na leitura

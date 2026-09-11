@@ -246,6 +246,16 @@ test('fluxo completo do assinante cria o contrato e mostra o dashboard', async (
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360');
   await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toBeVisible();
 
+  // Seção Contratado vs real: sem amortizações registradas, o gráfico mostra a
+  // trajetória atual e convida a amortizar (sem curva contratada para comparar).
+  await expect(page.getByRole('heading', { name: 'Contratado vs real', exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      'Estimativa do modelo a partir do saldo atual. Registre uma amortização extra para comparar o contratado com o real.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+
   // O dia do vencimento informado no wizard (10) vale para a tabela de parcelas.
   await expect(page.getByRole('columnheader', { name: 'Vencimento' })).toBeVisible();
   const primeira = page.locator('tr[data-numero="141"]');
@@ -561,6 +571,18 @@ test('amortização extra pelo modal de pagamento encurta a quitação e aparece
   // Hero: a amortização liga a micro-métrica de economia (antes mostrava "—").
   await expect(economiaCard(page)).toContainText(/R\$\s*[\d.,]+/);
   expect(parseBRL(await economiaCard(page).innerText())).toBeGreaterThan(0);
+
+  // Seção Contratado vs real: com a amortização, as DUAS séries aparecem com a
+  // legenda que distingue o cenário sem amortizações do real.
+  await expect(page.getByRole('heading', { name: 'Contratado vs real', exact: true })).toBeVisible();
+  await expect(page.getByText('Contratado (sem amortizações)', { exact: true })).toBeVisible();
+  await expect(page.getByText('Real (com suas amortizações)', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      'Estimativa do modelo a partir do saldo atual: quanto você pagaria sem amortizações e o que está acontecendo com elas.',
+      { exact: true },
+    ),
+  ).toBeVisible();
 
   const quitacaoDepois = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   // Oráculo do modelo: a parcela paga (valor projetado) + a mesma amortização
