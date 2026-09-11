@@ -1025,21 +1025,34 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   await expect(page.locator('tr[data-numero="141"]')).toContainText('Paga');
+  await expect(pagamentosCard(page)).toContainText('1');
   const saldoAntes = parseBRL(await saldoCard(page).innerText());
 
+  // Edição NÃO retroativa (só troca o banco) cria um baseline novo: a paga 141
+  // passa a viver num estado SUPERADO. É o cenário em que o unique global
+  // (contractId, parcelaNumero) travava a competência reaberta.
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  let dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#editBank').fill('Itaú');
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.getByText(/Itaú · PRICE/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('tr[data-numero="141"]')).toContainText('Histórico');
+  await expect(pagamentosCard(page)).toContainText('1');
+
+  // Reabre a edição: a pendente vigente é a 142 e voltar para 141 é retroativo.
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('#editParcela')).toHaveValue('142');
   await expect(dialog.locator('#editDia')).toHaveValue('10');
   await expect(parseBRL(await dialog.locator('#editSaldo').inputValue())).toBeCloseTo(saldoAntes, 2);
 
-  // Parcela 141, anterior à pendente (142): aviso destrutivo e confirmação
-  // explícita obrigatória antes de habilitar o Salvar.
   await dialog.locator('#editParcela').fill('141');
   await expect(
     dialog.getByText(
-      'Editar para uma parcela anterior remove os pagamentos e amortizações posteriores deste período do cálculo. Os lançamentos ficam apenas nos estados anteriores do histórico.',
+      'Editar para uma parcela anterior remove os pagamentos e amortizações posteriores do cálculo e do histórico. Esta ação não pode ser desfeita.',
     ),
   ).toBeVisible();
   const salvar = dialog.getByRole('button', { name: 'Salvar alterações', exact: true });
@@ -1050,10 +1063,13 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
   // A página volta a mostrar a parcela 141; o lançamento do estado superado foi
-  // removido (não aparece em lugar nenhum) e a linha volta a "Em aberto".
+  // removido do cálculo E do histórico (a competência reaberta fica desocupada).
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
-  await expect(page.locator('tr[data-numero="141"]')).toContainText('Em aberto');
+  const linha141 = page.locator('tr[data-numero="141"]');
+  await expect(linha141).toContainText('Em aberto');
+  await expect(linha141).not.toContainText('Histórico');
+  await expect(pagamentosCard(page)).toContainText('0');
   await expect(page.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
 
   // A parcela reaberta pode ser paga de novo, sem colisão no unique.

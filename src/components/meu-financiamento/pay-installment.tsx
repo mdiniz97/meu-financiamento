@@ -77,7 +77,6 @@ export function PayInstallmentDialog({
   parcelaNumero,
   defaultValor,
   dataVencimento,
-  initialValor,
   initialAporte,
   estado,
   onDone,
@@ -88,8 +87,6 @@ export function PayInstallmentDialog({
   defaultValor: number;
   /** Vencimento estimado da parcela; pré-preenche a data do pagamento. */
   dataVencimento: string;
-  /** Valor inicial do campo; defaultValor quando ausente. */
-  initialValor?: number;
   /** Aporte extra pré-preenchido (sugestão), enviado explícito à action. */
   initialAporte?: number;
   /** Estado vigente para pré-visualizar o efeito do excedente amortizado. */
@@ -111,7 +108,6 @@ export function PayInstallmentDialog({
           parcelaNumero={parcelaNumero}
           defaultValor={defaultValor}
           dataVencimento={dataVencimento}
-          initialValor={initialValor}
           initialAporte={initialAporte}
           estado={estado}
           pending={pending}
@@ -131,7 +127,6 @@ function PayInstallmentForm({
   parcelaNumero,
   defaultValor,
   dataVencimento,
-  initialValor,
   initialAporte,
   estado,
   pending,
@@ -142,7 +137,6 @@ function PayInstallmentForm({
   parcelaNumero: number;
   defaultValor: number;
   dataVencimento: string;
-  initialValor?: number;
   initialAporte?: number;
   estado: EstadoProjecao;
   pending: boolean;
@@ -158,7 +152,7 @@ function PayInstallmentForm({
   const aporteId = `${uid}-aporte`;
   const dataId = `${uid}-data`;
   const parcelaProjetada = roundCents(defaultValor);
-  const [valorPago, setValorPago] = useState(() => roundCents(initialValor ?? defaultValor));
+  const [valorPago, setValorPago] = useState(() => roundCents(defaultValor));
   const [aporte, setAporte] = useState(() => (initialAporte != null ? roundCents(initialAporte) : 0));
   const [dataPagamento, setDataPagamento] = useState(dataVencimento);
   const [modo, setModo] = useState<'term' | 'payment'>('term');

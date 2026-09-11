@@ -17,7 +17,6 @@ import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateContract } from '@/app/(app)/meu-financiamento/actions';
 import type { ContractParams } from '@/lib/finance/meu-financiamento/model';
-import { todayISO } from '@/lib/meu-financiamento/dates';
 import { parseDecimal } from '@/lib/utils';
 
 function roundCents(value: number): number {
@@ -39,6 +38,7 @@ function EditContractForm({
   params,
   saldoEfetivo,
   primeiraPendente,
+  dataBase: dataBaseInicial,
   diaVencimento,
   stateVersion,
   pending,
@@ -48,6 +48,7 @@ function EditContractForm({
   params: ContractParams;
   saldoEfetivo: number;
   primeiraPendente: number;
+  dataBase: string;
   diaVencimento: number;
   stateVersion: number;
   pending: boolean;
@@ -62,7 +63,7 @@ function EditContractForm({
   const [insuranceMonthly, setInsuranceMonthly] = useState(roundCents(params.insuranceMonthly));
   const [parcelasTotais, setParcelasTotais] = useState(params.parcelasTotais);
   const [saldoDevedor, setSaldoDevedor] = useState(roundCents(saldoEfetivo));
-  const [dataBase, setDataBase] = useState(todayISO());
+  const [dataBase, setDataBase] = useState(dataBaseInicial);
   const [proximaParcela, setProximaParcela] = useState(primeiraPendente);
   const [dia, setDia] = useState(diaVencimento);
   const [confirmouRetroativo, setConfirmouRetroativo] = useState(false);
@@ -110,7 +111,7 @@ function EditContractForm({
 
   // Limites do modelo: taxa efetiva 0..100% a.a., TR 0..10% a.m., seguro >= 0.
   const invalido = bank.trim() === ''
-    || annualRate === undefined || !Number.isFinite(annualRate) || annualRate <= 0 || annualRate > 100
+    || annualRate === undefined || !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 100
     || trMonthly === undefined || !Number.isFinite(trMonthly) || trMonthly < 0 || trMonthly > 10
     || !Number.isFinite(insuranceMonthly) || insuranceMonthly < 0
     || !Number.isInteger(parcelasTotais) || parcelasTotais < 1 || parcelasTotais > 600
@@ -281,8 +282,8 @@ function EditContractForm({
           {parcelaAnterior && (
             <div className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
               <p role="status">
-                Editar para uma parcela anterior remove os pagamentos e amortizações posteriores deste período do
-                cálculo. Os lançamentos ficam apenas nos estados anteriores do histórico.
+                Editar para uma parcela anterior remove os pagamentos e amortizações posteriores do cálculo e do
+                histórico. Esta ação não pode ser desfeita.
               </p>
               <label className="flex items-start gap-2 font-medium">
                 <input
@@ -331,6 +332,7 @@ export function EditContractDialog({
   params,
   saldoEfetivo,
   primeiraPendente,
+  dataBase,
   diaVencimento,
   stateVersion,
 }: {
@@ -342,6 +344,8 @@ export function EditContractDialog({
   saldoEfetivo: number;
   /** Pré-preenchimento de "Número da próxima parcela". */
   primeiraPendente: number;
+  /** Pré-preenchimento de "Data-base" (baseline vigente). */
+  dataBase: string;
   /** Pré-preenchimento de "Dia do vencimento". */
   diaVencimento: number;
   /** Versão do baseline vigente (guarda de concorrência contra outra aba). */
@@ -361,6 +365,7 @@ export function EditContractDialog({
           params={params}
           saldoEfetivo={saldoEfetivo}
           primeiraPendente={primeiraPendente}
+          dataBase={dataBase}
           diaVencimento={diaVencimento}
           stateVersion={stateVersion}
           pending={pending}

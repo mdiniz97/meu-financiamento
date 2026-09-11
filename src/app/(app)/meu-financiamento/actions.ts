@@ -4,7 +4,7 @@ import { and, desc, eq, gte, or, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { requireUnlimited } from '@/lib/meu-financiamento/auth';
-import { getContract, recomputeState, splitMovements, toBaseline, toContractParams, upsertDraft } from '@/lib/meu-financiamento/repo';
+import { recomputeState, splitMovements, toBaseline, toContractParams, upsertDraft } from '@/lib/meu-financiamento/repo';
 import type {
   CreateContractInput,
   EditPaymentPatch,
@@ -505,18 +505,19 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
     // versão que o recompute não consegue projetar.
     if (!projecaoValida(novosParams, novoBaseline)) return { ok: false, error: NAO_AMORTIZA };
 
-    // Edição retroativa = voltar no tempo: apaga do estado vigente as parcelas
-    // com número >= à nova posição e as amortizações com data >= à data-base
-    // nova. Congelá-las deixaria competências já registradas reabertas com o
-    // unique (contractId, parcelaNumero) ocupado e o pagamento seguinte
-    // colidiria para sempre (23505 engolido). A remoção é só do estado vigente:
-    // lançamentos de estados anteriores continuam no histórico. Roda depois de
+    // Edição retroativa = voltar no tempo: apaga do CONTRATO INTEIRO (todos os
+    // estados) as parcelas com número >= à nova posição e as amortizações com
+    // data >= à data-base nova. O unique (contractId, parcelaNumero) é global,
+    // então um movement de um estado já SUPERADO continuaria ocupando a
+    // competência reaberta: nem pagar (23505 / "já tem lançamento de um período
+    // anterior") nem apagar (deleteMovement recusa estado superado) resolveriam.
+    // Remover de todos os estados também significa que os lançamentos
+    // posteriores somem do histórico, conforme o aviso do dialog. Roda depois de
     // TODAS as validações e imediatamente antes do insert: um retorno de erro
     // aqui depois deixaria a remoção commitada sem o estado novo.
     if (retroativo) {
       await tx.delete(schema.movements).where(and(
         eq(schema.movements.contractId, contract.id),
-        eq(schema.movements.stateId, state.id),
         or(
           and(
             eq(schema.movements.type, 'parcela'),
@@ -694,49 +695,75 @@ export async function deleteMovement(id: string): Promise<MutationResult> {
   const limited = await unlimitedError(userId);
   if (limited) return { ok: false, error: limited };
 
-  const data = await getContract(userId);
-  if (!data) return { ok: false, error: 'Contrato não encontrado' };
-  const [movement] = await db
-    .select()
-    .from(schema.movements)
-    .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)))
-    .limit(1);
-  if (!movement) return { ok: false, error: 'Movimento não encontrado' };
-  // Guarda dupla contra estado superado: além de bloquear exclusão de parcela
-  // do meio do bloco, movimentos de baselines antigos (histórico absorvido pela
-  // recalibração) não podem ser apagados silenciosamente.
-  if (movement.stateId !== data.state.id) {
-    return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
-  }
+  // Transação com lock do usuário (mesmo padrão de pay/recalibrate/editPayment):
+  // as checagens de estado e de contiguidade são relidas DENTRO da tx, contra o
+  // baseline vigente no commit. Fora da tx, outra aba poderia pagar entre a
+  // leitura e o delete e o guard "só a última paga" decidiria com dados velhos.
+  type Outcome = { ok: true } | { ok: false; error: string };
+  const outcome = await db.transaction(async (tx): Promise<Outcome> => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+    const contract = await tx.query.contracts.findFirst({
+      where: eq(schema.contracts.userId, userId),
+    });
+    if (!contract) return { ok: false, error: 'Contrato não encontrado' };
+    const [state] = await tx
+      .select()
+      .from(schema.contractStates)
+      .where(eq(schema.contractStates.contractId, contract.id))
+      .orderBy(desc(schema.contractStates.version))
+      .limit(1);
+    if (!state) return { ok: false, error: 'Contrato sem estado' };
 
-  if (movement.type === 'parcela') {
-    // Apagar parcela do meio do bloco quebra a contiguidade que o modelo exige
-    // (projecao lança 'Parcelas pagas não são contínuas') e trava o contrato:
-    // só a parcela de maior número entre as pagas do estado vigente pode sair.
-    // A amortização vinculada (groupId) não entra em pagas, então o guard segue
-    // valendo só para a parcela.
-    const { pagas } = splitMovements(data.movements);
-    const maxPaga = pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
-    if (movement.parcelaNumero !== maxPaga) {
-      return { ok: false, error: 'Parcela excluída criaria lacuna; apague da mais recente para a mais antiga' };
+    const [movement] = await tx
+      .select()
+      .from(schema.movements)
+      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, contract.id)))
+      .limit(1);
+    if (!movement) return { ok: false, error: 'Movimento não encontrado' };
+    // Guarda dupla contra estado superado: além de bloquear exclusão de parcela
+    // do meio do bloco, movimentos de baselines antigos (histórico absorvido pela
+    // recalibração) não podem ser apagados silenciosamente.
+    if (movement.stateId !== state.id) {
+      return { ok: false, error: 'Lançamento anterior à última recalibração; recalibre novamente se precisar corrigir' };
     }
-  }
 
-  // Pagamento com excedente: parcela e amortização extra foram gravadas com o
-  // mesmo groupId; apagar a parcela apaga o grupo inteiro na mesma tx.
-  await db.transaction(async (tx) => {
+    if (movement.type === 'parcela') {
+      // Apagar parcela do meio do bloco quebra a contiguidade que o modelo exige
+      // (projecao lança 'Parcelas pagas não são contínuas') e trava o contrato:
+      // só a parcela de maior número entre as pagas do estado vigente pode sair.
+      // A amortização vinculada (groupId) não entra em pagas, então o guard segue
+      // valendo só para a parcela.
+      const movements = await tx
+        .select()
+        .from(schema.movements)
+        .where(and(
+          eq(schema.movements.contractId, contract.id),
+          eq(schema.movements.stateId, state.id),
+        ));
+      const { pagas } = splitMovements(movements);
+      const maxPaga = pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
+      if (movement.parcelaNumero !== maxPaga) {
+        return { ok: false, error: 'Parcela excluída criaria lacuna; apague da mais recente para a mais antiga' };
+      }
+    }
+
+    // Pagamento com excedente: parcela e amortização extra foram gravadas com o
+    // mesmo groupId; apagar a parcela apaga o grupo inteiro na mesma tx.
     if (movement.type === 'parcela' && movement.groupId) {
       await tx
         .delete(schema.movements)
         .where(and(
-          eq(schema.movements.contractId, data.contract.id),
+          eq(schema.movements.contractId, contract.id),
           eq(schema.movements.groupId, movement.groupId),
         ));
-      return;
+      return { ok: true };
     }
     await tx
       .delete(schema.movements)
-      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, data.contract.id)));
+      .where(and(eq(schema.movements.id, id), eq(schema.movements.contractId, contract.id)));
+    return { ok: true };
   });
+
+  if (!outcome.ok) return outcome;
   return (await stateAfter(userId)) ?? { ok: false, error: 'Estado inconsistente' };
 }

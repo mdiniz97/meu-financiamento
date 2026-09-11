@@ -147,7 +147,7 @@ export const movements = pgTable('movements', {
     .references(() => contracts.id, { onDelete: 'cascade' }),
   stateId: uuid('state_id')
     .notNull()
-    .references(() => contractStates.id),
+    .references(() => contractStates.id, { onDelete: 'cascade' }),
   type: text('type').notNull(), // 'parcela' | 'amortizacao'
   parcelaNumero: integer('parcela_numero'), // type=parcela: obrigatório; type=amortizacao: null
   valor: doublePrecision('valor').notNull(),

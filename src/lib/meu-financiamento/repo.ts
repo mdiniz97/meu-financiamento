@@ -262,10 +262,6 @@ export async function upsertDraft(userId: string, payload: unknown): Promise<voi
     });
 }
 
-export async function clearDraft(userId: string): Promise<void> {
-  await db.delete(schema.contractDrafts).where(eq(schema.contractDrafts.userId, userId));
-}
-
 export async function getPageData(userId: string): Promise<PageData> {
   const bundle = await loadBundle(userId);
   const draft = await getDraft(userId);

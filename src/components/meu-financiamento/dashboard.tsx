@@ -680,6 +680,7 @@ export function Dashboard({
         params={params}
         saldoEfetivo={saldoEfetivo}
         primeiraPendente={primeiraPendente}
+        dataBase={baseline.dataBase}
         diaVencimento={diaVencimento}
         stateVersion={baseline.version}
       />
