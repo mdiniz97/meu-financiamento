@@ -13,6 +13,7 @@ import type {
 } from '@/lib/finance/meu-financiamento/model';
 import { limiarUmaParcela } from '@/lib/finance/meu-financiamento/sugestao';
 import { economiaDoAporte, limiarParcelaEngine } from '@/lib/finance/meu-financiamento/economia';
+import { cenarioAporte } from '@/lib/finance/meu-financiamento/aporte-cenario';
 import { todayISO } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 
@@ -82,6 +83,9 @@ export function SugestaoAmortizacao({
       origem: 'proprio',
       modo: 'term',
     });
+    // Cenário compartilhado com o preview dos formulários (mesmo desvio de
+    // arredondamento): evita o card dizer "elimina N" e o preview "não reduz".
+    const estado = { params, baseline, pagas, extras, projecao: atual };
 
     // Ideal: precisa cortar 1 parcela na TELA (model: parcela paga + aporte) e
     // no E se? (engine: aporte pontual). O maior dos dois limiares mínimos
@@ -126,9 +130,8 @@ export function SugestaoAmortizacao({
         ideal = idealValor;
         // Efeito exibido no cenário ATUAL (sem a parcela do mês): quantas
         // parcelas o aporte elimina da projeção vigente e o valor da última
-        // parcela que deixa de existir.
-        const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(idealValor)]);
-        const eliminadas = Math.max(1, atual.parcelas.length - comAporte.parcelas.length);
+        // parcela que deixa de existir. Mesma conta do preview dos forms.
+        const eliminadas = Math.max(1, cenarioAporte(estado, idealValor, 'term')?.parcelasEliminadas ?? 1);
         const valorUltima = atual.parcelas.at(-1)?.parcela;
         idealEfeito = `elimina ${eliminadas} ${eliminadas === 1 ? 'parcela' : 'parcelas'}${
           valorUltima != null ? ` (${formatBRL(valorUltima)})` : ''
@@ -136,12 +139,10 @@ export function SugestaoAmortizacao({
       }
     }
 
-    // Efeito no prazo das opções meia/extra: mesma conta do card ideal,
-    // quantas parcelas a projeção vigente perde com o aporte term. Zero vira
-    // "não reduz o prazo" (amortização pequena pode não cortar parcela).
+    // Efeito no prazo das opções meia/extra pelo mesmo cenário do preview
+    // (zero vira "não reduz o prazo": amortização pequena pode não cortar).
     const efeitoPrazo = (aporte: number): string => {
-      const comAporte = projecao(params, baseline, pagas, [...extras, aporteModelo(aporte)]);
-      const eliminadas = atual.parcelas.length - comAporte.parcelas.length;
+      const eliminadas = cenarioAporte(estado, aporte, 'term')?.parcelasEliminadas ?? 0;
       return eliminadas > 0
         ? `elimina ${eliminadas} ${eliminadas === 1 ? 'parcela' : 'parcelas'}`
         : 'não reduz o prazo';

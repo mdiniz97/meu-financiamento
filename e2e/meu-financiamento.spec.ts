@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { todayISO } from '../src/lib/meu-financiamento/dates';
 import type { ContractParams } from '../src/lib/finance/meu-financiamento/model';
 import { projecao } from '../src/lib/finance/meu-financiamento/model';
+import { formatBRL } from '../src/lib/utils';
 
 // Contrato padrão dos testes: Caixa PRICE 10,5% a.a., TR 0,17%, seguro R$ 100,
 // 360 parcelas, próxima 141, saldo R$ 1.000.000. Oráculo do modelo puro.
@@ -467,13 +468,25 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   const quitacaoAntes = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
   expect(quitacaoAntes).toBe(360);
 
+  // Valores relativos ao saldo: 0,01% fica abaixo do mínimo que corta 1
+  // parcela; 20% corta várias. Exercita os dois ramos do preview.
+  const saldoInicial = parseBRL(await saldoCard(page).innerText());
+  const valorPequeno = Math.round(saldoInicial * 0.0001);
+  const valorGrande = Math.round(saldoInicial * 0.2);
+
   await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  // Preview antes de aplicar: valor pequeno não corta parcela; valor grande sim.
-  await dialog.locator('#amortValor').fill('1000');
+  await dialog.locator('#amortValor').fill(centsOf(valorPequeno));
   await expect(dialog.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
-  await dialog.locator('#amortValor').fill('10000000');
+  await dialog.locator('#amortValor').fill(centsOf(valorGrande));
+  await expect(dialog.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
+  // Modo payment: o prazo não muda e o preview estima a parcela seguinte (mês 2
+  // da engine); voltar ao term restaura o efeito no prazo.
+  await dialog.getByRole('radio', { name: 'Reduziu a parcela (prazo igual)' }).click();
+  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('não reduz o prazo');
+  await expect(dialog.locator('[data-efeito-aporte]')).toContainText('Parcela estimada:');
+  await dialog.getByRole('radio', { name: 'Reduziu o prazo (parcela igual)' }).click();
   await expect(dialog.locator('[data-efeito-aporte]')).toContainText(/elimina \d+ parcela/);
   await dialog.locator('#amortData').fill(todayISO());
   await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
@@ -485,18 +498,17 @@ test('amortização extra modo term encurta a quitação e aparece no histórico
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
   await expect(historico).toContainText('Dinheiro próprio');
   await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
-  await expect(historico).toContainText(/R\$\s*100\.000,00/);
+  await expect(historico).toContainText(formatBRL(valorGrande));
 
   // Hero: a amortização liga a micro-métrica de economia (antes mostrava "—").
   await expect(economiaCard(page)).toContainText(/R\$\s*[\d.,]+/);
   expect(parseBRL(await economiaCard(page).innerText())).toBeGreaterThan(0);
 
   const quitacaoDepois = parcelaNumeroDaQuitacao(await quitacaoCard(page).innerText());
-  // Oráculo do modelo: o mesmo pagamento de R$ 100.000 no modelo puro deriva a
-  // parcela de quitação — o número cravado (310) viraria manutenção silenciosa
-  // se a engine mudar.
+  // Oráculo do modelo: a mesma amortização no modelo puro deriva a parcela de
+  // quitação — o número cravado viraria manutenção silenciosa se a engine mudar.
   const oracle = projecao(PARAMS_E2E, baselineDeHoje(), [], [
-    { dataPagamento: todayISO(), valor: 100000, origem: 'proprio', modo: 'term' },
+    { dataPagamento: todayISO(), valor: valorGrande, origem: 'proprio', modo: 'term' },
   ]);
   expect(quitacaoDepois).toBe(oracle.quitaEm);
 });

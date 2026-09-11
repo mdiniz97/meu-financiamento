@@ -1,30 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { simulate } from '@/lib/finance/engine';
-import { projecao, toLoanInput } from '@/lib/finance/meu-financiamento/model';
-import type {
-  AmortizacaoExtra,
-  Baseline,
-  ContractParams,
-  ParcelaPaga,
-  Projecao,
-} from '@/lib/finance/meu-financiamento/model';
-import { economiaDoAporte } from '@/lib/finance/meu-financiamento/economia';
+import { cenarioAporte, type EstadoCenarioAporte } from '@/lib/finance/meu-financiamento/aporte-cenario';
 import { formatBRL } from '@/lib/utils';
 
-/** Estado vigente do contrato necessário para simular o efeito de um aporte. */
-export interface EstadoProjecao {
-  params: ContractParams;
-  baseline: Baseline;
-  pagas: ParcelaPaga[];
-  extras: AmortizacaoExtra[];
-  projecao: Projecao;
-}
-
-function roundCents(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+export type EstadoProjecao = EstadoCenarioAporte;
 
 function textoParcelas(n: number): string {
   return `${n} ${n === 1 ? 'parcela' : 'parcelas'}`;
@@ -32,64 +12,31 @@ function textoParcelas(n: number): string {
 
 /**
  * Preview do efeito de um aporte no estado vigente: economia total na métrica
- * do painel "E se?" (`economiaDoAporte`) e, no modo "Reduziu o prazo", quantas
- * parcelas a projeção do estado perde (`projecao` com o aporte term). No modo
- * "Reduziu a parcela" o prazo não muda; mostra a parcela estimada quando pedida
- * e menor que a parcela atual.
+ * do painel "E se?" e, no modo "Reduziu o prazo", quantas parcelas a projeção
+ * perde. No modo "Reduziu a parcela" o prazo não muda; mostra a parcela
+ * estimada quando pedida e menor que a parcela atual. Os números vêm do mesmo
+ * helper `cenarioAporte` do card de sugestão.
  */
 export function EfeitoAporte({
   estado,
   aporte,
   modo,
-  caption,
   mostrarParcelaEstimada = false,
 }: {
   estado: EstadoProjecao;
   aporte: number;
   modo: 'term' | 'payment';
-  /** Texto auxiliar do modo payment; ausente não renderiza caption. */
-  caption?: string;
   /** No modo payment, exibe a parcela estimada quando a engine a reduz. */
   mostrarParcelaEstimada?: boolean;
 }) {
-  const { params, baseline, pagas, extras, projecao: atual } = estado;
-  const efeito = useMemo(() => {
-    if (!Number.isFinite(aporte) || aporte <= 0) return null;
-    if (atual.saldoEfetivo <= 0) return null;
-    const meses = params.parcelasTotais - atual.primeiraPendente + 1;
-    if (meses < 1) return null;
-    const input = { ...toLoanInput(params, baseline), principal: atual.saldoEfetivo, months: meses };
-    const economia = economiaDoAporte(input, aporte, modo);
-    if (modo === 'payment') {
-      let parcelaEstimada: number | null = null;
-      if (mostrarParcelaEstimada) {
-        try {
-          const cenario = simulate(input, {
-            extraLumpSum: [{ month: 1, amount: aporte, reduceMode: 'payment' }],
-            reduceMode: 'payment',
-          });
-          const proxima = cenario.installments[1]?.parcela ?? cenario.installments[0]?.parcela ?? null;
-          const atualParcela = atual.parcelas[0]?.parcela ?? null;
-          parcelaEstimada =
-            proxima != null && atualParcela != null && proxima < atualParcela - 0.005
-              ? roundCents(proxima)
-              : null;
-        } catch {
-          parcelaEstimada = null;
-        }
-      }
-      return { economia, parcelas: 0, parcelaEstimada };
-    }
-    const comAporte = projecao(params, baseline, pagas, [
-      ...extras,
-      { dataPagamento: baseline.dataBase, valor: aporte, origem: 'proprio', modo: 'term' },
-    ]);
-    return {
-      economia,
-      parcelas: Math.max(0, atual.parcelas.length - comAporte.parcelas.length),
-      parcelaEstimada: null,
-    };
-  }, [params, baseline, pagas, extras, atual, aporte, modo, mostrarParcelaEstimada]);
+  const { params, baseline, pagas, extras, projecao } = estado;
+  const efeito = useMemo(
+    () =>
+      cenarioAporte({ params, baseline, pagas, extras, projecao }, aporte, modo, {
+        parcelaEstimada: mostrarParcelaEstimada,
+      }),
+    [params, baseline, pagas, extras, projecao, aporte, modo, mostrarParcelaEstimada],
+  );
 
   if (!efeito) return null;
 
@@ -113,10 +60,9 @@ export function EfeitoAporte({
               <span className="font-mono tabular-nums">{formatBRL(efeito.parcelaEstimada)}</span>
             </p>
           )}
-          {caption && <p className="text-muted-foreground">{caption}</p>}
         </>
-      ) : efeito.parcelas > 0 ? (
-        <p className="text-muted-foreground">{`elimina ${textoParcelas(efeito.parcelas)}`}</p>
+      ) : efeito.parcelasEliminadas > 0 ? (
+        <p className="text-muted-foreground">{`elimina ${textoParcelas(efeito.parcelasEliminadas)}`}</p>
       ) : (
         <p className="text-muted-foreground">não reduz o prazo</p>
       )}

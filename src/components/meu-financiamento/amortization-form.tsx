@@ -137,12 +137,7 @@ function AmortizacaoForm({
             Valor amortizado (R$)
           </label>
           <MoneyInput id="amortValor" name="valor" value={valor} onValid={setValor} disabled={pending} />
-          <EfeitoAporte
-            estado={estado}
-            aporte={valor}
-            modo={modo}
-            caption="neste modo a parcela cai; o prazo não muda."
-          />
+          <EfeitoAporte estado={estado} aporte={valor} modo={modo} mostrarParcelaEstimada />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="amortData" className="text-sm font-medium text-foreground">
