@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, FilePen, Landmark, Pencil, RefreshCw, Trash2, TrendingDown } from 'lucide-react';
+import { Check, CheckCircle2, FilePen, Landmark, Pencil, RefreshCw, Trash2, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
-import { buildTimelineGroups, paginarGrupos } from '@/lib/meu-financiamento/timeline';
+import { buildTimelineGroups, modoLabel, origemLabel, paginarGrupos } from '@/lib/meu-financiamento/timeline';
 import type { TimelineEvent } from '@/lib/meu-financiamento/timeline';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
@@ -30,7 +30,7 @@ function TimelineIcon({ kind }: { kind: TimelineEvent['kind'] }) {
     case 'parcela':
       return (
         <span className={`${wrapper} bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300`}>
-          <Check className="size-4" />
+          <CheckCircle2 className="size-4" />
         </span>
       );
     case 'amortizacao':
@@ -130,37 +130,48 @@ function ParcelaItem({ event, podeAgir }: { event: ParcelaEvent; podeAgir: boole
   }
 
   return (
-    <li className="flex gap-3 border-b border-border/60 py-3 last:border-b-0">
+    <li
+      data-timeline-evento="parcela"
+      className="flex items-start gap-3 border-b border-border/60 px-1 py-4 transition-colors last:border-b-0 hover:bg-muted/40"
+    >
       <TimelineIcon kind="parcela" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className="text-sm">{event.text}</p>
-          {podeAgir && (
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={abrirEdicao}
-                disabled={busy !== null}
-                aria-label={`Editar parcela ${event.numero}`}
-              >
-                <Pencil className="size-3.5" />
-                Editar
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => void apagar()}
-                disabled={busy !== null}
-                aria-label={`Apagar parcela ${event.numero}`}
-              >
-                <Trash2 className="size-3.5" />
-                {busy === 'delete' ? 'Apagando...' : 'Apagar'}
-              </Button>
-            </div>
-          )}
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="text-sm font-medium text-foreground">Parcela {event.numero} paga</p>
+            <p className="text-xs text-muted-foreground">em {formatDataBr(event.data)}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+              {formatBRL(event.valor)}
+            </span>
+            {podeAgir && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={abrirEdicao}
+                  disabled={busy !== null}
+                  aria-label={`Editar parcela ${event.numero}`}
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void apagar()}
+                  disabled={busy !== null}
+                  aria-label={`Apagar parcela ${event.numero}`}
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
         {editando && podeAgir && (
           <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
@@ -285,40 +296,50 @@ function AmortizacaoItem({ event, podeAgir }: { event: AmortizacaoEvent; podeAgi
   }
 
   return (
-    <li className="flex gap-3 border-b border-border/60 py-3 last:border-b-0">
+    <li
+      data-timeline-evento="amortizacao"
+      className="flex items-start gap-3 border-b border-border/60 px-1 py-4 transition-colors last:border-b-0 hover:bg-muted/40"
+    >
       <TimelineIcon kind="amortizacao" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-sm">{event.text}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">{formatDataBr(event.data)}</p>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="text-sm font-medium text-foreground">Amortização extra</p>
+            <p className="text-xs text-muted-foreground">
+              {origemLabel(event.origem)} · {modoLabel(event.modo)} · {formatDataBr(event.data)}
+            </p>
           </div>
-          {podeAgir && (
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={abrirEdicao}
-                disabled={busy !== null}
-                aria-label="Editar amortização"
-              >
-                <Pencil className="size-3.5" />
-                Editar
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => void apagar()}
-                disabled={busy !== null}
-                aria-label="Apagar amortização"
-              >
-                <Trash2 className="size-3.5" />
-                {busy === 'delete' ? 'Apagando...' : 'Apagar'}
-              </Button>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <span data-timeline-valor className="font-mono text-sm font-semibold tabular-nums text-[#820AD1]">
+              {formatBRL(event.valor)}
+            </span>
+            {podeAgir && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={abrirEdicao}
+                  disabled={busy !== null}
+                  aria-label="Editar amortização"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void apagar()}
+                  disabled={busy !== null}
+                  aria-label="Apagar amortização"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
         {editando && podeAgir && (
           <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
@@ -458,7 +479,7 @@ export function Timeline({
                     </div>
                   </div>
                   {events.length > 0 && (
-                    <ol className="ml-11 flex flex-col rounded-xl bg-muted/30 px-3">
+                    <ul className="ml-11 flex flex-col border-l border-border/60 pl-3">
                       {events.map((evento) => {
                         if (evento.kind === 'parcela') {
                           return (
@@ -480,7 +501,7 @@ export function Timeline({
                         }
                         return null;
                       })}
-                    </ol>
+                    </ul>
                   )}
                   {events.length === 0 && ocultos > 0 && (
                     <p className="ml-11 text-xs text-muted-foreground">

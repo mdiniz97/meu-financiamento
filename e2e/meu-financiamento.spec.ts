@@ -340,12 +340,12 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
 
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
-  await expect(historico).toContainText(/Parcela 141 ·/);
+  await expect(historico).toContainText(/Parcela 141 paga/);
   // O valor REGISTRADO da amortização é exatamente o aporte exibido no card
   // (aporte explícito no servidor), não alguns reais a menos.
-  const eventoAmortizacao = historico.getByText(/Amortização extra de/).first();
+  const eventoAmortizacao = historico.locator('[data-timeline-evento="amortizacao"]').first();
   await expect(eventoAmortizacao).toBeVisible();
-  expect(parseBRL(await eventoAmortizacao.innerText())).toBeCloseTo(ideal, 2);
+  expect(parseBRL(await eventoAmortizacao.locator('[data-timeline-valor]').innerText())).toBeCloseTo(ideal, 2);
 
   // Tabela de parcelas: o aporte fica na linha da última paga anterior à data
   // (a 141, paga com o aporte), com o valor exato registrado e Total = Parcela +
@@ -391,7 +391,7 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await expect
     .poll(
       async () =>
-        (await historico.getByText(/Amortização extra de/).allInnerTexts())
+        (await historico.locator('[data-timeline-evento="amortizacao"] [data-timeline-valor]').allInnerTexts())
           .map(parseBRL)
           .some((v) => Math.abs(v - extra) < 0.005),
       { timeout: 20_000 },
@@ -421,7 +421,7 @@ test('marcar boleto com o valor sugerido move a próxima parcela e o saldo segue
   expect(paga).toBeGreaterThan(0);
 
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
   await expect(historico.getByText(/R\$\s*[\d.,]+/).first()).toBeVisible();
   await expect(page.getByText(/divergem do modelo/)).toHaveCount(0);
 });
@@ -493,7 +493,7 @@ test('excedente do pagamento vira amortização extra vinculada e desfazer apaga
   await expect(historico).toContainText('Dinheiro próprio');
   await expect(historico).toContainText('Reduziu o prazo (parcela igual)');
   await expect(historico).toContainText(/R\$\s*500,00/);
-  await expect(historico).toContainText(/Parcela 141 ·/);
+  await expect(historico).toContainText(/Parcela 141 paga/);
 
   // Desfazer a parcela apaga o grupo inteiro (parcela + amortização extra).
   page.once('dialog', (dialog) => dialog.accept());
@@ -654,7 +654,7 @@ test('desfazer o pagamento pelo card volta a parcela 141 e limpa a timeline', as
   await expect(page.getByText(/Parcela 141 paga em/)).toHaveCount(0, { timeout: 20_000 });
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: TITULO_CARD_MES, exact: true })).toBeVisible();
-  await expect(page.getByText(/Parcela 141 ·/)).toHaveCount(0);
+  await expect(page.getByText(/Parcela 141 paga/)).toHaveCount(0);
   await expect(page.getByText('Nenhum lançamento ainda.', { exact: true })).toBeVisible();
 });
 
@@ -778,12 +778,12 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
   await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
   await expect(historico.getByText(/Caixa → Itaú/)).toBeVisible();
-  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
   // O lançamento anterior à edição fica no período congelado, com o selo e o
   // marco do cadastro; o período vigente é o da atualização.
   const periodoAnterior = historico.locator('li').filter({ hasText: 'período anterior' });
   await expect(periodoAnterior).toContainText('Contrato cadastrado');
-  await expect(periodoAnterior).toContainText('Parcela 141 ·');
+  await expect(periodoAnterior).toContainText('Parcela 141 paga');
   await expect
     .poll(async () => parseBRL(await totalCard(page).innerText()), { timeout: 20_000 })
     .toBeCloseTo(totalAntes, 2);
@@ -801,7 +801,7 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
   const saldoAntes = parseBRL(await saldoCard(page).innerText());
 
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
@@ -831,12 +831,12 @@ test('editar contrato aceita parcela anterior à pendente e remove os lançament
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 141 de 360', { timeout: 20_000 });
   await expect(proximaCard(page)).toContainText('Parcela 141 de 360');
   await expect(historico.getByText(/Contrato atualizado/)).toBeVisible();
-  await expect(historico.getByText(/Parcela 141 ·/)).toHaveCount(0);
+  await expect(historico.getByText(/Parcela 141 paga/)).toHaveCount(0);
 
   // A parcela reaberta pode ser paga de novo, sem colisão no unique.
   await pagarProxima(page);
   await expect(proximaCard(page)).toContainText('Parcela 142 de 360', { timeout: 20_000 });
-  await expect(historico.getByText(/Parcela 141 ·/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 141 paga/)).toBeVisible();
 });
 
 test('editar contrato recusa submit quando outra aba muda o estado', async ({ page, context }) => {
@@ -867,7 +867,7 @@ test('editar contrato recusa submit quando outra aba muda o estado', async ({ pa
   await page.reload();
   await expect(page.locator('[data-month-action]')).toContainText('Parcela 143 de 360', { timeout: 30_000 });
   const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
-  await expect(historico.getByText(/Parcela 142 ·/)).toBeVisible();
+  await expect(historico.getByText(/Parcela 142 paga/)).toBeVisible();
 });
 
 test('amortização com data futura é recusada sem gravar lançamento', async ({ page }) => {
