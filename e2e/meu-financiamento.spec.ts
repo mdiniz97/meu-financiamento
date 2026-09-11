@@ -50,10 +50,18 @@ const proximaCard = (page: Page): Locator =>
   page.getByText('Próxima parcela', { exact: true }).locator('..');
 const totalCard = (page: Page): Locator =>
   page.getByText('Total pago', { exact: true }).locator('..');
+const amortizadoCard = (page: Page): Locator =>
+  page.getByText('Amortizado', { exact: true }).locator('..');
+const parcelasPagasCard = (page: Page): Locator =>
+  page.getByText('Parcelas pagas', { exact: true }).locator('..');
+const valorOriginalCard = (page: Page): Locator =>
+  page.getByText('Valor original', { exact: true }).locator('..');
+const quantoFaltaCard = (page: Page): Locator =>
+  page.getByText('Quanto falta', { exact: true }).locator('..');
 const quitacaoCard = (page: Page): Locator =>
   page.getByText('Quitação estimada', { exact: true }).locator('..');
 const economiaCard = (page: Page): Locator =>
-  page.getByText('Economizado com amortizações', { exact: true }).locator('..');
+  page.getByText('Economizado', { exact: true }).locator('..');
 
 async function criarConta(page: Page, nome: string): Promise<{ id: string; email: string }> {
   const email = `mf9-${crypto.randomUUID()}@teste.com`;
@@ -802,6 +810,60 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   // Lançamento de estado superado não é editável nem apagável.
   await expect(page.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toHaveCount(0);
+});
+
+test('Visão global preserva total pago, amortizado e economia após editar o contrato', async ({ page }) => {
+  const conta = await criarConta(page, 'Visão Global Após Edição');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  // A faixa global fica no topo, com a legenda de acumulado entre períodos.
+  await expect(page.getByRole('heading', { name: 'Visão global', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('desde o início do contrato, somando atualizações e portabilidades', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Contrato atual', exact: true })).toBeVisible();
+
+  // Registra amortização extra para haver economia antes da edição.
+  await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
+  const amort = page.getByRole('dialog');
+  await expect(amort).toBeVisible();
+  await amort.locator('#amortValor').fill('10000000');
+  await amort.locator('#amortData').fill(todayISO());
+  await amort.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+  await expect(amort).toHaveCount(0, { timeout: 20_000 });
+
+  const historico = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Histórico' }) });
+  await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
+
+  // Faixa global: acumulado do contrato inteiro (uma amortização, sem pagas).
+  await expect(parcelasPagasCard(page)).toContainText('0 de 360');
+  await expect(valorOriginalCard(page)).toContainText(/R\$\s*1\.000\.000,00/);
+  await expect(quantoFaltaCard(page)).toContainText(/R\$\s*[\d.,]+/);
+  const totalAntes = parseBRL(await totalCard(page).innerText());
+  const amortizadoAntes = parseBRL(await amortizadoCard(page).innerText());
+  const economiaAntes = parseBRL(await economiaCard(page).innerText());
+  expect(totalAntes).toBeGreaterThan(0);
+  expect(amortizadoAntes).toBeGreaterThan(0);
+  expect(economiaAntes).toBeGreaterThan(0);
+
+  // Edita o contrato: as amortizações viram passado congelado no período anterior.
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#editAnnualRate').fill('9,8');
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+  await expect(historico.getByText(/Contrato atualizado/)).toBeVisible({ timeout: 20_000 });
+
+  // A faixa global mantém o total pago, o amortizado e a economia (não zera).
+  await expect
+    .poll(async () => parseBRL(await totalCard(page).innerText()), { timeout: 20_000 })
+    .toBeCloseTo(totalAntes, 2);
+  expect(parseBRL(await amortizadoCard(page).innerText())).toBeCloseTo(amortizadoAntes, 2);
+  await expect
+    .poll(async () => parseBRL(await economiaCard(page).innerText()), { timeout: 20_000 })
+    .toBeGreaterThan(0);
 });
 
 test('editar contrato aceita parcela anterior à pendente e remove os lançamentos futuros', async ({ page }) => {

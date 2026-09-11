@@ -9,7 +9,7 @@ import { ExclusiveCard } from '@/components/exclusive-card';
 import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
-import { economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
+import { economiaAcumulada } from '@/lib/finance/meu-financiamento/economia';
 import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
@@ -72,11 +72,21 @@ export function Dashboard({
   const totalPago = state.historico.pagas.reduce((soma, p) => soma + p.valor, 0)
     + state.historico.extras.reduce((soma, e) => soma + e.valor, 0);
 
-  // Economia usa o estado VIGENTE (extras atuais), nunca o histórico: as
-  // amortizações de baselines superados já estão incorporadas no saldo do
-  // baseline novo e reaplicá-las duplicaria a economia.
-  const economia = economiaAmortizacoes(params, baseline, pagas, extras);
+  // Total amortizado em extras, no histórico completo (todos os períodos).
+  const totalAmortizado = state.historico.extras.reduce((soma, e) => soma + e.valor, 0);
+
+  // Economia ACUMULADA: soma a economia de cada período do contrato. Usar o
+  // histórico (e não só os extras vigentes) preserva o acumulado após edições,
+  // que congelam as amortizações antigas no baseline anterior.
+  const economia = economiaAcumulada(state.states, state.historico);
   const economiaPositiva = Math.round(economia * 100) > 0;
+
+  // Faixa GLOBAL: somatórios de todos os períodos, independentes de edições e
+  // portabilidades. O valor original vem do primeiro baseline (versão 1).
+  const parcelasPagas = state.historico.pagas.length;
+  const estadoInicial = state.states[0];
+  const valorOriginal = estadoInicial ? estadoInicial.saldoDevedor : baseline.saldoDevedor;
+  const parcelasTotaisGlobais = estadoInicial ? estadoInicial.parcelasTotais : params.parcelasTotais;
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
   // (apagar pela timeline ou recalibrar some com a linha e com o Desfazer).
@@ -102,71 +112,100 @@ export function Dashboard({
         </p>
       </div>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-[#820AD1]/20 bg-primary/[0.04] p-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-xs font-medium text-muted-foreground">Saldo devedor atual</p>
-          <p className="font-mono text-3xl font-semibold tabular-nums sm:text-4xl">{formatBRL(saldoEfetivo)}</p>
+      <section aria-label="Visão global" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h2 className="font-display text-lg font-semibold">Visão global</h2>
           <p className="text-xs text-muted-foreground">
-            Parcela {primeiraPendente} de {params.parcelasTotais} · atualizado com a data-base{' '}
-            {formatDataBr(baseline.dataBase)}
+            desde o início do contrato, somando atualizações e portabilidades
           </p>
         </div>
-
-        <div className="flex flex-col gap-1.5">
-          <div
-            role="progressbar"
-            aria-label="Progresso do contrato"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={pctContrato}
-            className="h-2 w-full overflow-hidden rounded-full bg-[#820AD1]/10"
-          >
-            <div className="h-full rounded-full bg-[#820AD1]" style={{ width: `${pctContrato}%` }} />
+        <dl className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Total pago</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(totalPago)}</dd>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <p>{pctContrato}% do contrato percorrido</p>
-            <div className="flex items-baseline gap-1">
-              <span>Quitação estimada</span>
-              <span className="font-medium text-foreground">
-                {quitaEm != null && quitaEmData
-                  ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})`
-                  : (quitado || saldoEfetivo === 0 ? '—' : 'não no prazo')}
-              </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Amortizado</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(totalAmortizado)}</dd>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Economizado</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">
+              {economiaPositiva ? formatBRL(economia) : '—'}
+            </dd>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Parcelas pagas</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">
+              {parcelasPagas} de {parcelasTotaisGlobais}
+            </dd>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Valor original</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(valorOriginal)}</dd>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <dt className="text-xs font-medium text-muted-foreground">Quanto falta</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">{formatBRL(saldoEfetivo)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-display text-lg font-semibold">Contrato atual</h2>
+          <p className="text-xs text-muted-foreground">Contrato vigente, a partir da última atualização.</p>
+        </div>
+
+        <div className="flex flex-col gap-4 rounded-2xl border border-[#820AD1]/20 bg-primary/[0.04] p-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-xs font-medium text-muted-foreground">Saldo devedor atual</p>
+            <p className="font-mono text-3xl font-semibold tabular-nums sm:text-4xl">{formatBRL(saldoEfetivo)}</p>
+            <p className="text-xs text-muted-foreground">
+              Parcela {primeiraPendente} de {params.parcelasTotais} · atualizado com a data-base{' '}
+              {formatDataBr(baseline.dataBase)}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div
+              role="progressbar"
+              aria-label="Progresso do contrato"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={pctContrato}
+              className="h-2 w-full overflow-hidden rounded-full bg-[#820AD1]/10"
+            >
+              <div className="h-full rounded-full bg-[#820AD1]" style={{ width: `${pctContrato}%` }} />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>{pctContrato}% do contrato percorrido</p>
+              <div className="flex items-baseline gap-1">
+                <span>Quitação estimada</span>
+                <span className="font-medium text-foreground">
+                  {quitaEm != null && quitaEmData
+                    ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})`
+                    : (quitado || saldoEfetivo === 0 ? '—' : 'não no prazo')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Próxima parcela</p>
+              <p className="font-mono text-lg font-semibold tabular-nums">
+                {primeiraProjetada ? formatBRL(primeiraProjetada.parcela) : '—'}
+              </p>
+              {primeiraProjetada && (
+                <p className="text-xs text-muted-foreground">
+                  Parcela {primeiraPendente} de {params.parcelasTotais}
+                  {vencida ? ' · vencida' : ''}
+                </p>
+              )}
             </div>
           </div>
         </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Próxima parcela</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
-              {primeiraProjetada ? formatBRL(primeiraProjetada.parcela) : '—'}
-            </p>
-            {primeiraProjetada && (
-              <p className="text-xs text-muted-foreground">
-                Parcela {primeiraPendente} de {params.parcelasTotais}
-                {vencida ? ' · vencida' : ''}
-              </p>
-            )}
-          </div>
-          <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Total pago</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">{formatBRL(totalPago)}</p>
-            <p className="text-xs text-muted-foreground">Parcelas e amortizações extras registradas</p>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Economizado com amortizações</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
-              {economiaPositiva ? formatBRL(economia) : '—'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {economiaPositiva
-                ? 'juros, correção e seguro evitados no modelo'
-                : 'registre uma amortização para ver a economia'}
-            </p>
-          </div>
-        </div>
-      </section>
 
       {!readOnly && !quitado && (
         <div className="grid gap-3 sm:grid-cols-3">
@@ -390,6 +429,7 @@ export function Dashboard({
           benefit="Registre boletos pagos, amortizações extras e recalibre o saldo pelo extrato do banco."
         />
       )}
+      </section>
 
       <Timeline state={state} readOnly={readOnly} quitado={quitado} />
 

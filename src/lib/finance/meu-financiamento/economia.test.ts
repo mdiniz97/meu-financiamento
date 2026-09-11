@@ -2,7 +2,13 @@ import { expect, it } from 'vitest';
 import { simulate } from '../engine';
 import { projecao, toLoanInput } from './model';
 import type { AmortizacaoExtra, Baseline, ContractParams, ParcelaPaga } from './model';
-import { economiaAmortizacoes, economiaDoAporte, limiarParcelaEngine } from './economia';
+import {
+  economiaAcumulada,
+  economiaAmortizacoes,
+  economiaDoAporte,
+  limiarParcelaEngine,
+  type PeriodoEstado,
+} from './economia';
 
 const PARAMS: ContractParams = {
   bank: 'Caixa', system: 'PRICE', annualRate: 0.105, trMonthly: 0.0017,
@@ -108,4 +114,52 @@ it('limiarParcelaEngine corta exatamente 1 e o centavo anterior não', () => {
 it('limiarParcelaEngine retorna null sem principal', () => {
   const input = toLoanInput(PARAMS, BASELINE);
   expect(limiarParcelaEngine({ ...input, principal: 0 })).toBeNull();
+});
+
+const PERIODO_S1: PeriodoEstado = {
+  id: 's1',
+  version: 1,
+  saldoDevedor: 1000000,
+  dataBase: '2026-09-08',
+  proximaParcelaNumero: 141,
+  diaVencimento: 8,
+  bank: PARAMS.bank,
+  system: PARAMS.system,
+  annualRate: PARAMS.annualRate,
+  trMonthly: PARAMS.trMonthly,
+  insuranceMonthly: PARAMS.insuranceMonthly,
+  parcelasTotais: PARAMS.parcelasTotais,
+};
+const EXTRA_S1 = { ...TERM_100K, stateId: 's1' };
+
+function periodoS2(): PeriodoEstado {
+  return { ...PERIODO_S1, id: 's2', version: 2, saldoDevedor: 500000, dataBase: '2026-10-08' };
+}
+
+it('economiaAcumulada de um período é igual ao cálculo do estado vigente', () => {
+  expect(economiaAcumulada([PERIODO_S1], { pagas: [], extras: [EXTRA_S1] })).toBe(
+    economiaAmortizacoes(PARAMS, BASELINE, [], [TERM_100K]),
+  );
+});
+
+it('economiaAcumulada sem extras é zero', () => {
+  expect(economiaAcumulada([PERIODO_S1], { pagas: [], extras: [] })).toBe(0);
+});
+
+it('economiaAcumulada soma a economia de cada período', () => {
+  const s2 = periodoS2();
+  const extraS2 = { ...TERM_100K, valor: 50000, stateId: 's2' };
+  const esperado =
+    economiaAcumulada([PERIODO_S1], { pagas: [], extras: [EXTRA_S1] })
+    + economiaAcumulada([s2], { pagas: [], extras: [extraS2] });
+  expect(economiaAcumulada([PERIODO_S1, s2], { pagas: [], extras: [EXTRA_S1, extraS2] })).toBeCloseTo(esperado, 6);
+});
+
+it('período sem extras próprios contribui zero sem duplicar o período anterior', () => {
+  // O saldo do baseline novo já embute as amortizações do período anterior;
+  // somar por período evita contar a mesma economia duas vezes.
+  const s2 = periodoS2();
+  expect(economiaAcumulada([PERIODO_S1, s2], { pagas: [], extras: [EXTRA_S1] })).toBe(
+    economiaAmortizacoes(PARAMS, BASELINE, [], [TERM_100K]),
+  );
 });

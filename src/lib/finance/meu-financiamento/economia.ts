@@ -1,7 +1,31 @@
 import { simulate } from '../engine';
 import { projecao, toLoanInput } from './model';
 import type { LoanInput } from '../types';
-import type { AmortizacaoExtra, Baseline, ContractParams, ParcelaPaga } from './model';
+import type { AmortizacaoExtra, Baseline, ContractParams, ContractSystem, ParcelaPaga } from './model';
+
+/** Período (baseline versionado) mínimo para reconstruir o cenário de uma
+ *  versão. Estruturalmente satisfeito por `ContractStateSummary` do repo. */
+export interface PeriodoEstado {
+  id: string;
+  version: number;
+  saldoDevedor: number;
+  dataBase: string;
+  proximaParcelaNumero: number;
+  diaVencimento: number;
+  bank: string;
+  system: ContractSystem;
+  annualRate: number;
+  trMonthly: number;
+  insuranceMonthly: number;
+  parcelasTotais: number;
+}
+
+/** Lançamentos de todos os períodos, com o `stateId` que liga cada um ao seu
+ *  baseline. Estruturalmente satisfeito por `PageState.historico`. */
+export interface HistoricoMovimentos {
+  pagas: (ParcelaPaga & { stateId: string })[];
+  extras: (AmortizacaoExtra & { stateId: string })[];
+}
 
 /**
  * Economia de um aporte pontual no mês 1 na MESMA métrica do simulador e do
@@ -85,4 +109,40 @@ export function economiaAmortizacoes(
   const input: LoanInput = { ...toLoanInput(params, baseline), principal, months: meses };
   const modo = extras.some((extra) => extra.modo === 'term') ? 'term' : 'payment';
   return economiaDoAporte(input, Math.min(totalExtras, principal), modo);
+}
+
+/**
+ * Economia ACUMULADA das amortizações de TODOS os períodos do contrato: soma,
+ * por baseline versionado, a economia dos extras registrados naquele período.
+ *
+ * Por que por período, e não no estado vigente: recalibrar/editar cria um
+ * baseline novo cujo saldo JÁ embute as amortizações do período anterior (source
+ * 'atualizacao'/'recalibracao' parte do saldo efetivo). Se os extras antigos
+ * fossem reaplicados sobre o baseline novo a economia seria contada em dobro;
+ * e se o cálculo olhasse só os extras do estado VIGENTE, a economia zeraria a
+ * cada edição (os extras ficam congelados no período superado). Reconstruir o
+ * cenário de cada período com os lançamentos que pertencem a ele (agrupados por
+ * `stateId`) preserva o acumulado sem dupla contagem.
+ */
+export function economiaAcumulada(states: PeriodoEstado[], historico: HistoricoMovimentos): number {
+  return states.reduce((total, state) => {
+    const params: ContractParams = {
+      bank: state.bank,
+      system: state.system,
+      annualRate: state.annualRate,
+      trMonthly: state.trMonthly,
+      insuranceMonthly: state.insuranceMonthly,
+      parcelasTotais: state.parcelasTotais,
+    };
+    const baseline: Baseline = {
+      version: state.version,
+      saldoDevedor: state.saldoDevedor,
+      dataBase: state.dataBase,
+      proximaParcelaNumero: state.proximaParcelaNumero,
+      diaVencimento: state.diaVencimento,
+    };
+    const pagas = historico.pagas.filter((paga) => paga.stateId === state.id);
+    const extras = historico.extras.filter((extra) => extra.stateId === state.id);
+    return total + economiaAmortizacoes(params, baseline, pagas, extras);
+  }, 0);
 }

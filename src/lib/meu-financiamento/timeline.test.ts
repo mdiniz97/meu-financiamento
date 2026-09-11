@@ -8,6 +8,8 @@ const cadastro: ContractStateSummary = {
   version: 1,
   saldoDevedor: 1000000,
   dataBase: '2026-09-10',
+  proximaParcelaNumero: 141,
+  diaVencimento: 10,
   source: 'cadastro',
   bank: 'Caixa',
   system: 'PRICE',

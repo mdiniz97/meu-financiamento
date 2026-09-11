@@ -34,6 +34,10 @@ export interface ContractStateSummary {
   version: number;
   saldoDevedor: number;
   dataBase: string;
+  /** Próxima parcela do período: necessária para reconstruir o cenário de cada baseline. */
+  proximaParcelaNumero: number;
+  /** Dia do vencimento (1..31) do período. */
+  diaVencimento: number;
   source: 'cadastro' | 'recalibracao' | 'quitacao' | 'atualizacao';
   /** Parâmetros contratuais vigentes nesta versão (para a timeline comparar). */
   bank: string;
@@ -190,6 +194,8 @@ export async function recomputeState(userId: string): Promise<PageState> {
       version: s.version,
       saldoDevedor: s.saldoDevedor,
       dataBase: s.dataBase,
+      proximaParcelaNumero: s.proximaParcelaNumero,
+      diaVencimento: s.diaVencimento,
       source: s.source as ContractStateSummary['source'],
       bank: s.bank,
       system: s.system as ContractSystem,
