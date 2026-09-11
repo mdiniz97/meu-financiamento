@@ -11,9 +11,18 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 
-type NavItem = { href: string; label: string; icon: LucideIcon; exclusive?: boolean };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Só aparece com contrato cadastrado (regra de visibilidade atual). */
+  requiresContract?: boolean;
+  /** Destaque fixo do item, independente de estar ativo. */
+  highlight?: boolean;
+};
 
 const NAV: NavItem[] = [
+  { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, requiresContract: true, highlight: true },
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
   { href: '/juros', label: 'Juros de mercado', icon: Percent },
@@ -25,7 +34,6 @@ const NAV: NavItem[] = [
   { href: '/consorcio-vale-a-pena', label: 'Consórcio vale a pena?', icon: Landmark },
   { href: '/portabilidade', label: 'Portabilidade', icon: ArrowLeftRight },
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
-  { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, exclusive: true },
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
   { href: '/perfil', label: 'Meu perfil', icon: User },
@@ -41,10 +49,10 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const visibleItems = NAV.filter((item) => !item.exclusive || showMeuFinanciamento);
+  const visibleItems = NAV.filter((item) => !item.requiresContract || showMeuFinanciamento);
   return (
     <nav className="flex flex-col gap-1">
-      {visibleItems.map(({ href, label, icon: Icon, exclusive }) => {
+      {visibleItems.map(({ href, label, icon: Icon, highlight }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
@@ -56,16 +64,13 @@ function NavLinks({
               compact ? 'px-3 py-2' : 'rounded-xl px-4 py-3.5 text-base',
               active
                 ? 'bg-primary/10 text-[#820AD1]'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                : highlight
+                  ? 'border border-[#820AD1]/40 bg-primary/5 text-[#820AD1] hover:bg-primary/10'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
             <Icon className={cn('shrink-0', compact ? 'size-4' : 'size-5')} />
             <span className="min-w-0 flex-1 truncate">{label}</span>
-            {exclusive && (
-              <span className="shrink-0 rounded-md bg-[#820AD1]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#820AD1]">
-                exclusivo
-              </span>
-            )}
           </Link>
         );
       })}

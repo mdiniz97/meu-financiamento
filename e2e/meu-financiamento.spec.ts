@@ -620,6 +620,57 @@ test('editar e apagar amortização extra pela coluna Aporte da tabela', async (
   await expect(linha.locator('[data-cell="aporte"]')).toHaveText('-', { timeout: 20_000 });
 });
 
+test('Levar ao Simulador transfere o cenário vigente para /simulacao', async ({ page }) => {
+  const conta = await criarConta(page, 'Levar ao Simulador');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  const botao = page.getByRole('button', { name: /Levar ao Simulador/i });
+  await expect(botao).toBeVisible();
+  await Promise.all([page.waitForURL(/\/simulacao$/), botao.click()]);
+
+  // Cabeçalho do simulador com o cenário do contrato: valor financiado
+  // (saldo efetivo), taxa efetiva a.a. e prazo restante (360 − 141 + 1 = 220).
+  await expect(page.getByText(/R\$\s*1\.000\.000,00/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/10\.50% a\.a\./)).toBeVisible();
+  await expect(page.getByText(/220 meses/).first()).toBeVisible();
+  await expect(page.getByText('Total pago', { exact: true }).first()).toBeVisible();
+});
+
+test('editar a segunda amortização da mesma linha não reusa o estado da primeira', async ({ page }) => {
+  const conta = await criarConta(page, 'Duas Amortizações');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  // Duas extras sem pagas caem na MESMA linha (141); cada uma com seu par
+  // Editar/Apagar.
+  for (const valor of [50000, 20000]) {
+    await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#amortValor').fill(centsOf(valor));
+    await dialog.locator('#amortData').fill(todayISO());
+    await dialog.getByRole('button', { name: 'Confirmar amortização', exact: true }).click();
+    await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+  }
+
+  const linha = page.locator('tr[data-numero="141"]');
+  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(70000), { timeout: 20_000 });
+
+  // Abre o editor da 1ª e depois o da 2ª: sem `key` o form herdaria o valor
+  // da 1ª (estado stale) por reaproveitar a instância do componente.
+  await linha.getByRole('button', { name: /Editar amortização 1/ }).click();
+  const editorValor = page.locator('input[id^="editarAmortValor-"]');
+  await expect(editorValor).toBeVisible();
+  await linha.getByRole('button', { name: /Editar amortização 2/ }).click();
+  await expect.poll(async () => parseBRL(await editorValor.inputValue())).toBe(20000);
+
+  const valorEditado = 30000;
+  await editorValor.fill(centsOf(valorEditado));
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(linha.locator('[data-cell="aporte"]')).toHaveText(formatBRL(80000), { timeout: 20_000 });
+});
+
 test('expiração do plano congela a leitura e mostra o paywall sem ações', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const conta = await criarConta(page, 'Expiração');

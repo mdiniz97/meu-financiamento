@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FilePen, Landmark, PiggyBank } from 'lucide-react';
+import { ArrowRight, FilePen, Landmark, PiggyBank } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BalanceChart } from '@/components/simulation/charts/BalanceChart';
 import { ExclusiveCard } from '@/components/exclusive-card';
@@ -10,7 +10,8 @@ import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
 import { economiaAcumulada, economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
-import { formatBRL } from '@/lib/utils';
+import { formatBRL, numberToBRLInput } from '@/lib/utils';
+import { DEFAULT_FORM, SIM_INPUT_KEY, type FormState } from '@/lib/simulation-context';
 import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
 import { RecalibrateDialog } from './recalibrate-dialog';
@@ -106,6 +107,30 @@ export function Dashboard({
       setUltimaPaga(null);
     }
     return result;
+  }
+
+  // Transfere o cenário vigente para o simulador, no mesmo padrão de
+  // SmartResultCard/comparator-result: principal = saldo efetivo, prazo =
+  // parcelas restantes (parcelasTotais − primeiraPendente + 1), taxa efetiva
+  // a.a. e demais campos default. É leitura/transferência: aparece também em
+  // readOnly; em contrato quitado (saldo 0) fica desabilitado porque a engine
+  // recusa principal zero.
+  function levarAoSimulador() {
+    const months = Math.max(1, params.parcelasTotais - primeiraPendente + 1);
+    const form: FormState = {
+      ...DEFAULT_FORM,
+      system: params.system,
+      principal: numberToBRLInput(saldoEfetivo),
+      annualRate: String(params.annualRate * 100),
+      months: String(months),
+      trMonthly: String(params.trMonthly * 100),
+      insuranceMonthly: numberToBRLInput(params.insuranceMonthly),
+      bank: params.bank,
+      annualRateKind: 'effective-annual',
+      reduceMode: 'term',
+    };
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
+    router.push('/simulacao');
   }
 
   return (
@@ -224,6 +249,21 @@ export function Dashboard({
           {semAmortizacoesVigentes && (
             <p className="text-xs text-muted-foreground">sem amortizações nesta situação</p>
           )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#820AD1]/10 pt-4">
+            <p className="text-xs text-muted-foreground">
+              Leve o saldo, a taxa e o prazo restante para o simulador e teste aportes e comparações.
+            </p>
+            <Button
+              type="button"
+              onClick={levarAoSimulador}
+              disabled={saldoEfetivo <= 0}
+              title={saldoEfetivo <= 0 ? 'Sem saldo devedor para simular' : undefined}
+              className="shrink-0"
+            >
+              Levar ao Simulador <ArrowRight className="size-4" />
+            </Button>
+          </div>
         </div>
 
       {!readOnly && !quitado && (

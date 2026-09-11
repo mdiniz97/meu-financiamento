@@ -377,39 +377,48 @@ export function ParcelasDoFinanciamento({
                             <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
                             {podeAgir && extrasDaLinha.length > 0 && (
                               <span className="flex shrink-0 items-center gap-0.5">
-                                {extrasDaLinha.map((extra) => (
-                                  <Fragment key={extra.id}>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        setEditor({ tipo: 'editar-amortizacao', numero: linha.numero, amortizacaoId: extra.id })
-                                      }
-                                      aria-label="Editar amortização"
-                                      className="size-8 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <Pencil className="size-3.5" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        setApagarAlvo({
-                                          tipo: 'amortizacao',
-                                          id: extra.id,
-                                          numero: linha.numero,
-                                          valor: extra.valor,
-                                        })
-                                      }
-                                      aria-label="Apagar amortização"
-                                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                    </Button>
-                                  </Fragment>
-                                ))}
+                                {extrasDaLinha.map((extra, index) => {
+                                  // Com mais de uma extra na mesma linha o rótulo
+                                  // repetido colidiria no E2E/leitor de tela;
+                                  // a posição e o valor desambiguam.
+                                  const sufixo =
+                                    extrasDaLinha.length > 1
+                                      ? ` ${index + 1} (${formatBRL(extra.valor)})`
+                                      : '';
+                                  return (
+                                    <Fragment key={extra.id}>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          setEditor({ tipo: 'editar-amortizacao', numero: linha.numero, amortizacaoId: extra.id })
+                                        }
+                                        aria-label={`Editar amortização${sufixo}`}
+                                        className="size-8 text-muted-foreground hover:text-foreground"
+                                      >
+                                        <Pencil className="size-3.5" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          setApagarAlvo({
+                                            tipo: 'amortizacao',
+                                            id: extra.id,
+                                            numero: linha.numero,
+                                            valor: extra.valor,
+                                          })
+                                        }
+                                        aria-label={`Apagar amortização${sufixo}`}
+                                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                      >
+                                        <Trash2 className="size-3.5" />
+                                      </Button>
+                                    </Fragment>
+                                  );
+                                })}
                               </span>
                             )}
                           </div>
@@ -478,7 +487,11 @@ export function ParcelasDoFinanciamento({
                       <EditarParcela paga={pagaMov} onClose={() => setEditor(null)} />
                     )}
                     {editor?.numero === linha.numero && editor.tipo === 'editar-amortizacao' && extraEmEdicao && (
-                      <EditarAmortizacao amortizacao={extraEmEdicao} onClose={() => setEditor(null)} />
+                      <EditarAmortizacao
+                        key={extraEmEdicao.id}
+                        amortizacao={extraEmEdicao}
+                        onClose={() => setEditor(null)}
+                      />
                     )}
                     {editor?.numero === linha.numero && editor.tipo === 'pagar' && (
                       <TableRow data-row-editor="pagar" className="bg-muted/20">
