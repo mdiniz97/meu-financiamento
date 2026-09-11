@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { buildCronograma, type CronogramaParcela } from './cronograma';
+import { agregarAportes, buildCronograma, type CronogramaParcela } from './cronograma';
 import { addMonthsISO } from './dates';
 import type { Projecao } from '@/lib/finance/meu-financiamento/model';
 import type { AmortizacaoComId, ParcelaPagaComId } from './repo';
@@ -63,8 +63,48 @@ function amortizacao(
   };
 }
 
+const VENCIMENTOS = [
+  { numero: 141, vencimento: '2026-09-10' },
+  { numero: 142, vencimento: '2026-10-10' },
+  { numero: 143, vencimento: '2026-11-10' },
+];
+
+it('agrega aporte anterior à primeira parcela na primeira linha', () => {
+  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-08-01', valor: 100 }]);
+  expect(mapa.get(141)).toBe(100);
+  expect(mapa.get(142)).toBeUndefined();
+});
+
+it('agrega aporte entre duas competências na parcela seguinte', () => {
+  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-09-15', valor: 250 }]);
+  expect(mapa.get(142)).toBe(250);
+  expect(mapa.get(141)).toBeUndefined();
+});
+
+it('agrega aporte no próprio vencimento naquela parcela (>=)', () => {
+  const mapa = agregarAportes(VENCIMENTOS, [{ dataPagamento: '2026-10-10', valor: 300 }]);
+  expect(mapa.get(142)).toBe(300);
+});
+
+it('soma múltiplos aportes na mesma competência', () => {
+  const mapa = agregarAportes(VENCIMENTOS, [
+    { dataPagamento: '2026-08-01', valor: 100 },
+    { dataPagamento: '2026-09-05', valor: 50 },
+  ]);
+  expect(mapa.get(141)).toBe(150);
+  expect([...mapa.keys()]).toEqual([141]);
+});
+
+it('sem extra devolve mapa vazio', () => {
+  expect(agregarAportes(VENCIMENTOS, []).size).toBe(0);
+});
+
+it('sem parcelas, extras não geram linhas', () => {
+  expect(agregarAportes([], [{ dataPagamento: '2026-08-01', valor: 100 }]).size).toBe(0);
+});
+
 it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () => {
-  const linhas = buildCronograma(BASELINE, projetadas(141, 142), { pagas: [], extras: [] });
+  const linhas = buildCronograma(BASELINE, projetadas(141, 142), { pagas: [] }, []);
   expect(linhas).toHaveLength(2);
   expect(linhas[0]).toEqual({
     kind: 'parcela',
@@ -74,6 +114,7 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
     paga: null,
     situacao: 'aberta',
     composicao: { juros: 0, correcao: 0, seguro: 0, amortizacao: 0, saldo: 0 },
+    aporte: 0,
   });
   expect(linhas[1]).toEqual({
     kind: 'parcela',
@@ -83,24 +124,36 @@ it('sem lançamentos, lista as parcelas projetadas com vencimento estimado', () 
     paga: null,
     situacao: 'aberta',
     composicao: { juros: 0, correcao: 0, seguro: 0, amortizacao: 0, saldo: 0 },
+    aporte: 0,
   });
+});
+
+it('mapeia o aporte do estado vigente para a linha da parcela', () => {
+  const linhas = buildCronograma(BASELINE, projetadas(141, 142), { pagas: [] }, [
+    amortizacao(500, addMonthsISO(BASELINE.dataBase, 1)),
+    amortizacao(100, addMonthsISO(BASELINE.dataBase, -1)),
+  ]);
+  expect(linhas.map((l) => [l.numero, l.aporte])).toEqual([
+    [141, 100],
+    [142, 500],
+  ]);
 });
 
 it('marca a composição das pagas do estado vigente e o histórico das anteriores', () => {
   const linhas = buildCronograma(BASELINE, projecaoComposta(), {
     pagas: [paga(141, 9999, '2026-08-05', 's1'), paga(142, 10001, '2026-09-05', 's0')],
-    extras: [],
   });
   const p141 = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 141)!;
   const p142 = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 142)!;
   expect(p141.situacao).toBe('paga');
   expect(p141.composicao).toEqual({ juros: 10, correcao: 11, seguro: 12, amortizacao: 13, saldo: 14 });
+  expect(p141.aporte).toBe(0);
   expect(p142.situacao).toBe('historico');
   expect(p142.composicao).toBeNull();
 });
 
 it('compõe a parcela projetada com juros, correção, seguro, amortização e saldo', () => {
-  const linhas = buildCronograma(BASELINE, projecaoComposta(), { pagas: [], extras: [] });
+  const linhas = buildCronograma(BASELINE, projecaoComposta(), { pagas: [] });
   const aberta = linhas.find((l): l is CronogramaParcela => l.kind === 'parcela' && l.numero === 143)!;
   expect(aberta.situacao).toBe('aberta');
   expect(aberta.composicao).toEqual({ juros: 1, correcao: 3, seguro: 2, amortizacao: 4, saldo: 5 });
@@ -109,9 +162,8 @@ it('compõe a parcela projetada com juros, correção, seguro, amortização e s
 it('inclui parcelas pagas de estados anteriores com valor real e sem duplicar projetadas', () => {
   const linhas = buildCronograma(BASELINE, projetadas(143, 144), {
     pagas: [paga(141, 9999, '2026-08-05', 's0'), paga(142, 10001, '2026-09-05', 's0')],
-    extras: [],
   });
-  expect(linhas.map((l) => (l.kind === 'parcela' ? l.numero : l.id))).toEqual([141, 142, 143, 144]);
+  expect(linhas.map((l) => l.numero)).toEqual([141, 142, 143, 144]);
   expect(linhas[0]).toMatchObject({ kind: 'parcela', numero: 141, valor: 9999, paga: { dataPagamento: '2026-08-05' } });
   expect(linhas[2]).toMatchObject({ kind: 'parcela', numero: 143, valor: 10143, paga: null });
 });
@@ -119,42 +171,14 @@ it('inclui parcelas pagas de estados anteriores com valor real e sem duplicar pr
 it('deduplica parcela paga que também aparece na projeção (paga vence)', () => {
   const linhas = buildCronograma(BASELINE, projetadas(141, 142), {
     pagas: [paga(141, 9999, '2026-08-05')],
-    extras: [],
   });
   expect(linhas).toHaveLength(2);
   expect(linhas[0]).toMatchObject({ kind: 'parcela', numero: 141, valor: 9999, paga: { dataPagamento: '2026-08-05' } });
 });
 
-it('intercala amortizações pela data: antes da primeira, entre parcelas e depois da última', () => {
-  const venc141 = BASELINE.dataBase;
-  const venc142 = addMonthsISO(BASELINE.dataBase, 1);
-  const linhas = buildCronograma(BASELINE, projetadas(141, 142, 143), {
-    pagas: [],
-    extras: [
-      amortizacao(500, venc142), // empata com o vencimento da 142: entra depois dela
-      amortizacao(100, addMonthsISO(venc141, -1)), // antes da 141
-      amortizacao(900, addMonthsISO(venc142, 1)), // depois da 143
-    ],
-  });
-  expect(linhas.map((l) => (l.kind === 'parcela' ? `p${l.numero}` : `a${l.valor}`))).toEqual([
-    'a100', 'p141', 'p142', 'a500', 'p143', 'a900',
+it('projeção vazia (quitado) não lista linhas nem aportes', () => {
+  const linhas = buildCronograma(BASELINE, projetadas(), { pagas: [] }, [
+    amortizacao(500, '2026-09-20'),
   ]);
-});
-
-it('ordena amortizações na mesma posição pela data', () => {
-  const linhas = buildCronograma(BASELINE, projetadas(141, 142), {
-    pagas: [],
-    extras: [amortizacao(700, '2026-09-20'), amortizacao(300, '2026-09-10')],
-  });
-  expect(linhas.map((l) => (l.kind === 'parcela' ? `p${l.numero}` : `a${l.valor}`))).toEqual([
-    'p141', 'a300', 'a700', 'p142',
-  ]);
-});
-
-it('projeção vazia (quitado) lista só as amortizações do histórico em ordem de data', () => {
-  const linhas = buildCronograma(BASELINE, projetadas(), {
-    pagas: [],
-    extras: [amortizacao(500, '2026-09-20'), amortizacao(300, '2026-09-10')],
-  });
-  expect(linhas.map((l) => (l.kind === 'amortizacao' ? l.valor : l.numero))).toEqual([300, 500]);
+  expect(linhas).toEqual([]);
 });

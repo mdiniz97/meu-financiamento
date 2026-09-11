@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { todayISO } from '../src/lib/meu-financiamento/dates';
+import { addMonthsISO, todayISO } from '../src/lib/meu-financiamento/dates';
 import type { ContractParams } from '../src/lib/finance/meu-financiamento/model';
 import { projecao } from '../src/lib/finance/meu-financiamento/model';
 import { formatBRL } from '../src/lib/utils';
@@ -109,6 +109,16 @@ async function criarContrato(page: Page, hoje: string) {
 
 function baselineDeHoje() {
   return { version: 1, saldoDevedor: 1000000, dataBase: todayISO(), proximaParcelaNumero: 141 };
+}
+
+/** Primeira parcela cujo vencimento estimado é >= a data do aporte (regra da
+ *  coluna Aporte). Nos testes a data-base é hoje e o vencimento é dia 10, então
+ *  o aporte cai na 141 ou na 142 conforme o dia do mês. */
+function numeroDaCompetencia(dataPagamento: string): number {
+  for (let n = 141; n <= 360; n += 1) {
+    if (addMonthsISO(todayISO(), n - 141, 10) >= dataPagamento) return n;
+  }
+  return 360;
 }
 
 // O card do mês alterna o título quando o vencimento estimado (dia 10 no
@@ -256,8 +266,10 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await expect(linhaPaga).toContainText(formatBRL(pg.correcao));
   await expect(linhaPaga).toContainText(formatBRL(pg.seguro));
   await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
-  // Sem extras no estado, o Saldo da paga é o do encadeamento sem extras.
+  // Sem extras no estado, o Saldo da paga é o do encadeamento sem extras e não
+  // há aporte na linha.
   await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText(formatBRL(pg.saldo));
+  await expect(linhaPaga.locator('[data-cell="aporte"]')).toHaveText('-');
 
   // Com amortização extra no estado vigente até a data da paga, o saldo do
   // encadeamento sem extras deixa de representar o saldo real: vira "—" (a
@@ -274,6 +286,14 @@ test('tabela "Parcelas do Financiamento" lista o cronograma e carrega mais 24 po
   await expect(linhaPaga.locator('[data-cell="saldo"]')).toHaveText('—');
   await expect(linhaPaga).toContainText(formatBRL(pg.juros));
   await expect(linhaPaga).toContainText(formatBRL(pg.amortizacao));
+  // A amortização entra na coluna Aporte da primeira competência com vencimento
+  // estimado >= a data do aporte, e o Total soma Parcela + Aporte.
+  const numeroAporte = numeroDaCompetencia(todayISO());
+  const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
+  await expect(linhaAporte.locator('[data-cell="aporte"]')).toHaveText(formatBRL(valorExtra));
+  const parcelaAporte = parseBRL(await linhaAporte.locator('[data-cell="parcela"]').innerText());
+  const totalAporte = parseBRL(await linhaAporte.locator('[data-cell="total"]').innerText());
+  expect(totalAporte).toBeCloseTo(parcelaAporte + valorExtra, 2);
 });
 
 test('sugestão de amortização aplica ideal, meia e extra com a economia calculada', async ({ page }) => {
@@ -329,21 +349,18 @@ test('sugestão de amortização aplica ideal, meia e extra com a economia calcu
   await expect(eventoAmortizacao).toBeVisible();
   expect(parseBRL(await eventoAmortizacao.innerText())).toBeCloseTo(ideal, 2);
 
-  // Tabela de parcelas: a amortização (data de hoje, igual ao vencimento
-  // estimado da 141) aparece intercalada entre as parcelas 141 e 142, com
-  // origem e modo.
+  // Tabela de parcelas: o aporte (data de hoje) aparece na coluna Aporte da
+  // primeira competência com vencimento estimado >= a data do aporte, com o
+  // valor exato registrado e Total = Parcela + Aporte. Origem/modo/data ficam
+  // no histórico da timeline (asserts acima).
   await page.getByText('Parcelas do Financiamento', { exact: true }).click();
-  const linhas = page.locator('details table tbody tr');
-  const textos = await linhas.allInnerTexts();
-  const amortizacao = textos.findIndex((t) => t.includes('Amortização extra de'));
-  const parcela141 = textos.findIndex((t) => t.startsWith('141'));
-  const parcela142 = textos.findIndex((t) => t.startsWith('142'));
-  expect(parcela141).toBeGreaterThanOrEqual(0);
-  expect(amortizacao).toBeGreaterThan(parcela141);
-  expect(amortizacao).toBeLessThan(parcela142);
-  expect(textos[amortizacao]).toContain('Dinheiro próprio');
-  expect(textos[amortizacao]).toContain('Reduziu o prazo');
-  expect(textos[amortizacao]).toMatch(/\d{2}\/\d{2}\/\d{4}/);
+  const numeroAporte = numeroDaCompetencia(todayISO());
+  const linhaAporte = page.locator(`tr[data-numero="${numeroAporte}"]`);
+  await expect(linhaAporte.locator('[data-cell="aporte"]')).toBeVisible();
+  expect(parseBRL(await linhaAporte.locator('[data-cell="aporte"]').innerText())).toBeCloseTo(ideal, 2);
+  const parcelaAporte = parseBRL(await linhaAporte.locator('[data-cell="parcela"]').innerText());
+  const totalAporte = parseBRL(await linhaAporte.locator('[data-cell="total"]').innerText());
+  expect(totalAporte).toBeCloseTo(parcelaAporte + ideal, 2);
 
   // Meia parcela: economia exibida, efeito no prazo e aporte aplicado no split.
   const cardMeia = page.locator('[data-opcao="meia"]');

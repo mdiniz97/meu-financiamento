@@ -8,17 +8,12 @@ import {
   buildCronograma,
   type CronogramaParcela,
 } from '@/lib/meu-financiamento/cronograma';
-import { origemLabel } from '@/lib/meu-financiamento/timeline';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
 import { formatBRL } from '@/lib/utils';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const LINHAS_POR_VEZ = 24;
 const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground';
-
-function modoCurto(modo: 'term' | 'payment'): string {
-  return modo === 'term' ? 'Reduziu o prazo' : 'Reduziu a parcela';
-}
 
 /** Célula numérica da composição: "—" quando o encadeamento não reconstruiu a
  *  paga (período anterior), senão o valor projetado/real em BRL. */
@@ -75,9 +70,11 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
 
 /**
  * Accordion "Parcelas do Financiamento": cronograma completo a partir do
- * estado vigente (projetadas + pagas do histórico + amortizações extras
- * intercaladas) no padrão da tabela do simulador (scroll interno, header
- * sticky e primeira coluna sticky). Fechado por padrão e sem ações: leitura
+ * estado vigente (projetadas + pagas do histórico) no padrão da tabela do
+ * simulador (scroll interno, header sticky e primeira coluna sticky). As
+ * amortizações extras do estado vigente entram na coluna "Aporte" da linha da
+ * competência correspondente; as de baselines superados já estão absorvidas
+ * pelo saldo vigente e não geram linha. Fechado por padrão e sem ações: leitura
  * pura, inclusive no readOnly.
  *
  * As pagas do estado vigente exibem a composição calculada pelo mesmo
@@ -93,7 +90,7 @@ export function ParcelasDoFinanciamento({
   state: Pick<PageState, 'baseline' | 'projecao' | 'historico' | 'extras'>;
 }) {
   const [limite, setLimite] = useState(LINHAS_POR_VEZ);
-  const linhas = buildCronograma(state.baseline, state.projecao, state.historico);
+  const linhas = buildCronograma(state.baseline, state.projecao, state.historico, state.extras);
   const visiveis = linhas.slice(0, limite);
   const temExtraAplicavel = (data: string) => state.extras.some((e) => e.dataPagamento <= data);
 
@@ -117,6 +114,8 @@ export function ParcelasDoFinanciamento({
                     </TableHead>
                     <TableHead scope="col" className={HEAD_BASE}>Vencimento</TableHead>
                     <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Parcela</TableHead>
+                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Aporte</TableHead>
+                    <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Total</TableHead>
                     <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Juros</TableHead>
                     <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Amortização</TableHead>
                     <TableHead scope="col" className={`${HEAD_BASE} text-right`}>Seguro</TableHead>
@@ -126,55 +125,41 @@ export function ParcelasDoFinanciamento({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visiveis.map((linha) => {
-                    if (linha.kind === 'amortizacao') {
-                      return (
-                        <TableRow
-                          key={`amortizacao-${linha.id}`}
-                          data-row="amortizacao"
-                          data-extra={linha.id}
-                          className="bg-[#820AD1]/5 text-[#820AD1]"
-                        >
-                          <TableCell colSpan={3} className="font-medium whitespace-normal">
-                            Amortização extra de {formatBRL(linha.valor)} · {origemLabel(linha.origem)} ·{' '}
-                            {modoCurto(linha.modo)} · {formatDataBr(linha.dataPagamento)}
-                          </TableCell>
-                          {[0, 1, 2, 3, 4, 5].map((i) => (
-                            <TableCell key={i} className="text-right text-muted-foreground">
-                              —
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      );
-                    }
-                    return (
-                      <TableRow
-                        key={`parcela-${linha.numero}`}
-                        data-row="parcela"
-                        data-numero={linha.numero}
-                        data-situacao={linha.situacao}
-                        className={ROW_BG[linha.situacao]}
+                  {visiveis.map((linha) => (
+                    <TableRow
+                      key={`parcela-${linha.numero}`}
+                      data-row="parcela"
+                      data-numero={linha.numero}
+                      data-situacao={linha.situacao}
+                      className={ROW_BG[linha.situacao]}
+                    >
+                      <TableCell
+                        className={`sticky left-0 z-10 border-r border-border font-medium ${STICKY_BG[linha.situacao]}`}
                       >
-                        <TableCell
-                          className={`sticky left-0 z-10 border-r border-border font-medium ${STICKY_BG[linha.situacao]}`}
-                        >
-                          {linha.numero}
-                        </TableCell>
-                        <TableCell>{formatDataBr(linha.vencimento)}</TableCell>
-                        <TableCell className="text-right">{formatBRL(linha.valor)}</TableCell>
-                        <TableCell className="text-right">{celulaValor(linha.composicao?.juros)}</TableCell>
-                        <TableCell className="text-right">{celulaValor(linha.composicao?.amortizacao)}</TableCell>
-                        <TableCell className="text-right">{celulaValor(linha.composicao?.seguro)}</TableCell>
-                        <TableCell className="text-right">{celulaValor(linha.composicao?.correcao)}</TableCell>
-                        <TableCell data-cell="saldo" className="text-right">
-                          {saldoParcela(linha, temExtraAplicavel)}
-                        </TableCell>
-                        <TableCell>
-                          <Situacao linha={linha} />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                        {linha.numero}
+                      </TableCell>
+                      <TableCell>{formatDataBr(linha.vencimento)}</TableCell>
+                      <TableCell data-cell="parcela" className="text-right">{formatBRL(linha.valor)}</TableCell>
+                      <TableCell data-cell="aporte" className="text-right">
+                        {linha.aporte > 0
+                          ? <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
+                          : '-'}
+                      </TableCell>
+                      <TableCell data-cell="total" className="text-right font-semibold">
+                        {formatBRL(linha.valor + linha.aporte)}
+                      </TableCell>
+                      <TableCell className="text-right">{celulaValor(linha.composicao?.juros)}</TableCell>
+                      <TableCell className="text-right">{celulaValor(linha.composicao?.amortizacao)}</TableCell>
+                      <TableCell className="text-right">{celulaValor(linha.composicao?.seguro)}</TableCell>
+                      <TableCell className="text-right">{celulaValor(linha.composicao?.correcao)}</TableCell>
+                      <TableCell data-cell="saldo" className="text-right">
+                        {saldoParcela(linha, temExtraAplicavel)}
+                      </TableCell>
+                      <TableCell>
+                        <Situacao linha={linha} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </table>
             </div>

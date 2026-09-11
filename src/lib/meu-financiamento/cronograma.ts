@@ -26,40 +26,51 @@ export interface CronogramaParcela {
   /** Decomposição do encadeamento do estado vigente; null nas pagas de
    *  períodos anteriores (o modelo não as reconstrói) e nas linhas sem dados. */
   composicao: CronogramaComposicao | null;
+  /** Soma das amortizações extras do estado vigente que caem nesta competência
+   *  (data do aporte até o vencimento estimado desta parcela). */
+  aporte: number;
 }
 
-export interface CronogramaAmortizacao {
-  kind: 'amortizacao';
-  id: string;
-  valor: number;
-  dataPagamento: string;
-  origem: 'proprio' | 'fgts';
-  modo: 'term' | 'payment';
-}
-
-export type CronogramaLinha = CronogramaParcela | CronogramaAmortizacao;
-
-interface Ordenavel {
-  ordem: number;
-  rank: number;
-  data: string;
-  indice: number;
-  linha: CronogramaLinha;
+/**
+ * Agrega o valor das amortizações extras do estado vigente por parcela: cada
+ * extra entra na PRIMEIRA parcela cujo vencimento estimado é >= a data do
+ * aporte. Extras anteriores à primeira parcela caem nela; extras entre duas
+ * competências caem na seguinte. `parcelas` deve estar ordenada por vencimento
+ * ascendente (é a ordem natural do cronograma por número). Extras posteriores
+ * ao vencimento da última parcela caem nela, defensivamente, porque as actions
+ * rejeitam data futura e o cronograma cobre todas as competências.
+ *
+ * Extras de períodos anteriores ficam de fora: já foram absorvidos pelo saldo
+ * do baseline vigente e reaplicá-los duplicaria a amortização.
+ */
+export function agregarAportes(
+  parcelas: readonly { numero: number; vencimento: string }[],
+  extras: readonly { dataPagamento: string; valor: number }[],
+): Map<number, number> {
+  const porNumero = new Map<number, number>();
+  if (parcelas.length === 0) return porNumero;
+  for (const extra of extras) {
+    const alvo = parcelas.find((p) => p.vencimento >= extra.dataPagamento) ?? parcelas[parcelas.length - 1];
+    porNumero.set(alvo.numero, (porNumero.get(alvo.numero) ?? 0) + extra.valor);
+  }
+  return porNumero;
 }
 
 /**
  * Cronograma completo a partir do estado vigente: parcelas projetadas
  * (projecao.parcelas, que já começam na primeira pendente) + parcelas pagas de
- * TODO o histórico (valor real e data) + amortizações extras do histórico,
- * intercaladas após a última parcela cujo vencimento estimado é ≤ a data do
- * aporte. Ordem final por número de parcela ascendente; empate de posição
- * resolve pela data do lançamento.
+ * TODO o histórico (valor real e data), ordenadas por número de parcela
+ * ascendente. As amortizações extras do estado vigente entram na coluna
+ * `aporte` da linha da competência correspondente (ver `agregarAportes`); as
+ * extras de baselines superados já estão incorporadas no saldo vigente e não
+ * aparecem como linha.
  */
 export function buildCronograma(
   baseline: Pick<Baseline, 'dataBase' | 'proximaParcelaNumero' | 'diaVencimento'>,
   projecao: Pick<Projecao, 'parcelas' | 'pagas'>,
-  historico: { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] },
-): CronogramaLinha[] {
+  historico: { pagas: ParcelaPagaComId[] },
+  extras: readonly AmortizacaoComId[] = [],
+): CronogramaParcela[] {
   const vencimento = (numero: number) =>
     addMonthsISO(baseline.dataBase, numero - baseline.proximaParcelaNumero, baseline.diaVencimento);
   const pagasPorNumero = new Map(historico.pagas.map((p) => [p.parcelaNumero, p]));
@@ -70,7 +81,7 @@ export function buildCronograma(
     ...historico.pagas.map((p) => p.parcelaNumero),
   ]);
 
-  const ordenaveis: Ordenavel[] = [...numeros]
+  const linhas: CronogramaParcela[] = [...numeros]
     .sort((a, b) => a - b)
     .map((numero) => {
       const paga = pagasPorNumero.get(numero);
@@ -97,50 +108,17 @@ export function buildCronograma(
             }
           : null;
       return {
-        ordem: numero,
-        rank: 0,
-        data: '',
-        indice: 0,
-        linha: {
-          kind: 'parcela',
-          numero,
-          vencimento: vencimento(numero),
-          valor: paga?.valor ?? projetada?.parcela ?? 0,
-          paga: paga ? { dataPagamento: paga.dataPagamento } : null,
-          situacao,
-          composicao,
-        },
+        kind: 'parcela',
+        numero,
+        vencimento: vencimento(numero),
+        valor: paga?.valor ?? projetada?.parcela ?? 0,
+        paga: paga ? { dataPagamento: paga.dataPagamento } : null,
+        situacao,
+        composicao,
+        aporte: 0,
       };
     });
-  const menorNumero = ordenaveis.length > 0 ? ordenaveis[0].ordem : 1;
-  historico.extras.forEach((extra, indice) => {
-    let apos: number | null = null;
-    for (const ordenavel of ordenaveis) {
-      if (ordenavel.linha.kind === 'parcela' && ordenavel.linha.vencimento <= extra.dataPagamento) {
-        apos = ordenavel.linha.numero;
-      }
-    }
-    ordenaveis.push({
-      ordem: apos ?? menorNumero - 1,
-      rank: 1,
-      data: extra.dataPagamento,
-      indice,
-      linha: {
-        kind: 'amortizacao',
-        id: extra.id,
-        valor: extra.valor,
-        dataPagamento: extra.dataPagamento,
-        origem: extra.origem,
-        modo: extra.modo,
-      },
-    });
-  });
 
-  ordenaveis.sort((a, b) =>
-    (a.ordem - b.ordem)
-    || (a.rank - b.rank)
-    || a.data.localeCompare(b.data)
-    || (a.indice - b.indice),
-  );
-  return ordenaveis.map((o) => o.linha);
+  const aportes = agregarAportes(linhas, extras);
+  return linhas.map((linha) => ({ ...linha, aporte: aportes.get(linha.numero) ?? 0 }));
 }
