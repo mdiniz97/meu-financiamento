@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { agregarAportes, buildCronograma, type CronogramaParcela } from './cronograma';
+import { agregarAportes, buildCronograma, distribuirAportes, type CronogramaParcela } from './cronograma';
 import { addMonthsISO } from './dates';
 import type { Projecao } from '@/lib/finance/meu-financiamento/model';
 import type { AmortizacaoComId, ParcelaPagaComId } from './repo';
@@ -125,6 +125,23 @@ it('soma múltiplos aportes na mesma paga', () => {
 
 it('sem extra devolve mapa vazio', () => {
   expect(agregarAportes(PARCELAS_APORTE, []).size).toBe(0);
+});
+
+it('distribuirAportes preserva o vínculo de cada extra com a linha-alvo', () => {
+  const mapa = distribuirAportes(PARCELAS_APORTE, [
+    amortizacao(500, '2026-09-25'),
+    amortizacao(100, '2026-10-25'),
+  ]);
+  expect(mapa.get(141)?.map((e) => e.valor)).toEqual([500]);
+  expect(mapa.get(142)?.map((e) => e.valor)).toEqual([100]);
+});
+
+it('distribuirAportes mantém as duas extras na mesma linha', () => {
+  const mapa = distribuirAportes(PARCELAS_APORTE, [
+    amortizacao(100, '2026-09-21'),
+    amortizacao(50, '2026-09-24'),
+  ]);
+  expect(mapa.get(141)?.map((e) => e.valor)).toEqual([100, 50]);
 });
 
 it('sem parcelas, extras não geram linhas', () => {

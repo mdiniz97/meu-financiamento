@@ -33,23 +33,17 @@ export interface CronogramaParcela {
 }
 
 /**
- * Agrega o valor das amortizações extras do estado vigente por parcela: cada
- * extra entra na linha da ÚLTIMA parcela PAGA cuja `dataPagamento` é <= a data
- * do aporte (o aporte aconteceu depois desse pagamento). Aportes no mesmo dia de
- * uma paga entram nessa paga; os posteriores à última paga mas anteriores ao
- * próximo vencimento continuam nela. Sem paga até a data do aporte, cai na
- * PRIMEIRA parcela em aberto (a pendente do estado). `parcelas` deve estar
- * ordenada por vencimento ascendente (é a ordem natural do cronograma por
- * número).
- *
- * Extras de períodos anteriores ficam de fora: já foram absorvidos pelo saldo
- * do baseline vigente e reaplicá-los duplicaria a amortização.
+ * Distribui cada amortização extra do estado vigente para a linha-alvo (mesma
+ * regra do `agregarAportes`) preservando o vínculo com o lançamento, para a UI
+ * poder oferecer Editar/Apagar por aporte. Cada extra entra na linha da ÚLTIMA
+ * parcela PAGA cuja `dataPagamento` é <= a data do aporte; sem paga até a data,
+ * cai na PRIMEIRA parcela em aberto; sem aberta, na última linha (defensivo).
  */
-export function agregarAportes(
-  parcelas: readonly { numero: number; vencimento: string; paga: { dataPagamento: string } | null }[],
-  extras: readonly { dataPagamento: string; valor: number }[],
-): Map<number, number> {
-  const porNumero = new Map<number, number>();
+export function distribuirAportes<T extends { dataPagamento: string; valor: number }>(
+  parcelas: readonly { numero: number; paga: { dataPagamento: string } | null }[],
+  extras: readonly T[],
+): Map<number, T[]> {
+  const porNumero = new Map<number, T[]>();
   if (parcelas.length === 0) return porNumero;
   const pagas: { numero: number; dataPagamento: string }[] = [];
   const abertas: number[] = [];
@@ -66,7 +60,24 @@ export function agregarAportes(
       }
     }
     const numero = alvo?.numero ?? primeiraAberta;
-    porNumero.set(numero, (porNumero.get(numero) ?? 0) + extra.valor);
+    const lista = porNumero.get(numero) ?? [];
+    lista.push(extra);
+    porNumero.set(numero, lista);
+  }
+  return porNumero;
+}
+
+/**
+ * Agrega o valor das amortizações extras do estado vigente por parcela (soma do
+ * `distribuirAportes`). Mantido para os totais exibidos na coluna Aporte.
+ */
+export function agregarAportes(
+  parcelas: readonly { numero: number; vencimento: string; paga: { dataPagamento: string } | null }[],
+  extras: readonly { dataPagamento: string; valor: number }[],
+): Map<number, number> {
+  const porNumero = new Map<number, number>();
+  for (const [numero, lista] of distribuirAportes(parcelas, extras)) {
+    porNumero.set(numero, lista.reduce((soma, extra) => soma + extra.valor, 0));
   }
   return porNumero;
 }

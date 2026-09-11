@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,11 @@ export function PayInstallment({
   onDone: () => void;
 }) {
   const router = useRouter();
+  // Ids únicos por instância: o card do mês e o "Pagar" da tabela podem abrir ao
+  // mesmo tempo, e ids fixos duplicariam o vínculo label/input.
+  const uid = useId();
+  const valorId = `${uid}-valor`;
+  const dataId = `${uid}-data`;
   const [valor, setValor] = useState(() => {
     if (initialAporte != null) return roundCents(roundCents(defaultValor) + initialAporte);
     return roundCents(initialValor ?? defaultValor);
@@ -105,11 +110,11 @@ export function PayInstallment({
       </div>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="payValor" className="text-sm font-medium text-foreground">
+          <label htmlFor={valorId} className="text-sm font-medium text-foreground">
             Valor pago (R$)
           </label>
           <MoneyInput
-            id="payValor"
+            id={valorId}
             name="valor"
             value={valor}
             onValid={setValor}
@@ -117,12 +122,12 @@ export function PayInstallment({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="payData" className="text-sm font-medium text-foreground">
+          <label htmlFor={dataId} className="text-sm font-medium text-foreground">
             Data do pagamento
           </label>
           <div className="flex items-center gap-2">
             <Input
-              id="payData"
+              id={dataId}
               name="dataPagamento"
               type="date"
               value={dataPagamento}

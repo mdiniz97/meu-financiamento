@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { editMovement, deleteMovement } from '@/app/(app)/meu-financiamento/actions';
-import type { PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
+import type { AmortizacaoComId, PageState, ParcelaPagaComId } from '@/lib/meu-financiamento/repo';
 import {
   buildCronograma,
+  distribuirAportes,
   type CronogramaParcela,
 } from '@/lib/meu-financiamento/cronograma';
 import { formatDataBr } from '@/lib/meu-financiamento/dates';
@@ -17,9 +18,19 @@ import { formatBRL } from '@/lib/utils';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PayInstallment } from './pay-installment';
 import { ConfirmDialog } from './confirm-dialog';
+import { ModoRadios, OrigemRadios } from './amortization-form';
 
 const HEAD_BASE = 'sticky top-0 z-10 bg-card h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground';
 const COLUNAS = 11;
+
+type Editor =
+  | { tipo: 'pagar'; numero: number }
+  | { tipo: 'editar'; numero: number }
+  | { tipo: 'editar-amortizacao'; numero: number; amortizacaoId: string };
+
+type ApagarAlvo =
+  | { tipo: 'parcela'; id: string; numero: number; valor: number }
+  | { tipo: 'amortizacao'; id: string; numero: number; valor: number };
 
 function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
@@ -79,8 +90,8 @@ function Situacao({ linha }: { linha: CronogramaParcela }) {
 }
 
 /** Editor inline de uma parcela paga do estado vigente (valor + data). Reusa a
- *  action `editMovement`; a linhagem de amortização vinculada é recusada pelo
- *  servidor e o erro sai no `role="alert"` local. */
+ *  action `editMovement`; o editor permanece aberto após Salvar (fecha no
+ *  Cancelar) e o erro sai no `role="alert"` local. */
 function EditarParcela({ paga, onClose }: { paga: ParcelaPagaComId; onClose: () => void }) {
   const router = useRouter();
   const [valor, setValor] = useState(roundCents(paga.valor));
@@ -161,6 +172,105 @@ function EditarParcela({ paga, onClose }: { paga: ParcelaPagaComId; onClose: () 
   );
 }
 
+/** Editor inline de uma amortização extra do estado vigente (valor, data,
+ *  origem e modo). Reusa a action `editMovement`; permanece aberto após Salvar e
+ *  o erro sai no `role="alert"` local. */
+function EditarAmortizacao({
+  amortizacao,
+  onClose,
+}: {
+  amortizacao: AmortizacaoComId;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [valor, setValor] = useState(roundCents(amortizacao.valor));
+  const [dataPagamento, setDataPagamento] = useState(amortizacao.dataPagamento);
+  const [origem, setOrigem] = useState<'proprio' | 'fgts'>(amortizacao.origem);
+  const [modo, setModo] = useState<'term' | 'payment'>(amortizacao.modo);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function salvar() {
+    if (busy || valor <= 0 || !dataPagamento) return;
+    setBusy(true);
+    setError('');
+    let result;
+    try {
+      result = await editMovement(amortizacao.id, { valor, dataPagamento, origem, modo });
+    } catch {
+      setBusy(false);
+      setError('Sessão expirada, entre novamente');
+      return;
+    }
+    if ('error' in result) {
+      setBusy(false);
+      setError(result.error);
+      return;
+    }
+    await router.refresh();
+    setBusy(false);
+  }
+
+  return (
+    <TableRow data-row-editor="amortizacao" className="bg-muted/20">
+      <TableCell colSpan={COLUNAS} className="whitespace-normal align-top">
+        <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div className="flex w-56 flex-col gap-1.5">
+              <label htmlFor={`editarAmortValor-${amortizacao.id}`} className="text-sm font-medium text-foreground">
+                Valor amortizado (R$)
+              </label>
+              <MoneyInput
+                id={`editarAmortValor-${amortizacao.id}`}
+                value={valor}
+                onValid={setValor}
+                disabled={busy}
+              />
+            </div>
+            <div className="flex w-48 flex-col gap-1.5">
+              <label htmlFor={`editarAmortData-${amortizacao.id}`} className="text-sm font-medium text-foreground">
+                Data do pagamento
+              </label>
+              <Input
+                id={`editarAmortData-${amortizacao.id}`}
+                type="date"
+                value={dataPagamento}
+                onChange={(e) => setDataPagamento(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-foreground">Origem</span>
+              <OrigemRadios value={origem} onChange={setOrigem} disabled={busy} />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-sm font-medium text-foreground">O que o banco fez</span>
+              <ModoRadios value={modo} onChange={setModo} disabled={busy} />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void salvar()}
+                disabled={busy || valor <= 0 || !dataPagamento}
+              >
+                {busy ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 /**
  * Tabela "Parcelas do Financiamento": cronograma completo a partir do estado
  * vigente (projetadas + pagas do histórico) no padrão da tabela do simulador
@@ -170,14 +280,18 @@ function EditarParcela({ paga, onClose }: { paga: ParcelaPagaComId; onClose: () 
  * Ações por linha (ausentes em readOnly e no contrato quitado):
  * - primeira parcela pendente: botão "Pagar" abre inline o `PayInstallment` do
  *   card do mês (com "Definir hoje" e o eventual split de amortização);
- * - parcelas pagas do estado vigente: Editar (editor inline) e Apagar
- *   (`ConfirmDialog`), migrando as ações que viviam no histórico;
+ * - pagas do estado vigente: Editar (editor inline) e Apagar (`ConfirmDialog`).
+ *   O Editar some quando a parcela tem amortização vinculada (groupId), recusada
+ *   pela action; o Apagar só aparece na ÚLTIMA paga, única removível sem criar
+ *   lacuna. O vínculo com o estado é feito por `state.pagas` (não pelo histórico);
+ * - amortizações extras do estado vigente: Editar/Apagar na coluna "Aporte" da
+ *   linha onde o aporte aparece, com os guards do servidor respeitados;
  * - pagas de períodos anteriores: selo "Histórico", sem ações (o servidor já
  *   recusa editar/apagar estado superado).
  *
- * As amortizações extras do estado vigente entram na coluna "Aporte" da linha
- * da última paga anterior (ou da primeira em aberto, sem paga); as de baselines
- * superados já estão absorvidas pelo saldo vigente e não geram linha.
+ * As amortizações extras entram na coluna "Aporte" da linha da última paga
+ * anterior (ou da primeira em aberto, sem paga); as de baselines superados já
+ * estão absorvidas pelo saldo vigente e não geram linha.
  */
 export function ParcelasDoFinanciamento({
   state,
@@ -189,12 +303,16 @@ export function ParcelasDoFinanciamento({
   quitado?: boolean;
 }) {
   const router = useRouter();
-  const [editor, setEditor] = useState<{ numero: number; tipo: 'pagar' | 'editar' } | null>(null);
-  const [apagarAlvo, setApagarAlvo] = useState<{ id: string; numero: number; valor: number } | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [apagarAlvo, setApagarAlvo] = useState<ApagarAlvo | null>(null);
 
   const linhas = buildCronograma(state.baseline, state.projecao, state.historico, state.extras);
   const temExtraAplicavel = (data: string) => state.extras.some((e) => e.dataPagamento <= data);
-  const pagaPorNumero = new Map(state.historico.pagas.map((p) => [p.parcelaNumero, p]));
+  // Vínculo de ação só com o estado VIGENTE: o histórico serve para exibir os
+  // selos das pagas de períodos anteriores, nunca para mirar movements editáveis.
+  const pagaPorNumero = new Map(state.pagas.map((p) => [p.parcelaNumero, p]));
+  const ultimaPaga = state.pagas.reduce((maior, p) => Math.max(maior, p.parcelaNumero), 0);
+  const aportesPorLinha = distribuirAportes(linhas, state.extras);
   const primeiraAberta = linhas.find((l) => l.situacao === 'aberta') ?? null;
   const podeAgir = !readOnly && !quitado;
 
@@ -233,6 +351,11 @@ export function ParcelasDoFinanciamento({
               {linhas.map((linha) => {
                 const pagaMov = pagaPorNumero.get(linha.numero);
                 const ehPrimeiraAberta = primeiraAberta?.numero === linha.numero;
+                const extrasDaLinha = aportesPorLinha.get(linha.numero) ?? [];
+                const extraEmEdicao =
+                  editor?.tipo === 'editar-amortizacao' && editor.numero === linha.numero
+                    ? extrasDaLinha.find((e) => e.id === editor.amortizacaoId)
+                    : undefined;
                 return (
                   <Fragment key={`parcela-${linha.numero}`}>
                     <TableRow
@@ -249,9 +372,48 @@ export function ParcelasDoFinanciamento({
                       <TableCell>{formatDataBr(linha.vencimento)}</TableCell>
                       <TableCell data-cell="parcela" className="text-right">{formatBRL(linha.valor)}</TableCell>
                       <TableCell data-cell="aporte" className="text-right">
-                        {linha.aporte > 0
-                          ? <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
-                          : '-'}
+                        {linha.aporte > 0 ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="font-medium text-primary">{formatBRL(linha.aporte)}</span>
+                            {podeAgir && extrasDaLinha.length > 0 && (
+                              <span className="flex shrink-0 items-center gap-0.5">
+                                {extrasDaLinha.map((extra) => (
+                                  <Fragment key={extra.id}>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setEditor({ tipo: 'editar-amortizacao', numero: linha.numero, amortizacaoId: extra.id })
+                                      }
+                                      aria-label="Editar amortização"
+                                      className="size-8 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setApagarAlvo({
+                                          tipo: 'amortizacao',
+                                          id: extra.id,
+                                          numero: linha.numero,
+                                          valor: extra.valor,
+                                        })
+                                      }
+                                      aria-label="Apagar amortização"
+                                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  </Fragment>
+                                ))}
+                              </span>
+                            )}
+                          </div>
+                        ) : '-'}
                       </TableCell>
                       <TableCell data-cell="total" className="text-right font-semibold">
                         {formatBRL(linha.valor + linha.aporte)}
@@ -269,33 +431,44 @@ export function ParcelasDoFinanciamento({
                           {podeAgir && linha.situacao === 'aberta' && ehPrimeiraAberta && (
                             <Button
                               type="button"
-                              onClick={() => setEditor({ numero: linha.numero, tipo: 'pagar' })}
+                              onClick={() => setEditor({ tipo: 'pagar', numero: linha.numero })}
                             >
                               Pagar
                             </Button>
                           )}
                           {podeAgir && linha.situacao === 'paga' && pagaMov && (
                             <div className="flex shrink-0 items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditor({ numero: linha.numero, tipo: 'editar' })}
-                                aria-label={`Editar parcela ${linha.numero}`}
-                                className="size-8 text-muted-foreground hover:text-foreground"
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setApagarAlvo({ id: pagaMov.id, numero: linha.numero, valor: pagaMov.valor })}
-                                aria-label={`Apagar parcela ${linha.numero}`}
-                                className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
+                              {!pagaMov.groupId && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setEditor({ tipo: 'editar', numero: linha.numero })}
+                                  aria-label={`Editar parcela ${linha.numero}`}
+                                  className="size-8 text-muted-foreground hover:text-foreground"
+                                >
+                                  <Pencil className="size-3.5" />
+                                </Button>
+                              )}
+                              {linha.numero === ultimaPaga && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    setApagarAlvo({
+                                      tipo: 'parcela',
+                                      id: pagaMov.id,
+                                      numero: linha.numero,
+                                      valor: pagaMov.valor,
+                                    })
+                                  }
+                                  aria-label={`Apagar parcela ${linha.numero}`}
+                                  className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -303,6 +476,9 @@ export function ParcelasDoFinanciamento({
                     </TableRow>
                     {editor?.numero === linha.numero && editor.tipo === 'editar' && pagaMov && (
                       <EditarParcela paga={pagaMov} onClose={() => setEditor(null)} />
+                    )}
+                    {editor?.numero === linha.numero && editor.tipo === 'editar-amortizacao' && extraEmEdicao && (
+                      <EditarAmortizacao amortizacao={extraEmEdicao} onClose={() => setEditor(null)} />
                     )}
                     {editor?.numero === linha.numero && editor.tipo === 'pagar' && (
                       <TableRow data-row-editor="pagar" className="bg-muted/20">
@@ -338,7 +514,13 @@ export function ParcelasDoFinanciamento({
           if (!v) setApagarAlvo(null);
         }}
         title="Apagar lançamento?"
-        description={apagarAlvo ? `Parcela ${apagarAlvo.numero} · ${formatBRL(apagarAlvo.valor)}` : ''}
+        description={
+          apagarAlvo
+            ? apagarAlvo.tipo === 'parcela'
+              ? `Parcela ${apagarAlvo.numero} · ${formatBRL(apagarAlvo.valor)}`
+              : `Amortização extra de ${formatBRL(apagarAlvo.valor)}`
+            : ''
+        }
         confirmLabel="Apagar"
         pendingLabel="Apagando..."
         onConfirm={apagar}

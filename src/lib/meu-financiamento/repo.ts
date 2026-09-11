@@ -21,13 +21,13 @@ export interface ContractData {
 export interface ContractBundle extends ContractData {
   contract: Contract;
   state: ContractState;
-  /** Todos os baselines do contrato em ordem de versão (histórico da timeline). */
+  /** Todos os baselines do contrato em ordem de versão (histórico de períodos). */
   states: ContractState[];
   /** TODOS os lançamentos do contrato (todos os baselines), em ordem. */
   historico: Movement[];
 }
 
-/** Baseline serializável para a timeline (createdAt como ISO string). */
+/** Baseline serializável para o histórico de períodos (createdAt como ISO string). */
 export interface ContractStateSummary {
   /** Id do baseline no banco: liga os lançamentos (`stateId`) ao período. */
   id: string;
@@ -39,7 +39,7 @@ export interface ContractStateSummary {
   /** Dia do vencimento (1..31) do período. */
   diaVencimento: number;
   source: 'cadastro' | 'recalibracao' | 'quitacao' | 'atualizacao';
-  /** Parâmetros contratuais vigentes nesta versão (para a timeline comparar). */
+  /** Parâmetros contratuais vigentes nesta versão (para comparar os períodos). */
   bank: string;
   system: ContractSystem;
   annualRate: number;
@@ -60,12 +60,12 @@ export interface PageState {
   /** Lançamentos do baseline VIGENTE: base do cálculo/projeção e dos guards de edição. */
   pagas: ParcelaPagaComId[];
   extras: AmortizacaoComId[];
-  /** Lançamentos de TODOS os baselines: a timeline e o total pago continuam
+  /** Lançamentos de TODOS os baselines: o total pago e a tabela continuam
    *  visíveis após recalibração/atualização, que congelam o passado. */
   historico: { pagas: ParcelaPagaComId[]; extras: AmortizacaoComId[] };
   /** Id do baseline vigente: a UI só edita/apaga lançamentos deste estado. */
   stateId: string;
-  /** Histórico de baselines (cadastro, recalibrações e atualizações) para a timeline. */
+  /** Histórico de baselines (cadastro, recalibrações e atualizações) para a tabela. */
   states: ContractStateSummary[];
   projecao: Projecao;
   /** Contrato quitado segundo o BANCO (baseline vigente com saldo 0 /
@@ -225,7 +225,7 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
   if (!state) throw new Error('Contrato sem estado');
   // Movements de TODOS os baselines: os do estado vigente entram no cálculo
   // (pagas/extras) e os de estados superados alimentam apenas o histórico
-  // visível (timeline/total pago) — nunca são reaplicados no modelo, porque a
+  // visível (tabela/total pago) — nunca são reaplicados no modelo, porque a
   // recalibração/atualização já os incorporou no saldo do estado novo.
   const todos = await db
     .select()
