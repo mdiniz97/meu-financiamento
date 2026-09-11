@@ -117,13 +117,18 @@ export function Dashboard({
   // recusa principal zero.
   function levarAoSimulador() {
     const months = Math.max(1, params.parcelasTotais - primeiraPendente + 1);
+    // Arredonda o percentual (x100) em 6 casas antes de stringificar: a
+    // multiplicação por 100 introduz ruído de float (0,16999999999999998,
+    // 7.000000000000001) que apareceria cru no input do simulador. Principal em
+    // reais inteiros e seguro com 2 casas.
+    const percent = (value: number) => String(Number((value * 100).toFixed(6)));
     const form: FormState = {
       ...DEFAULT_FORM,
       system: params.system,
-      principal: numberToBRLInput(saldoEfetivo),
-      annualRate: String(params.annualRate * 100),
+      principal: String(Math.round(saldoEfetivo)),
+      annualRate: percent(params.annualRate),
       months: String(months),
-      trMonthly: String(params.trMonthly * 100),
+      trMonthly: percent(params.trMonthly),
       insuranceMonthly: numberToBRLInput(params.insuranceMonthly),
       bank: params.bank,
       annualRateKind: 'effective-annual',

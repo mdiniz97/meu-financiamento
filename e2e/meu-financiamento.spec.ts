@@ -625,15 +625,38 @@ test('Levar ao Simulador transfere o cenário vigente para /simulacao', async ({
   await assinar(page, conta.id);
   await criarContrato(page, todayISO());
 
+  // O simulador (SimulationSandbox) consome a chave `sim-input` ao montar, então
+  // o payload é capturado no momento do setItem e guardado no localStorage
+  // (persiste na navegação client-side). /simulacao não expõe inputs de TR/seguro
+  // (esses ficam em /nova-simulacao); o payload prova que a transferência carrega
+  // todos os campos do contrato, sem ruído de float.
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
+      if (key === 'sim-input') window.localStorage.setItem('__mfLevarSimInput', value);
+      return original.call(this, key, value);
+    };
+  });
+
   const botao = page.getByRole('button', { name: /Levar ao Simulador/i });
   await expect(botao).toBeVisible();
   await Promise.all([page.waitForURL(/\/simulacao$/), botao.click()]);
 
-  // Cabeçalho do simulador com o cenário do contrato: valor financiado
-  // (saldo efetivo), taxa efetiva a.a. e prazo restante (360 − 141 + 1 = 220).
-  await expect(page.getByText(/R\$\s*1\.000\.000,00/).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/10\.50% a\.a\./)).toBeVisible();
-  await expect(page.getByText(/220 meses/).first()).toBeVisible();
+  const stored = JSON.parse(
+    (await page.evaluate(() => window.localStorage.getItem('__mfLevarSimInput'))) ?? '{}',
+  ) as Record<string, string>;
+  expect(stored.principal).toBe('1000000');
+  expect(stored.annualRate).toBe('10.5');
+  expect(stored.trMonthly).toBe('0.17');
+  expect(stored.insuranceMonthly).toBe('100,00');
+  expect(stored.bank).toBe('Caixa');
+  expect(stored.months).toBe('220');
+
+  // Cabeçalho do simulador com o cenário do contrato: valor financiado (saldo
+  // efetivo), taxa efetiva a.a., prazo restante (360 − 141 + 1 = 220) e banco.
+  await expect(
+    page.getByText(/Sistema PRICE · R\$\s*1\.000\.000,00 · 10\.50% a\.a\. · 220 meses · Caixa/),
+  ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Total pago', { exact: true }).first()).toBeVisible();
 });
 

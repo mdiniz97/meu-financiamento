@@ -62,10 +62,11 @@ function NavLinks({
             className={cn(
               'flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors',
               compact ? 'px-3 py-2' : 'rounded-xl px-4 py-3.5 text-base',
+              highlight && 'border border-[#820AD1]/40',
               active
                 ? 'bg-primary/10 text-[#820AD1]'
                 : highlight
-                  ? 'border border-[#820AD1]/40 bg-primary/5 text-[#820AD1] hover:bg-primary/10'
+                  ? 'bg-primary/5 text-[#820AD1] hover:bg-primary/10'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
