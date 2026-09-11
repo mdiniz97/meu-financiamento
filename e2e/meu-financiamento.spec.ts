@@ -52,8 +52,8 @@ const totalCard = (page: Page): Locator =>
   page.getByText('Total pago', { exact: true }).locator('..');
 const amortizadoCard = (page: Page): Locator =>
   page.getByText('Amortizado', { exact: true }).locator('..');
-const parcelasPagasCard = (page: Page): Locator =>
-  page.getByText('Parcelas pagas', { exact: true }).locator('..');
+const pagamentosCard = (page: Page): Locator =>
+  page.getByText('Pagamentos registrados', { exact: true }).locator('..');
 const valorOriginalCard = (page: Page): Locator =>
   page.getByText('Valor original', { exact: true }).locator('..');
 const quantoFaltaCard = (page: Page): Locator =>
@@ -62,6 +62,10 @@ const quitacaoCard = (page: Page): Locator =>
   page.getByText('Quitação estimada', { exact: true }).locator('..');
 const economiaCard = (page: Page): Locator =>
   page.getByText('Economizado', { exact: true }).locator('..');
+const amortizadoSituacaoCard = (page: Page): Locator =>
+  page.getByText('Amortizado nesta situação', { exact: true }).locator('..');
+const economiaSituacaoCard = (page: Page): Locator =>
+  page.getByText('Economizado nesta situação', { exact: true }).locator('..');
 
 async function criarConta(page: Page, nome: string): Promise<{ id: string; email: string }> {
   const email = `mf9-${crypto.randomUUID()}@teste.com`;
@@ -822,7 +826,16 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await expect(
     page.getByText('desde o início do contrato, somando atualizações e portabilidades', { exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Contrato atual', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Situação atual', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('situação vigente a partir da última atualização', { exact: true }),
+  ).toBeVisible();
+
+  // Sem amortizações no período vigente, as estatísticas da situação atual
+  // aparecem como "—" com a legenda discreta.
+  await expect(amortizadoSituacaoCard(page)).toContainText('—');
+  await expect(economiaSituacaoCard(page)).toContainText('—');
+  await expect(page.getByText('sem amortizações nesta situação', { exact: true })).toBeVisible();
 
   // Registra amortização extra para haver economia antes da edição.
   await page.getByRole('button', { name: 'Registrar amortização extra', exact: true }).click();
@@ -837,7 +850,10 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await expect(historico).toContainText('Amortização extra', { timeout: 20_000 });
 
   // Faixa global: acumulado do contrato inteiro (uma amortização, sem pagas).
-  await expect(parcelasPagasCard(page)).toContainText('0 de 360');
+  // "Pagamentos registrados" conta lançamentos de pagamento, sem competir com a
+  // "Parcela N de M" da situação atual: só a contagem, sem "de 360".
+  await expect(pagamentosCard(page)).toContainText('0');
+  await expect(pagamentosCard(page)).not.toContainText('de 360');
   await expect(valorOriginalCard(page)).toContainText(/R\$\s*1\.000\.000,00/);
   await expect(quantoFaltaCard(page)).toContainText(/R\$\s*[\d.,]+/);
   const totalAntes = parseBRL(await totalCard(page).innerText());
@@ -846,6 +862,13 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   expect(totalAntes).toBeGreaterThan(0);
   expect(amortizadoAntes).toBeGreaterThan(0);
   expect(economiaAntes).toBeGreaterThan(0);
+
+  // Situação atual: as estatísticas do período vigente refletem a amortização
+  // recém-registrada (ambas acima de zero).
+  await expect(amortizadoSituacaoCard(page)).toContainText(/R\$\s*[\d.,]+/);
+  expect(parseBRL(await amortizadoSituacaoCard(page).innerText())).toBeGreaterThan(0);
+  await expect(economiaSituacaoCard(page)).toContainText(/R\$\s*[\d.,]+/);
+  expect(parseBRL(await economiaSituacaoCard(page).innerText())).toBeGreaterThan(0);
 
   // Edita o contrato: as amortizações viram passado congelado no período anterior.
   await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
@@ -864,6 +887,11 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
   await expect
     .poll(async () => parseBRL(await economiaCard(page).innerText()), { timeout: 20_000 })
     .toBeGreaterThan(0);
+  // Já a situação atual usa só os extras do período vigente: a amortização
+  // virou passado congelado, então as estatísticas voltam a "—".
+  await expect(amortizadoSituacaoCard(page)).toContainText('—');
+  await expect(economiaSituacaoCard(page)).toContainText('—');
+  await expect(page.getByText('sem amortizações nesta situação', { exact: true })).toBeVisible();
 });
 
 test('editar contrato aceita parcela anterior à pendente e remove os lançamentos futuros', async ({ page }) => {

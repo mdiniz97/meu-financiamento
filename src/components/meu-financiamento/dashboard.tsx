@@ -9,7 +9,7 @@ import { ExclusiveCard } from '@/components/exclusive-card';
 import { deleteMovement } from '@/app/(app)/meu-financiamento/actions';
 import type { PageState } from '@/lib/meu-financiamento/repo';
 import { addMonthsISO, formatDataBr, formatMesAno, todayISO } from '@/lib/meu-financiamento/dates';
-import { economiaAcumulada } from '@/lib/finance/meu-financiamento/economia';
+import { economiaAcumulada, economiaAmortizacoes } from '@/lib/finance/meu-financiamento/economia';
 import { formatBRL } from '@/lib/utils';
 import { PayInstallment } from './pay-installment';
 import { AmortizacaoDialog } from './amortization-form';
@@ -83,10 +83,16 @@ export function Dashboard({
 
   // Faixa GLOBAL: somatórios de todos os períodos, independentes de edições e
   // portabilidades. O valor original vem do primeiro baseline (versão 1).
-  const parcelasPagas = state.historico.pagas.length;
+  const pagamentosRegistrados = state.historico.pagas.length;
   const estadoInicial = state.states[0];
   const valorOriginal = estadoInicial ? estadoInicial.saldoDevedor : baseline.saldoDevedor;
-  const parcelasTotaisGlobais = estadoInicial ? estadoInicial.parcelasTotais : params.parcelasTotais;
+
+  // Estatísticas da SITUAÇÃO ATUAL: usam só os extras do estado vigente (os
+  // períodos superados já foram incorporados ao saldo do baseline novo).
+  const amortizadoVigente = extras.reduce((soma, extra) => soma + extra.valor, 0);
+  const economiaVigente = economiaAmortizacoes(params, baseline, pagas, extras);
+  const economiaVigentePositiva = Math.round(economiaVigente * 100) > 0;
+  const semAmortizacoesVigentes = extras.length === 0;
 
   // Confirmação só vale enquanto a parcela recém-paga existir no estado atual
   // (apagar pela timeline ou recalibrar some com a linha e com o Desfazer).
@@ -135,10 +141,9 @@ export function Dashboard({
             </dd>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-medium text-muted-foreground">Parcelas pagas</dt>
-            <dd className="font-mono text-base font-semibold tabular-nums">
-              {parcelasPagas} de {parcelasTotaisGlobais}
-            </dd>
+            <dt className="text-xs font-medium text-muted-foreground">Pagamentos registrados</dt>
+            <dd className="font-mono text-base font-semibold tabular-nums">{pagamentosRegistrados}</dd>
+            <p className="text-xs text-muted-foreground">parcelas pagas nos períodos</p>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
             <dt className="text-xs font-medium text-muted-foreground">Valor original</dt>
@@ -153,8 +158,8 @@ export function Dashboard({
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="font-display text-lg font-semibold">Contrato atual</h2>
-          <p className="text-xs text-muted-foreground">Contrato vigente, a partir da última atualização.</p>
+          <h2 className="font-display text-lg font-semibold">Situação atual</h2>
+          <p className="text-xs text-muted-foreground">situação vigente a partir da última atualização</p>
         </div>
 
         <div className="flex flex-col gap-4 rounded-2xl border border-[#820AD1]/20 bg-primary/[0.04] p-6">
@@ -204,7 +209,22 @@ export function Dashboard({
                 </p>
               )}
             </div>
+            <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Amortizado nesta situação</p>
+              <p className="font-mono text-lg font-semibold tabular-nums">
+                {amortizadoVigente > 0 ? formatBRL(amortizadoVigente) : '—'}
+              </p>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Economizado nesta situação</p>
+              <p className="font-mono text-lg font-semibold tabular-nums">
+                {economiaVigentePositiva ? formatBRL(economiaVigente) : '—'}
+              </p>
+            </div>
           </div>
+          {semAmortizacoesVigentes && (
+            <p className="text-xs text-muted-foreground">sem amortizações nesta situação</p>
+          )}
         </div>
 
       {!readOnly && !quitado && (
