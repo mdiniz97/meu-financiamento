@@ -1,5 +1,6 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { hasActiveAccess } from '@/lib/subscriptions/access';
 
 export async function getCreditBalance(userId: string) {
   const row = await db
@@ -8,14 +9,7 @@ export async function getCreditBalance(userId: string) {
     })
     .from(schema.creditLedger)
     .where(eq(schema.creditLedger.userId, userId));
-  const sub = await db.query.subscriptions.findFirst({
-    where: and(
-      eq(schema.subscriptions.userId, userId),
-      eq(schema.subscriptions.status, 'active'),
-      gt(schema.subscriptions.currentPeriodEnd, new Date())
-    ),
-  });
-  return { credits: row[0].sum, isUnlimited: Boolean(sub) };
+  return { credits: row[0].sum, isUnlimited: await hasActiveAccess(userId) };
 }
 
 export async function addCredits(
