@@ -56,6 +56,8 @@ function parseDate(value?: string | null): Date | null {
  * eventos (checkout) casam por `checkoutSession` e os PAYMENT_* seguintes
  * por `payment.subscription` (== providerId gravado).
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | null> {
   const providerKey = event.payment?.subscription ?? event.subscription?.id;
   if (providerKey) {
@@ -78,7 +80,10 @@ async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | nu
 
   const externalReference =
     event.checkout?.externalReference ?? event.subscription?.externalReference;
-  if (externalReference) {
+  // Só consulta `id` (uuid) se o externalReference for um UUID. Um valor
+  // estranho (checkout de outra integração, payload de debug) faria o Postgres
+  // lançar `invalid input syntax for type uuid` e derrubar o evento.
+  if (externalReference && UUID_RE.test(externalReference)) {
     const found = await db.query.subscriptions.findFirst({
       where: eq(schema.subscriptions.id, externalReference),
     });

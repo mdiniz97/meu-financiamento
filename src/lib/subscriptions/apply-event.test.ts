@@ -279,8 +279,9 @@ describe('R1 — correlação', () => {
   });
 
   it('CHECKOUT_PAID casa por externalReference (id local) e não libera acesso', async () => {
+    const localId = '26bf39ac-33c4-4f18-804d-a91405146e8d';
     byId = {
-      id: 'sub-local',
+      id: localId,
       userId: 'user-1',
       status: 'incomplete',
       cycle: 'YEARLY',
@@ -290,13 +291,13 @@ describe('R1 — correlação', () => {
     await applyAsaasEvent({
       id: 'evt_chk_paid',
       event: 'CHECKOUT_PAID',
-      checkout: { id: 'chk_1', externalReference: 'sub-local' },
+      checkout: { id: 'chk_1', externalReference: localId },
     });
 
     const calls = mocks.findSub.mock.calls.map(
       (call) => (call[0] as { where: { col: string; val: unknown } }).where
     );
-    expect(calls.some((c) => c.col === 'id' && c.val === 'sub-local')).toBe(true);
+    expect(calls.some((c) => c.col === 'id' && c.val === localId)).toBe(true);
     expect(mocks.updateSub).not.toHaveBeenCalled();
   });
 
@@ -548,5 +549,20 @@ describe('processWebhookEvent', () => {
       .find((p) => p != null && 'attempts' in p);
     expect(patch?.attempts).toBe(3);
     expect(String(patch?.lastError)).toContain('db down');
+  });
+
+  it('externalReference não-UUID não consulta o id (evita erro de uuid) nem lança', async () => {
+    await expect(
+      applyAsaasEvent({
+        id: 'evt_dbg',
+        event: 'CHECKOUT_PAID',
+        checkout: { id: 'chk_dbg', externalReference: 'dbg3-1789328347591', status: 'PAID' },
+      })
+    ).resolves.toBeUndefined();
+
+    const idCalls = mocks.findSub.mock.calls.filter(
+      (call) => (call[0] as { where?: { col?: string } })?.where?.col === 'id'
+    );
+    expect(idCalls).toHaveLength(0);
   });
 });
