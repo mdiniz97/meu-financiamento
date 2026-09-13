@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 // React warns if useLayoutEffect runs during SSR; since this component is rendered
 // by a server component tree, fall back to useEffect there (a no-op on the server
@@ -15,13 +15,9 @@ const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffec
  * page's toggle puts on <html> reaches those tokens, text renders near-white on those
  * hardcoded light backgrounds.
  *
- * The obvious fix, nest a next-themes <ThemeProvider forcedTheme="light"> here, is a
- * documented no-op: next-themes short-circuits to `<>{children}</>` whenever it detects
- * an existing theme context, silently dropping every prop including forcedTheme
- * (verified against the installed next-themes 0.4.6 source; see
- * https://github.com/pacocoursey/next-themes/issues/254).
- *
- * So instead we strip the `dark` class ourselves. A plain one-shot removal on mount
+ * A nested forced-light provider wouldn't help: any provider that detects an existing
+ * theme context short-circuits to `<>{children}</>`, silently dropping its props. So
+ * instead we strip the `dark` class ourselves. A plain one-shot removal on mount
  * isn't enough: the ROOT ThemeProvider (an ancestor) has its own effect that
  * re-applies the persisted theme on every mount, and, because ancestor effects run
  * after descendant effects within the same phase (layout or passive), regardless of

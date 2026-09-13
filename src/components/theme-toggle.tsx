@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  // next-themes' documented SSR/hydration-mismatch guard: resolvedTheme is undefined on
-  // the server, so this flips `mounted` exactly once after client mount to unblock
-  // rendering the real button.
+  // SSR/hydration-mismatch guard: the persisted theme only exists on the client,
+  // so this flips `mounted` exactly once after mount to unblock rendering the button.
   useEffect(() => setMounted(true), []); // eslint-disable-line react-hooks/set-state-in-effect
 
   if (!mounted) {
