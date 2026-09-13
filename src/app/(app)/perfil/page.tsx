@@ -1,22 +1,31 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getCreditBalance } from '@/lib/credits';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
+import { CancelSubscriptionButton } from './cancel-subscription-button';
 
 export default async function PerfilPage() {
   const session = await auth();
   if (!session?.userId) redirect('/login');
 
-  const [user, { credits, isUnlimited }, packs] = await Promise.all([
+  const [user, { credits, isUnlimited }, packs, asaasSubscription] = await Promise.all([
     db.query.users.findFirst({ where: eq(schema.users.id, session.userId) }),
     getCreditBalance(session.userId),
     db.query.packs.findMany({ orderBy: (packs, { asc }) => [asc(packs.priceCents)] }),
+    db.query.subscriptions.findFirst({
+      where: and(
+        eq(schema.subscriptions.userId, session.userId),
+        eq(schema.subscriptions.packId, 'unlimited'),
+        eq(schema.subscriptions.provider, 'asaas'),
+        eq(schema.subscriptions.status, 'active')
+      ),
+    }),
   ]);
 
   return (
@@ -69,6 +78,17 @@ export default async function PerfilPage() {
             <Badge variant="secondary" className="w-fit">
               Assinatura ilimitada ativa
             </Badge>
+            {asaasSubscription?.cancelAtPeriodEnd ? (
+              <p className="text-muted-foreground">
+                Renovação cancelada. Você mantém o acesso até{' '}
+                {asaasSubscription.currentPeriodEnd
+                  ? new Date(asaasSubscription.currentPeriodEnd).toLocaleDateString('pt-BR')
+                  : 'o fim do período já pago'}
+                .
+              </p>
+            ) : asaasSubscription ? (
+              <CancelSubscriptionButton />
+            ) : null}
           </CardContent>
         </Card>
       ) : (
