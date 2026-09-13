@@ -265,6 +265,10 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
   switch (event.event) {
     case 'PAYMENT_CONFIRMED':
     case 'PAYMENT_RECEIVED': {
+      // Curto-circuito de reentrega: compra já paga não credita de novo. O
+      // índice único (`isUniqueViolation`) segue como rede para entregas
+      // concorrentes que leem `pending` antes de qualquer uma marcar `paid`.
+      if (purchase.status === 'paid') return;
       const description = `Compra créditos (providerId ${event.payment?.id})`;
       try {
         await addCredits(purchase.userId, purchase.credits, 'purchase', description);

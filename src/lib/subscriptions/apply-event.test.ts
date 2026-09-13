@@ -566,6 +566,34 @@ describe('créditos avulsos — compra DETACHED', () => {
     expect(setPatch(updateChains[0]).status).toBe('paid');
   });
 
+  it('reentrega real do mesmo pay_ não duplica (status paid curto-circuita)', async () => {
+    mocks.findPurchase
+      .mockResolvedValueOnce(purchase())
+      .mockResolvedValue(purchase({ status: 'paid' }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_CONFIRMED'));
+    await applyAsaasEvent(creditPayment('PAYMENT_CONFIRMED'));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(updateChains).toHaveLength(1);
+  });
+
+  it('assinatura resolvida nunca concede créditos mesmo com compra correlacionada', async () => {
+    byCheckout = {
+      id: 'sub-1',
+      userId: 'user-1',
+      cycle: 'YEARLY',
+      currentPeriodEnd: null,
+    };
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_CONFIRMED'));
+
+    expect(mocks.findPurchase).not.toHaveBeenCalled();
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(setPatch(updateChains[0]).status).toBe('active');
+  });
+
   it('PAYMENT_RECEIVED (Pix) também libera créditos', async () => {
     mocks.findPurchase.mockResolvedValue(purchase({ credits: 3 }));
 
