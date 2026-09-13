@@ -38,6 +38,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // Pack avulso sem créditos: o usuário pagaria e não receberia nada.
+    if (!pack.credits || pack.credits <= 0) {
+      return NextResponse.json({ error: 'Pack de créditos inválido.' }, { status: 400 });
+    }
+
     const [purchase] = await db
       .insert(schema.creditPurchases)
       .values({

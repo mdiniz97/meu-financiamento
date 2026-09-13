@@ -716,6 +716,67 @@ describe('créditos avulsos — compra DETACHED', () => {
     expect(cols.some((c) => c.col === 'id' && c.val === localId)).toBe(true);
     expect(mocks.addCredits).toHaveBeenCalledTimes(1);
   });
+
+  it('PAYMENT_REFUNDED estorna créditos uma vez e marca refunded', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid' }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.addCredits).toHaveBeenCalledWith(
+      'u1',
+      -5,
+      'refund',
+      'Estorno créditos (providerId pay_1)'
+    );
+    expect(setPatch(updateChains[0]).status).toBe('refunded');
+  });
+
+  it('replay de PAYMENT_REFUNDED (já refunded) não estorna de novo', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'refunded' }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'));
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(updateChains).toHaveLength(0);
+  });
+
+  it('PAYMENT_CHARGEBACK_REQUESTED estorna créditos e marca refunded', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid', credits: 3 }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_CHARGEBACK_REQUESTED'));
+
+    expect(mocks.addCredits).toHaveBeenCalledWith(
+      'u1',
+      -3,
+      'refund',
+      'Estorno créditos (providerId pay_1)'
+    );
+    expect(setPatch(updateChains[0]).status).toBe('refunded');
+  });
+
+  it('PAYMENT_PARTIALLY_REFUNDED revoga o grant integral (conservador)', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid' }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_PARTIALLY_REFUNDED'));
+
+    expect(mocks.addCredits).toHaveBeenCalledWith(
+      'u1',
+      -5,
+      'refund',
+      'Estorno créditos (providerId pay_1)'
+    );
+    expect(setPatch(updateChains[0]).status).toBe('refunded');
+  });
+
+  it('estorno com compra não paga não lança crédito negativo', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'pending' }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'));
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(updateChains).toHaveLength(0);
+  });
 });
 
 describe('processWebhookEvent', () => {

@@ -307,6 +307,25 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
       return;
     }
 
+    case 'PAYMENT_REFUNDED':
+    case 'PAYMENT_PARTIALLY_REFUNDED':
+    case 'PAYMENT_CHARGEBACK_REQUESTED': {
+      // Revoga só compra efetivamente paga; replay (já `refunded`) não passa do
+      // guard e, portanto, não estorna créditos de novo.
+      if (purchase.status !== 'paid') return;
+      await addCredits(
+        purchase.userId,
+        -purchase.credits,
+        'refund',
+        `Estorno créditos (providerId ${event.payment?.id})`
+      );
+      await db
+        .update(schema.creditPurchases)
+        .set({ status: 'refunded' })
+        .where(eq(schema.creditPurchases.id, purchase.id));
+      return;
+    }
+
     default:
       return;
   }

@@ -99,7 +99,41 @@ describe('POST /api/checkout', () => {
     });
     expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_c' });
     expect(m.updateWhere).toHaveBeenCalledTimes(1);
+    expect(m.updateWhere).toHaveBeenCalledWith(['credit_purchases.id', 'purchase-1']);
     expect(m.createCheckout).not.toHaveBeenCalled();
+  });
+
+  it('asaas + pack avulso sem créditos responde 400 sem inserir', async () => {
+    m.packFindFirst.mockResolvedValue({
+      id: 'credits0',
+      priceCents: 1000,
+      isSubscription: false,
+      credits: 0,
+    });
+
+    const res = await POST(req({ packId: 'credits0' }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Pack de créditos inválido.' });
+    expect(m.insert).not.toHaveBeenCalled();
+    expect(m.createCreditsCheckout).not.toHaveBeenCalled();
+    expect(m.createCheckout).not.toHaveBeenCalled();
+  });
+
+  it('asaas + pack avulso com credits null responde 400 sem inserir', async () => {
+    m.packFindFirst.mockResolvedValue({
+      id: 'creditsnull',
+      priceCents: 1000,
+      isSubscription: false,
+      credits: null,
+    });
+
+    const res = await POST(req({ packId: 'creditsnull' }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Pack de créditos inválido.' });
+    expect(m.insert).not.toHaveBeenCalled();
+    expect(m.createCreditsCheckout).not.toHaveBeenCalled();
   });
 
   it('asaas + assinatura responde 400 (use /assinar) sem inserir', async () => {

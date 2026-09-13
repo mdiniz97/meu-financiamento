@@ -159,6 +159,15 @@ npx tsx scripts/register-asaas-webhook.ts
 - Sandbox e produção são independentes: rode o script apontando para cada ambiente.
 - O `email` configurado recebe os alertas de penalização/fila pausada (15 falhas
   pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
+- **NFS-e**: o registro já inclui os 8 eventos `INVOICE_*` (inofensivos com a
+  feature desligada). Se o webhook de um ambiente foi criado antes desta mudança,
+  **rode o script de novo** ao habilitar `ASAAS_INVOICE_ENABLED=true` para que a
+  assinatura de eventos passe a incluir as notas; sem isso o Asaas não envia
+  `INVOICE_*` e as notas nunca aparecem em `invoices`.
+- **Créditos DETACHED**: a correlação dos `PAYMENT_*` de checkout avulso usa
+  `payment.checkoutSession`; confirme o campo no payload real **no sandbox** antes
+  de vender em produção (se o Asaas omitir `checkoutSession`, a compra não é
+  correlacionada e os créditos não são liberados).
 
 ## Créditos avulsos
 
@@ -226,7 +235,7 @@ Variáveis (bloco comentado no `.env.example`; nunca versionar valores reais):
 | `ASAAS_INVOICE_ENABLED` | `false` (default) \| `true` | único gatilho; só `true` exato habilita |
 | `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` | código do serviço | **obrigatório** com a flag ligada (falha no uso) |
 | `ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME` | nome do serviço | |
-| `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) \| `ON_PAYMENT_DUE_DATE` \| `BEFORE_PAYMENT_DUE_DATE` \| `ON_DUE_DATE_MONTH` \| `ON_NEXT_MONTH` | valor inválido lança erro |
+| `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) \| `ON_PAYMENT_DUE_DATE` \| `BEFORE_PAYMENT_DUE_DATE` \| `ON_DUE_DATE_MONTH` \| `ON_NEXT_MONTH` | valor inválido: `invoiceSettingsBody()` lança; o chamador captura e **avisa no log**, sem derrubar o webhook |
 | `ASAAS_INVOICE_RETAIN_ISS` | `true` \| `false` | |
 | `ASAAS_INVOICE_ISS` / `PIS` / `COFINS` / `CSLL` / `INSS` / `IR` | número (%) | vazio = `0` |
 | `ASAAS_INVOICE_NBS_CODE` / `TAX_SITUATION_CODE` / `TAX_CLASSIFICATION_CODE` / `OPERATION_INDICATOR_CODE` / `OBSERVATIONS` | opcionais | omitidos do body quando vazios |
