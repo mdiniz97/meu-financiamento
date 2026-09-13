@@ -95,7 +95,10 @@ beforeEach(() => {
   });
   mocks.insertPayment.mockReset();
   mocks.insertPayment.mockReturnValue({
-    values: vi.fn().mockReturnValue({ onConflictDoNothing: vi.fn().mockResolvedValue([]) }),
+    values: vi.fn().mockReturnValue({
+      onConflictDoNothing: vi.fn().mockResolvedValue([]),
+      onConflictDoUpdate: vi.fn().mockResolvedValue([]),
+    }),
   });
 });
 
@@ -340,6 +343,52 @@ describe('R2 — upsertPayment', () => {
     ).values.mock.calls[0][0] as { userId: string; asaasPaymentId: string };
     expect(valuesArg.userId).toBe('user-42');
     expect(valuesArg.asaasPaymentId).toBe('pay_1');
+  });
+
+  it('PAYMENT_CREATED seguido de PAYMENT_CONFIRMED faz upsert e atualiza status', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(paymentEvent('PAYMENT_CREATED'));
+    await applyAsaasEvent(paymentEvent('PAYMENT_CONFIRMED'));
+
+    const valuesFn = (
+      mocks.insertPayment.mock.results[0].value as {
+        values: ReturnType<typeof vi.fn>;
+      }
+    ).values;
+    const conflict = valuesFn.mock.results[0].value as {
+      onConflictDoUpdate: ReturnType<typeof vi.fn>;
+      onConflictDoNothing: ReturnType<typeof vi.fn>;
+    };
+
+    // Um upsert por evento (CREATED e CONFIRMED), sempre via column-target.
+    expect(conflict.onConflictDoUpdate).toHaveBeenCalledTimes(2);
+    expect(conflict.onConflictDoNothing).not.toHaveBeenCalled();
+    const arg = conflict.onConflictDoUpdate.mock.calls[1][0] as {
+      target: unknown;
+      set: Record<string, unknown>;
+    };
+    expect(arg.target).toBe('asaasPaymentId');
+    expect(arg.set.status).toBe('CONFIRMED');
+    expect(arg.set.updatedAt).toBeInstanceOf(Date);
+    expect(arg.set).not.toHaveProperty('userId');
+    expect(arg.set).not.toHaveProperty('subscriptionId');
+  });
+
+  it('PAYMENT_OVERDUE atualiza status para OVERDUE no upsert', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(paymentEvent('PAYMENT_OVERDUE'));
+
+    const valuesFn = (
+      mocks.insertPayment.mock.results[0].value as {
+        values: ReturnType<typeof vi.fn>;
+      }
+    ).values;
+    const arg = (
+      valuesFn.mock.results[0].value as { onConflictDoUpdate: ReturnType<typeof vi.fn> }
+    ).onConflictDoUpdate.mock.calls[0][0] as { set: Record<string, unknown> };
+    expect(arg.set.status).toBe('OVERDUE');
   });
 });
 

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { addCycle } from './cycle';
 
@@ -87,8 +87,10 @@ async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | nu
 /**
  * R2 — `user_id` é NOT NULL: sem assinatura resolvida não há usuário válido,
  * então não inserimos a linha de payment (apenas registramos o aviso).
- * O índice único de `asaas_payment_id` é um UNIQUE INDEX; usamos
- * `onConflictDoNothing()` sem target, nunca `ON CONFLICT ON CONSTRAINT`.
+ * O índice único de `asaas_payment_id` é um UNIQUE INDEX, por isso o upsert
+ * usa `target` de coluna (`onConflictDoUpdate`), nunca `ON CONFLICT ON CONSTRAINT`.
+ * `user_id`/`subscription_id` só entram no INSERT; o UPDATE atualiza apenas os
+ * campos mutáveis derivados do evento.
  */
 async function upsertPayment(
   event: AsaasEvent,
@@ -103,23 +105,46 @@ async function upsertPayment(
     );
     return;
   }
+
+  const status = p.status ?? event.event.replace('PAYMENT_', '');
+  const billingType = p.billingType ?? null;
+  const dueDate = parseDate(p.dueDate);
+  const valueCents = p.value != null ? Math.round(p.value * 100) : null;
+  const netValueCents = p.netValue != null ? Math.round(p.netValue * 100) : null;
+  const invoiceUrl = p.invoiceUrl ?? null;
+
   await db
     .insert(schema.payments)
     .values({
       asaasPaymentId: p.id,
       subscriptionId: subId,
       userId,
-      status: p.status ?? event.event.replace('PAYMENT_', ''),
-      billingType: p.billingType ?? null,
-      dueDate: parseDate(p.dueDate),
-      valueCents: p.value != null ? Math.round(p.value * 100) : null,
-      netValueCents: p.netValue != null ? Math.round(p.netValue * 100) : null,
-      invoiceUrl: p.invoiceUrl ?? null,
+      status,
+      billingType,
+      dueDate,
+      valueCents,
+      netValueCents,
+      invoiceUrl,
       confirmedAt: event.event === 'PAYMENT_CONFIRMED' ? new Date() : null,
       receivedAt: event.event === 'PAYMENT_RECEIVED' ? new Date() : null,
       rawLastEvent: event,
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: schema.payments.asaasPaymentId,
+      set: {
+        status,
+        billingType,
+        dueDate,
+        valueCents,
+        netValueCents,
+        invoiceUrl,
+        // Preserva o primeiro timestamp não-nulo (o INSERT traz o valor do evento).
+        confirmedAt: sql`coalesce(${schema.payments.confirmedAt}, excluded.confirmed_at)`,
+        receivedAt: sql`coalesce(${schema.payments.receivedAt}, excluded.received_at)`,
+        rawLastEvent: event,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 interface SubscriptionPatch {
