@@ -36,3 +36,31 @@ export async function createSubscriptionCheckout(
     },
   });
 }
+
+export interface CreateCreditsCheckoutInput {
+  externalReference: string;
+  valueCents: number;
+  successUrl: string;
+  cancelUrl: string;
+  expiredUrl: string;
+}
+
+export async function createCreditsCheckout(
+  input: CreateCreditsCheckoutInput
+): Promise<SubscriptionCheckout> {
+  const cfg = getAsaasConfig();
+  return asaasFetch<SubscriptionCheckout>(cfg, '/checkouts', {
+    method: 'POST',
+    body: {
+      billingTypes: ['CREDIT_CARD', 'PIX'],
+      chargeTypes: ['DETACHED'],
+      items: [{ name: 'Créditos amortiza.me', quantity: 1, value: input.valueCents / 100 }],
+      externalReference: input.externalReference,
+      callback: {
+        successUrl: input.successUrl,
+        cancelUrl: input.cancelUrl,
+        expiredUrl: input.expiredUrl,
+      },
+    },
+  });
+}

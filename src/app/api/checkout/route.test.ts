@@ -1,18 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({
-  auth: vi.fn(),
-  packFindFirst: vi.fn(),
-  createCheckout: vi.fn(),
-}));
+const m = vi.hoisted(() => {
+  const insertReturning = vi.fn();
+  const insertValues = vi.fn(() => ({ returning: insertReturning }));
+  const updateWhere = vi.fn();
+  const updateSet = vi.fn(() => ({ where: updateWhere }));
+  return {
+    auth: vi.fn(),
+    packFindFirst: vi.fn(),
+    createCheckout: vi.fn(),
+    createCreditsCheckout: vi.fn(),
+    insert: vi.fn(() => ({ values: insertValues })),
+    update: vi.fn(() => ({ set: updateSet })),
+    insertValues,
+    insertReturning,
+    updateSet,
+    updateWhere,
+  };
+});
 
 vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/db', () => ({
-  db: { query: { packs: { findFirst: m.packFindFirst } } },
-  schema: { packs: { id: 'packs.id' } },
+  db: {
+    query: { packs: { findFirst: m.packFindFirst } },
+    insert: m.insert,
+    update: m.update,
+  },
+  schema: {
+    packs: { id: 'packs.id' },
+    creditPurchases: {
+      id: 'credit_purchases.id',
+      asaasCheckoutId: 'credit_purchases.asaas_checkout_id',
+    },
+  },
 }));
 vi.mock('@/lib/payments', () => ({
   getPaymentProvider: () => ({ createCheckout: m.createCheckout }),
+}));
+vi.mock('@/lib/payments/asaas/checkout', () => ({
+  createCreditsCheckout: m.createCreditsCheckout,
 }));
 vi.mock('drizzle-orm', () => ({ eq: (...args: unknown[]) => args }));
 
@@ -28,7 +54,9 @@ function req(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('PAYMENT_PROVIDER', 'asaas');
+  vi.stubEnv('APP_URL', 'https://app.example/');
   m.auth.mockResolvedValue({ userId: 'user-1' });
+  m.insertReturning.mockResolvedValue([{ id: 'purchase-1' }]);
 });
 
 afterEach(() => {
@@ -36,27 +64,50 @@ afterEach(() => {
 });
 
 describe('POST /api/checkout', () => {
-  it('501 para pack de créditos no Asaas e não chama o provider', async () => {
+  it('asaas + créditos insere purchase pendente e devolve o link', async () => {
     m.packFindFirst.mockResolvedValue({
-      id: 'credits-10',
+      id: 'credits5',
       priceCents: 1000,
       isSubscription: false,
+      credits: 5,
+    });
+    m.createCreditsCheckout.mockResolvedValue({
+      id: 'chk_c',
+      link: 'https://sandbox.asaas.com/checkoutSession/show/chk_c',
     });
 
-    const res = await POST(req({ packId: 'credits-10' }));
+    const res = await POST(req({ packId: 'credits5' }));
 
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      error: 'Compra de créditos ainda não disponível no Asaas; use um pack de assinatura em /assinar.',
+      checkoutUrl: 'https://sandbox.asaas.com/checkoutSession/show/chk_c',
     });
+    expect(m.insert).toHaveBeenCalledTimes(1);
+    expect(m.insertValues).toHaveBeenCalledWith({
+      userId: 'user-1',
+      packId: 'credits5',
+      provider: 'asaas',
+      status: 'pending',
+      credits: 5,
+    });
+    expect(m.createCreditsCheckout).toHaveBeenCalledWith({
+      externalReference: 'purchase-1',
+      valueCents: 1000,
+      successUrl: 'https://app.example/perfil',
+      cancelUrl: 'https://app.example/perfil',
+      expiredUrl: 'https://app.example/perfil',
+    });
+    expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_c' });
+    expect(m.updateWhere).toHaveBeenCalledTimes(1);
     expect(m.createCheckout).not.toHaveBeenCalled();
   });
 
-  it('400 para pack de assinatura no Asaas (use /assinar) e não chama o provider', async () => {
+  it('asaas + assinatura responde 400 (use /assinar) sem inserir', async () => {
     m.packFindFirst.mockResolvedValue({
       id: 'unlimited',
       priceCents: 11990,
       isSubscription: true,
+      credits: null,
     });
 
     const res = await POST(req({ packId: 'unlimited' }));
@@ -65,23 +116,28 @@ describe('POST /api/checkout', () => {
     expect(await res.json()).toEqual({
       error: 'Use /assinar para assinar o plano Ilimitado.',
     });
+    expect(m.insert).not.toHaveBeenCalled();
+    expect(m.createCreditsCheckout).not.toHaveBeenCalled();
     expect(m.createCheckout).not.toHaveBeenCalled();
   });
 
   it('fake continua criando checkout normalmente', async () => {
     vi.stubEnv('PAYMENT_PROVIDER', 'fake');
     m.packFindFirst.mockResolvedValue({
-      id: 'credits-10',
+      id: 'credits5',
       priceCents: 1000,
       isSubscription: false,
+      credits: 5,
     });
     m.createCheckout.mockResolvedValue({
       checkoutUrl: '/api/webhooks/payments?fake=approve',
     });
 
-    const res = await POST(req({ packId: 'credits-10' }));
+    const res = await POST(req({ packId: 'credits5' }));
 
     expect(res.status).toBe(200);
     expect(m.createCheckout).toHaveBeenCalledTimes(1);
+    expect(m.createCreditsCheckout).not.toHaveBeenCalled();
+    expect(m.insert).not.toHaveBeenCalled();
   });
 });
