@@ -88,6 +88,7 @@ export default async function PerfilPage() {
                 </span>
                 <BuyPackButton
                   packId={pack.id}
+                  isSubscription={pack.isSubscription}
                   label={
                     pack.isSubscription
                       ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`

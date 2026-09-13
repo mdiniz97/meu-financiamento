@@ -43,7 +43,11 @@ export function UpgradeDialog({
               R$ 119,90/ano. Simulações ilimitadas, raio X, PDF, amortizador inteligente e
               portabilidade.
             </span>
-            <BuyPackButton packId="unlimited" label="Assinar Ilimitado – R$ 119,90/ano" />
+            <BuyPackButton
+              packId="unlimited"
+              label="Assinar Ilimitado – R$ 119,90/ano"
+              isSubscription
+            />
           </div>
         </div>
       </DialogContent>

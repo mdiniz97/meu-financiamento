@@ -1,0 +1,64 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createSubscriptionCheckout } from './checkout';
+
+afterEach(() => vi.restoreAllMocks());
+const env = () => {
+  vi.stubEnv('ASAAS_ENV', 'sandbox');
+  vi.stubEnv('ASAAS_BASE_URL', 'https://api-sandbox.asaas.com/v3');
+  vi.stubEnv('ASAAS_API_KEY', '$aact_hmlg_x');
+  vi.stubEnv('ASAAS_WEBHOOK_AUTH_TOKEN', 'x'.repeat(32));
+};
+
+describe('createSubscriptionCheckout', () => {
+  it('envia RECURRENT com YEARLY e externalReference', async () => {
+    env();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'chk_1', link: 'https://sandbox.asaas.com/checkoutSession/show/chk_1' }), { status: 200 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await createSubscriptionCheckout({
+      externalReference: 'sub-local-1',
+      valueCents: 11990,
+      cycle: 'YEARLY',
+      nextDueDate: '2026-09-13',
+      successUrl: 'https://app/assinar/sucesso',
+      cancelUrl: 'https://app/assinar',
+      expiredUrl: 'https://app/assinar',
+    });
+    expect(out.link).toContain('chk_1');
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.chargeTypes).toEqual(['RECURRENT']);
+    expect(body.subscription).toMatchObject({ cycle: 'YEARLY', nextDueDate: '2026-09-13' });
+    expect(body.externalReference).toBe('sub-local-1');
+    expect(body.items[0].value).toBeCloseTo(119.9);
+  });
+
+  it('manda billingTypes CREDIT_CARD, callback e POST /checkouts', async () => {
+    env();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'chk_2', link: 'https://sandbox.asaas.com/checkoutSession/show/chk_2' }), { status: 200 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await createSubscriptionCheckout({
+      externalReference: 'sub-local-2',
+      valueCents: 11990,
+      cycle: 'YEARLY',
+      nextDueDate: '2026-09-13',
+      successUrl: 'https://app/assinar/sucesso',
+      cancelUrl: 'https://app/assinar',
+      expiredUrl: 'https://app/assinar',
+    });
+    expect(out.id).toBe('chk_2');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api-sandbox.asaas.com/v3/checkouts');
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(init.body as string);
+    expect(body.billingTypes).toEqual(['CREDIT_CARD']);
+    expect(body.callback).toEqual({
+      successUrl: 'https://app/assinar/sucesso',
+      cancelUrl: 'https://app/assinar',
+      expiredUrl: 'https://app/assinar',
+    });
+    expect(body.items).toEqual([{ name: 'Assinatura Ilimitado', quantity: 1, value: 119.9 }]);
+  });
+});

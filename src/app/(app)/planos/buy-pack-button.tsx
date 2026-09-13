@@ -5,12 +5,24 @@ import { useRouter } from 'next/navigation';
 import { Coins, ZapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function BuyPackButton({ packId, label }: { packId: string; label: string }) {
+export function BuyPackButton({
+  packId,
+  label,
+  isSubscription = false,
+}: {
+  packId: string;
+  label: string;
+  isSubscription?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function buy() {
+    if (isSubscription) {
+      router.push('/assinar');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -46,7 +58,7 @@ export function BuyPackButton({ packId, label }: { packId: string; label: string
           'Aguarde...'
         ) : (
           <>
-            {packId === 'unlimited' ? (
+            {isSubscription ? (
               <ZapIcon className="size-4" />
             ) : (
               <Coins className="size-4" />
