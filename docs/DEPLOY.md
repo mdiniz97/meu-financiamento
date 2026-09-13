@@ -160,6 +160,77 @@ npx tsx scripts/register-asaas-webhook.ts
 - O `email` configurado recebe os alertas de penalização/fila pausada (15 falhas
   pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
 
+## Créditos avulsos
+
+Compra de créditos fora do plano Ilimitado, via **Asaas Checkout `DETACHED`**
+(cartão **e** Pix). Não exige env nova — usa as mesmas chaves `ASAAS_*` e o
+`APP_URL` já configurados para as assinaturas.
+
+- **Checkout**: `POST /api/checkout` com `PAYMENT_PROVIDER=asaas` e um pack
+  **não-assinatura** (`isSubscription=false`) insere uma linha `pending` em
+  `credit_purchases` (migração `0011`) e chama `POST /v3/checkouts` com
+  `billingTypes: ['CREDIT_CARD','PIX']`, `chargeTypes: ['DETACHED']` e
+  `externalReference` = id local da compra (uuid). A resposta devolve
+  `{ checkoutUrl }` e o botão redireciona para a tela do Asaas.
+- **Liberação**: os créditos entram quando o pagamento confirma —
+  **cartão → `PAYMENT_CONFIRMED`**, **Pix → `PAYMENT_RECEIVED`** — no mesmo
+  webhook `/api/asaas/webhook` (ramo acionado quando nenhuma assinatura resolve).
+- **Idempotência por `pay_`**: o lançamento usa a descrição estável
+  `Compra créditos (providerId <pay_>)` sob o índice único parcial
+  `(user_id, kind='purchase', description)`; reentrega do mesmo pagamento não
+  credita de novo. A compra é `paid` também em curto-circuito, então o replay é
+  seguro mesmo se o índice for contornado.
+- **Nunca expiram**: créditos avulsos são saldo permanente (`credit_ledger`,
+  `kind='purchase'`). Assinantes Ilimitado também podem comprar — é saldo à parte.
+- `CHECKOUT_EXPIRED`/`CHECKOUT_CANCELED` marcam a compra como `expired`/`canceled`
+  e **não** liberam crédito. `PAYMENT_CREATED` é registrado sem liberar.
+- Pack de assinatura em `/api/checkout` responde `400` apontando `/assinar`.
+- O fluxo `PAYMENT_PROVIDER=fake` permanece intacto.
+
+Nada a configurar na Vercel além do que as assinaturas já exigem. Confirme que a
+migração `0011` está aplicada antes do deploy (ver Passo 2).
+
+## NFS-e (opcional)
+
+Emissão automática de **NFS-e por assinatura**, **desligada por padrão**. NÃO é
+necessária para vender; habilite só quando a contabilidade estiver pronta.
+
+- **Gate**: `isInvoiceEnabled()` é `true` apenas com
+  `ASAAS_INVOICE_ENABLED=true`. Com `false` (default) **nada** roda: nenhum
+  `GET /v3/fiscalInfo/`, nenhum `POST /v3/subscriptions/{id}/invoiceSettings`,
+  nenhum upsert de evento `INVOICE_*`.
+- **Pré-requisito fiscal** (sem isso a feature fica inerte): a conta Asaas precisa
+  de `fiscalInfo` configurado — `GET /v3/fiscalInfo/` respondendo **200**
+  (404 = conta sem configuração fiscal). É preciso também que a prefeitura aceite
+  a emissão da credencial.
+- **Credencial municipal**: nesta conta o município retornou
+  `authenticationType=CERTIFICATE`, ou seja, exige **certificado digital A1**
+  (arquivo `.pfx` + senha) cadastrado no Asaas. Por isso **não é validável em
+  sandbox nesta conta** — a ativação fica para quando houver certificado A1 e o
+  bloco de impostos preenchido pelo contador.
+- **Comportamento quando ligada**: em `SUBSCRIPTION_CREATED` (após gravar o
+  `asaas_subscription_id`), o servidor consulta `GET /v3/fiscalInfo/`; se `ok`,
+  faz `POST /v3/subscriptions/{id}/invoiceSettings` com
+  `{ effectiveDatePeriod, municipalServiceCode, municipalServiceName, taxes: { retainIss, iss, pis, cofins, csll, inss, ir } }`
+  e grava `subscriptions.invoice_configured_at`. Sem `fiscalInfo` (404) ou se a
+  configuração falhar, apenas loga um aviso — o wrapper é `try/catch` e **nunca**
+  derruba o webhook da assinatura.
+- **Eventos de nota**: `INVOICE_CREATED|INVOICE_UPDATED|INVOICE_SYNCHRONIZED|INVOICE_AUTHORIZED|INVOICE_PROCESSING_CANCELLATION|INVOICE_CANCELED|INVOICE_CANCELLATION_DENIED|INVOICE_ERROR`
+  fazem upsert em `invoices` (por `asaas_invoice_id`); só são processados com a
+  flag ligada. Painel/download da nota para o cliente **não** entra no MVP.
+
+Variáveis (bloco comentado no `.env.example`; nunca versionar valores reais):
+
+| Variável | Valor | Detalhe |
+| -------- | ----- | ------- |
+| `ASAAS_INVOICE_ENABLED` | `false` (default) \| `true` | único gatilho; só `true` exato habilita |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` | código do serviço | **obrigatório** com a flag ligada (falha no uso) |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME` | nome do serviço | |
+| `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) \| `ON_PAYMENT_DUE_DATE` \| `BEFORE_PAYMENT_DUE_DATE` \| `ON_DUE_DATE_MONTH` \| `ON_NEXT_MONTH` | valor inválido lança erro |
+| `ASAAS_INVOICE_RETAIN_ISS` | `true` \| `false` | |
+| `ASAAS_INVOICE_ISS` / `PIS` / `COFINS` / `CSLL` / `INSS` / `IR` | número (%) | vazio = `0` |
+| `ASAAS_INVOICE_NBS_CODE` / `TAX_SITUATION_CODE` / `TAX_CLASSIFICATION_CODE` / `OPERATION_INDICATOR_CODE` / `OBSERVATIONS` | opcionais | omitidos do body quando vazios |
+
 ## Homologação Asaas (sandbox)
 
 > Execução de **2026-09-13** no worktree `asaas-assinaturas`, apenas chamadas de
