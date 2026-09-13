@@ -35,6 +35,19 @@ describe('asaasFetch', () => {
         new Response(JSON.stringify({ errors: [{ description: 'nope' }] }), { status: 400 })
       )
     );
-    await expect(asaasFetch(cfg, '/subscriptions')).rejects.toBeInstanceOf(AsaasApiError);
+    await expect(asaasFetch(cfg, '/subscriptions')).rejects.toMatchObject({
+      status: 400,
+      body: { errors: [{ description: 'nope' }] },
+    });
+  });
+
+  it('lança AsaasApiError com body cru quando erro não é JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502 }))
+    );
+    const err = await asaasFetch(cfg, '/subscriptions').catch((e) => e);
+    expect(err).toBeInstanceOf(AsaasApiError);
+    expect(err).toMatchObject({ status: 502, body: '<html>Bad Gateway</html>' });
   });
 });

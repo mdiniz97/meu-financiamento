@@ -16,6 +16,15 @@ interface FetchOptions {
   timeoutMs?: number;
 }
 
+function parseBody(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
 export async function asaasFetch<T>(
   cfg: AsaasConfig,
   path: string,
@@ -35,7 +44,7 @@ export async function asaasFetch<T>(
       signal: controller.signal,
     });
     const text = await res.text();
-    const parsed = text ? (JSON.parse(text) as unknown) : null;
+    const parsed = parseBody(text);
     if (!res.ok) throw new AsaasApiError(res.status, parsed);
     return parsed as T;
   } finally {
