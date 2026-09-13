@@ -78,6 +78,13 @@
       "when": 1789323744031,
       "tag": "0010_asaas_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789329001531,
+      "tag": "0011_credits_invoices",
+      "breakpoints": true
     }
   ]
 }

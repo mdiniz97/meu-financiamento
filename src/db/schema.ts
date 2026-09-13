@@ -44,6 +44,7 @@ export const subscriptions = pgTable(
     cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
     canceledAt: timestamp('canceled_at', { withTimezone: true }),
     graceUntil: timestamp('grace_until', { withTimezone: true }),
+    invoiceConfiguredAt: timestamp('invoice_configured_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('subscriptions_provider_id_unique')
@@ -232,6 +233,51 @@ export const webhookEvents = pgTable(
   },
   (table) => [index('webhook_events_event_idx').on(table.event)]
 );
+
+export const creditPurchases = pgTable(
+  'credit_purchases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    packId: text('pack_id').notNull().references(() => packs.id),
+    provider: text('provider').notNull(),
+    asaasCheckoutId: text('asaas_checkout_id'),
+    asaasPaymentId: text('asaas_payment_id'),
+    status: text('status').notNull().default('pending'),
+    credits: integer('credits').notNull(),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('credit_purchases_asaas_checkout_id_unique')
+      .on(table.asaasCheckoutId)
+      .where(sql`${table.asaasCheckoutId} IS NOT NULL`),
+    index('credit_purchases_user_id_idx').on(table.userId),
+  ]
+);
+
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    asaasInvoiceId: text('asaas_invoice_id').notNull().unique(),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, { onDelete: 'set null' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(),
+    number: text('number'),
+    valueCents: integer('value_cents'),
+    pdfUrl: text('pdf_url'),
+    xmlUrl: text('xml_url'),
+    effectiveDate: timestamp('effective_date', { withTimezone: true }),
+    rawLastEvent: jsonb('raw_last_event'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('invoices_subscription_id_idx').on(table.subscriptionId)]
+);
+
+export type CreditPurchase = typeof creditPurchases.$inferSelect;
+export type Invoice = typeof invoices.$inferSelect;
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
