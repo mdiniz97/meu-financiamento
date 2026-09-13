@@ -1,5 +1,3 @@
-import { maxFinancing } from './smart';
-import { simulate } from './engine';
 import { calculateFinancingCapacity, calculatePeakPayment } from './financing-capacity';
 import type { AmortSystem } from './types';
 
@@ -69,6 +67,12 @@ const SCENARIOS = [
   { key: 'maximum', label: 'Máximo', commitmentPct: 0.3 },
 ] as const;
 
+/**
+ * Dimensiona o valor financiável de cada sistema pelo maior principal cujo
+ * pico de parcela cabe no orçamento do cenário, e não apenas pela parcela 1.
+ * Isso alinha o affordance por renda ao Amortizador Inteligente e ao modo por
+ * parcela, que também exigem que todas as parcelas caibam no teto.
+ */
 export function calculateAffordability(input: AffordabilityInput): AffordabilityResult {
   if (!(input.monthlyIncome > 0)) throw new Error('Informe uma renda mensal válida.');
   if (!(input.paymentCap >= 0)) throw new Error('Informe uma parcela máxima válida.');
@@ -86,7 +90,7 @@ export function calculateAffordability(input: AffordabilityInput): Affordability
     const monthlyBudget = input.paymentCap > 0
       ? Math.min(incomeBudget, input.paymentCap)
       : incomeBudget;
-    const financing = maxFinancing({
+    const capacity = calculateFinancingCapacity({
       maxPayment: monthlyBudget,
       annualRate: input.annualRate,
       trMonthly: input.trMonthly,
@@ -97,20 +101,8 @@ export function calculateAffordability(input: AffordabilityInput): Affordability
 
     const systems = Object.fromEntries(
       (['PRICE', 'SAC'] as const).map((system) => {
-        const max = financing[system];
-        const result = max > 0
-          ? simulate({
-              system,
-              principal: max,
-              annualRate: input.annualRate,
-              months: input.months,
-              trMonthly: input.trMonthly,
-              insuranceMonthly: input.insuranceMonthly,
-              insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 },
-              bank: input.bank,
-            })
-          : null;
-        const firstPayment = result?.installments[0]?.parcela ?? 0;
+        const max = capacity[system].safeLimit;
+        const firstPayment = capacity[system].initialPayment;
         return [system, {
           maxFinancing: max,
           maxPropertyValue: max + availableDownPayment,

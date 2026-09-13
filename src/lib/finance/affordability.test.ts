@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateAffordability, calculatePaymentAffordability } from './affordability';
+import { calculateFinancingCapacity, calculatePeakPayment } from './financing-capacity';
 
 const base = {
   monthlyIncome: 20000,
@@ -52,6 +53,50 @@ describe('calculateAffordability', () => {
   it('aceita taxa zero no domínio de affordability', () => {
     const result = calculateAffordability({ ...base, annualRate: 0, trMonthly: 0 });
     expect(result.scenarios[1].systems.PRICE.maxFinancing).toBeGreaterThan(0);
+  });
+
+  it('sem TR, o principal seguro coincide com o dimensionamento pela parcela 1', () => {
+    const result = calculateAffordability({ ...base, trMonthly: 0 });
+    const scenario = result.scenarios[1];
+    const capacityInput = {
+      maxPayment: scenario.monthlyBudget,
+      annualRate: base.annualRate,
+      trMonthly: 0,
+      insuranceMonthly: base.insuranceMonthly,
+      bank: base.bank,
+      months: base.months,
+    };
+    for (const system of ['PRICE', 'SAC'] as const) {
+      const principal = scenario.systems[system].maxFinancing;
+      const payment = calculatePeakPayment(capacityInput, principal, system);
+      expect(payment.initialPayment).toBeCloseTo(payment.peakPayment, 2);
+      expect(payment.peakPayment).toBeLessThanOrEqual(scenario.monthlyBudget);
+      const next = calculatePeakPayment(capacityInput, principal + 0.01, system);
+      expect(next.peakPayment).toBeGreaterThan(scenario.monthlyBudget);
+    }
+  });
+
+  it('com TR, o principal seguro respeita o pico e fica abaixo da parcela 1', () => {
+    const result = calculateAffordability(base);
+    const scenario = result.scenarios[1];
+    const capacityInput = {
+      maxPayment: scenario.monthlyBudget,
+      annualRate: base.annualRate,
+      trMonthly: base.trMonthly,
+      insuranceMonthly: base.insuranceMonthly,
+      bank: base.bank,
+      months: base.months,
+    };
+    const capacity = calculateFinancingCapacity(capacityInput);
+    for (const system of ['PRICE', 'SAC'] as const) {
+      const principal = scenario.systems[system].maxFinancing;
+      expect(principal).toBe(capacity[system].safeLimit);
+      expect(principal).toBeLessThan(capacity[system].initialLimit);
+      const payment = calculatePeakPayment(capacityInput, principal, system);
+      expect(payment.peakPayment).toBeLessThanOrEqual(scenario.monthlyBudget + 0.005);
+      const next = calculatePeakPayment(capacityInput, principal + 0.01, system);
+      expect(next.peakPayment).toBeGreaterThan(scenario.monthlyBudget);
+    }
   });
 });
 

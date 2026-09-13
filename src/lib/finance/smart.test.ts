@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { maxFinancing, recommendSmart, type SmartInput } from './smart';
+import { recommendSmart, type SmartInput } from './smart';
 import { simulate } from './engine';
 import * as engine from './engine';
 import type { LoanInput } from './types';
@@ -8,36 +8,6 @@ const base: SmartInput = {
   principal: 1000000, annualRate: 0.105, trMonthly: 0.0017,
   insuranceMonthly: 100, bank: 'Caixa', maxPayment: 12000, maxMonths: 360,
 };
-
-describe('maxFinancing (cálculo inverso)', () => {
-  const input = { maxPayment: 5000, annualRate: 0.105, trMonthly: 0.0017, insuranceMonthly: 100, bank: 'Caixa', months: 360 };
-  it('com R$5.000/mês financia ~R$557k no PRICE e ~R$440k no SAC', () => {
-    const r = maxFinancing(input);
-    expect(r.PRICE).toBeGreaterThan(550000);
-    expect(r.PRICE).toBeLessThan(565000);
-    expect(r.SAC).toBeGreaterThan(435000);
-    expect(r.SAC).toBeLessThan(445000);
-    expect(r.PRICE).toBeGreaterThan(r.SAC);
-  });
-  it('a parcela do valor encontrado cabe no orçamento', () => {
-    const r = maxFinancing(input);
-    for (const [system, principal] of [
-      ['PRICE', r.PRICE],
-      ['SAC', r.SAC],
-    ] as const) {
-      const res = simulate(
-        { system, principal, annualRate: input.annualRate, months: input.months, trMonthly: input.trMonthly, insuranceMonthly: input.insuranceMonthly, insuranceSplit: { taxPct: 0.25, insurancePct: 0.75 }, bank: 'Caixa' },
-        { extraLumpSum: [], reduceMode: 'term' }
-      );
-      expect(res.installments[0].parcela).toBeLessThanOrEqual(input.maxPayment + 1);
-    }
-  });
-  it('taxa zero usa inversão direta do principal', () => {
-    const result = maxFinancing({ ...input, annualRate: 0 });
-    expect(result.PRICE).toBe((input.maxPayment - input.insuranceMonthly) * input.months);
-    expect(result.SAC).toBe((input.maxPayment - input.insuranceMonthly) * input.months);
-  });
-});
 
 describe('recommendSmart', () => {
   it('com orçamento de R$12k encontra um cenário viável com total menor que os bases', () => {

@@ -11,25 +11,6 @@ export interface MaxFinancingInput {
   months: number;
 }
 
-/**
- * Cálculo inverso: dado o quanto se pode pagar por mês, qual o maior valor
- * financiável em cada sistema (parcela 1 <= maxPayment).
- * PRICE: P = (parcela − seguro) × (1 − (1+m)^−N)/m
- * SAC:   P = (parcela − seguro) / (1/N + m)
- */
-export function maxFinancing(i: MaxFinancingInput): { PRICE: number; SAC: number } {
-  const m = convertAnnualToMonthly(i.annualRate);
-  const disponivel = Math.max(0, i.maxPayment - i.insuranceMonthly);
-  const price =
-    disponivel > 0
-      ? m > 0
-        ? (disponivel * (1 - Math.pow(1 + m, -i.months))) / m
-        : disponivel * i.months
-      : 0;
-  const sac = disponivel > 0 ? disponivel / (1 / i.months + m) : 0;
-  return { PRICE: Math.floor(price), SAC: Math.floor(sac) };
-}
-
 export interface SmartInput {
   principal: number;
   annualRate: number;
