@@ -313,12 +313,14 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
       // Revoga só compra efetivamente paga; replay (já `refunded`) não passa do
       // guard e, portanto, não estorna créditos de novo.
       if (purchase.status !== 'paid') return;
-      await addCredits(
-        purchase.userId,
-        -purchase.credits,
-        'refund',
-        `Estorno créditos (providerId ${event.payment?.id})`
-      );
+      const description = `Estorno créditos (providerId ${event.payment?.id})`;
+      try {
+        await addCredits(purchase.userId, -purchase.credits, 'refund', description);
+      } catch (e) {
+        // Retry/race: o índice único parcial (kind IN 'purchase','refund')
+        // garante que o segundo estorno não duplica o lançamento negativo.
+        if (!isUniqueViolation(e)) throw e;
+      }
       await db
         .update(schema.creditPurchases)
         .set({ status: 'refunded' })

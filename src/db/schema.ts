@@ -76,13 +76,14 @@ export const creditLedger = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
-    // Idempotência de compras: cada providerId gera description única, então
-    // re-compras legítimas não colidem. Bonus ('Bônus de boas-vindas', kind
-    // 'bonus') e gastos (kind 'spend', descrições repetidas entre saves) ficam
-    // fora do índice por causa do WHERE kind = 'purchase'.
+    // Idempotência de compras e estornos: cada providerId gera description única,
+    // então re-compras legítimas não colidem. O mesmo índice cobre refunds para
+    // que retry/race não insira lançamento negativo duplicado. Bonus ('Bônus de
+    // boas-vindas', kind 'bonus') e gastos (kind 'spend', descrições repetidas
+    // entre saves) ficam fora do índice por causa do WHERE kind IN (...).
     uniqueIndex('credit_ledger_user_kind_description_unique')
       .on(table.userId, table.kind, table.description)
-      .where(sql`${table.kind} = 'purchase'`),
+      .where(sql`${table.kind} IN ('purchase', 'refund')`),
   ]
 );
 

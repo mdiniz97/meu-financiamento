@@ -1,0 +1,2 @@
+DROP INDEX "credit_ledger_user_kind_description_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "credit_ledger_user_kind_description_unique" ON "credit_ledger" USING btree ("user_id","kind","description") WHERE "credit_ledger"."kind" IN ('purchase', 'refund');

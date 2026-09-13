@@ -777,6 +777,33 @@ describe('créditos avulsos — compra DETACHED', () => {
     expect(mocks.addCredits).not.toHaveBeenCalled();
     expect(updateChains).toHaveLength(0);
   });
+
+  it('retry de PAYMENT_REFUNDED (status ainda paid) não duplica o negativo', async () => {
+    // 1ª entrega estorna; 2ª corre lendo `paid` de novo (update não commitou /
+    // race). O índice único parcial barra o 2º negativo e o ramo segue.
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid' }));
+    mocks.addCredits.mockResolvedValueOnce(undefined).mockRejectedValueOnce({ code: '23505' });
+
+    await applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'));
+    await expect(applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'))).resolves.toBeUndefined();
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(2);
+    expect(mocks.addCredits).toHaveBeenNthCalledWith(
+      2,
+      'u1',
+      -5,
+      'refund',
+      'Estorno créditos (providerId pay_1)'
+    );
+    expect(updateChains.map((c) => setPatch(c).status)).toEqual(['refunded', 'refunded']);
+  });
+
+  it('erro não-23505 no estorno é relançado', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid' }));
+    mocks.addCredits.mockRejectedValueOnce(new Error('db down'));
+
+    await expect(applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'))).rejects.toThrow('db down');
+  });
 });
 
 describe('processWebhookEvent', () => {
