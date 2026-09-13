@@ -36,6 +36,17 @@ describe('GET /api/cron/reconcile', () => {
     expect(await res.json()).toEqual({ checked: 0, updated: 0 });
     expect(mocks.reconcile).toHaveBeenCalledTimes(1);
   });
+
+  it('500 JSON quando reconcileSubscriptions lança', async () => {
+    mocks.reconcile.mockRejectedValueOnce(new Error('db down'));
+    const res = await GET(
+      new Request('http://localhost/api/cron/reconcile', {
+        headers: { authorization: 'Bearer secret' },
+      })
+    );
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'reconcile failed' });
+  });
 });
 
 describe('POST /api/cron/reconcile', () => {

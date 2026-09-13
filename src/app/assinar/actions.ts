@@ -6,8 +6,30 @@ import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
 import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
+import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3012';
+
+function isUniqueViolation(e: unknown): boolean {
+  // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
+  let err = e as { code?: unknown; cause?: unknown } | null;
+  while (err && typeof err.code === 'undefined' && err.cause) {
+    err = err.cause as { code?: unknown; cause?: unknown } | null;
+  }
+  return err?.code === '23505';
+}
+
+function resetForNewCheckout(id: string) {
+  return db
+    .update(schema.subscriptions)
+    .set({
+      status: 'incomplete',
+      asaasCheckoutId: null,
+      asaasSubscriptionId: null,
+      providerId: null,
+    })
+    .where(eq(schema.subscriptions.id, id));
+}
 
 export async function startSubscription(): Promise<void> {
   const session = await auth();
@@ -31,24 +53,51 @@ export async function startSubscription(): Promise<void> {
 
   let localId: string;
   if (existing) {
-    await db
-      .update(schema.subscriptions)
-      .set({ status: 'incomplete', asaasCheckoutId: null })
-      .where(eq(schema.subscriptions.id, existing.id));
+    // I4 — recompra com assinatura Asaas ainda ativa pode continuar cobrando.
+    // Inativa a antiga antes de abrir o novo checkout e limpa os vínculos.
+    if (
+      existing.asaasSubscriptionId &&
+      existing.asaasStatus !== 'INACTIVE' &&
+      existing.asaasStatus !== 'DELETED'
+    ) {
+      try {
+        await cancelAtPeriodEnd(existing.asaasSubscriptionId);
+      } catch (e) {
+        console.warn(
+          `[assinar] falha ao inativar assinatura ${existing.asaasSubscriptionId}: ${String(e)}`
+        );
+      }
+    }
+    await resetForNewCheckout(existing.id);
     localId = existing.id;
   } else {
-    const [created] = await db
-      .insert(schema.subscriptions)
-      .values({
-        userId,
-        packId: 'unlimited',
-        provider: 'asaas',
-        status: 'incomplete',
-        cycle: 'YEARLY',
-        billingType: 'CREDIT_CARD',
-      })
-      .returning({ id: schema.subscriptions.id });
-    localId = created.id;
+    try {
+      const [created] = await db
+        .insert(schema.subscriptions)
+        .values({
+          userId,
+          packId: 'unlimited',
+          provider: 'asaas',
+          status: 'incomplete',
+          cycle: 'YEARLY',
+          billingType: 'CREDIT_CARD',
+        })
+        .returning({ id: schema.subscriptions.id });
+      localId = created.id;
+    } catch (e) {
+      // T7 — corrida de primeira compra: outra requisição inseriu a linha
+      // (índice único user+pack+provider). Reusa a vencedora em vez de 500.
+      if (!isUniqueViolation(e)) throw e;
+      const winner = await db.query.subscriptions.findFirst({
+        where: and(
+          eq(schema.subscriptions.userId, userId),
+          eq(schema.subscriptions.packId, 'unlimited'),
+          eq(schema.subscriptions.provider, 'asaas')
+        ),
+      });
+      if (!winner) throw e;
+      localId = winner.id;
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);

@@ -14,6 +14,7 @@ interface AsaasPayment {
   value?: number | null;
   netValue?: number | null;
   invoiceUrl?: string | null;
+  checkoutSession?: string | null;
   creditCard?: { creditCardNumber?: string; creditCardBrand?: string };
 }
 
@@ -64,7 +65,10 @@ async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | nu
     if (found) return found;
   }
 
-  const checkoutKey = event.subscription?.checkoutSession ?? event.checkout?.id;
+  const checkoutKey =
+    event.subscription?.checkoutSession ??
+    event.checkout?.id ??
+    event.payment?.checkoutSession;
   if (checkoutKey) {
     const found = await db.query.subscriptions.findFirst({
       where: eq(schema.subscriptions.asaasCheckoutId, checkoutKey),

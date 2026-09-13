@@ -1,14 +1,17 @@
-import { and, eq, inArray, isNotNull, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { getSubscription } from '@/lib/payments/asaas/subscription';
 import { asaasFetch } from '@/lib/payments/asaas/client';
 import { getAsaasConfig } from '@/lib/payments/asaas/config';
+import { processWebhookEvent } from './apply-event';
 
 const RECONCILE_SUB_STATUSES = ['active', 'past_due', 'incomplete'] as const;
 const OPEN_PAYMENT_STATUSES = ['PENDING', 'OVERDUE'] as const;
 const TERMINAL_ASAAS_STATUSES = ['INACTIVE', 'EXPIRED', 'DELETED'] as const;
 const PAYMENT_LAG_DAYS = 2;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_WEBHOOK_ATTEMPTS = 3;
+const WEBHOOK_RETRY_LIMIT = 50;
 
 interface SubscriptionPatch {
   status?: string;
@@ -27,6 +30,23 @@ export async function reconcileSubscriptions(
 ): Promise<{ checked: number; updated: number }> {
   let checked = 0;
   let updated = 0;
+
+  // I3 — webhooks cujo `after()` falhou ficam com processedAt nulo. Reprocessa
+  // os que ainda têm tentativas antes de reconciliar o resto.
+  const pendingEvents = await db.query.webhookEvents.findMany({
+    where: and(
+      isNull(schema.webhookEvents.processedAt),
+      lt(schema.webhookEvents.attempts, MAX_WEBHOOK_ATTEMPTS)
+    ),
+    limit: WEBHOOK_RETRY_LIMIT,
+  });
+  for (const pending of pendingEvents) {
+    try {
+      await processWebhookEvent(pending.id);
+    } catch (e) {
+      console.warn(`[reconcile] falha ao reprocessar webhook ${pending.id}: ${String(e)}`);
+    }
+  }
 
   const subs = await db.query.subscriptions.findMany({
     where: and(
@@ -52,8 +72,17 @@ export async function reconcileSubscriptions(
         (TERMINAL_ASAAS_STATUSES as readonly string[]).includes(remote.status) &&
         sub.status !== 'canceled'
       ) {
-        patch.status = 'canceled';
-        patch.canceledAt = now;
+        // C1 — cancel-at-period-end: o Asaas fica INACTIVE na hora, mas o
+        // acesso local segue até o fim do período pago. Só cancela de fato
+        // quando o período acabou.
+        const periodOver =
+          !sub.cancelAtPeriodEnd ||
+          !sub.currentPeriodEnd ||
+          sub.currentPeriodEnd.getTime() <= now.getTime();
+        if (periodOver) {
+          patch.status = 'canceled';
+          patch.canceledAt = now;
+        }
       } else if (remote.status === 'ACTIVE' && sub.status === 'incomplete') {
         patch.status = 'active';
       }
@@ -83,26 +112,35 @@ export async function reconcileSubscriptions(
     ),
   });
 
-  for (const payment of openPayments) {
-    checked++;
-    try {
-      const cfg = getAsaasConfig();
-      const remote = await asaasFetch<{ status?: string }>(
-        cfg,
-        `/payments/${payment.asaasPaymentId}/status`
-      );
+  // T9 — resolve a config uma vez; sem ela o loop é pulado sem abortar o job.
+  let cfg: ReturnType<typeof getAsaasConfig> | null = null;
+  try {
+    cfg = getAsaasConfig();
+  } catch (e) {
+    console.warn(`[reconcile] config Asaas indisponível; pulando pagamentos: ${String(e)}`);
+  }
 
-      if (remote.status && remote.status !== payment.status) {
-        await db
-          .update(schema.payments)
-          .set({ status: remote.status, updatedAt: now })
-          .where(eq(schema.payments.id, payment.id));
-        updated++;
+  if (cfg) {
+    for (const payment of openPayments) {
+      checked++;
+      try {
+        const remote = await asaasFetch<{ status?: string }>(
+          cfg,
+          `/payments/${payment.asaasPaymentId}/status`
+        );
+
+        if (remote.status && remote.status !== payment.status) {
+          await db
+            .update(schema.payments)
+            .set({ status: remote.status, updatedAt: now })
+            .where(eq(schema.payments.id, payment.id));
+          updated++;
+        }
+      } catch (e) {
+        console.warn(
+          `[reconcile] falha ao consultar pagamento ${payment.asaasPaymentId}: ${String(e)}`
+        );
       }
-    } catch (e) {
-      console.warn(
-        `[reconcile] falha ao consultar pagamento ${payment.asaasPaymentId}: ${String(e)}`
-      );
     }
   }
 

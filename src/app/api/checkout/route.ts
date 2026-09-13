@@ -27,6 +27,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Pack não encontrado' }, { status: 404 });
   }
 
+  // C2 — no Asaas o checkout de créditos ainda não existe; assinatura é só por
+  // /assinar. Guarda antes de chamar o provider (que lançaria).
+  if ((process.env.PAYMENT_PROVIDER ?? 'fake') === 'asaas') {
+    if (!pack.isSubscription) {
+      return NextResponse.json(
+        {
+          error:
+            'Compra de créditos ainda não disponível no Asaas; use um pack de assinatura em /assinar.',
+        },
+        { status: 501 }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Use /assinar para assinar o plano Ilimitado.' },
+      { status: 400 }
+    );
+  }
+
   const { checkoutUrl } = await getPaymentProvider().createCheckout({
     userId: session.userId,
     packId,

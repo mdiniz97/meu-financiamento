@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   findManySubs: vi.fn(),
   findManyPayments: vi.fn(),
+  findManyWebhookEvents: vi.fn(),
+  processWebhookEvent: vi.fn(),
   update: vi.fn(),
   set: vi.fn(),
   where: vi.fn(),
   getSubscription: vi.fn(),
   asaasFetch: vi.fn(),
+  getAsaasConfig: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -15,12 +18,14 @@ vi.mock('@/db', () => ({
     query: {
       subscriptions: { findMany: mocks.findManySubs },
       payments: { findMany: mocks.findManyPayments },
+      webhookEvents: { findMany: mocks.findManyWebhookEvents },
     },
     update: mocks.update,
   },
   schema: {
     subscriptions: { id: 'id', status: 'status', asaasSubscriptionId: 'asaasSubscriptionId' },
     payments: { id: 'id', status: 'status', dueDate: 'dueDate' },
+    webhookEvents: { id: 'id', processedAt: 'processedAt', attempts: 'attempts' },
   },
 }));
 vi.mock('drizzle-orm', () => ({
@@ -28,6 +33,7 @@ vi.mock('drizzle-orm', () => ({
   eq: vi.fn(),
   inArray: vi.fn(),
   isNotNull: vi.fn(),
+  isNull: vi.fn(),
   lt: vi.fn(),
 }));
 vi.mock('@/lib/payments/asaas/subscription', () => ({
@@ -37,7 +43,10 @@ vi.mock('@/lib/payments/asaas/client', () => ({
   asaasFetch: mocks.asaasFetch,
 }));
 vi.mock('@/lib/payments/asaas/config', () => ({
-  getAsaasConfig: () => ({ baseUrl: 'https://api-sandbox.asaas.com/v3', apiKey: 'k' }),
+  getAsaasConfig: mocks.getAsaasConfig,
+}));
+vi.mock('@/lib/subscriptions/apply-event', () => ({
+  processWebhookEvent: mocks.processWebhookEvent,
 }));
 
 import { reconcileSubscriptions } from './reconcile';
@@ -47,11 +56,16 @@ const now = new Date('2026-09-13T12:00:00Z');
 beforeEach(() => {
   mocks.findManySubs.mockReset().mockResolvedValue([]);
   mocks.findManyPayments.mockReset().mockResolvedValue([]);
+  mocks.findManyWebhookEvents.mockReset().mockResolvedValue([]);
+  mocks.processWebhookEvent.mockReset().mockResolvedValue(undefined);
   mocks.set.mockReset().mockReturnValue({ where: mocks.where });
   mocks.where.mockReset().mockResolvedValue([]);
   mocks.update.mockReset().mockReturnValue({ set: mocks.set });
   mocks.getSubscription.mockReset();
   mocks.asaasFetch.mockReset();
+  mocks.getAsaasConfig
+    .mockReset()
+    .mockReturnValue({ baseUrl: 'https://api-sandbox.asaas.com/v3', apiKey: 'k' });
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -99,6 +113,53 @@ describe('reconcileSubscriptions', () => {
   it('marca canceled quando o Asaas devolve INACTIVE', async () => {
     mocks.findManySubs.mockResolvedValue([
       { id: 's1', status: 'past_due', asaasSubscriptionId: 'a1', nextDueDate: null },
+    ]);
+    mocks.getSubscription.mockResolvedValue({ id: 'a1', status: 'INACTIVE' });
+
+    const out = await reconcileSubscriptions(now);
+
+    expect(out.updated).toBe(1);
+    expect(mocks.set).toHaveBeenCalledWith({
+      status: 'canceled',
+      canceledAt: now,
+      asaasStatus: 'INACTIVE',
+    });
+  });
+
+  it('mantém active em cancel-at-period-end com período pago futuro e só espelha asaasStatus', async () => {
+    mocks.findManySubs.mockResolvedValue([
+      {
+        id: 's1',
+        status: 'active',
+        asaasStatus: 'ACTIVE',
+        asaasSubscriptionId: 'a1',
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: new Date('2027-01-01T00:00:00Z'),
+        nextDueDate: null,
+      },
+    ]);
+    mocks.getSubscription.mockResolvedValue({ id: 'a1', status: 'INACTIVE' });
+
+    const out = await reconcileSubscriptions(now);
+
+    expect(out.updated).toBe(1);
+    expect(mocks.set).toHaveBeenCalledWith({ asaasStatus: 'INACTIVE' });
+    const patch = mocks.set.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.status).toBeUndefined();
+    expect(patch.canceledAt).toBeUndefined();
+  });
+
+  it('cancela cancel-at-period-end quando o período pago já venceu', async () => {
+    mocks.findManySubs.mockResolvedValue([
+      {
+        id: 's1',
+        status: 'active',
+        asaasStatus: 'ACTIVE',
+        asaasSubscriptionId: 'a1',
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: new Date('2026-09-01T00:00:00Z'),
+        nextDueDate: null,
+      },
     ]);
     mocks.getSubscription.mockResolvedValue({ id: 'a1', status: 'INACTIVE' });
 
@@ -190,5 +251,52 @@ describe('reconcileSubscriptions', () => {
 
     expect(out).toEqual({ checked: 1, updated: 0 });
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it('config Asaas indisponível pula o loop de pagamentos sem abortar', async () => {
+    mocks.getAsaasConfig.mockImplementation(() => {
+      throw new Error('ASAAS_API_KEY ausente');
+    });
+    mocks.findManyPayments.mockResolvedValue([
+      {
+        id: 'p1',
+        asaasPaymentId: 'pay_1',
+        status: 'PENDING',
+        dueDate: new Date('2026-09-01T00:00:00Z'),
+      },
+    ]);
+
+    const out = await reconcileSubscriptions(now);
+
+    expect(out).toEqual({ checked: 0, updated: 0 });
+    expect(mocks.asaasFetch).not.toHaveBeenCalled();
+  });
+
+  it('reprocessa webhooks pendentes (processedAt nulo, attempts < 3)', async () => {
+    mocks.findManyWebhookEvents.mockResolvedValue([
+      { id: 'evt-row-1', attempts: 0 },
+      { id: 'evt-row-2', attempts: 2 },
+    ]);
+
+    const out = await reconcileSubscriptions(now);
+
+    expect(mocks.processWebhookEvent).toHaveBeenNthCalledWith(1, 'evt-row-1');
+    expect(mocks.processWebhookEvent).toHaveBeenNthCalledWith(2, 'evt-row-2');
+    expect(out).toEqual({ checked: 0, updated: 0 });
+  });
+
+  it('erro ao reprocessar um webhook não aborta a reconciliação', async () => {
+    mocks.findManyWebhookEvents.mockResolvedValue([
+      { id: 'evt-row-1', attempts: 0 },
+      { id: 'evt-row-2', attempts: 1 },
+    ]);
+    mocks.processWebhookEvent
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined);
+
+    const out = await reconcileSubscriptions(now);
+
+    expect(mocks.processWebhookEvent).toHaveBeenCalledTimes(2);
+    expect(out).toEqual({ checked: 0, updated: 0 });
   });
 });

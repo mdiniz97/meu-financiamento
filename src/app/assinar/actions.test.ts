@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   auth: vi.fn(),
   hasActiveAccess: vi.fn(),
   createSubscriptionCheckout: vi.fn(),
+  cancelAtPeriodEnd: vi.fn(),
   packsFindFirst: vi.fn(),
   subsFindFirst: vi.fn(),
   insertReturning: vi.fn(),
@@ -20,6 +21,9 @@ vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/subscriptions/access', () => ({ hasActiveAccess: m.hasActiveAccess }));
 vi.mock('@/lib/payments/asaas/checkout', () => ({
   createSubscriptionCheckout: m.createSubscriptionCheckout,
+}));
+vi.mock('@/lib/payments/asaas/subscription', () => ({
+  cancelAtPeriodEnd: m.cancelAtPeriodEnd,
 }));
 vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
@@ -64,6 +68,7 @@ beforeEach(() => {
     link: 'https://sandbox.asaas.com/checkoutSession/show/chk_1',
   });
   m.insertReturning.mockResolvedValue([{ id: 'sub-new' }]);
+  m.cancelAtPeriodEnd.mockReset().mockResolvedValue(undefined);
 });
 
 describe('startSubscription', () => {
@@ -75,7 +80,12 @@ describe('startSubscription', () => {
     );
 
     expect(m.insert).not.toHaveBeenCalled();
-    expect(m.updateSet).toHaveBeenCalledWith({ status: 'incomplete', asaasCheckoutId: null });
+    expect(m.updateSet).toHaveBeenCalledWith({
+      status: 'incomplete',
+      asaasCheckoutId: null,
+      asaasSubscriptionId: null,
+      providerId: null,
+    });
     expect(m.updateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-existing']);
     expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_1' });
     expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
@@ -84,6 +94,54 @@ describe('startSubscription', () => {
         valueCents: 11990,
         cycle: 'YEARLY',
       })
+    );
+  });
+
+  it('cancela a assinatura Asaas antiga antes de criar o novo checkout', async () => {
+    m.subsFindFirst.mockResolvedValue({
+      id: 'sub-existing',
+      asaasSubscriptionId: 'asaas_old',
+      asaasStatus: 'ACTIVE',
+    });
+
+    await expect(startSubscription()).rejects.toThrow(
+      'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
+    );
+
+    expect(m.cancelAtPeriodEnd).toHaveBeenCalledWith('asaas_old');
+    const cancelOrder = m.cancelAtPeriodEnd.mock.invocationCallOrder[0];
+    const checkoutOrder = m.createSubscriptionCheckout.mock.invocationCallOrder[0];
+    expect(cancelOrder).toBeLessThan(checkoutOrder);
+  });
+
+  it('não cancela quando o Asaas antigo já está INACTIVE', async () => {
+    m.subsFindFirst.mockResolvedValue({
+      id: 'sub-existing',
+      asaasSubscriptionId: 'asaas_old',
+      asaasStatus: 'INACTIVE',
+    });
+
+    await expect(startSubscription()).rejects.toThrow(
+      'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
+    );
+
+    expect(m.cancelAtPeriodEnd).not.toHaveBeenCalled();
+  });
+
+  it('reusa a linha vencedora quando o insert colide (23505)', async () => {
+    m.subsFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'sub-winner' });
+    m.insertReturning.mockRejectedValueOnce(
+      Object.assign(new Error('duplicate key'), { code: '23505' })
+    );
+
+    await expect(startSubscription()).rejects.toThrow(
+      'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
+    );
+
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ externalReference: 'sub-winner' })
     );
   });
 

@@ -321,6 +321,28 @@ describe('R1 — correlação', () => {
     expect(calls.some((c) => c.col === 'asaasCheckoutId' && c.val === 'chk_1')).toBe(true);
     expect(mocks.updateSub).not.toHaveBeenCalled();
   });
+
+  it('PAYMENT_* casa por payment.checkoutSession via asaasCheckoutId', async () => {
+    byCheckout = {
+      id: 'sub-1',
+      userId: 'user-1',
+      status: 'incomplete',
+      cycle: 'YEARLY',
+      currentPeriodEnd: null,
+    };
+
+    await applyAsaasEvent({
+      id: 'evt_pay_chk',
+      event: 'PAYMENT_CREATED',
+      payment: { id: 'pay_1', checkoutSession: 'chk_1', status: 'PENDING' },
+    });
+
+    const calls = mocks.findSub.mock.calls.map(
+      (call) => (call[0] as { where: { col: string; val: unknown } }).where
+    );
+    expect(calls.some((c) => c.col === 'asaasCheckoutId' && c.val === 'chk_1')).toBe(true);
+    expect(mocks.insertPayment).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('R2 — upsertPayment', () => {
