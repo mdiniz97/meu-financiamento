@@ -4,6 +4,7 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
+import { getContract } from '@/lib/meu-financiamento/repo';
 import { UpgradeCard } from '@/components/upgrade-card';
 import { getMarketOverview } from '@/lib/market/bacen';
 import { MarketContent } from '@/components/market/market-content';
@@ -24,9 +25,10 @@ export default async function JurosPage() {
 
   if (signedIn) {
     const balance = await getCreditBalance(session!.userId);
+    const showMeuFinanciamento = (await getContract(session!.userId)) !== null;
     return (
       <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
-        <AppSidebar credits={balance.credits} isUnlimited={balance.isUnlimited} />
+        <AppSidebar credits={balance.credits} isUnlimited={balance.isUnlimited} showMeuFinanciamento={showMeuFinanciamento} />
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex w-full flex-col items-center gap-2 bg-muted p-4 pb-0 sm:p-6 sm:pb-0">
             <div className="w-full max-w-6xl">

@@ -207,11 +207,11 @@ export function ObraCalculator({
     <div className="flex w-full flex-col gap-4">
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Hammer className="size-5 text-[#820AD1]" /> Simulação de juros de obra
+          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
+            <Hammer className="size-5 text-[#820AD1]" /> Comprar na planta
           </CardTitle>
           <CardDescription>
-            Estime quanto você paga de juros (e seguro) até a obra ser entregue.
+            Entenda o que você paga enquanto a obra não é entregue: juros de obra, seguro e a primeira parcela depois da entrega.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
