@@ -234,7 +234,13 @@ export function ComparatorClient({
   }
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-xl font-semibold">Comparar propostas</h1>
+        <p className="text-sm text-muted-foreground">
+          Até 3 propostas bancárias lado a lado. Exclusivo do plano Ilimitado.
+        </p>
+      </div>
       {saved?.recalculated && (
         <p role="status" className="text-sm text-amber-700 dark:text-amber-400">
           Comparação salva na versão {saved.storedEngineVersion} recalculada com a versão {saved.resultEngineVersion} para manter formulário e resultado consistentes.

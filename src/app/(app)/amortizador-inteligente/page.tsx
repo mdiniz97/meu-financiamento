@@ -1,8 +1,6 @@
 import { auth } from '@/auth';
-import { Sparkles } from 'lucide-react';
 import { SmartCalculatorExperience } from '@/components/simulation/SmartCalculatorExperience';
 import { UpgradeCard } from '@/components/upgrade-card';
-import { PageHeader, PageShell } from '@/components/page-shell';
 import { getCreditBalance } from '@/lib/credits';
 
 export default async function AmortizadorInteligentePage() {
@@ -14,14 +12,11 @@ export default async function AmortizadorInteligentePage() {
   }
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Sparkles className="size-5 text-[#820AD1]" />}
-        title="Amortizador Inteligente"
-        description="Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia."
-      />
-      {!isUnlimited && <UpgradeCard />}
-      <SmartCalculatorExperience isUnlimited={isUnlimited} showHeader={false} />
-    </PageShell>
+    <div className="flex w-full flex-1 flex-col items-center bg-muted p-4 sm:p-6">
+      <div className="flex w-full max-w-5xl flex-col gap-6">
+        {!isUnlimited && <UpgradeCard />}
+        <SmartCalculatorExperience isUnlimited={isUnlimited} />
+      </div>
+    </div>
   );
 }

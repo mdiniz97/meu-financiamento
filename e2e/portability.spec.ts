@@ -700,8 +700,7 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
   await expect(portedTransfer).toBeEnabled();
   await Promise.all([page.waitForURL(/\/simulacao$/), portedTransfer.click()]);
 
-  await expect(page.getByRole('heading', { name: 'Simulação' })).toBeVisible();
-  await expect(page.getByText('Simulador de financiamento', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Simulador de financiamento' })).toBeVisible();
   await expect(page.getByText(/Sistema SAC · R\$\s*876\.543,21/)).toBeVisible();
   await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
 

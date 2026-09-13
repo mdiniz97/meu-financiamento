@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { User } from 'lucide-react';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { eq } from 'drizzle-orm';
@@ -7,7 +6,6 @@ import { getCreditBalance } from '@/lib/credits';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader, PageShell } from '@/components/page-shell';
 import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
 
@@ -22,12 +20,9 @@ export default async function PerfilPage() {
   ]);
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<User className="size-5 text-[#820AD1]" />}
-        title="Meu perfil"
-        description="Veja seus dados, saldo de créditos e assinatura."
-      />
+    <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
+      <div className="flex w-full max-w-5xl flex-col gap-6">
+      <h1 className="font-display text-xl font-semibold">Meu perfil</h1>
 
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
@@ -104,6 +99,7 @@ export default async function PerfilPage() {
           </CardContent>
         </Card>
       )}
-    </PageShell>
+      </div>
+    </div>
   );
 }

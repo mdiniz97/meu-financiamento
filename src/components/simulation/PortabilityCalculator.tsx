@@ -16,7 +16,7 @@ import type { AmortSystem } from '@/lib/finance/types';
 import { BANKS } from '@/lib/simulation-context';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
 import { PortabilitySandbox } from './PortabilitySandbox';
@@ -246,6 +246,14 @@ export function PortabilityCalculator() {
 
   return (
     <Card className="rounded-2xl shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          Portabilidade <ArrowLeftRight className="size-5 text-[#820AD1]" />
+        </CardTitle>
+        <CardDescription>
+          Informe seu financiamento atual e a proposta do novo banco: veja se vale a pena portar.
+        </CardDescription>
+      </CardHeader>
       <CardContent>
           <div className="flex flex-col gap-4">
             <section
