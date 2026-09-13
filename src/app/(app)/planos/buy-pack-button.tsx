@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Coins, ZapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { startSubscription } from '@/app/assinar/actions';
 
 export function BuyPackButton({
   packId,
@@ -19,13 +20,15 @@ export function BuyPackButton({
   const [error, setError] = useState<string | null>(null);
 
   async function buy() {
-    if (isSubscription) {
-      router.push('/assinar');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
+      // Assinatura: chama a server action direto (sem passar por /assinar),
+      // que cria/reusa a assinatura e redireciona ao checkout hospedado.
+      if (isSubscription) {
+        await startSubscription();
+        return;
+      }
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

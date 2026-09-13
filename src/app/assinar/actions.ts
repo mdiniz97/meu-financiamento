@@ -7,6 +7,7 @@ import { db, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
 import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
+import { getPaymentProvider } from '@/lib/payments';
 
 function isUniqueViolation(e: unknown): boolean {
   // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
@@ -40,6 +41,17 @@ export async function startSubscription(): Promise<void> {
     where: eq(schema.packs.id, 'unlimited'),
   });
   if (!pack) redirect('/perfil');
+
+  // Modo fake (dev/E2E): auto-aprova e cai em /perfil, como sempre.
+  if ((process.env.PAYMENT_PROVIDER ?? 'fake') === 'fake') {
+    const { checkoutUrl } = await getPaymentProvider().createCheckout({
+      userId,
+      packId: 'unlimited',
+      priceCents: pack.priceCents,
+    });
+    const sep = checkoutUrl.includes('?') ? '&' : '?';
+    redirect(`${checkoutUrl}${sep}userId=${userId}&packId=unlimited`);
+  }
 
   const existing = await db.query.subscriptions.findFirst({
     where: and(

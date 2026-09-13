@@ -53,6 +53,7 @@ import { startSubscription } from './actions';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv('PAYMENT_PROVIDER', 'asaas');
   m.insert.mockImplementation(() => ({ values: m.insertValues }));
   m.insertValues.mockImplementation(() => ({ returning: m.insertReturning }));
   m.update.mockImplementation(() => ({ set: m.updateSet }));
