@@ -167,26 +167,36 @@ const SENSITIVE_PAYMENT_KEY = /cvv|cvc|creditcardtoken/i;
  * `webhook_events.payload`.
  */
 export function sanitizeEventForStorage<T>(event: T): T {
-  const clone = deepClone(event);
-  const payment = (clone as { payment?: Record<string, unknown> }).payment;
-  if (!payment || typeof payment !== 'object') return clone;
+  const clone = deepClone(event) as Record<string, unknown>;
 
-  for (const key of Object.keys(payment)) {
-    if (SENSITIVE_PAYMENT_KEY.test(key)) delete payment[key];
+  // LGPD: o checkout traz `customerData` com CPF/telefone/endereço. Não usamos
+  // esses campos em nenhum processamento (a correlação é por id/checkoutSession),
+  // então removemos antes de persistir `webhook_events.payload`.
+  const checkout = clone.checkout;
+  if (checkout && typeof checkout === 'object') {
+    delete (checkout as Record<string, unknown>).customerData;
   }
 
-  const rawCard = payment.creditCard;
+  const payment = clone.payment;
+  if (!payment || typeof payment !== 'object') return clone as T;
+
+  const pay = payment as Record<string, unknown>;
+  for (const key of Object.keys(pay)) {
+    if (SENSITIVE_PAYMENT_KEY.test(key)) delete pay[key];
+  }
+
+  const rawCard = pay.creditCard;
   if (rawCard && typeof rawCard === 'object') {
     const card = rawCard as Record<string, unknown>;
     const number = card.creditCardNumber;
-    payment.creditCard = {
+    pay.creditCard = {
       creditCardNumber:
         typeof number === 'string' && number.length >= 4 ? `****${number.slice(-4)}` : '****',
       creditCardBrand: card.creditCardBrand ?? null,
     };
   }
 
-  return clone;
+  return clone as T;
 }
 
 /**

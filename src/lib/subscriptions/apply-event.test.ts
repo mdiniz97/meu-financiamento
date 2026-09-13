@@ -536,6 +536,34 @@ describe('sanitizeEventForStorage', () => {
     expect(cc.creditCardBrand).toBe('VISA');
     expect(cc).not.toHaveProperty('creditCardToken');
   });
+
+  it('remove customerData (CPF/telefone/endereço) do checkout', () => {
+    const evt = {
+      id: 'evt_pii',
+      event: 'CHECKOUT_PAID',
+      checkout: {
+        id: 'chk_1',
+        externalReference: '26bf39ac-33c4-4f18-804d-a91405146e8d',
+        customerData: {
+          name: 'Fulano',
+          cpfCnpj: '05953930127',
+          phoneNumber: '11999999999',
+          address: 'Rua X',
+          postalCode: '01310100',
+        },
+      },
+    };
+
+    const safe = sanitizeEventForStorage(evt);
+
+    expect(safe.checkout).not.toHaveProperty('customerData');
+    expect(safe.checkout.id).toBe('chk_1');
+    expect(safe.checkout.externalReference).toBe(
+      '26bf39ac-33c4-4f18-804d-a91405146e8d'
+    );
+    // deep copy: original intacto
+    expect(evt.checkout.customerData.cpfCnpj).toBe('05953930127');
+  });
 });
 
 describe('créditos avulsos — compra DETACHED', () => {
