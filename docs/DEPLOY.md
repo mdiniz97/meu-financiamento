@@ -145,13 +145,16 @@ push em `main` → produção, PR → preview.
 ## Registrar o webhook do Asaas (produção)
 
 Depois do deploy com `PAYMENT_PROVIDER=asaas` e `APP_URL` corretos, registre o
-webhook uma única vez por ambiente. O script usa `getAsaasConfig()` + `POST /v3/webhooks`
-(DTO em `references/06-webhooks.md §2.1`) e só inclui os eventos da spec §7.2.
+webhook uma vez por ambiente. O script é **idempotente**: consulta
+`GET /v3/webhooks`, localiza o webhook cuja `url` é `${APP_URL}/api/asaas/webhook`
+e, se existir, **atualiza** via `PUT /v3/webhooks/{id}`; senão cria via
+`POST /v3/webhooks` (DTO em `references/06-webhooks.md §2.1`). Só inclui os eventos
+da spec §7.2.
 
 ```bash
 # com ASAAS_ENV=production/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local
 npx tsx scripts/register-asaas-webhook.ts
-# → webhook criado: wh_...
+# → webhook criado: wh_...   (ou "webhook atualizado: wh_..." se já existia)
 ```
 
 - `url` = `${APP_URL}/api/asaas/webhook`; `authToken` = `ASAAS_WEBHOOK_AUTH_TOKEN`
@@ -161,9 +164,10 @@ npx tsx scripts/register-asaas-webhook.ts
   pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
 - **NFS-e**: o registro já inclui os 8 eventos `INVOICE_*` (inofensivos com a
   feature desligada). Se o webhook de um ambiente foi criado antes desta mudança,
-  **rode o script de novo** ao habilitar `ASAAS_INVOICE_ENABLED=true` para que a
-  assinatura de eventos passe a incluir as notas; sem isso o Asaas não envia
-  `INVOICE_*` e as notas nunca aparecem em `invoices`.
+  **rode o script** ao habilitar `ASAAS_INVOICE_ENABLED=true`: ele é idempotente e
+  **atualiza o webhook existente** (`PUT /v3/webhooks/{id}`) para que a assinatura
+  de eventos passe a incluir as notas, em vez de criar um duplicado; sem isso o
+  Asaas não envia `INVOICE_*` e as notas nunca aparecem em `invoices`.
 - **Créditos DETACHED**: a correlação dos `PAYMENT_*` de checkout avulso usa
   `payment.checkoutSession`; confirme o campo no payload real **no sandbox** antes
   de vender em produção (se o Asaas omitir `checkoutSession`, a compra não é
@@ -313,7 +317,9 @@ pagamento confirma).
 
 **5. Re-registrar o webhook para assinar os `INVOICE_*`** — o registro precisa
 incluir os 8 eventos `INVOICE_*` para o Asaas enviá-los; se o webhook do ambiente
-foi criado antes, **rode de novo**:
+foi criado antes, **rode o script com `ASAAS_INVOICE_ENABLED=true`**: ele é
+idempotente e **atualiza o webhook existente** (`PUT /v3/webhooks/{id}`) com a lista
+completa de eventos, em vez de criar um duplicado:
 
 ```bash
 # com ASAAS_ENV/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local

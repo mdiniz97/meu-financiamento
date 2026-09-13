@@ -1021,6 +1021,30 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
     });
   });
 
+  it('F1: replay sem invoice.payment não zera o vínculo no set', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byProvider = { id: 'sub-1', userId: 'user-1' };
+
+    await applyAsaasEvent(
+      invoiceEvent('INVOICE_UPDATED', {
+        subscription: 'sub_1',
+        status: 'UPDATED',
+        // sem `payment`: evento de replay/out-of-order
+      })
+    );
+
+    const inserted = invoiceInsert();
+    expect(inserted).not.toBeNull();
+    // O INSERT segue gravando `?? null`.
+    expect(inserted!.args.asaasPaymentId).toBeNull();
+    // O SET do upsert não pode sobrescrever o vínculo existente com NULL.
+    const set = inserted!.conflict.onConflictDoUpdate.mock.calls[0][0].set as Record<
+      string,
+      unknown
+    >;
+    expect(set).not.toHaveProperty('asaasPaymentId');
+  });
+
   it('flag on upserta invoice sem assinatura correlacionada (nullable)', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
 
