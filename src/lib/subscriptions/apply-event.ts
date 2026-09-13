@@ -1,6 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { addCredits } from '@/lib/credits';
+import { isInvoiceEnabled } from '@/lib/payments/asaas/invoice-config';
+import { configureInvoiceSettings, getFiscalInfo } from '@/lib/payments/asaas/subscription';
 import { addCycle } from './cycle';
 
 const GRACE_DAYS = 7;
@@ -75,7 +77,8 @@ function parseDate(value?: string | null): Date | null {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | null> {
-  const providerKey = event.payment?.subscription ?? event.subscription?.id;
+  const providerKey =
+    event.payment?.subscription ?? event.subscription?.id ?? event.invoice?.subscription;
   if (providerKey) {
     const found = await db.query.subscriptions.findFirst({
       where: eq(schema.subscriptions.providerId, providerKey),
@@ -323,6 +326,7 @@ interface SubscriptionPatch {
   cardLast4?: string;
   cardBrand?: string;
   canceledAt?: Date;
+  invoiceConfiguredAt?: Date;
 }
 
 async function patchSubscription(subId: string, patch: SubscriptionPatch): Promise<void> {
@@ -345,10 +349,91 @@ function extendedPeriodEnd(
   return candidate;
 }
 
+const INVOICE_EVENTS = new Set([
+  'INVOICE_CREATED',
+  'INVOICE_UPDATED',
+  'INVOICE_SYNCHRONIZED',
+  'INVOICE_AUTHORIZED',
+  'INVOICE_PROCESSING_CANCELLATION',
+  'INVOICE_CANCELED',
+  'INVOICE_CANCELLATION_DENIED',
+  'INVOICE_ERROR',
+]);
+
+/**
+ * RD — eventos de NFS-e são gated: com a flag off nada é consultado nem
+ * persistido. Correlaciona a assinatura por `invoice.subscription` (quando
+ * existe) e faz upsert por `asaasInvoiceId`.
+ */
+async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
+  if (!isInvoiceEnabled()) return;
+  const invoice = event.invoice;
+  if (!invoice?.id) return;
+
+  const sub = await findSubscription(event);
+  const status = invoice.status ?? event.event.replace('INVOICE_', '');
+  const valueCents = invoice.value != null ? Math.round(invoice.value * 100) : null;
+  const effectiveDate = parseDate(invoice.effectiveDate);
+  const rawLastEvent = sanitizeEventForStorage(event);
+
+  const set: Record<string, unknown> = {
+    status,
+    number: invoice.number ?? null,
+    valueCents,
+    pdfUrl: invoice.pdfUrl ?? null,
+    xmlUrl: invoice.xmlUrl ?? null,
+    effectiveDate,
+    rawLastEvent,
+    updatedAt: new Date(),
+  };
+  if (sub) {
+    set.subscriptionId = sub.id;
+    set.userId = sub.userId;
+  }
+
+  await db
+    .insert(schema.invoices)
+    .values({
+      asaasInvoiceId: invoice.id,
+      subscriptionId: sub?.id ?? null,
+      userId: sub?.userId ?? null,
+      status,
+      number: invoice.number ?? null,
+      valueCents,
+      pdfUrl: invoice.pdfUrl ?? null,
+      xmlUrl: invoice.xmlUrl ?? null,
+      effectiveDate,
+      rawLastEvent,
+    })
+    .onConflictDoUpdate({ target: schema.invoices.asaasInvoiceId, set });
+}
+
+/** Gancho gated de NFS-e: nunca derruba o processamento da assinatura. */
+async function configureInvoiceIfEnabled(
+  subId: string,
+  asaasSubscriptionId: string
+): Promise<void> {
+  if (!isInvoiceEnabled()) return;
+  try {
+    const fiscal = await getFiscalInfo();
+    if (!fiscal.ok) {
+      console.warn(
+        `[apply-event] conta sem configuração fiscal; NFS-e não configurada para ${asaasSubscriptionId}`
+      );
+      return;
+    }
+    await configureInvoiceSettings(asaasSubscriptionId);
+    await patchSubscription(subId, { invoiceConfiguredAt: new Date() });
+  } catch (e) {
+    console.warn(`[apply-event] falha ao configurar NFS-e de ${asaasSubscriptionId}:`, e);
+  }
+}
+
 export async function applyAsaasEvent(
   evt: { id: string; event: string } & Record<string, unknown>
 ): Promise<void> {
   const event = evt as unknown as AsaasEvent;
+  if (INVOICE_EVENTS.has(event.event)) return applyInvoiceEvent(event);
   const sub = await findSubscription(event);
   // Sem assinatura correlacionada o evento pode ser de uma compra de créditos
   // avulsa (checkout DETACHED). Assinatura resolvida nunca concede créditos.
@@ -381,6 +466,9 @@ export async function applyAsaasEvent(
         nextDueDate: parseDate(s.nextDueDate) ?? undefined,
         asaasStatus: event.event === 'SUBSCRIPTION_CREATED' ? 'ACTIVE' : (s.status ?? undefined),
       });
+      if (event.event === 'SUBSCRIPTION_CREATED') {
+        await configureInvoiceIfEnabled(subId, s.id);
+      }
       return;
     }
 

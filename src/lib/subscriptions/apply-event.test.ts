@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   findSub: vi.fn(),
@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   updateSub: vi.fn(),
   insertPayment: vi.fn(),
   addCredits: vi.fn(),
+  getFiscalInfo: vi.fn(),
+  configureInvoiceSettings: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -28,6 +30,13 @@ vi.mock('@/db', () => ({
       asaasCheckoutId: 'asaasCheckoutId',
     },
     payments: { asaasPaymentId: 'asaasPaymentId', confirmedAt: 'confirmedAt', receivedAt: 'receivedAt' },
+    invoices: {
+      asaasInvoiceId: 'asaasInvoiceId',
+      subscriptionId: 'subscriptionId',
+      userId: 'userId',
+      status: 'status',
+      updatedAt: 'updatedAt',
+    },
     creditPurchases: {
       id: 'id',
       asaasCheckoutId: 'asaasCheckoutId',
@@ -45,6 +54,11 @@ vi.mock('@/db', () => ({
 }));
 
 vi.mock('@/lib/credits', () => ({ addCredits: mocks.addCredits }));
+
+vi.mock('@/lib/payments/asaas/subscription', () => ({
+  getFiscalInfo: mocks.getFiscalInfo,
+  configureInvoiceSettings: mocks.configureInvoiceSettings,
+}));
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
@@ -66,6 +80,12 @@ let byProvider: Row | null;
 let byCheckout: Row | null;
 let byId: Row | null;
 let updateChains: ReturnType<typeof chain>[];
+const originalInvoiceFlag = process.env.ASAAS_INVOICE_ENABLED;
+
+afterEach(() => {
+  if (originalInvoiceFlag === undefined) delete process.env.ASAAS_INVOICE_ENABLED;
+  else process.env.ASAAS_INVOICE_ENABLED = originalInvoiceFlag;
+});
 
 const routeFindSub = async ({ where }: { where: { col: unknown } }) => {
   if (where?.col === 'providerId') return byProvider;
@@ -92,10 +112,15 @@ const setPatch = (c: ReturnType<typeof chain>) =>
   c.set.mock.calls[0][0] as Record<string, unknown>;
 
 beforeEach(() => {
+  delete process.env.ASAAS_INVOICE_ENABLED;
   byProvider = null;
   byCheckout = null;
   byId = null;
   updateChains = [];
+  mocks.getFiscalInfo.mockReset();
+  mocks.getFiscalInfo.mockResolvedValue({ ok: true });
+  mocks.configureInvoiceSettings.mockReset();
+  mocks.configureInvoiceSettings.mockResolvedValue(undefined);
   mocks.findSub.mockReset();
   mocks.findSub.mockImplementation(routeFindSub);
   mocks.findEvent.mockReset();
@@ -760,5 +785,165 @@ describe('processWebhookEvent', () => {
       (call) => (call[0] as { where?: { col?: string } })?.where?.col === 'id'
     );
     expect(idCalls).toHaveLength(0);
+  });
+});
+
+describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
+  const invoiceEvent = (event: string, over: Record<string, unknown> = {}) => ({
+    id: `evt_${event}`,
+    event,
+    invoice: { id: 'inv_1', status: 'SYNCHRONIZED', ...over },
+  });
+
+  const createdEvent = () =>
+    ({
+      id: 'evt_nfse_created',
+      event: 'SUBSCRIPTION_CREATED',
+      subscription: {
+        id: 'sub_1',
+        checkoutSession: 'chk_1',
+        customer: 'cus_1',
+        cycle: 'YEARLY',
+        nextDueDate: '2027-09-13',
+        billingType: 'CREDIT_CARD',
+        status: 'ACTIVE',
+      },
+    }) as const;
+
+  const invoiceInsert = () => {
+    for (const r of mocks.insertPayment.mock.results) {
+      const values = (r.value as { values: ReturnType<typeof vi.fn> }).values;
+      const call = values.mock.calls.find(
+        (c) => 'asaasInvoiceId' in (c[0] as Record<string, unknown>)
+      );
+      if (call) {
+        const conflict = values.mock.results[0].value as {
+          onConflictDoUpdate: ReturnType<typeof vi.fn>;
+        };
+        return { args: call[0] as Record<string, unknown>, conflict };
+      }
+    }
+    return null;
+  };
+
+  it('flag off ignora INVOICE_* sem consultar assinatura/nota', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1' };
+
+    await applyAsaasEvent(invoiceEvent('INVOICE_CREATED', { subscription: 'sub_1' }));
+
+    expect(mocks.insertPayment).not.toHaveBeenCalled();
+    expect(mocks.findSub).not.toHaveBeenCalled();
+    expect(mocks.getFiscalInfo).not.toHaveBeenCalled();
+  });
+
+  it('flag on upserta invoice correlacionando por invoice.subscription', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byProvider = { id: 'sub-1', userId: 'user-1' };
+
+    await applyAsaasEvent(
+      invoiceEvent('INVOICE_SYNCHRONIZED', {
+        subscription: 'sub_1',
+        status: 'SYNCHRONIZED',
+        number: '123',
+        value: 119.9,
+        pdfUrl: 'https://p/inv.pdf',
+        xmlUrl: 'https://p/inv.xml',
+        effectiveDate: '2026-10-01',
+      })
+    );
+
+    const inserted = invoiceInsert();
+    expect(inserted).not.toBeNull();
+    expect(inserted!.args).toMatchObject({
+      asaasInvoiceId: 'inv_1',
+      subscriptionId: 'sub-1',
+      userId: 'user-1',
+      status: 'SYNCHRONIZED',
+      number: '123',
+      valueCents: 11990,
+      pdfUrl: 'https://p/inv.pdf',
+      xmlUrl: 'https://p/inv.xml',
+    });
+    expect((inserted!.args.effectiveDate as Date).toISOString()).toBe(
+      '2026-10-01T00:00:00.000Z'
+    );
+
+    const conflictArg = inserted!.conflict.onConflictDoUpdate.mock.calls[0][0] as {
+      target: unknown;
+      set: Record<string, unknown>;
+    };
+    expect(conflictArg.target).toBe('asaasInvoiceId');
+    expect(conflictArg.set.status).toBe('SYNCHRONIZED');
+    expect(conflictArg.set.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('flag on upserta invoice sem assinatura correlacionada (nullable)', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+
+    await applyAsaasEvent(invoiceEvent('INVOICE_CREATED', { status: 'CREATED' }));
+
+    const inserted = invoiceInsert();
+    expect(inserted).not.toBeNull();
+    expect(inserted!.args.subscriptionId).toBeNull();
+    expect(inserted!.args.userId).toBeNull();
+    expect(inserted!.args.status).toBe('CREATED');
+  });
+
+  it('flag off não chama fiscalInfo nem configureInvoiceSettings no SUBSCRIPTION_CREATED', async () => {
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(createdEvent());
+
+    expect(mocks.getFiscalInfo).not.toHaveBeenCalled();
+    expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
+  });
+
+  it('flag on + fiscal ok configura invoiceSettings e grava invoiceConfiguredAt', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(createdEvent());
+
+    expect(mocks.getFiscalInfo).toHaveBeenCalledTimes(1);
+    expect(mocks.configureInvoiceSettings).toHaveBeenCalledWith('sub_1');
+    const patches = updateChains.map(setPatch);
+    expect(patches.some((p) => p.invoiceConfiguredAt instanceof Date)).toBe(true);
+  });
+
+  it('flag on + fiscal 404 (ok:false) loga e segue sem configurar', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+    mocks.getFiscalInfo.mockResolvedValue({ ok: false });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
+
+    expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
+    expect(updateChains.some((c) => 'providerId' in setPatch(c))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('erro na config não derruba o SUBSCRIPTION_CREATED', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+    mocks.configureInvoiceSettings.mockRejectedValue(new Error('asaas down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
+
+    expect(updateChains.some((c) => 'providerId' in setPatch(c))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('getFiscalInfo com erro não-404 também não derruba o evento', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+    mocks.getFiscalInfo.mockRejectedValue(new Error('boom'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
+
+    expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
