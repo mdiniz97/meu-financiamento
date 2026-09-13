@@ -30,7 +30,9 @@ export async function InvoicesCard({ userId }: { userId: string }) {
               <div className="flex flex-col gap-1">
                 <span className="font-medium">
                   {note.effectiveDate
-                    ? new Date(note.effectiveDate).toLocaleDateString('pt-BR')
+                    ? new Date(note.effectiveDate).toLocaleDateString('pt-BR', {
+                        timeZone: 'UTC',
+                      })
                     : '-'}
                 </span>
                 <span className="text-muted-foreground">

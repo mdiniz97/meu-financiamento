@@ -10,6 +10,10 @@ describe('invoiceStatusLabel', () => {
     expect(invoiceStatusLabel('SCHEDULED')).toBe('Agendada');
   });
 
+  it('traduz SYNCHRONIZED', () => {
+    expect(invoiceStatusLabel('SYNCHRONIZED')).toBe('Sincronizada');
+  });
+
   it('traduz PROCESSING_CANCELLATION', () => {
     expect(invoiceStatusLabel('PROCESSING_CANCELLATION')).toBe('Cancelando');
   });

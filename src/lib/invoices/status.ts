@@ -1,5 +1,6 @@
 const INVOICE_STATUS_LABELS: Record<string, string> = {
   AUTHORIZED: 'Autorizada',
+  SYNCHRONIZED: 'Sincronizada',
   SCHEDULED: 'Agendada',
   PROCESSING_CANCELLATION: 'Cancelando',
   CANCELED: 'Cancelada',
