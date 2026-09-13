@@ -83,8 +83,8 @@ export function InvestCalculator({
     <div className="flex w-full flex-col gap-4">
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Scale className="size-5 text-[#820AD1]" /> Comparativo investimento × amortização
+          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
+            <Scale className="size-5 text-[#820AD1]" /> Investir ou amortizar?
           </CardTitle>
           <CardDescription>
             Compare os juros totais de cada estratégia até quitar a dívida. Não é uma comparação
