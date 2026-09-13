@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn() }));
 vi.mock('@/db', () => ({
-  db: { query: { subscriptions: { findFirst: mocks.findFirst } } },
+  db: { query: { subscriptions: { findMany: mocks.findMany } } },
   schema: { subscriptions: { userId: 'userId', status: 'status' } },
 }));
 vi.mock('drizzle-orm', () => ({
@@ -15,39 +15,92 @@ vi.mock('drizzle-orm', () => ({
 
 import { hasActiveAccess } from './access';
 
-beforeEach(() => mocks.findFirst.mockReset());
+beforeEach(() => mocks.findMany.mockReset());
 
 describe('hasActiveAccess', () => {
   it('true para active dentro do período', async () => {
-    mocks.findFirst.mockResolvedValue({
-      status: 'active',
-      currentPeriodEnd: new Date(Date.now() + 1000),
-      graceUntil: null,
-    });
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() + 1000),
+        graceUntil: null,
+      },
+    ]);
     expect(await hasActiveAccess('u1')).toBe(true);
   });
   it('false para incomplete', async () => {
-    mocks.findFirst.mockResolvedValue({
-      status: 'incomplete',
-      currentPeriodEnd: null,
-      graceUntil: null,
-    });
+    mocks.findMany.mockResolvedValue([
+      { status: 'incomplete', currentPeriodEnd: null, graceUntil: null },
+    ]);
     expect(await hasActiveAccess('u1')).toBe(false);
   });
   it('true para past_due dentro da carência', async () => {
-    mocks.findFirst.mockResolvedValue({
-      status: 'past_due',
-      currentPeriodEnd: new Date(Date.now() - 1000),
-      graceUntil: new Date(Date.now() + 1000),
-    });
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'past_due',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: new Date(Date.now() + 1000),
+      },
+    ]);
     expect(await hasActiveAccess('u1')).toBe(true);
   });
   it('false para past_due fora da carência', async () => {
-    mocks.findFirst.mockResolvedValue({
-      status: 'past_due',
-      currentPeriodEnd: new Date(Date.now() - 1000),
-      graceUntil: new Date(Date.now() - 1),
-    });
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'past_due',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: new Date(Date.now() - 1),
+      },
+    ]);
+    expect(await hasActiveAccess('u1')).toBe(false);
+  });
+  it('true quando uma linha active vencida convive com uma active válida', async () => {
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: null,
+      },
+      {
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() + 1000),
+        graceUntil: null,
+      },
+    ]);
+    expect(await hasActiveAccess('u1')).toBe(true);
+  });
+  it('true quando uma linha past_due fora da carência convive com uma active válida', async () => {
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'past_due',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: new Date(Date.now() - 1),
+      },
+      {
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() + 1000),
+        graceUntil: null,
+      },
+    ]);
+    expect(await hasActiveAccess('u1')).toBe(true);
+  });
+  it('false quando todas as linhas estão vencidas/lapsadas', async () => {
+    mocks.findMany.mockResolvedValue([
+      {
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: null,
+      },
+      {
+        status: 'past_due',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+        graceUntil: new Date(Date.now() - 1),
+      },
+    ]);
+    expect(await hasActiveAccess('u1')).toBe(false);
+  });
+  it('false quando não há linhas', async () => {
+    mocks.findMany.mockResolvedValue([]);
     expect(await hasActiveAccess('u1')).toBe(false);
   });
 });
