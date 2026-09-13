@@ -1,4 +1,4 @@
-import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, doublePrecision, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, doublePrecision, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -32,11 +32,26 @@ export const subscriptions = pgTable(
     providerId: text('provider_id'),
     status: text('status').notNull(),
     currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    asaasCustomerId: text('asaas_customer_id'),
+    asaasSubscriptionId: text('asaas_subscription_id'),
+    asaasCheckoutId: text('asaas_checkout_id'),
+    billingType: text('billing_type'),
+    cycle: text('cycle'),
+    nextDueDate: timestamp('next_due_date', { withTimezone: true }),
+    asaasStatus: text('asaas_status'),
+    cardLast4: text('card_last4'),
+    cardBrand: text('card_brand'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    canceledAt: timestamp('canceled_at', { withTimezone: true }),
+    graceUntil: timestamp('grace_until', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('subscriptions_provider_id_unique')
       .on(table.providerId)
       .where(sql`${table.providerId} IS NOT NULL`),
+    uniqueIndex('subscriptions_asaas_subscription_id_unique')
+      .on(table.asaasSubscriptionId)
+      .where(sql`${table.asaasSubscriptionId} IS NOT NULL`),
     // Primeira compra: uma única assinatura por (usuário, pacote, provedor);
     // renovações estendem a MESMA linha. Sem esse índice, dois webhooks reais
     // em paralelo com providerIds distintos inseririam duas linhas e a segunda
@@ -173,6 +188,51 @@ export const contractDrafts = pgTable('contract_drafts', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [uniqueIndex('contract_drafts_user_id_unique').on(table.userId)]);
 
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    asaasPaymentId: text('asaas_payment_id').notNull(),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
+      onDelete: 'set null',
+    }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(),
+    billingType: text('billing_type'),
+    dueDate: timestamp('due_date', { withTimezone: true }),
+    valueCents: integer('value_cents'),
+    netValueCents: integer('net_value_cents'),
+    invoiceUrl: text('invoice_url'),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    receivedAt: timestamp('received_at', { withTimezone: true }),
+    rawLastEvent: jsonb('raw_last_event'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('payments_asaas_payment_id_unique').on(table.asaasPaymentId),
+    index('payments_subscription_id_idx').on(table.subscriptionId),
+    index('payments_status_idx').on(table.status),
+  ]
+);
+
+export const webhookEvents = pgTable(
+  'webhook_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    asaasEventId: text('asaas_event_id').notNull().unique(),
+    event: text('event').notNull(),
+    payload: jsonb('payload').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+  },
+  (table) => [index('webhook_events_event_idx').on(table.event)]
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Pack = typeof packs.$inferSelect;
@@ -184,3 +244,5 @@ export type Contract = typeof contracts.$inferSelect;
 export type ContractState = typeof contractStates.$inferSelect;
 export type Movement = typeof movements.$inferSelect;
 export type ContractDraft = typeof contractDrafts.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
