@@ -23,12 +23,6 @@ export function BuyPackButton({
     setBusy(true);
     setError(null);
     try {
-      // Assinatura: chama a server action direto (sem passar por /assinar),
-      // que cria/reusa a assinatura e redireciona ao checkout hospedado.
-      if (isSubscription) {
-        await startSubscription();
-        return;
-      }
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,6 +48,20 @@ export function BuyPackButton({
     }
   }
 
+  // Assinatura: usa a server action como <form action> — o Next trata o
+  // redirect ao checkout hospedado sem passar por try/catch (que exibiria um
+  // falso "erro de rede" mesmo com a navegação funcionando).
+  if (isSubscription) {
+    return (
+      <form action={startSubscription} className="w-full">
+        <Button type="submit" className="w-full">
+          <ZapIcon className="size-4" />
+          {label}
+        </Button>
+      </form>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <Button onClick={buy} disabled={busy} className="w-full">
@@ -61,11 +69,7 @@ export function BuyPackButton({
           'Aguarde...'
         ) : (
           <>
-            {isSubscription ? (
-              <ZapIcon className="size-4" />
-            ) : (
-              <Coins className="size-4" />
-            )}
+            <Coins className="size-4" />
             {label}
           </>
         )}
