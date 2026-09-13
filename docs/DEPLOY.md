@@ -160,6 +160,58 @@ npx tsx scripts/register-asaas-webhook.ts
 - O `email` configurado recebe os alertas de penalização/fila pausada (15 falhas
   pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
 
+## Homologação Asaas (sandbox)
+
+> Execução de **2026-09-13** no worktree `asaas-assinaturas`, apenas chamadas de
+> API contra `https://api-sandbox.asaas.com/v3`. Nenhum cartão foi usado, nenhum
+> pagamento/checkout foi concluído, nenhum customer foi criado e nenhum webhook
+> foi registrado (localhost não é alcançável pelo Asaas).
+
+### Validado automaticamente (API)
+
+| Verificação | Resultado |
+| ----------- | --------- |
+| Carregamento de `.env.local` via `@next/env` | `ASAAS_API_KEY` chegou preenchida (166 chars, prefixo `$aact_`) — o escape `\$` no arquivo sobreviveu ao `dotenv-expand`. |
+| `GET /v3/myAccount/status` | `commercialInfo`, `bankAccountInfo`, `documentation` e `general` = `APPROVED`. |
+| `createSubscriptionCheckout` (Task 7) com callbacks `https://` | Aceito. `POST /v3/checkouts` retornou `id` + `link` de sessão de checkout (`https://sandbox.asaas.com/checkoutSession/show/<id>`). O DTO enviado (`billingTypes: ['CREDIT_CARD']`, `chargeTypes: ['RECURRENT']`, `items`, `subscription: {cycle, nextDueDate}`, `externalReference`, `callback`) foi aceito. |
+| `GET /v3/subscriptions` | `{"totalCount":0,"hasMore":false,"data":[]}`. |
+
+Script usado (descartável, fora do git em `.superpowers/`):
+
+```bash
+npx tsx .superpowers/sdd/2026-09-13-assinaturas-asaas/smoke-checkout.ts
+```
+
+**Achado (não é defeito do DTO):** com callbacks `http://localhost:3012/...` o
+`POST /v3/checkouts` responde `400 invalid_object` para `successUrl`, `cancelUrl`
+e `expiredUrl`. O mesmo corpo com callbacks `https://amortiza.me/...` é aceito —
+logo o DTO da Task 7 está correto; o Asaas apenas exige callbacks **https
+públicas**. Em dev local, para concluir um checkout no sandbox é preciso expor a
+app por túnel (`APP_URL` https) ou usar URLs https de teste. Nenhuma alteração de
+código foi feita; decisão fica com o controller.
+
+### Pendente de validação manual (não executado)
+
+Não marcar como validado o que segue — exige app rodando, navegador, URL pública
+de webhook e cartão de teste no sandbox:
+
+- [ ] Assinar com cartão aprovado no sandbox e confirmar a ordem dos eventos
+      (`CHECKOUT_PAID` / `SUBSCRIPTION_CREATED` / `PAYMENT_CREATED` /
+      `PAYMENT_CONFIRMED`) e que o acesso só libera em `PAYMENT_CONFIRMED`.
+- [ ] Idempotência: reenviar o mesmo webhook → sem duplicar pagamento nem
+      estender o período duas vezes.
+- [ ] Inadimplência: `POST /v3/sandbox/payment/{id}/overdue` → `past_due` +
+      carência; rodar `runDunning` e conferir avisos/suspensão.
+- [ ] Cancelamento: acesso mantido até `currentPeriodEnd`, sem nova cobrança.
+- [ ] Registrar webhook sandbox (`npx tsx scripts/register-asaas-webhook.ts`) —
+      omitido aqui porque `localhost` não é roteável pelo Asaas.
+- [ ] Lacunas ⚠ da spec §13: `nextDueDate` futuro cobra na hora?; cartões de
+      recusa `5184019740373151` / `4916561358240741` vêm como `PAYMENT_OVERDUE`
+      e/ou `PAYMENT_CREDIT_CARD_CAPTURE_REFUSED`; `INACTIVE` + reativar sem
+      `nextDueDate` retorna `400`; `DELETE` da assinatura emite
+      `PAYMENT_DELETED` das pendentes; tokenização só para cupom/`PUT value`
+      (fora do MVP) e política de retry de cartão (assumir 1 tentativa).
+
 ## Passo 5 — Checklist pós-deploy
 
 Com o deploy no ar (URL de produção):
