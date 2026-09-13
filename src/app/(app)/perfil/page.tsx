@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
 import { CancelSubscriptionButton } from './cancel-subscription-button';
+import { InvoicesCard } from './invoices-card';
 
 export default async function PerfilPage() {
   const session = await auth();
@@ -120,6 +121,8 @@ export default async function PerfilPage() {
           </CardContent>
         </Card>
       )}
+
+      <InvoicesCard userId={session.userId} />
       </div>
     </div>
   );
