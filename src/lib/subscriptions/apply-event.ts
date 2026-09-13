@@ -84,6 +84,49 @@ async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | nu
   return null;
 }
 
+function deepClone<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => deepClone(item)) as unknown as T;
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = deepClone(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+const SENSITIVE_PAYMENT_KEY = /cvv|cvc|creditcardtoken/i;
+
+/**
+ * §11 — nunca persistir dados completos de cartão (PAN/CVV/token), nem cifrados.
+ * Mantém apenas o número mascarado (últimos 4) e a bandeira. Retorna cópia
+ * profunda para não mutar o evento recebido. Task 6 reusa para sanitizar o
+ * `webhook_events.payload`.
+ */
+export function sanitizeEventForStorage<T>(event: T): T {
+  const clone = deepClone(event);
+  const payment = (clone as { payment?: Record<string, unknown> }).payment;
+  if (!payment || typeof payment !== 'object') return clone;
+
+  for (const key of Object.keys(payment)) {
+    if (SENSITIVE_PAYMENT_KEY.test(key)) delete payment[key];
+  }
+
+  const rawCard = payment.creditCard;
+  if (rawCard && typeof rawCard === 'object') {
+    const card = rawCard as Record<string, unknown>;
+    const number = card.creditCardNumber;
+    payment.creditCard = {
+      creditCardNumber:
+        typeof number === 'string' && number.length >= 4 ? `****${number.slice(-4)}` : '****',
+      creditCardBrand: card.creditCardBrand ?? null,
+    };
+  }
+
+  return clone;
+}
+
 /**
  * R2 — `user_id` é NOT NULL: sem assinatura resolvida não há usuário válido,
  * então não inserimos a linha de payment (apenas registramos o aviso).
@@ -127,7 +170,7 @@ async function upsertPayment(
       invoiceUrl,
       confirmedAt: event.event === 'PAYMENT_CONFIRMED' ? new Date() : null,
       receivedAt: event.event === 'PAYMENT_RECEIVED' ? new Date() : null,
-      rawLastEvent: event,
+      rawLastEvent: sanitizeEventForStorage(event),
     })
     .onConflictDoUpdate({
       target: schema.payments.asaasPaymentId,
@@ -141,7 +184,7 @@ async function upsertPayment(
         // Preserva o primeiro timestamp não-nulo (o INSERT traz o valor do evento).
         confirmedAt: sql`coalesce(${schema.payments.confirmedAt}, excluded.confirmed_at)`,
         receivedAt: sql`coalesce(${schema.payments.receivedAt}, excluded.received_at)`,
-        rawLastEvent: event,
+        rawLastEvent: sanitizeEventForStorage(event),
         updatedAt: new Date(),
       },
     });

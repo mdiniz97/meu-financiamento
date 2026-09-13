@@ -24,7 +24,7 @@ vi.mock('@/db', () => ({
       asaasSubscriptionId: 'asaasSubscriptionId',
       asaasCheckoutId: 'asaasCheckoutId',
     },
-    payments: { asaasPaymentId: 'asaasPaymentId' },
+    payments: { asaasPaymentId: 'asaasPaymentId', confirmedAt: 'confirmedAt', receivedAt: 'receivedAt' },
     webhookEvents: {
       id: 'id',
       processedAt: 'processedAt',
@@ -40,7 +40,7 @@ vi.mock('drizzle-orm', () => ({
   sql: (...args: unknown[]) => args,
 }));
 
-import { applyAsaasEvent, processWebhookEvent } from './apply-event';
+import { applyAsaasEvent, processWebhookEvent, sanitizeEventForStorage } from './apply-event';
 
 const chain = () => {
   const returning = vi.fn().mockResolvedValue([{ id: 'sub-1' }]);
@@ -389,6 +389,88 @@ describe('R2 — upsertPayment', () => {
       valuesFn.mock.results[0].value as { onConflictDoUpdate: ReturnType<typeof vi.fn> }
     ).onConflictDoUpdate.mock.calls[0][0] as { set: Record<string, unknown> };
     expect(arg.set.status).toBe('OVERDUE');
+  });
+
+  it('preserva confirmedAt/receivedAt via coalesce (não sobrescreve com plain value)', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(paymentEvent('PAYMENT_CONFIRMED'));
+
+    const valuesFn = (
+      mocks.insertPayment.mock.results[0].value as { values: ReturnType<typeof vi.fn> }
+    ).values;
+    const arg = (
+      valuesFn.mock.results[0].value as { onConflictDoUpdate: ReturnType<typeof vi.fn> }
+    ).onConflictDoUpdate.mock.calls[0][0] as { set: Record<string, unknown> };
+
+    // sql mockado devolve [strings, ...params]; o set precisa ser a expressão
+    // coalesce(coluna, excluded.*) — nunca um Date puro que sobrescreveria.
+    const confirmed = JSON.stringify(arg.set.confirmedAt);
+    expect(arg.set.confirmedAt).not.toBeInstanceOf(Date);
+    expect(confirmed).toContain('coalesce');
+    expect(confirmed).toContain('excluded.confirmed_at');
+    expect(confirmed).toContain('confirmedAt');
+
+    const received = JSON.stringify(arg.set.receivedAt);
+    expect(received).toContain('coalesce');
+    expect(received).toContain('excluded.received_at');
+    expect(received).toContain('receivedAt');
+  });
+});
+
+describe('sanitizeEventForStorage', () => {
+  it('mantém last4+brand e remove token e CVV', () => {
+    const evt = {
+      id: 'evt_sec',
+      event: 'PAYMENT_CREATED',
+      payment: {
+        id: 'pay_1',
+        creditCardToken: 'tok_top_secret',
+        creditCard: {
+          creditCardNumber: '1234567812345678',
+          creditCardBrand: 'VISA',
+          creditCardToken: 'tok_inner_secret',
+          cvv: '123',
+        },
+      },
+    };
+
+    const safe = sanitizeEventForStorage(evt);
+
+    expect(safe.payment.creditCard.creditCardNumber).toBe('****5678');
+    expect(safe.payment.creditCard.creditCardBrand).toBe('VISA');
+    expect(safe.payment.creditCard).not.toHaveProperty('creditCardToken');
+    expect(safe.payment.creditCard).not.toHaveProperty('cvv');
+    expect(safe.payment).not.toHaveProperty('creditCardToken');
+    // deep copy: original intacto
+    expect(evt.payment.creditCard.creditCardNumber).toBe('1234567812345678');
+    expect(evt.payment.creditCardToken).toBe('tok_top_secret');
+  });
+
+  it('persiste rawLastEvent sanitizado no upsert', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+
+    await applyAsaasEvent(
+      paymentEvent('PAYMENT_CREATED', {
+        creditCard: {
+          creditCardNumber: '1234567812345678',
+          creditCardBrand: 'VISA',
+          creditCardToken: 'tok_inner_secret',
+        },
+      })
+    );
+
+    const valuesArg = (
+      mocks.insertPayment.mock.results[0].value as {
+        values: { mock: { calls: unknown[][] } };
+      }
+    ).values.mock.calls[0][0] as {
+      rawLastEvent: { payment: { creditCard: Record<string, unknown> } };
+    };
+    const cc = valuesArg.rawLastEvent.payment.creditCard;
+    expect(cc.creditCardNumber).toBe('****5678');
+    expect(cc.creditCardBrand).toBe('VISA');
+    expect(cc).not.toHaveProperty('creditCardToken');
   });
 });
 
