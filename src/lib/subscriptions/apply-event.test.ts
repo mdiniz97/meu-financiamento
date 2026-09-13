@@ -993,6 +993,34 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
     expect(conflictArg.set.updatedAt).toBeInstanceOf(Date);
   });
 
+  it('flag on vincula a nota ao pagamento (invoice.payment) e mantém a assinatura', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    byProvider = { id: 'sub-1', userId: 'user-1' };
+
+    await applyAsaasEvent(
+      invoiceEvent('INVOICE_AUTHORIZED', {
+        subscription: 'sub_1',
+        payment: 'pay_1',
+        status: 'AUTHORIZED',
+        pdfUrl: 'https://x/nf.pdf',
+      })
+    );
+
+    const inserted = invoiceInsert();
+    expect(inserted).not.toBeNull();
+    expect(inserted!.args).toMatchObject({
+      asaasInvoiceId: 'inv_1',
+      asaasPaymentId: 'pay_1',
+      subscriptionId: 'sub-1',
+      userId: 'user-1',
+      status: 'AUTHORIZED',
+      pdfUrl: 'https://x/nf.pdf',
+    });
+    expect(inserted!.conflict.onConflictDoUpdate.mock.calls[0][0].set).toMatchObject({
+      asaasPaymentId: 'pay_1',
+    });
+  });
+
   it('flag on upserta invoice sem assinatura correlacionada (nullable)', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
 

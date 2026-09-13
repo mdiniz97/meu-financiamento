@@ -269,12 +269,16 @@ export const invoices = pgTable(
     valueCents: integer('value_cents'),
     pdfUrl: text('pdf_url'),
     xmlUrl: text('xml_url'),
+    asaasPaymentId: text('asaas_payment_id'),
     effectiveDate: timestamp('effective_date', { withTimezone: true }),
     rawLastEvent: jsonb('raw_last_event'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('invoices_subscription_id_idx').on(table.subscriptionId)]
+  (table) => [
+    index('invoices_subscription_id_idx').on(table.subscriptionId),
+    index('invoices_asaas_payment_id_idx').on(table.asaasPaymentId),
+  ]
 );
 
 export type CreditPurchase = typeof creditPurchases.$inferSelect;

@@ -49,6 +49,7 @@ interface AsaasInvoice {
   xmlUrl?: string | null;
   effectiveDate?: string | null;
   subscription?: string | null;
+  payment?: string | null;
 }
 
 interface AsaasEvent {
@@ -413,6 +414,7 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
     valueCents,
     pdfUrl: invoice.pdfUrl ?? null,
     xmlUrl: invoice.xmlUrl ?? null,
+    asaasPaymentId: invoice.payment ?? null,
     effectiveDate,
     rawLastEvent,
     updatedAt: new Date(),
@@ -433,6 +435,7 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
       valueCents,
       pdfUrl: invoice.pdfUrl ?? null,
       xmlUrl: invoice.xmlUrl ?? null,
+      asaasPaymentId: invoice.payment ?? null,
       effectiveDate,
       rawLastEvent,
     })
