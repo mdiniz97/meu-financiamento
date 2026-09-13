@@ -64,6 +64,13 @@
       "when": 1789163153529,
       "tag": "0008_movements_state_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789319524769,
+      "tag": "0009_drop_contracts_insurance_split",
+      "breakpoints": true
     }
   ]
 }

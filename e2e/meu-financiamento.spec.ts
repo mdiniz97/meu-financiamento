@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { addMonthsISO, todayISO } from '../src/lib/meu-financiamento/dates';
 import type { ContractParams } from '../src/lib/finance/meu-financiamento/model';
 import { projecao } from '../src/lib/finance/meu-financiamento/model';
+import { normalizeRate } from '../src/lib/finance/rates';
 import { formatBRL } from '../src/lib/utils';
 
 // Contrato padrão dos testes: Caixa PRICE 10,5% a.a., TR 0,17%, seguro R$ 100,
@@ -728,6 +729,45 @@ test('expiração do plano congela a leitura e mostra o paywall sem ações', as
   await expect(page.getByRole('button', { name: /Apagar parcela \d+/ })).toHaveCount(0);
 });
 
+test('plano expirado em contrato quitado mostra o paywall e mantém o banner verde', async ({ page }) => {
+  test.skip(!hasPsql, 'requer psql local');
+  const conta = await criarConta(page, 'Expiração Quitado');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  // Quita pelo banco: recalibra o saldo para 0 (source 'quitacao').
+  await page.getByRole('button', { name: 'Recalibrar pelo extrato', exact: true }).click();
+  const rec = page.getByRole('dialog');
+  await expect(rec).toBeVisible();
+  await rec.locator('#recSaldo').fill('0');
+  await rec.locator('#recData').fill(todayISO());
+  await rec.getByRole('button', { name: 'Confirmar recalibração', exact: true }).click();
+  await expect(
+    page.locator('[data-state-banner]').getByText('Financiamento quitado', { exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  psql(
+    `update subscriptions set current_period_end = now() - interval '1 day' where user_id = '${conta.id}'`,
+  );
+  await page.reload();
+
+  // Leitura congelada em contrato quitado: o banner verde continua e o paywall
+  // aparece — o usuário sem Ilimitado precisa do convite para reativar/registrar.
+  await expect(
+    page.locator('[data-state-banner]').getByText('Financiamento quitado', { exact: true }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('main').getByText('Plano Ilimitado', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText('Registre boletos pagos, amortizações extras e recalibre o saldo pelo extrato do banco.', {
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Ver opções de acesso', exact: true })).toBeVisible();
+  for (const name of ['Paguei esta parcela', 'Editar contrato', 'Recalibrar pelo extrato', 'Recalibrar saldo', 'Confirmar recalibração']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+  }
+});
+
 test('correção: apagar o pagamento da parcela 141 devolve a próxima parcela para 141', async ({ page }) => {
   const conta = await criarConta(page, 'Correção');
   await assinar(page, conta.id);
@@ -917,6 +957,35 @@ test('editar contrato troca banco e taxa, congela o passado e derruba a próxima
   // Lançamento de estado superado não é editável nem apagável.
   await expect(page.getByRole('button', { name: 'Editar parcela 141', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Apagar parcela 141', exact: true })).toHaveCount(0);
+});
+
+test('editar contrato aceita taxa nominal a.a. e projeta pela efetiva equivalente', async ({ page }) => {
+  const conta = await criarConta(page, 'Editar Taxa Nominal');
+  await assinar(page, conta.id);
+  await criarContrato(page, todayISO());
+
+  await page.getByRole('button', { name: 'Editar contrato', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  // Troca o tipo para Nominal a.a. e informa 9,8% nominais: a conversão para a
+  // efetiva a.a. é o oráculo do modelo (normalizeRate).
+  await dialog.getByRole('combobox', { name: 'Tipo de Taxa de juros', exact: true }).click();
+  await page.getByRole('option', { name: 'Nominal a.a.', exact: true }).click();
+  await dialog.locator('#editAnnualRate').fill('9,8');
+  await dialog.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+
+  const effectiveAnnual = normalizeRate(9.8, 'nominal-annual').effectiveAnnual;
+  const esperado = projecao(
+    { ...PARAMS_E2E, annualRate: effectiveAnnual },
+    baselineDeHoje(),
+    [],
+    [],
+  ).parcelas[0].parcela;
+  await expect
+    .poll(async () => parseBRL(await proximaCard(page).innerText()), { timeout: 20_000 })
+    .toBeCloseTo(esperado, 2);
 });
 
 test('Visão global preserva total pago, amortizado e economia após editar o contrato', async ({ page }) => {

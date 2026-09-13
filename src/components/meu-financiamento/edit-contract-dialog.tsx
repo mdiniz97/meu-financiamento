@@ -14,9 +14,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
+import { RateField } from '@/components/ui/rate-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateContract } from '@/app/(app)/meu-financiamento/actions';
 import type { ContractParams } from '@/lib/finance/meu-financiamento/model';
+import { normalizeRate, type RateKind } from '@/lib/finance/rates';
 import { parseDecimal } from '@/lib/utils';
 
 function roundCents(value: number): number {
@@ -59,6 +61,8 @@ function EditContractForm({
   const [bank, setBank] = useState(params.bank);
   const [system, setSystem] = useState<ContractParams['system']>(params.system);
   const [annualRate, setAnnualRate] = useState<number | undefined>(rateToPct(params.annualRate));
+  const [annualRateKind, setAnnualRateKind] = useState<RateKind>('effective-annual');
+  const [annualRateValid, setAnnualRateValid] = useState(true);
   const [trMonthly, setTrMonthly] = useState<number | undefined>(rateToPct(params.trMonthly));
   const [insuranceMonthly, setInsuranceMonthly] = useState(roundCents(params.insuranceMonthly));
   const [parcelasTotais, setParcelasTotais] = useState(params.parcelasTotais);
@@ -73,12 +77,15 @@ function EditContractForm({
     if (pending || invalido) return;
     onPendingChange(true);
     setError('');
+    // A taxa digitada é interpretada conforme o tipo escolhido e convertida
+    // para a efetiva a.a. que o contrato/modelo armazena.
+    const annualRateEffective = normalizeRate(annualRate as number, annualRateKind).effectiveAnnual;
     let result;
     try {
       result = await updateContract({
         bank: bank.trim(),
         system,
-        annualRate: (annualRate as number) / 100,
+        annualRate: annualRateEffective,
         trMonthly: (trMonthly as number) / 100,
         insuranceMonthly,
         parcelasTotais,
@@ -109,9 +116,10 @@ function EditContractForm({
   // explícita antes de habilitar o Salvar.
   const parcelaAnterior = Number.isInteger(proximaParcela) && proximaParcela < primeiraPendente;
 
-  // Limites do modelo: taxa efetiva 0..100% a.a., TR 0..10% a.m., seguro >= 0.
+  // Limites do modelo: taxa efetiva 0..100% a.a. (validada pelo RateField após
+  // converter o tipo escolhido), TR 0..10% a.m., seguro >= 0.
   const invalido = bank.trim() === ''
-    || annualRate === undefined || !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 100
+    || annualRate === undefined || !annualRateValid
     || trMonthly === undefined || !Number.isFinite(trMonthly) || trMonthly < 0 || trMonthly > 10
     || !Number.isFinite(insuranceMonthly) || insuranceMonthly < 0
     || !Number.isInteger(parcelasTotais) || parcelasTotais < 1 || parcelasTotais > 600
@@ -171,19 +179,16 @@ function EditContractForm({
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="editAnnualRate" className="text-sm font-medium text-foreground">
-                Taxa anual efetiva (%)
-              </label>
-              <NumericInput
-                id="editAnnualRate"
-                name="annualRate"
-                value={annualRate}
-                parse={parseDecimal}
-                onValid={setAnnualRate}
-                disabled={pending}
-              />
-            </div>
+            <RateField
+              id="editAnnualRate"
+              label="Taxa de juros"
+              value={annualRate}
+              kind={annualRateKind}
+              minEffectiveAnnual={0}
+              onValueChange={setAnnualRate}
+              onKindChange={setAnnualRateKind}
+              onValidityChange={setAnnualRateValid}
+            />
             <div className="flex flex-col gap-1.5">
               <label htmlFor="editTrMonthly" className="text-sm font-medium text-foreground">
                 TR mensal (%)

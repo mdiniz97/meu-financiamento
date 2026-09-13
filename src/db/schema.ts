@@ -108,7 +108,6 @@ export const contracts = pgTable('contracts', {
   annualRate: doublePrecision('annual_rate').notNull(), // efetiva a.a. (0..1)
   trMonthly: doublePrecision('tr_monthly').notNull(), // 0..0.1
   insuranceMonthly: doublePrecision('insurance_monthly').notNull(),
-  insuranceSplit: jsonb('insurance_split').notNull(),
   parcelasTotais: integer('parcelas_totais').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

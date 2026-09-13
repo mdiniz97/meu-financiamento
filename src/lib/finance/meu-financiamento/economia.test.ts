@@ -81,6 +81,61 @@ it('baseline já quitado (saldo 0) retorna 0', () => {
   expect(economiaAmortizacoes(PARAMS, { ...BASELINE, saldoDevedor: 0 }, [], [TERM_100K])).toBe(0);
 });
 
+it('extra que quita o saldo inteiro é finito e nunca negativo, em term e payment', () => {
+  // Fim-de-contrato: o aporte é clampado ao principal (`Math.min(totalExtras,
+  // principal)`) e a economia é `Math.max(0, ...)`. Mesmo quando o extra zera o
+  // saldo, a economia é positiva (encargos evitados) e jamais NaN/negativa.
+  const term = economiaAmortizacoes(
+    PARAMS,
+    { ...BASELINE, saldoDevedor: 5000 },
+    [],
+    [{ dataPagamento: '2026-09-08', valor: 5000, origem: 'proprio', modo: 'term' }],
+  );
+  const acimaDoSaldo = economiaAmortizacoes(
+    PARAMS,
+    { ...BASELINE, saldoDevedor: 3000 },
+    [],
+    [{ dataPagamento: '2026-09-08', valor: 5000, origem: 'proprio', modo: 'term' }],
+  );
+  const payment = economiaAmortizacoes(
+    PARAMS,
+    { ...BASELINE, saldoDevedor: 5000 },
+    [],
+    [{ dataPagamento: '2026-09-08', valor: 5000, origem: 'proprio', modo: 'payment' }],
+  );
+  for (const economia of [term, acimaDoSaldo, payment]) {
+    expect(Number.isFinite(economia)).toBe(true);
+    expect(economia).toBeGreaterThanOrEqual(0);
+  }
+});
+
+it('economiaAcumulada com um período quitado (saldo 0) é finita e não negativa', () => {
+  const periodoSemSaldo: PeriodoEstado = {
+    ...PERIODO_S1,
+    id: 's-quitado',
+    version: 2,
+    saldoDevedor: 0,
+    dataBase: '2026-10-08',
+  };
+  const total = economiaAcumulada([PERIODO_S1, periodoSemSaldo], { pagas: [], extras: [EXTRA_S1] });
+  expect(Number.isFinite(total)).toBe(true);
+  expect(total).toBeGreaterThanOrEqual(0);
+  // O período quitado contribui zero (principal <= 0) sem duplicar o anterior.
+  expect(total).toBeCloseTo(economiaAmortizacoes(PARAMS, BASELINE, [], [TERM_100K]), 6);
+});
+
+it('fim-de-contrato (sem meses futuros) com extra retorna 0 sem lançar', () => {
+  // A última parcela do contrato já foi paga: `primeiraPendente` passa de
+  // `parcelasTotais`, então `meses < 1` e o ramo fim-de-contrato retorna 0.
+  const baselineFinal: Baseline = { ...BASELINE, proximaParcelaNumero: 360 };
+  const pagas: ParcelaPaga[] = [
+    { parcelaNumero: 360, valor: 3000, dataPagamento: '2026-09-08' },
+  ];
+  const economia = economiaAmortizacoes(PARAMS, baselineFinal, pagas, [TERM_100K]);
+  expect(economia).toBe(0);
+  expect(Number.isFinite(economia)).toBe(true);
+});
+
 it('economiaDoAporte é a diferença de totalPago do cenário (métrica do E se?)', () => {
   // Cenário do diagnóstico: parcela 206/360, saldo R$ 597.736,77, aporte de
   // R$ 1.814,85. O E se? mostra R$ 6.775,64.

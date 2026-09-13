@@ -596,11 +596,13 @@ export function Dashboard({
         </section>
       )}
 
-      {readOnly && !quitado && (
-        // Leitura congelada: um único ExclusiveCard ocupa o lugar das ações
-        // (Paguei, editar/apagar, Registrei amortização, Recalibrar saldo e
-        // painéis de recomendação). Nenhum formulário é montado em readOnly;
-        // a proteção real continua no servidor (requireUnlimited).
+      {readOnly && (
+        // Leitura congelada (plano expirado): um único ExclusiveCard ocupa o
+        // lugar das ações (Paguei, editar/apagar, Registrei amortização,
+        // Recalibrar saldo e painéis de recomendação). Aparece também em
+        // contrato quitado: o usuário sem Ilimitado precisa do convite para
+        // reativar/registrar. Nenhum formulário é montado em readOnly; a
+        // proteção real continua no servidor (requireUnlimited).
         <ExclusiveCard
           isUnlimited={state.isUnlimited}
           benefit="Registre boletos pagos, amortizações extras e recalibre o saldo pelo extrato do banco."

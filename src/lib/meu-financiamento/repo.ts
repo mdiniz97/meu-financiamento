@@ -6,6 +6,7 @@ import { projecao } from '@/lib/finance/meu-financiamento/model';
 import type {
   AmortizacaoExtra,
   Baseline,
+  ContractInput,
   ContractParams,
   ContractSystem,
   ParcelaPaga,
@@ -77,19 +78,9 @@ export interface PageState {
 
 export type MutationResult = { ok: true; state: PageState } | { ok: false; error: string };
 
-export interface CreateContractInput {
-  bank: string;
-  system: 'PRICE' | 'SAC';
-  annualRate: number;
-  trMonthly: number;
-  insuranceMonthly: number;
-  parcelasTotais: number;
-  saldoDevedor: number;
-  dataBase: string;
-  proximaParcelaNumero: number;
-  /** Dia do vencimento (1..31). */
-  diaVencimento: number;
-}
+/** Dados de cadastro/edição do contrato: mesma forma do `ContractInput` do
+ *  model (fonte única de validação). */
+export type CreateContractInput = ContractInput;
 
 export interface RecalibrateInput {
   saldoDevedor: number;

@@ -16,7 +16,6 @@ import { isValidDateString, primeiraPendente, projecao, validateContractInput } 
 import type { Baseline, ContractParams } from '@/lib/finance/meu-financiamento/model';
 import { splitPagamento } from '@/lib/finance/meu-financiamento/split-payment';
 
-const INSURANCE_SPLIT = { taxPct: 0.25, insurancePct: 0.75 };
 const NAO_AMORTIZA = 'Dados não amortizam no modelo; revise taxa, TR e prazo';
 const CONTRATO_MUDOU = 'O contrato mudou desde que você abriu; reabra e confira os dados';
 
@@ -146,7 +145,6 @@ export async function createContract(payload: CreateContractInput): Promise<Muta
         annualRate: v.annualRate,
         trMonthly: v.trMonthly,
         insuranceMonthly: v.insuranceMonthly,
-        insuranceSplit: INSURANCE_SPLIT,
         parcelasTotais: v.parcelasTotais,
       })
       .returning();
