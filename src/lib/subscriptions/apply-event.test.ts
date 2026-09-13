@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   findSub: vi.fn(),
   findEvent: vi.fn(),
+  findPurchase: vi.fn(),
   updateSub: vi.fn(),
   insertPayment: vi.fn(),
+  addCredits: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -12,6 +14,7 @@ vi.mock('@/db', () => ({
     query: {
       subscriptions: { findFirst: mocks.findSub },
       webhookEvents: { findFirst: mocks.findEvent },
+      creditPurchases: { findFirst: mocks.findPurchase },
     },
     update: mocks.updateSub,
     insert: mocks.insertPayment,
@@ -25,6 +28,13 @@ vi.mock('@/db', () => ({
       asaasCheckoutId: 'asaasCheckoutId',
     },
     payments: { asaasPaymentId: 'asaasPaymentId', confirmedAt: 'confirmedAt', receivedAt: 'receivedAt' },
+    creditPurchases: {
+      id: 'id',
+      asaasCheckoutId: 'asaasCheckoutId',
+      status: 'status',
+      asaasPaymentId: 'asaasPaymentId',
+      paidAt: 'paidAt',
+    },
     webhookEvents: {
       id: 'id',
       processedAt: 'processedAt',
@@ -33,6 +43,8 @@ vi.mock('@/db', () => ({
     },
   },
 }));
+
+vi.mock('@/lib/credits', () => ({ addCredits: mocks.addCredits }));
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
@@ -87,6 +99,10 @@ beforeEach(() => {
   mocks.findSub.mockReset();
   mocks.findSub.mockImplementation(routeFindSub);
   mocks.findEvent.mockReset();
+  mocks.findPurchase.mockReset();
+  mocks.findPurchase.mockResolvedValue(null);
+  mocks.addCredits.mockReset();
+  mocks.addCredits.mockResolvedValue(undefined);
   mocks.updateSub.mockReset();
   mocks.updateSub.mockImplementation(() => {
     const c = chain();
@@ -494,6 +510,158 @@ describe('sanitizeEventForStorage', () => {
     expect(cc.creditCardNumber).toBe('****5678');
     expect(cc.creditCardBrand).toBe('VISA');
     expect(cc).not.toHaveProperty('creditCardToken');
+  });
+});
+
+describe('créditos avulsos — compra DETACHED', () => {
+  const creditPayment = (event: string, over: Record<string, unknown> = {}) => ({
+    id: `evt_${event}`,
+    event,
+    payment: {
+      id: 'pay_1',
+      checkoutSession: 'chk_1',
+      status: event.replace('PAYMENT_', ''),
+      ...over,
+    },
+  });
+
+  const purchase = (over: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    userId: 'u1',
+    credits: 5,
+    status: 'pending',
+    ...over,
+  });
+
+  it('PAYMENT_CONFIRMED libera créditos uma vez e marca paid', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_CONFIRMED'));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.addCredits).toHaveBeenCalledWith(
+      'u1',
+      5,
+      'purchase',
+      'Compra créditos (providerId pay_1)'
+    );
+    const patch = setPatch(updateChains[0]);
+    expect(patch.status).toBe('paid');
+    expect(patch.asaasPaymentId).toBe('pay_1');
+    expect(patch.paidAt).toBeInstanceOf(Date);
+
+    const cols = mocks.findPurchase.mock.calls.map(
+      (call) => (call[0] as { where: { col: string } }).where.col
+    );
+    expect(cols).toContain('asaasCheckoutId');
+  });
+
+  it('segundo PAYMENT_CONFIRMED do mesmo pay_ não duplica (unique violation tratada)', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase());
+    mocks.addCredits.mockRejectedValueOnce({ code: '23505' });
+
+    await expect(applyAsaasEvent(creditPayment('PAYMENT_CONFIRMED'))).resolves.toBeUndefined();
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(setPatch(updateChains[0]).status).toBe('paid');
+  });
+
+  it('PAYMENT_RECEIVED (Pix) também libera créditos', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ credits: 3 }));
+
+    await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { billingType: 'PIX' }));
+
+    expect(mocks.addCredits).toHaveBeenCalledWith(
+      'u1',
+      3,
+      'purchase',
+      'Compra créditos (providerId pay_1)'
+    );
+    expect(setPatch(updateChains[0]).status).toBe('paid');
+  });
+
+  it('PAYMENT_CREATED registra a compra sem liberar créditos', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase());
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await applyAsaasEvent(
+      creditPayment('PAYMENT_CREATED', { invoiceUrl: 'https://asaas.test/i/inv_1' })
+    );
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(updateChains).toHaveLength(0);
+    log.mockRestore();
+  });
+
+  it('CHECKOUT_EXPIRED marca expired sem creditar', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent({
+      id: 'evt_exp',
+      event: 'CHECKOUT_EXPIRED',
+      checkout: { id: 'chk_1' },
+    });
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(setPatch(updateChains[0]).status).toBe('expired');
+  });
+
+  it('CHECKOUT_CANCELED marca canceled quando pending', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent({
+      id: 'evt_can',
+      event: 'CHECKOUT_CANCELED',
+      checkout: { id: 'chk_1' },
+    });
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    expect(setPatch(updateChains[0]).status).toBe('canceled');
+  });
+
+  it('CHECKOUT_EXPIRED não altera compra já paga', async () => {
+    mocks.findPurchase.mockResolvedValue(purchase({ status: 'paid' }));
+
+    await applyAsaasEvent({
+      id: 'evt_exp_paid',
+      event: 'CHECKOUT_EXPIRED',
+      checkout: { id: 'chk_1' },
+    });
+
+    expect(updateChains).toHaveLength(0);
+  });
+
+  it('sem compra correlacionada não lança nem credita', async () => {
+    mocks.findPurchase.mockResolvedValue(null);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(
+      applyAsaasEvent({
+        id: 'evt_none',
+        event: 'PAYMENT_CONFIRMED',
+        payment: { id: 'pay_x', status: 'CONFIRMED' },
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mocks.addCredits).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('correlaciona compra por externalReference UUID (id local)', async () => {
+    const localId = '26bf39ac-33c4-4f18-804d-a91405146e8d';
+    mocks.findPurchase.mockResolvedValue(purchase({ id: localId, credits: 2 }));
+
+    await applyAsaasEvent({
+      id: 'evt_ref',
+      event: 'PAYMENT_CONFIRMED',
+      payment: { id: 'pay_2', externalReference: localId, status: 'CONFIRMED' },
+    });
+
+    const cols = mocks.findPurchase.mock.calls.map(
+      (call) => (call[0] as { where: { col: string; val: unknown } }).where
+    );
+    expect(cols.some((c) => c.col === 'id' && c.val === localId)).toBe(true);
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
   });
 });
 

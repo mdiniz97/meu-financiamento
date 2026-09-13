@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { addCredits } from '@/lib/credits';
 import { addCycle } from './cycle';
 
 const GRACE_DAYS = 7;
@@ -15,6 +16,7 @@ interface AsaasPayment {
   netValue?: number | null;
   invoiceUrl?: string | null;
   checkoutSession?: string | null;
+  externalReference?: string | null;
   creditCard?: { creditCardNumber?: string; creditCardBrand?: string };
 }
 
@@ -33,6 +35,18 @@ interface AsaasSubscription {
 interface AsaasCheckout {
   id?: string;
   externalReference?: string | null;
+  status?: string;
+}
+
+interface AsaasInvoice {
+  id: string;
+  status?: string;
+  number?: string | null;
+  value?: number | null;
+  pdfUrl?: string | null;
+  xmlUrl?: string | null;
+  effectiveDate?: string | null;
+  subscription?: string | null;
 }
 
 interface AsaasEvent {
@@ -41,9 +55,11 @@ interface AsaasEvent {
   payment?: AsaasPayment;
   subscription?: AsaasSubscription;
   checkout?: AsaasCheckout;
+  invoice?: AsaasInvoice;
 }
 
 type SubscriptionRow = Awaited<ReturnType<typeof db.query.subscriptions.findFirst>>;
+type CreditPurchaseRow = Awaited<ReturnType<typeof db.query.creditPurchases.findFirst>>;
 
 function parseDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -86,6 +102,40 @@ async function findSubscription(event: AsaasEvent): Promise<SubscriptionRow | nu
   if (externalReference && UUID_RE.test(externalReference)) {
     const found = await db.query.subscriptions.findFirst({
       where: eq(schema.subscriptions.id, externalReference),
+    });
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
+  let err = e as { code?: unknown; cause?: unknown } | null;
+  while (err && typeof err.code === 'undefined' && err.cause) {
+    err = err.cause as { code?: unknown; cause?: unknown } | null;
+  }
+  return err?.code === '23505';
+}
+
+/**
+ * RA — compras DETACHED correlacionam por `checkoutSession`/`checkout.id`
+ * (asaasCheckoutId) ou pelo `externalReference` (id local, quando UUID).
+ */
+async function findCreditPurchase(event: AsaasEvent): Promise<CreditPurchaseRow | null> {
+  const checkoutKey = event.checkout?.id ?? event.payment?.checkoutSession;
+  if (checkoutKey) {
+    const found = await db.query.creditPurchases.findFirst({
+      where: eq(schema.creditPurchases.asaasCheckoutId, checkoutKey),
+    });
+    if (found) return found;
+  }
+
+  const externalReference =
+    event.checkout?.externalReference ?? event.payment?.externalReference;
+  if (externalReference && UUID_RE.test(externalReference)) {
+    const found = await db.query.creditPurchases.findFirst({
+      where: eq(schema.creditPurchases.id, externalReference),
     });
     if (found) return found;
   }
@@ -199,6 +249,62 @@ async function upsertPayment(
     });
 }
 
+/**
+ * RB — créditos liberados com description estável (`pay_*`); o índice único
+ * parcial (user_id, kind='purchase', description) barra reentrega duplicada.
+ * Sem compra correlacionada, eventos de pagamento ainda passam pelo
+ * `upsertPayment` para registrar o aviso e nunca lançar (R2).
+ */
+async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
+  const purchase = await findCreditPurchase(event);
+  if (!purchase) {
+    await upsertPayment(event, undefined, undefined);
+    return;
+  }
+
+  switch (event.event) {
+    case 'PAYMENT_CONFIRMED':
+    case 'PAYMENT_RECEIVED': {
+      const description = `Compra créditos (providerId ${event.payment?.id})`;
+      try {
+        await addCredits(purchase.userId, purchase.credits, 'purchase', description);
+      } catch (e) {
+        if (!isUniqueViolation(e)) throw e;
+      }
+      await db
+        .update(schema.creditPurchases)
+        .set({
+          status: 'paid',
+          asaasPaymentId: event.payment?.id ?? null,
+          paidAt: new Date(),
+        })
+        .where(eq(schema.creditPurchases.id, purchase.id));
+      return;
+    }
+
+    case 'PAYMENT_CREATED': {
+      if (purchase.status !== 'pending') return;
+      console.log(
+        `[apply-event] compra de créditos ${purchase.id} aguardando pagamento (${event.payment?.invoiceUrl ?? 'sem invoiceUrl'})`
+      );
+      return;
+    }
+
+    case 'CHECKOUT_EXPIRED':
+    case 'CHECKOUT_CANCELED': {
+      if (purchase.status !== 'pending') return;
+      await db
+        .update(schema.creditPurchases)
+        .set({ status: event.event === 'CHECKOUT_EXPIRED' ? 'expired' : 'canceled' })
+        .where(eq(schema.creditPurchases.id, purchase.id));
+      return;
+    }
+
+    default:
+      return;
+  }
+}
+
 interface SubscriptionPatch {
   status?: string;
   providerId?: string;
@@ -240,6 +346,9 @@ export async function applyAsaasEvent(
 ): Promise<void> {
   const event = evt as unknown as AsaasEvent;
   const sub = await findSubscription(event);
+  // Sem assinatura correlacionada o evento pode ser de uma compra de créditos
+  // avulsa (checkout DETACHED). Assinatura resolvida nunca concede créditos.
+  if (!sub) return applyCreditPurchase(event);
   const subId = sub?.id ?? undefined;
 
   switch (event.event) {
