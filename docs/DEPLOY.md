@@ -54,6 +54,11 @@ DATABASE_URL="postgresql://...neon.tech/...?sslmode=require" npx tsx src/db/seed
 > Migrações **não** rodam automaticamente no deploy. Em toda mudança de schema,
 > repita este passo (ou `vercel run npm run db:migrate`, que usa as variáveis do projeto).
 
+> **Assinaturas (Asaas): rode a migração `0010_asaas_subscriptions.sql` ANTES do
+> deploy** que liga as assinaturas (`ASAAS_*` + `PAYMENT_PROVIDER=asaas`). Ela cria
+> `webhook_events`, `subscriptions.asaas_*` e `payments`. Deploy sem ela → o
+> endpoint do webhook e o cron de dunning quebram ao consultar as tabelas.
+
 ## Passo 3 — Conectar a Vercel e configurar variáveis de ambiente
 
 ```bash
@@ -70,6 +75,14 @@ vercel env add AUTH_GOOGLE_ID preview       # id do OAuth Google (idem para prod
 vercel env add AUTH_GOOGLE_SECRET preview   # secret do OAuth Google (idem para production)
 vercel env add PAYMENT_PROVIDER preview # fake
 vercel env add PAYMENT_PROVIDER production  # fake (ver AVISO) — trocar por stripe|asaas antes do lançamento
+
+# Asaas (assinaturas) — só necessárias quando PAYMENT_PROVIDER=asaas
+vercel env add ASAAS_ENV production              # sandbox | production
+vercel env add ASAAS_BASE_URL production         # https://api.asaas.com/v3 (prod) ou ...sandbox...
+vercel env add ASAAS_API_KEY production          # chave do ambiente (ver pegadinha do $ abaixo)
+vercel env add ASAAS_WEBHOOK_AUTH_TOKEN production  # token do header asaas-access-token, mín. 32 chars
+vercel env add APP_URL production                # https://amortiza.me (base do webhook/callbacks)
+vercel env add CRON_SECRET production            # openssl rand -hex 32 (protege /api/cron/dunning)
 ```
 
 | Variável | Valor | Detalhe |
@@ -79,6 +92,32 @@ vercel env add PAYMENT_PROVIDER production  # fake (ver AVISO) — trocar por st
 | `AUTH_GOOGLE_ID` | id do OAuth Google | credenciais em console.cloud.google.com |
 | `AUTH_GOOGLE_SECRET` | secret do OAuth Google | mesmo valor nos dois ambientes |
 | `PAYMENT_PROVIDER` | `fake` | dev/preview; em produção ver AVISO abaixo |
+| `ASAAS_ENV` | `sandbox` \| `production` | escolhe a base URL default; sem `ASAAS_BASE_URL` usa a do ambiente |
+| `ASAAS_BASE_URL` | `https://api.asaas.com/v3` | produção; sandbox = `https://api-sandbox.asaas.com/v3` |
+| `ASAAS_API_KEY` | `$aact_prod_...` | **pegadinha do `$`** (abaixo); nunca versionar |
+| `ASAAS_WEBHOOK_AUTH_TOKEN` | `openssl rand -base64 48` | mínimo 32 chars; é o `authToken` do webhook, **não** a API key |
+| `APP_URL` | `https://amortiza.me` | base de `${APP_URL}/api/asaas/webhook` e das callbacks do checkout |
+| `CRON_SECRET` | `openssl rand -hex 32` | protege `/api/cron/dunning` |
+
+### Pegadinha do `$` na `ASAAS_API_KEY`
+
+A chave sandbox (`$aact_hmlg_...`) e a de produção (`$aact_prod_...`) começam com
+`$`, que o shell **e** o `@next/env`/dotenv-expand interpretam como expansão de
+variável. Aspas simples/duplas **não** resolvem (o dotenv-expand remove as aspas
+e depois expande). Sem escapismo a variável chega VAZIA e a API responde `401` —
+mesmo com a chave visível no arquivo. A única forma que sobrevive é escapar com
+`\` **no valor**:
+
+```bash
+# .env / .env.local (lido por @next/env/dotenv-expand → precisa do \)
+ASAAS_API_KEY=\$aact_hmlg_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Vercel: a plataforma injeta process.env direto, SEM dotenv-expand — grave o
+# valor REAL (sem `\`). Só impeça o shell local de expandir usando aspas simples:
+vercel env add ASAAS_API_KEY production <<< '$aact_prod_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+```
+
+Resumo: `\$` **apenas** dentro de arquivos `.env`/`.env.local`; na Vercel, chave crua.
 
 Não defina `NODE_ENV` — a Vercel e o Next.js gerenciam (`production` em todo
 deploy, inclusive preview). O `PAYMENT_PROVIDER=fake` + `NODE_ENV=production`
@@ -103,6 +142,24 @@ vercel --prod      # deploy de produção
 Ou conecte o repositório no painel da Vercel (GitHub) para deploy automático:
 push em `main` → produção, PR → preview.
 
+## Registrar o webhook do Asaas (produção)
+
+Depois do deploy com `PAYMENT_PROVIDER=asaas` e `APP_URL` corretos, registre o
+webhook uma única vez por ambiente. O script usa `getAsaasConfig()` + `POST /v3/webhooks`
+(DTO em `references/06-webhooks.md §2.1`) e só inclui os eventos da spec §7.2.
+
+```bash
+# com ASAAS_ENV=production/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local
+npx tsx scripts/register-asaas-webhook.ts
+# → webhook criado: wh_...
+```
+
+- `url` = `${APP_URL}/api/asaas/webhook`; `authToken` = `ASAAS_WEBHOOK_AUTH_TOKEN`
+  (o token **não** volta em consultas posteriores — guarde-o).
+- Sandbox e produção são independentes: rode o script apontando para cada ambiente.
+- O `email` configurado recebe os alertas de penalização/fila pausada (15 falhas
+  pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
+
 ## Passo 5 — Checklist pós-deploy
 
 Com o deploy no ar (URL de produção):
@@ -118,6 +175,7 @@ Com o deploy no ar (URL de produção):
 - [ ] **PDF gate** — exportar PDF após simulação; conferir que o download acontece (usa `@react-pdf/renderer` no runtime Node).
 - [ ] **Comparador** — com conta Ilimitado, comparar 2–3 propostas, conferir ranking, alerta de CET, salvar/reabrir/recalcular e PDF.
 - [ ] **Créditos fake (compra)** — ⚠️ **não testável no Vercel** (nem em preview): `NODE_ENV=production` em todo deploy da Vercel, e o guard bloqueia `PAYMENT_PROVIDER=fake` em produção (`src/lib/payments/index.ts:9`). Isso é **intencional**. Para testar o fluxo de compra fake, rode localmente: `npm run dev` com `DATABASE_URL` apontando para o Neon e `PAYMENT_PROVIDER=fake`, depois `GET /api/webhooks/payments?userId=<id>&packId=credits10` e confira créditos no `credit_ledger`.
+- [ ] **Webhook Asaas (produção)** — migração `0010` aplicada ANTES do deploy; `npx tsx scripts/register-asaas-webhook.ts` rodado com a env de produção; `GET /v3/webhooks` mostra `enabled: true`, `interrupted: false` e a URL `https://amortiza.me/api/asaas/webhook`.
 
 ## AVISO IMPORTANTE — PAYMENT_PROVIDER=fake em produção
 
@@ -153,5 +211,6 @@ vercel env add AUTH_SECRET preview      # openssl rand -base64 32
 vercel env add AUTH_SECRET production
 vercel env add PAYMENT_PROVIDER preview
 vercel env add PAYMENT_PROVIDER production
+npx tsx scripts/register-asaas-webhook.ts   # registra o webhook Asaas (por ambiente)
 vercel && vercel --prod
 ```
