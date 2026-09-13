@@ -5,7 +5,8 @@ export class AsaasApiError extends Error {
     public status: number,
     public body: unknown
   ) {
-    super(`Asaas API ${status}`);
+    const detail = body === undefined || body === null ? '' : `: ${JSON.stringify(body)}`;
+    super(`Asaas API ${status}${detail}`);
     this.name = 'AsaasApiError';
   }
 }

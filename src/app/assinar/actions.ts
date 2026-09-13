@@ -8,8 +8,6 @@ import { hasActiveAccess } from '@/lib/subscriptions/access';
 import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 
-const APP_URL = process.env.APP_URL ?? 'http://localhost:3012';
-
 function isUniqueViolation(e: unknown): boolean {
   // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
   let err = e as { code?: unknown; cause?: unknown } | null;
@@ -100,15 +98,18 @@ export async function startSubscription(): Promise<void> {
     }
   }
 
+  // APP_URL lido em runtime (não no topo do módulo): evita congelar o valor
+  // antigo quando .env.local muda; trim da barra final evita `//assinar`.
+  const appUrl = (process.env.APP_URL ?? 'http://localhost:3012').replace(/\/+$/, '');
   const today = new Date().toISOString().slice(0, 10);
   const checkout = await createSubscriptionCheckout({
     externalReference: localId,
     valueCents: pack.priceCents,
     cycle: 'YEARLY',
     nextDueDate: today,
-    successUrl: `${APP_URL}/assinar/sucesso`,
-    cancelUrl: `${APP_URL}/assinar`,
-    expiredUrl: `${APP_URL}/assinar`,
+    successUrl: `${appUrl}/assinar/sucesso`,
+    cancelUrl: `${appUrl}/assinar`,
+    expiredUrl: `${appUrl}/assinar`,
   });
 
   await db
