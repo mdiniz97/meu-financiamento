@@ -19,13 +19,7 @@ export default async function QualImovelPage() {
     <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
       <div className="flex w-full max-w-5xl flex-col gap-6">
         {isUnlimited ? (
-          <>
-            <div className="flex flex-col gap-1">
-              <h1 className="font-display text-xl font-semibold">{name}</h1>
-              <p className="text-sm text-muted-foreground">{desc}</p>
-            </div>
-            <AffordabilityCalculator />
-          </>
+          <AffordabilityCalculator />
         ) : (
           <>
           <UpgradeCard />

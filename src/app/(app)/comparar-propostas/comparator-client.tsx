@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MoneyInput } from '@/components/ui/money-input';
 import { FieldHelp } from '@/components/ui/field-help';
 import { computeComparator, type ComparatorResult } from '@/lib/comparator/calculate';
@@ -234,13 +234,7 @@ export function ComparatorClient({
   }
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-6 bg-muted p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-display text-xl font-semibold">Comparar propostas</h1>
-        <p className="text-sm text-muted-foreground">
-          Até 3 propostas bancárias lado a lado. Exclusivo do plano Ilimitado.
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-6">
       {saved?.recalculated && (
         <p role="status" className="text-sm text-amber-700 dark:text-amber-400">
           Comparação salva na versão {saved.storedEngineVersion} recalculada com a versão {saved.resultEngineVersion} para manter formulário e resultado consistentes.
@@ -248,7 +242,15 @@ export function ComparatorClient({
       )}
 
       <Card className="rounded-2xl shadow-sm">
-        <CardContent className="flex flex-col gap-4 pt-6">
+        <CardHeader>
+          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
+            <Scale className="size-5 text-[#820AD1]" /> Comparar propostas
+          </CardTitle>
+          <CardDescription>
+            Compare até 3 propostas bancárias, audite o CET e descubra quanto o amortizador inteligente pode economizar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
           <FieldHelp htmlFor="budget" label="Quanto consegue pagar por mês (R$)" help="Seu teto mensal para comparar se a prestação inicial de cada proposta cabe no orçamento.">
             <MoneyInput id="budget" aria-describedby="budget-help" value={parseBRLToNumber(budget)} onValid={(v) => { setResult(null); setSaveMsg(''); setBudget(numberToBRLInput(v)); }} />
           </FieldHelp>
