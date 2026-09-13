@@ -18,7 +18,13 @@ export default async function AlugarOuComprarPage() {
       <div className="flex w-full max-w-5xl flex-col gap-6">
 
         {isUnlimited ? (
-          <AlugarComprarCalculator selicAnnual={selicAnnual} />
+          <>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display text-xl font-semibold">Alugar ou comprar?</h1>
+              <p className="text-sm text-muted-foreground">Compare o patrimônio de comprar um imóvel com o de continuar alugando e investindo.</p>
+            </div>
+            <AlugarComprarCalculator selicAnnual={selicAnnual} />
+          </>
         ) : (
           <>
           <UpgradeCard />

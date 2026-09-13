@@ -18,7 +18,13 @@ export default async function InvestirOuAmortizarPage() {
       <div className="flex w-full max-w-5xl flex-col gap-6">
 
         {isUnlimited ? (
-          <InvestCalculator selicAnnual={selicAnnual} />
+          <>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display text-xl font-semibold">Investir ou amortizar?</h1>
+              <p className="text-sm text-muted-foreground">Tem dinheiro disponível? Compare investir na Selic atual com amortizar o financiamento.</p>
+            </div>
+            <InvestCalculator selicAnnual={selicAnnual} />
+          </>
         ) : (
           <>
           <UpgradeCard />

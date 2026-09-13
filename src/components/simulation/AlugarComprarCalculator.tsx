@@ -105,11 +105,13 @@ export function AlugarComprarCalculator({
     <div className="flex w-full flex-col gap-4">
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <KeyRound className="size-5 text-[#820AD1]" /> Alugar ou comprar?
           </CardTitle>
           <CardDescription>
-            Compare o patrimônio de comprar um imóvel com o de continuar alugando e investindo.
+            Compare o patrimônio construído comprando (imóvel menos dívida) com o de continuar
+            alugando e investindo a diferença. Este modelo considera aluguel até o valor da
+            parcela e horizonte até o fim do financiamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

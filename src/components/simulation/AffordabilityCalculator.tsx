@@ -12,7 +12,6 @@ import {
 import { BANKS, SIM_INPUT_KEY } from '@/lib/simulation-context';
 import { formatBRL, numberToBRLInput } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
 import { MoneyInput } from '@/components/ui/money-input';
 import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
@@ -310,7 +309,7 @@ export function AffordabilityCalculator({
     );
   }
 
-  const tabs = (
+  return (
     <Tabs value={mode} onValueChange={(value) => {
       if (value !== 'income' && value !== 'payment') return;
       setMode(value);
@@ -334,22 +333,6 @@ export function AffordabilityCalculator({
       <TabsContent value="income">{renderPanel('income')}</TabsContent>
       <TabsContent value="payment">{renderPanel('payment')}</TabsContent>
     </Tabs>
-  );
-
-  if (compact) return tabs;
-
-  return (
-    <Card className="rounded-2xl shadow-sm">
-      <CardHeader>
-        <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
-          <Home className="size-5 text-[#820AD1]" /> Qual imóvel cabe no meu bolso?
-        </CardTitle>
-        <CardDescription>
-          Descubra o valor máximo do imóvel sem comprometer demais sua renda.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>{tabs}</CardContent>
-    </Card>
   );
 }
 

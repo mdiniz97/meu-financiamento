@@ -19,7 +19,11 @@ export default async function ComprarNaPlantaPage() {
 
         {isUnlimited ? (
           <>
-            <ObraCalculator selicAnnual={selicAnnual} />
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display text-xl font-semibold">Comprar na planta</h1>
+              <p className="text-sm text-muted-foreground">Entenda o que você paga enquanto a obra não é entregue: juros de obra, seguro e a primeira parcela depois da entrega.</p>
+            </div>
+            <>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 { title: 'Juros de obra', text: 'Enquanto a obra é construída, você paga apenas os juros sobre o valor que o banco já liberou, sem amortizar o saldo.' },
@@ -32,6 +36,8 @@ export default async function ComprarNaPlantaPage() {
                 </div>
               ))}
             </div>
+            <ObraCalculator selicAnnual={selicAnnual} />
+          </>
           </>
         ) : (
           <>

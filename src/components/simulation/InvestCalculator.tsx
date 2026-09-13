@@ -83,11 +83,12 @@ export function InvestCalculator({
     <div className="flex w-full flex-col gap-4">
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
-            <Scale className="size-5 text-[#820AD1]" /> Investir ou amortizar?
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Scale className="size-5 text-[#820AD1]" /> Comparativo investimento × amortização
           </CardTitle>
           <CardDescription>
-            Tem dinheiro disponível? Compare investir na Selic atual com amortizar o financiamento.
+            Compare os juros totais de cada estratégia até quitar a dívida. Não é uma comparação
+            de patrimônio ou de retorno em um horizonte escolhido.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

@@ -18,7 +18,15 @@ export default async function ConsorcioValeAPenaPage() {
       <div className="flex w-full max-w-5xl flex-col gap-6">
 
         {isUnlimited ? (
-          <ConsorcioValeAPenaTabs selicAnnual={selicAnnual} />
+          <>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display text-xl font-semibold">Consórcio vale a pena?</h1>
+              <p className="text-sm text-muted-foreground">Compare o consórcio com o financiamento ou com investir a parcela todo mês.</p>
+            </div>
+            <div className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+            <ConsorcioValeAPenaTabs selicAnnual={selicAnnual} />
+          </div>
+          </>
         ) : (
           <>
           <UpgradeCard />
