@@ -2,6 +2,7 @@ import { loadSimulation } from './actions';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { SimulationSandbox } from '@/components/simulation/SimulationSandbox';
+import { PageHeader, PageShell } from '@/components/page-shell';
 
 export default async function SimulacaoPage({
   searchParams,
@@ -16,8 +17,12 @@ export default async function SimulacaoPage({
     : { isUnlimited: false };
 
   return (
-    <div className="flex w-full flex-1 bg-muted p-6">
+    <PageShell>
+      <PageHeader
+        title="Simulação"
+        description="Simulador de financiamento PRICE e SAC com amortizações e comparação de cenários."
+      />
       <SimulationSandbox saved={saved} isUnlimited={isUnlimited} />
-    </div>
+    </PageShell>
   );
 }

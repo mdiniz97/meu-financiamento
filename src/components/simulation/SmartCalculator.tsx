@@ -63,9 +63,10 @@ interface Props {
   isUnlimited: boolean;
   onCalculated: (rec: SmartRecommendation, fields: SmartCalcFields) => void;
   onValidationFailed?: () => void;
+  showHeader?: boolean;
 }
 
-export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed }: Props) {
+export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed, showHeader = true }: Props) {
   const search = useSearchParams();
   // Prefill pode vir da portabilidade para qualquer tela que hospede o amortizador.
   const [f, setF] = useState<SmartCalcFields>(() => {
@@ -131,14 +132,16 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
 
   return (
     <Card className="flex h-full w-full flex-col rounded-2xl shadow-sm">
-      <CardHeader>
-        <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
-          Amortizador Inteligente <Sparkles className="size-5 text-[#820AD1]" />
-        </CardTitle>
-        <CardDescription>
-          Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia.
-        </CardDescription>
-      </CardHeader>
+      {showHeader && (
+        <CardHeader>
+          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
+            Amortizador Inteligente <Sparkles className="size-5 text-[#820AD1]" />
+          </CardTitle>
+          <CardDescription>
+            Diga quanto pode pagar por mês e descubra o melhor modelo, prazo e estratégia.
+          </CardDescription>
+        </CardHeader>
+      )}
       <CardContent className="flex flex-1 flex-col">
         {!isUnlimited ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-muted/50 p-6 text-center">

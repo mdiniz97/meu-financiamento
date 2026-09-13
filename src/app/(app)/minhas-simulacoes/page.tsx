@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { History } from 'lucide-react';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { deleteSimulation, listSimulations } from '../simulacao/actions';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UpgradeCard } from '@/components/upgrade-card';
 import { Countdown } from '@/components/countdown';
+import { PageHeader, PageShell } from '@/components/page-shell';
 import { parseSimulationJson } from '@/lib/simulation-context';
 import { formatBRL } from '@/lib/utils';
 
@@ -148,22 +150,22 @@ export default async function MinhasSimulacoesPage() {
   );
 
   return (
-    <div className="flex w-full flex-1 justify-center bg-muted p-4 sm:p-6">
-      <div className="flex w-full max-w-5xl flex-col gap-6">
+    <PageShell>
+      <PageHeader
+        icon={<History className="size-5 text-[#820AD1]" />}
+        title="Minhas simulações"
+        description={
+          sims.length === 0
+            ? 'Nenhuma simulação salva ainda.'
+            : `${sims.length} item${sims.length === 1 ? '' : 's'} salvo${sims.length === 1 ? '' : 's'}`
+        }
+        actions={
+          <Button size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
+            Nova simulação
+          </Button>
+        }
+      />
       <UpgradeCard isUnlimited={isUnlimited} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-semibold">Minhas simulações</h1>
-          <p className="text-sm text-muted-foreground">
-            {sims.length === 0
-              ? 'Nenhuma simulação salva ainda.'
-              : `${sims.length} item${sims.length === 1 ? '' : 's'} salvo${sims.length === 1 ? '' : 's'}`}
-          </p>
-        </div>
-        <Button size="sm" nativeButton={false} render={<Link href="/nova-simulacao" />}>
-          Nova simulação
-        </Button>
-      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg font-semibold">Simulações</h2>
@@ -255,7 +257,6 @@ export default async function MinhasSimulacoesPage() {
           </div>
         </section>
       )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

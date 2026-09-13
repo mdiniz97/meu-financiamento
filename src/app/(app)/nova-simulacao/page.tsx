@@ -1,6 +1,8 @@
+import { Calculator } from 'lucide-react';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { NovaSimulacaoClient } from '@/components/simulation/NovaSimulacaoClient';
+import { PageHeader, PageShell } from '@/components/page-shell';
 
 export default async function NovaSimulacaoPage() {
   const session = await auth();
@@ -9,5 +11,14 @@ export default async function NovaSimulacaoPage() {
     const bal = await getCreditBalance(session.userId);
     isUnlimited = bal.isUnlimited;
   }
-  return <NovaSimulacaoClient isUnlimited={isUnlimited} />;
+  return (
+    <PageShell>
+      <PageHeader
+        icon={<Calculator className="size-5 text-[#820AD1]" />}
+        title="Nova simulação"
+        description="Simule financiamentos PRICE e SAC e encontre o melhor modelo pelo seu orçamento."
+      />
+      <NovaSimulacaoClient isUnlimited={isUnlimited} />
+    </PageShell>
+  );
 }
