@@ -240,6 +240,98 @@ Variáveis (bloco comentado no `.env.example`; nunca versionar valores reais):
 | `ASAAS_INVOICE_ISS` / `PIS` / `COFINS` / `CSLL` / `INSS` / `IR` | número (%) | vazio = `0` |
 | `ASAAS_INVOICE_NBS_CODE` / `TAX_SITUATION_CODE` / `TAX_CLASSIFICATION_CODE` / `OPERATION_INDICATOR_CODE` / `OBSERVATIONS` | opcionais | omitidos do body quando vazios |
 
+### NFS-e — configuração única (DF/GDF)
+
+Esta configuração é **ação do usuário na conta Asaas**, feita **uma vez** (não é
+código). Sem os passos 1–3 abaixo a feature fica **inerte**: `GET /v3/fiscalInfo/`
+responde 404, o `POST .../invoiceSettings` não roda e a lista de notas no `/perfil`
+fica **vazia**. Depois de configurado, **o próprio Asaas emite a nota** a cada
+cobrança confirmada; nós apenas configuramos a assinatura uma vez e persistimos os
+webhooks `INVOICE_*` — **nunca** chamamos `POST /v3/invoices`.
+
+Os identificadores (`municipalServiceId`/`municipalServiceCode`, `municipalOptions`,
+`specialTaxRegime`, `serviceListItem`, certificado) seguem a API de Fiscal Info do
+Asaas (`/v3/fiscalInfo*`); não inventar campos.
+
+**1. Descobrir o que o município exige** — `GET /v3/fiscalInfo/municipalOptions`:
+
+```bash
+curl -s -H "access_token: $ASAAS_API_KEY" \
+  "$ASAAS_BASE_URL/fiscalInfo/municipalOptions" | jq
+```
+
+- `authenticationType`: `CERTIFICATE` \| `TOKEN` \| `USER_AND_PASSWORD`. A conta
+  DF/GDF retornou **`CERTIFICATE`**, ou seja, exige **certificado digital A1**
+  (`.pfx`) → no passo 2 enviar `certificateFile` + `certificatePassword`.
+- `usesSpecialTaxRegimes=true` → preencher `specialTaxRegime` com um `value` de
+  `specialTaxRegimesList` (regime tributário).
+- `usesServiceListItem=true` → preencher `serviceListItem` (item da lista de
+  serviços, ex. `1.01`).
+
+**2. Cadastrar os dados fiscais** — `POST /v3/fiscalInfo/` (`multipart/form-data`),
+com os dados da empresa + a credencial do município. `email` e `simplesNacional`
+são obrigatórios; use os valores de `specialTaxRegime`/`serviceListItem` do passo 1:
+
+```bash
+curl -s -X POST -H "access_token: $ASAAS_API_KEY" \
+  -F email="fiscal@example.com" \
+  -F simplesNacional=false \
+  -F municipalInscription="<inscricao municipal>" \
+  -F cnae="<cnae>" \
+  -F specialTaxRegime="<value da lista>" \
+  -F serviceListItem="<item, ex. 1.01>" \
+  -F certificateFile=@certificado.pfx \
+  -F certificatePassword="<senha do A1>" \
+  "$ASAAS_BASE_URL/fiscalInfo/"
+```
+
+Ao final, `GET /v3/fiscalInfo/` deve responder **200** (404 = conta ainda sem
+configuração fiscal). O `client.ts` usa exatamente esse `GET` como pré-requisito
+(`getFiscalInfo()` em `src/lib/payments/asaas/subscription.ts`).
+
+**3. Escolher o serviço municipal** — `GET /v3/fiscalInfo/services`:
+
+```bash
+curl -s -H "access_token: $ASAAS_API_KEY" \
+  "$ASAAS_BASE_URL/fiscalInfo/services" | jq
+```
+
+- Se o município **listar** o serviço, use o `id` retornado como
+  `municipalServiceId`.
+- Se **não listar**, use o `municipalServiceCode` (código/CTISS obtido na
+  prefeitura). Para o **GDF**, pegue o código do serviço (ISS) junto à
+  prefeitura/contador.
+- O código deste repo hoje envia apenas `municipalServiceCode` (ver
+  `src/lib/payments/asaas/invoice-config.ts`); a API do Asaas aceita
+  `municipalServiceId` como alternativa — ver a nota no `.env.example`.
+
+**4. Preencher as env `ASAAS_INVOICE_*`** (bloco comentado no `.env.example`):
+código/nome do serviço, `municipalServiceName`, os tributos
+(`iss`/`pis`/`cofins`/`csll`/`inss`/`ir` e `retainIss`) com o contador, e manter
+`ASAAS_INVOICE_EFFECTIVE_PERIOD=ON_PAYMENT_CONFIRMATION` (default; emite quando o
+pagamento confirma).
+
+**5. Re-registrar o webhook para assinar os `INVOICE_*`** — o registro precisa
+incluir os 8 eventos `INVOICE_*` para o Asaas enviá-los; se o webhook do ambiente
+foi criado antes, **rode de novo**:
+
+```bash
+# com ASAAS_ENV/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local
+npx tsx scripts/register-asaas-webhook.ts
+```
+
+Sem isso o Asaas não envia `INVOICE_*` e as notas nunca aparecem em `invoices`.
+
+**6. Ligar a flag**: `ASAAS_INVOICE_ENABLED=true` (só o valor exato `true`
+habilita). A partir daí, em cada `SUBSCRIPTION_CREATED` o servidor chama
+`POST /v3/subscriptions/{id}/invoiceSettings` e grava
+`subscriptions.invoice_configured_at`.
+
+> **Assinaturas já existentes**: o `invoiceSettings` é aplicado no
+> `SUBSCRIPTION_CREATED`. Assinaturas criadas **antes** de ligar a flag não são
+> reconfiguradas automaticamente — crie-as de novo ou configure-as no painel do
+> Asaas.
+
 ## Homologação Asaas (sandbox)
 
 > Execução de **2026-09-13** no worktree `asaas-assinaturas`, apenas chamadas de
