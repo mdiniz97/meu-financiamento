@@ -1,4 +1,4 @@
-import { asaasFetch } from './client';
+import { asaasFetch, AsaasApiError } from './client';
 import { getAsaasConfig } from './config';
 
 export interface CreateCheckoutInput {
@@ -49,18 +49,31 @@ export async function createCreditsCheckout(
   input: CreateCreditsCheckoutInput
 ): Promise<SubscriptionCheckout> {
   const cfg = getAsaasConfig();
-  return asaasFetch<SubscriptionCheckout>(cfg, '/checkouts', {
-    method: 'POST',
-    body: {
-      billingTypes: ['CREDIT_CARD', 'PIX'],
-      chargeTypes: ['DETACHED'],
-      items: [{ name: 'Créditos amortiza.me', quantity: 1, value: input.valueCents / 100 }],
-      externalReference: input.externalReference,
-      callback: {
-        successUrl: input.successUrl,
-        cancelUrl: input.cancelUrl,
-        expiredUrl: input.expiredUrl,
-      },
+  const base = {
+    chargeTypes: ['DETACHED'],
+    items: [{ name: 'Créditos amortiza.me', quantity: 1, value: input.valueCents / 100 }],
+    externalReference: input.externalReference,
+    callback: {
+      successUrl: input.successUrl,
+      cancelUrl: input.cancelUrl,
+      expiredUrl: input.expiredUrl,
     },
-  });
+  };
+
+  try {
+    return await asaasFetch<SubscriptionCheckout>(cfg, '/checkouts', {
+      method: 'POST',
+      body: { billingTypes: ['CREDIT_CARD', 'PIX'], ...base },
+    });
+  } catch (e) {
+    // Pix exige uma chave Pix cadastrada na conta Asaas. Sem ela, o Asaas
+    // responde 400; cai para cartão para não bloquear a compra.
+    if (e instanceof AsaasApiError && e.status === 400 && /pix/i.test(JSON.stringify(e.body))) {
+      return asaasFetch<SubscriptionCheckout>(cfg, '/checkouts', {
+        method: 'POST',
+        body: { billingTypes: ['CREDIT_CARD'], ...base },
+      });
+    }
+    throw e;
+  }
 }

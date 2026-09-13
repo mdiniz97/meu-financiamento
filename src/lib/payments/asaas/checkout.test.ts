@@ -109,4 +109,40 @@ describe('createCreditsCheckout', () => {
     });
     expect(body.items).toEqual([{ name: 'Créditos amortiza.me', quantity: 1, value: 10 }]);
   });
+
+  it('cai para cartão quando o Asaas recusa por falta de chave Pix', async () => {
+    env();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            errors: [
+              {
+                code: 'invalid_object',
+                description: 'Para gerar cobranças com Pix é necessário criar uma chave Pix no Asaas.',
+              },
+            ],
+          }),
+          { status: 400 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'chk_c3', link: 'https://x/y3' }), { status: 200 })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await createCreditsCheckout({
+      externalReference: 'p3',
+      valueCents: 1000,
+      successUrl: 'https://a/s',
+      cancelUrl: 'https://a/c',
+      expiredUrl: 'https://a/e',
+    });
+
+    expect(out).toEqual({ id: 'chk_c3', link: 'https://x/y3' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const second = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    expect(second.billingTypes).toEqual(['CREDIT_CARD']);
+  });
 });

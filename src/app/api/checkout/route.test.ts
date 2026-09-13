@@ -43,6 +43,7 @@ vi.mock('@/lib/payments/asaas/checkout', () => ({
 vi.mock('drizzle-orm', () => ({ eq: (...args: unknown[]) => args }));
 
 import { POST } from './route';
+import { AsaasApiError } from '@/lib/payments/asaas/client';
 
 function req(body: unknown) {
   return new Request('http://localhost/api/checkout', {
@@ -173,5 +174,22 @@ describe('POST /api/checkout', () => {
     expect(m.createCheckout).toHaveBeenCalledTimes(1);
     expect(m.createCreditsCheckout).not.toHaveBeenCalled();
     expect(m.insert).not.toHaveBeenCalled();
+  });
+
+  it('asaas + falha do Asaas ao criar checkout responde 502 (não 500)', async () => {
+    m.packFindFirst.mockResolvedValue({
+      id: 'credits5',
+      priceCents: 1000,
+      isSubscription: false,
+      credits: 5,
+    });
+    m.createCreditsCheckout.mockRejectedValue(
+      new AsaasApiError(400, { errors: [{ description: 'invalid' }] })
+    );
+
+    const res = await POST(req({ packId: 'credits5' }));
+
+    expect(res.status).toBe(502);
+    expect(m.insert).toHaveBeenCalledTimes(1);
   });
 });

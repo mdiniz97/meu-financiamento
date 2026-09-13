@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getPaymentProvider } from '@/lib/payments';
 import { createCreditsCheckout } from '@/lib/payments/asaas/checkout';
+import { AsaasApiError } from '@/lib/payments/asaas/client';
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -57,13 +58,25 @@ export async function POST(req: Request) {
     // APP_URL lido em runtime (não no topo do módulo): evita congelar o valor
     // antigo quando .env.local muda; trim da barra final evita `//perfil`.
     const appUrl = (process.env.APP_URL ?? 'http://localhost:3012').replace(/\/+$/, '');
-    const checkout = await createCreditsCheckout({
-      externalReference: purchase.id,
-      valueCents: pack.priceCents,
-      successUrl: `${appUrl}/perfil`,
-      cancelUrl: `${appUrl}/perfil`,
-      expiredUrl: `${appUrl}/perfil`,
-    });
+    let checkout: { id: string; link: string };
+    try {
+      checkout = await createCreditsCheckout({
+        externalReference: purchase.id,
+        valueCents: pack.priceCents,
+        successUrl: `${appUrl}/perfil`,
+        cancelUrl: `${appUrl}/perfil`,
+        expiredUrl: `${appUrl}/perfil`,
+      });
+    } catch (e) {
+      // Erro do Asaas (ex.: conta sem chave Pix e sem cartão) → 502 legível,
+      // não um 500 cru. A compra fica `pending` e pode ser retomada.
+      const detail = e instanceof AsaasApiError ? e.message : 'erro inesperado';
+      console.error(`[checkout] falha ao criar checkout de créditos: ${detail}`);
+      return NextResponse.json(
+        { error: 'Não foi possível iniciar a compra agora. Tente de novo em instantes.' },
+        { status: 502 }
+      );
+    }
 
     await db
       .update(schema.creditPurchases)
