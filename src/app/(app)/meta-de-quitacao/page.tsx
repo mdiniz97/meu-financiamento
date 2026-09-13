@@ -17,13 +17,7 @@ export default async function MetaDeQuitacaoPage() {
       <div className="flex w-full max-w-5xl flex-col gap-6">
 
         {isUnlimited ? (
-          <>
-            <div className="flex flex-col gap-1">
-              <h1 className="font-display text-xl font-semibold">Meta de quitação</h1>
-              <p className="text-sm text-muted-foreground">Quer quitar em X anos? Descubra quanto aportar por mês e quanto de juros economiza.</p>
-            </div>
-            <MetaCalculator />
-          </>
+          <MetaCalculator />
         ) : (
           <>
           <UpgradeCard />

@@ -91,7 +91,7 @@ export function MetaCalculator() {
     <div className="flex w-full flex-col gap-4">
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle role="heading" aria-level={1} className="font-display flex items-center gap-2 text-xl">
             <Target className="size-5 text-[#820AD1]" /> Meta de quitação
           </CardTitle>
           <CardDescription>
