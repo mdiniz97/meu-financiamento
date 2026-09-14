@@ -20,6 +20,7 @@ vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (...args: unknown[]) => args,
   gte: (...args: unknown[]) => args,
+  ne: (field: unknown, value: unknown) => ({ op: 'ne', field, value }),
 }));
 vi.mock('@/db', () => ({
   db: {
@@ -39,6 +40,7 @@ vi.mock('@/db', () => ({
     },
     subscriptionEvents: {
       userId: 'subscription_events.user_id',
+      result: 'subscription_events.result',
       createdAt: 'subscription_events.created_at',
     },
   },
@@ -51,6 +53,33 @@ import {
   rateLimitOk,
   reactivateOwnSubscription,
 } from './account';
+
+/**
+ * Emula o WHERE do Postgres sobre um conjunto sintético, para exercitar o
+ * filtro de `rate_limited` sem banco real.
+ */
+function matchesWhere(where: unknown[], row: Record<string, unknown>): boolean {
+  return where.every((cond) => {
+    if (cond && typeof cond === 'object' && 'op' in (cond as object)) {
+      const c = cond as { op: string; field: string; value: unknown };
+      if (c.op === 'ne') return row[c.field] !== c.value;
+      return true;
+    }
+    const [field, value] = cond as [string, unknown];
+    if (value instanceof Date) {
+      return (row[field] as Date).getTime() >= value.getTime();
+    }
+    return row[field] === value;
+  });
+}
+
+function windowRows(result: string, count: number) {
+  return Array.from({ length: count }, () => ({
+    'subscription_events.user_id': 'user-1',
+    'subscription_events.result': result,
+    'subscription_events.created_at': new Date(),
+  }));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -106,6 +135,24 @@ describe('rateLimitOk', () => {
     expect(since).toBeInstanceOf(Date);
     expect(Date.now() - since.getTime()).toBeGreaterThanOrEqual(59_000);
     expect(Date.now() - since.getTime()).toBeLessThanOrEqual(61_000);
+  });
+
+  it('I1: não se auto-bloqueia — rate_limited não conta na janela', async () => {
+    const rows = windowRows('rate_limited', 5);
+    m.eventsFindMany.mockImplementation(({ where }: { where: unknown }) =>
+      Promise.resolve(rows.filter((row) => matchesWhere(where as unknown[], row)))
+    );
+
+    expect(await rateLimitOk('user-1')).toBe(true);
+  });
+
+  it('I1: ainda bloqueia com 5 tentativas reais na janela', async () => {
+    const rows = windowRows('ok', 5);
+    m.eventsFindMany.mockImplementation(({ where }: { where: unknown }) =>
+      Promise.resolve(rows.filter((row) => matchesWhere(where as unknown[], row)))
+    );
+
+    expect(await rateLimitOk('user-1')).toBe(false);
   });
 });
 
@@ -182,6 +229,26 @@ describe('cancelOwnSubscription', () => {
       })
     );
   });
+
+  it('I2: registra error e propaga quando o Asaas falha', async () => {
+    m.subsFindFirst.mockResolvedValue({
+      id: 'sub-own',
+      asaasSubscriptionId: 'asaas_own',
+      cancelAtPeriodEnd: false,
+    });
+    m.cancelAtPeriodEnd.mockRejectedValue(new Error('asaas 500'));
+
+    await expect(cancelOwnSubscription('user-1')).rejects.toThrow('asaas 500');
+
+    expect(m.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'cancel',
+        result: 'error',
+        subscriptionId: 'sub-own',
+      })
+    );
+    expect(m.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('reactivateOwnSubscription', () => {
@@ -191,6 +258,7 @@ describe('reactivateOwnSubscription', () => {
       id: 'sub-own',
       asaasSubscriptionId: 'asaas_own',
       cancelAtPeriodEnd: true,
+      status: 'active',
       currentPeriodEnd: periodEnd,
     });
 
@@ -212,6 +280,7 @@ describe('reactivateOwnSubscription', () => {
       id: 'sub-own',
       asaasSubscriptionId: 'asaas_own',
       cancelAtPeriodEnd: true,
+      status: 'active',
       currentPeriodEnd: new Date(Date.now() - 1000),
     });
 
@@ -232,6 +301,53 @@ describe('reactivateOwnSubscription', () => {
     expect(m.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'reactivate', result: 'no_subscription' })
     );
+  });
+
+  it.each(['canceled', 'expired'])(
+    'I3: não chama o Asaas quando status local é %s',
+    async (status) => {
+      m.subsFindFirst.mockResolvedValue({
+        id: 'sub-own',
+        asaasSubscriptionId: 'asaas_own',
+        cancelAtPeriodEnd: true,
+        status,
+        currentPeriodEnd: null,
+      });
+
+      expect(await reactivateOwnSubscription('user-1')).toBe('no_subscription');
+
+      expect(m.reactivateSubscription).not.toHaveBeenCalled();
+      expect(m.update).not.toHaveBeenCalled();
+      expect(m.insertValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'reactivate',
+          result: 'no_subscription',
+          subscriptionId: 'sub-own',
+        })
+      );
+    }
+  );
+
+  it('I2: registra error e propaga quando o Asaas falha na reativação', async () => {
+    m.subsFindFirst.mockResolvedValue({
+      id: 'sub-own',
+      asaasSubscriptionId: 'asaas_own',
+      cancelAtPeriodEnd: true,
+      status: 'active',
+      currentPeriodEnd: null,
+    });
+    m.reactivateSubscription.mockRejectedValue(new Error('asaas 500'));
+
+    await expect(reactivateOwnSubscription('user-1')).rejects.toThrow('asaas 500');
+
+    expect(m.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'reactivate',
+        result: 'error',
+        subscriptionId: 'sub-own',
+      })
+    );
+    expect(m.update).not.toHaveBeenCalled();
   });
 });
 

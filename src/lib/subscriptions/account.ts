@@ -1,4 +1,4 @@
-import { and, eq, gte } from 'drizzle-orm';
+import { and, eq, gte, ne } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import {
   cancelAtPeriodEnd,
@@ -9,9 +9,10 @@ const PACK_ID = 'unlimited';
 const PROVIDER = 'asaas';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 5;
+const LIVE_STATUSES = ['active', 'past_due'];
 
 export type SubscriptionAction = 'cancel' | 'reactivate';
-export type SubscriptionActionResult = 'ok' | 'no_subscription' | 'rate_limited';
+export type SubscriptionActionResult = 'ok' | 'no_subscription' | 'rate_limited' | 'error';
 
 /**
  * RS3 — IDOR: a assinatura é sempre resolvida pela sessão (`userId`), nunca por
@@ -27,13 +28,18 @@ export function getOwnSubscription(userId: string) {
   });
 }
 
-/** RS2 — janela fixa: até 5 eventos do usuário nos últimos 60s. */
+/**
+ * RS2 — janela fixa: até 5 tentativas reais do usuário nos últimos 60s.
+ * `rate_limited` não conta: senão cada bloqueio inseriria uma linha que mantém
+ * o usuário bloqueado para sempre (self-lockout) e cresce a tabela sem limite.
+ */
 export async function rateLimitOk(userId: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
   const events = await db.query.subscriptionEvents.findMany({
     where: and(
       eq(schema.subscriptionEvents.userId, userId),
-      gte(schema.subscriptionEvents.createdAt, since)
+      gte(schema.subscriptionEvents.createdAt, since),
+      ne(schema.subscriptionEvents.result, 'rate_limited')
     ),
   });
   return events.length < RATE_LIMIT_MAX;
@@ -80,7 +86,17 @@ export async function cancelOwnSubscription(
 
   if (!subscription.cancelAtPeriodEnd) {
     if (subscription.asaasSubscriptionId) {
-      await cancelAtPeriodEnd(subscription.asaasSubscriptionId);
+      try {
+        await cancelAtPeriodEnd(subscription.asaasSubscriptionId);
+      } catch (e) {
+        await recordSubscriptionEvent({
+          userId,
+          subscriptionId: subscription.id,
+          action: 'cancel',
+          result: 'error',
+        });
+        throw e;
+      }
     }
     await db
       .update(schema.subscriptions)
@@ -119,11 +135,31 @@ export async function reactivateOwnSubscription(
     return 'no_subscription';
   }
 
+  if (!LIVE_STATUSES.includes(subscription.status)) {
+    await recordSubscriptionEvent({
+      userId,
+      subscriptionId: subscription.id,
+      action: 'reactivate',
+      result: 'no_subscription',
+    });
+    return 'no_subscription';
+  }
+
   if (subscription.cancelAtPeriodEnd && subscription.asaasSubscriptionId) {
-    await reactivateSubscription(
-      subscription.asaasSubscriptionId,
-      nextDueDateFor(subscription.currentPeriodEnd)
-    );
+    try {
+      await reactivateSubscription(
+        subscription.asaasSubscriptionId,
+        nextDueDateFor(subscription.currentPeriodEnd)
+      );
+    } catch (e) {
+      await recordSubscriptionEvent({
+        userId,
+        subscriptionId: subscription.id,
+        action: 'reactivate',
+        result: 'error',
+      });
+      throw e;
+    }
   }
 
   await db

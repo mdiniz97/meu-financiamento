@@ -13,8 +13,8 @@ function isAllowedWebhookIp(req: Request): boolean {
     .map((ip) => ip.trim())
     .filter(Boolean);
 
-  const forwarded = req.headers.get('x-forwarded-for');
-  const clientIp = (forwarded ?? req.headers.get('x-real-ip') ?? '').split(',')[0]?.trim();
+  const firstForwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const clientIp = firstForwarded || (req.headers.get('x-real-ip') ?? '').trim();
   return allowed.includes(clientIp);
 }
 

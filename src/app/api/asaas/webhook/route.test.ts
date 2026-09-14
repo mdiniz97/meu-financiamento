@@ -164,6 +164,18 @@ describe('POST /api/asaas/webhook — allowlist de IP (RS2b)', () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it('trata x-forwarded-for vazio/branco como ausente e usa x-real-ip', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4');
+    insertedRow([{ id: 'row-1' }]);
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-forwarded-for': '  , 9.9.9.9', 'x-real-ip': '1.2.3.4' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 describe('GET /api/asaas/webhook', () => {

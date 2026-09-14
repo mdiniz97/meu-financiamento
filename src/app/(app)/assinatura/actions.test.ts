@@ -28,6 +28,7 @@ vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (...args: unknown[]) => args,
   gte: (...args: unknown[]) => args,
+  ne: (field: unknown, value: unknown) => ({ op: 'ne', field, value }),
 }));
 vi.mock('@/db', () => ({
   db: {
@@ -47,6 +48,7 @@ vi.mock('@/db', () => ({
     },
     subscriptionEvents: {
       userId: 'subscription_events.user_id',
+      result: 'subscription_events.result',
       createdAt: 'subscription_events.created_at',
     },
   },
@@ -64,6 +66,7 @@ function ownSubscription(overrides: Record<string, unknown> = {}) {
     id: 'sub-own',
     asaasSubscriptionId: 'asaas_own',
     cancelAtPeriodEnd: false,
+    status: 'active',
     currentPeriodEnd: null,
     ...overrides,
   };
@@ -171,6 +174,17 @@ describe('cancelSubscription', () => {
       expect.objectContaining({ action: 'cancel', result: 'no_subscription' })
     );
   });
+
+  it('I2: propaga erro do Asaas, audita error e não revalida', async () => {
+    m.cancelAtPeriodEnd.mockRejectedValue(new Error('asaas down'));
+
+    await expect(cancelSubscription()).rejects.toThrow('asaas down');
+
+    expect(m.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'cancel', result: 'error' })
+    );
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
 });
 
 describe('reactivateSubscriptionAction', () => {
@@ -212,6 +226,46 @@ describe('reactivateSubscriptionAction', () => {
     expect(m.reactivateSubscription).not.toHaveBeenCalled();
     expect(m.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'reactivate', result: 'rate_limited' })
+    );
+  });
+
+  it('IDOR: reativa a assinatura do usuário da sessão, ignorando outra', async () => {
+    m.subsFindFirst.mockImplementation(({ where }: { where: unknown }) => {
+      const isOwn = JSON.stringify(where).includes('user-1');
+      return Promise.resolve(
+        isOwn
+          ? ownSubscription({ cancelAtPeriodEnd: true })
+          : {
+              id: 'sub-other',
+              asaasSubscriptionId: 'asaas_other',
+              cancelAtPeriodEnd: true,
+              status: 'active',
+              currentPeriodEnd: null,
+            }
+      );
+    });
+
+    await reactivateSubscriptionAction();
+
+    expect(m.reactivateSubscription).toHaveBeenCalledWith('asaas_own', expect.any(String));
+    expect(m.reactivateSubscription).not.toHaveBeenCalledWith(
+      'asaas_other',
+      expect.any(String)
+    );
+    expect(m.updateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-own']);
+    expect(m.updateWhere).not.toHaveBeenCalledWith(['subscriptions.id', 'sub-other']);
+  });
+
+  it('I3: status canceled/expired não chama o Asaas', async () => {
+    m.subsFindFirst.mockResolvedValue(
+      ownSubscription({ cancelAtPeriodEnd: true, status: 'canceled' })
+    );
+
+    await reactivateSubscriptionAction();
+
+    expect(m.reactivateSubscription).not.toHaveBeenCalled();
+    expect(m.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'reactivate', result: 'no_subscription' })
     );
   });
 });

@@ -71,10 +71,12 @@ export default async function AssinaturaPage() {
                     <span className="text-xs text-muted-foreground">Valor</span>
                     <span className="text-lg font-semibold">{priceLabel}/ano</span>
                   </div>
-                  <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-4">
-                    <span className="text-xs text-muted-foreground">Próxima renovação</span>
-                    <span className="text-lg font-semibold">{periodEnd ?? '-'}</span>
-                  </div>
+                  {!subscription.cancelAtPeriodEnd ? (
+                    <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-4">
+                      <span className="text-xs text-muted-foreground">Próxima renovação</span>
+                      <span className="text-lg font-semibold">{periodEnd ?? '-'}</span>
+                    </div>
+                  ) : null}
                   <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-4">
                     <span className="text-xs text-muted-foreground">Cartão</span>
                     <span className="text-lg font-semibold">{cardLabel ?? '-'}</span>
