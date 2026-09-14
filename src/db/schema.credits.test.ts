@@ -15,4 +15,13 @@ describe('schema créditos/NFS-e', () => {
   it('subscriptions.invoice_configured_at', () => {
     expect(getTableColumns(schema.subscriptions).invoiceConfiguredAt.name).toBe('invoice_configured_at');
   });
+  it('subscription_events', () => {
+    expect(getTableName(schema.subscriptionEvents)).toBe('subscription_events');
+    const c = getTableColumns(schema.subscriptionEvents);
+    expect(c.userId.name).toBe('user_id');
+    expect(c.subscriptionId.name).toBe('subscription_id');
+    expect(c.action.name).toBe('action');
+    expect(c.result.name).toBe('result');
+    expect(c.createdAt.name).toBe('created_at');
+  });
 });

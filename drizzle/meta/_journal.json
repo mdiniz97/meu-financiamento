@@ -99,6 +99,13 @@
       "when": 1789340458722,
       "tag": "0013_invoices_payment_id",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789356201160,
+      "tag": "0014_subscription_events",
+      "breakpoints": true
     }
   ]
 }

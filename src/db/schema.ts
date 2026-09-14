@@ -281,6 +281,24 @@ export const invoices = pgTable(
   ]
 );
 
+export const subscriptionEvents = pgTable(
+  'subscription_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, {
+      onDelete: 'set null',
+    }),
+    action: text('action').notNull(),
+    result: text('result').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('subscription_events_user_id_idx').on(table.userId)]
+);
+
+export type SubscriptionEvent = typeof subscriptionEvents.$inferSelect;
 export type CreditPurchase = typeof creditPurchases.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
 
