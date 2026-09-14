@@ -26,6 +26,13 @@ const req = (token: string | null, body: object) =>
     body: JSON.stringify(body),
   });
 
+const reqWithHeaders = (headers: Record<string, string>, body: object) =>
+  new Request('http://localhost/api/asaas/webhook', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
 const insertedRow = (rows: { id: string }[]) =>
   mocks.insert.mockReturnValue({
     values: mocks.values.mockReturnValue({
@@ -36,6 +43,7 @@ const insertedRow = (rows: { id: string }[]) =>
   });
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
   vi.stubEnv('ASAAS_ENV', 'sandbox');
   vi.stubEnv('ASAAS_BASE_URL', 'https://api-sandbox.asaas.com/v3');
   vi.stubEnv('ASAAS_API_KEY', '$aact_hmlg_x');
@@ -92,6 +100,69 @@ describe('POST /api/asaas/webhook', () => {
     const res = await POST(req('x'.repeat(32), { id: 'e1', event: 'PAYMENT_CONFIRMED' }));
     expect(res.status).toBe(200);
     expect(mocks.after).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/asaas/webhook — allowlist de IP (RS2b)', () => {
+  const valid = 'x'.repeat(32);
+
+  it('sem ASAAS_WEBHOOK_IP_ALLOWLIST segue o fluxo (opt-in: vazio não bloqueia)', async () => {
+    insertedRow([{ id: 'row-1' }]);
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-forwarded-for': '9.9.9.9' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('lista definida + IP fora → 403 mesmo com token válido', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4');
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-forwarded-for': '9.9.9.9' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(403);
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('lista definida + IP dentro → segue (200)', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4');
+    insertedRow([{ id: 'row-1' }]);
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-forwarded-for': '1.2.3.4' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('usa o primeiro IP de x-forwarded-for (CSV), ignorando os demais', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4, 9.9.9.9');
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-forwarded-for': '5.6.7.8, 1.2.3.4' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(403);
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('aceita x-real-ip quando x-forwarded-for está ausente', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4');
+    insertedRow([{ id: 'row-1' }]);
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'x-real-ip': '1.2.3.4' },
+        { id: 'e1', event: 'PAYMENT_CONFIRMED' }
+      )
+    );
+    expect(res.status).toBe(200);
   });
 });
 

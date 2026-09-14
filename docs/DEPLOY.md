@@ -81,6 +81,7 @@ vercel env add ASAAS_ENV production              # sandbox | production
 vercel env add ASAAS_BASE_URL production         # https://api.asaas.com/v3 (prod) ou ...sandbox...
 vercel env add ASAAS_API_KEY production          # chave do ambiente (ver pegadinha do $ abaixo)
 vercel env add ASAAS_WEBHOOK_AUTH_TOKEN production  # token do header asaas-access-token, mín. 32 chars
+vercel env add ASAAS_WEBHOOK_IP_ALLOWLIST production  # opcional: CSV de IPs do Asaas (ver Segurança do webhook)
 vercel env add APP_URL production                # https://amortiza.me (base do webhook/callbacks)
 vercel env add CRON_SECRET production            # openssl rand -hex 32 (protege /api/cron/dunning)
 ```
@@ -96,6 +97,7 @@ vercel env add CRON_SECRET production            # openssl rand -hex 32 (protege
 | `ASAAS_BASE_URL` | `https://api.asaas.com/v3` | produção; sandbox = `https://api-sandbox.asaas.com/v3` |
 | `ASAAS_API_KEY` | `$aact_prod_...` | **pegadinha do `$`** (abaixo); nunca versionar |
 | `ASAAS_WEBHOOK_AUTH_TOKEN` | `openssl rand -base64 48` | mínimo 32 chars; é o `authToken` do webhook, **não** a API key |
+| `ASAAS_WEBHOOK_IP_ALLOWLIST` | CSV de IPs (opcional) | vazio = não bloqueia por IP; em produção use os 4 IPs oficiais (ver Segurança do webhook) |
 | `APP_URL` | `https://amortiza.me` | base de `${APP_URL}/api/asaas/webhook` e das callbacks do checkout |
 | `CRON_SECRET` | `openssl rand -hex 32` | protege `/api/cron/dunning` |
 
@@ -172,6 +174,44 @@ npx tsx scripts/register-asaas-webhook.ts
   `payment.checkoutSession`; confirme o campo no payload real **no sandbox** antes
   de vender em produção (se o Asaas omitir `checkoutSession`, a compra não é
   correlacionada e os créditos não são liberados).
+
+## Segurança do webhook
+
+O endpoint `/api/asaas/webhook` valida o header `asaas-access-token` (comparação
+em tempo constante). Como **defesa em profundidade** contra um token vazado, há
+uma allowlist de IP de origem **opt-in**, controlada por
+`ASAAS_WEBHOOK_IP_ALLOWLIST`:
+
+- **Ausente ou vazia** → comportamento atual: nenhum bloqueio por IP (mantém
+  testes e sandbox funcionando).
+- **Preenchida** → CSV de IPs permitidos. O endpoint extrai o **primeiro** IP de
+  `x-forwarded-for` (o cliente, à esquerda da cadeia) ou, na ausência dele,
+  `x-real-ip`; se esse IP não pertencer à lista, responde `403 forbidden` **antes**
+  de validar o token.
+
+IPs oficiais de produção do Asaas (origem dos webhooks):
+
+```
+52.67.12.206, 18.230.8.159, 54.94.136.112, 54.94.183.101
+```
+
+```bash
+vercel env add ASAAS_WEBHOOK_IP_ALLOWLIST production
+# valor: 52.67.12.206,18.230.8.159,54.94.136.112,54.94.183.101
+```
+
+> **Sandbox tem IPs extras.** O Asaas sandbox envia webhooks de IPs adicionais
+> que não estão na lista de produção. **Não** configure a allowlist em sandbox
+> (deixe a env vazia), sob pena de o webhook ser rejeitado com `403` durante os
+> testes.
+
+**Rotação do `ASAAS_WEBHOOK_AUTH_TOKEN`**: o token é compartilhado entre Asaas e
+o deploy; se houver suspeita de vazamento, gere um novo
+(`openssl rand -base64 48`), atualize a env na Vercel (`vercel env add
+ASAAS_WEBHOOK_AUTH_TOKEN production`), faça o redeploy e **rode o script de
+registro** (`npx tsx scripts/register-asaas-webhook.ts`) para o Asaas passar a
+enviar o novo `authToken`. A allowlist de IP reduz a janela de exploração
+enquanto a rotação não é concluída, mas **não** substitui a rotação.
 
 ## Créditos avulsos
 
