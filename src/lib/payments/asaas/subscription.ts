@@ -38,6 +38,14 @@ export async function configureInvoiceSettings(asaasSubscriptionId: string): Pro
   });
 }
 
+export async function reactivateSubscription(id: string, nextDueDate: string): Promise<void> {
+  const cfg = getAsaasConfig();
+  await asaasFetch(cfg, `/subscriptions/${id}`, {
+    method: 'PUT',
+    body: { status: 'ACTIVE', nextDueDate },
+  });
+}
+
 export async function getSubscription(id: string): Promise<AsaasSubscription> {
   const cfg = getAsaasConfig();
   const raw = await asaasFetch<AsaasSubscription>(cfg, `/subscriptions/${id}`);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cancelAtPeriodEnd, getSubscription } from './subscription';
+import { cancelAtPeriodEnd, getSubscription, reactivateSubscription } from './subscription';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -24,6 +24,26 @@ describe('cancelAtPeriodEnd', () => {
     expect(String(url)).toBe('https://api-sandbox.asaas.com/v3/subscriptions/sub_1');
     expect((init as RequestInit).method).toBe('PUT');
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({ status: 'INACTIVE' });
+  });
+});
+
+describe('reactivateSubscription', () => {
+  it('envia PUT status ACTIVE com nextDueDate', async () => {
+    stubEnv();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ id: 'sub_1' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await reactivateSubscription('sub_1', '2027-09-14');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://api-sandbox.asaas.com/v3/subscriptions/sub_1');
+    expect((init as RequestInit).method).toBe('PUT');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      status: 'ACTIVE',
+      nextDueDate: '2027-09-14',
+    });
   });
 });
 
