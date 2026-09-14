@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
@@ -6,10 +7,10 @@ import { getCreditBalance } from '@/lib/credits';
 import { formatBRL } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { buttonVariants } from '@/components/ui/button';
 import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
-import { CancelSubscriptionButton } from './cancel-subscription-button';
-import { InvoicesCard } from './invoices-card';
+import { InvoicesCard } from '@/components/invoices-card';
 
 export default async function PerfilPage() {
   const session = await auth();
@@ -87,8 +88,14 @@ export default async function PerfilPage() {
                   : 'o fim do período já pago'}
                 .
               </p>
-            ) : asaasSubscription ? (
-              <CancelSubscriptionButton />
+            ) : null}
+            {asaasSubscription ? (
+              <Link
+                href="/assinatura"
+                className={buttonVariants({ variant: 'outline', size: 'sm', className: 'w-fit' })}
+              >
+                Gerenciar assinatura
+              </Link>
             ) : null}
           </CardContent>
         </Card>
