@@ -13,7 +13,7 @@ export function ManageButtons({ cancelAtPeriodEnd, status }: ManageButtonsProps)
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(false);
 
-  if (cancelAtPeriodEnd) {
+  if (cancelAtPeriodEnd && (status === 'active' || status === 'past_due')) {
     return (
       <div className="flex flex-col gap-2">
         <Button

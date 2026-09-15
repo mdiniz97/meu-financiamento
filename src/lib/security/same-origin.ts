@@ -1,7 +1,8 @@
 import { headers } from 'next/headers';
 
-function expectedHost(): string {
-  return new URL(process.env.APP_URL ?? 'http://localhost:3012').host;
+function expectedOrigin(): { protocol: string; host: string } {
+  const url = new URL(process.env.APP_URL ?? 'http://localhost:3012');
+  return { protocol: url.protocol, host: url.host };
 }
 
 /**
@@ -16,24 +17,27 @@ export async function assertSameOrigin(): Promise<void> {
   const requestHeaders = await headers();
   const origin = requestHeaders.get('origin');
   const host = requestHeaders.get('host');
-  const expected = expectedHost();
+  const expected = expectedOrigin();
 
   if (!origin) {
     if (process.env.NODE_ENV === 'test') return;
     throw new Error('same-origin: cabeçalho Origin ausente');
   }
 
-  let originHost: string;
+  let parsedOrigin: URL;
   try {
-    originHost = new URL(origin).host;
+    parsedOrigin = new URL(origin);
   } catch {
     throw new Error('same-origin: Origin inválido');
   }
 
-  if (originHost !== expected) {
+  if (parsedOrigin.protocol !== expected.protocol) {
+    throw new Error('same-origin: esquema divergente');
+  }
+  if (parsedOrigin.host !== expected.host) {
     throw new Error('same-origin: origem divergente');
   }
-  if (host && host !== expected) {
+  if (host && host !== expected.host) {
     throw new Error('same-origin: host divergente');
   }
 }

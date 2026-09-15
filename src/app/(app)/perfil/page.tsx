@@ -84,7 +84,9 @@ export default async function PerfilPage() {
               <p className="text-muted-foreground">
                 Renovação cancelada. Você mantém o acesso até{' '}
                 {asaasSubscription.currentPeriodEnd
-                  ? new Date(asaasSubscription.currentPeriodEnd).toLocaleDateString('pt-BR')
+                  ? new Date(asaasSubscription.currentPeriodEnd).toLocaleDateString('pt-BR', {
+                      timeZone: 'UTC',
+                    })
                   : 'o fim do período já pago'}
                 .
               </p>

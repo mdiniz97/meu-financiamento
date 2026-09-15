@@ -261,6 +261,12 @@ necessária para vender; habilite só quando a contabilidade estiver pronta.
   (arquivo `.pfx` + senha) cadastrado no Asaas. Por isso **não é validável em
   sandbox nesta conta** — a ativação fica para quando houver certificado A1 e o
   bloco de impostos preenchido pelo contador.
+- **Guarda de ambiente (sandbox)**: mesmo com a flag ligada, a configuração
+  automática de NFS-e **só roda com `ASAAS_ENV=production`**. Com `ASAAS_ENV=sandbox`
+  (ou ausente), o servidor loga um aviso e **retorna sem chamar**
+  `POST /v3/subscriptions/{id}/invoiceSettings` nem consultar `fiscalInfo` — assim
+  uma conta de teste nunca configura emissão (que poderia gerar NFS-e real com um
+  certificado A1 de verdade).
 - **Comportamento quando ligada**: em `SUBSCRIPTION_CREATED` (após gravar o
   `asaas_subscription_id`), o servidor consulta `GET /v3/fiscalInfo/`; se `ok`,
   faz `POST /v3/subscriptions/{id}/invoiceSettings` com

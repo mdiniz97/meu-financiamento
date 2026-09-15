@@ -36,6 +36,14 @@ describe('assertSameOrigin', () => {
     await expect(assertSameOrigin()).rejects.toThrow(/origem/i);
   });
 
+  it('bloqueia quando o esquema diverge (http vs https) com host igual', async () => {
+    m.headers.mockResolvedValue(
+      headerMap({ origin: 'http://app.example', host: 'app.example' })
+    );
+
+    await expect(assertSameOrigin()).rejects.toThrow(/esquema/i);
+  });
+
   it('bloqueia quando o host do header diverge do APP_URL', async () => {
     m.headers.mockResolvedValue(
       headerMap({ origin: 'https://app.example', host: 'evil.example' })

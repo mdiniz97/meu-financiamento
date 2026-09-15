@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getTableColumns, getTableName } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import * as schema from './schema';
 
 describe('schema Asaas', () => {
@@ -21,5 +22,12 @@ describe('schema Asaas', () => {
     expect(cols.asaasSubscriptionId.name).toBe('asaas_subscription_id');
     expect(cols.graceUntil.name).toBe('grace_until');
     expect(cols.cancelAtPeriodEnd.name).toBe('cancel_at_period_end');
+  });
+
+  it('invoices tem índice em user_id', () => {
+    const cfg = getTableConfig(schema.invoices);
+    const idx = cfg.indexes.find((i) => i.config.name === 'invoices_user_id_idx');
+    expect(idx).toBeDefined();
+    expect(idx!.config.columns.map((c) => (c as { name: string }).name)).toEqual(['user_id']);
   });
 });

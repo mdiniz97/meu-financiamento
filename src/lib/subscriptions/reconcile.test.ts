@@ -4,10 +4,13 @@ const mocks = vi.hoisted(() => ({
   findManySubs: vi.fn(),
   findManyPayments: vi.fn(),
   findManyWebhookEvents: vi.fn(),
+  findManySubEvents: vi.fn(),
   processWebhookEvent: vi.fn(),
   update: vi.fn(),
   set: vi.fn(),
   where: vi.fn(),
+  del: vi.fn(),
+  delWhere: vi.fn(),
   getSubscription: vi.fn(),
   asaasFetch: vi.fn(),
   getAsaasConfig: vi.fn(),
@@ -19,13 +22,16 @@ vi.mock('@/db', () => ({
       subscriptions: { findMany: mocks.findManySubs },
       payments: { findMany: mocks.findManyPayments },
       webhookEvents: { findMany: mocks.findManyWebhookEvents },
+      subscriptionEvents: { findMany: mocks.findManySubEvents },
     },
     update: mocks.update,
+    delete: mocks.del,
   },
   schema: {
     subscriptions: { id: 'id', status: 'status', asaasSubscriptionId: 'asaasSubscriptionId' },
     payments: { id: 'id', status: 'status', dueDate: 'dueDate' },
     webhookEvents: { id: 'id', processedAt: 'processedAt', attempts: 'attempts' },
+    subscriptionEvents: { id: 'id', createdAt: 'createdAt' },
   },
 }));
 vi.mock('drizzle-orm', () => ({
@@ -57,10 +63,13 @@ beforeEach(() => {
   mocks.findManySubs.mockReset().mockResolvedValue([]);
   mocks.findManyPayments.mockReset().mockResolvedValue([]);
   mocks.findManyWebhookEvents.mockReset().mockResolvedValue([]);
+  mocks.findManySubEvents.mockReset().mockResolvedValue([]);
   mocks.processWebhookEvent.mockReset().mockResolvedValue(undefined);
   mocks.set.mockReset().mockReturnValue({ where: mocks.where });
   mocks.where.mockReset().mockResolvedValue([]);
   mocks.update.mockReset().mockReturnValue({ set: mocks.set });
+  mocks.delWhere.mockReset().mockResolvedValue([]);
+  mocks.del.mockReset().mockReturnValue({ where: mocks.delWhere });
   mocks.getSubscription.mockReset();
   mocks.asaasFetch.mockReset();
   mocks.getAsaasConfig
@@ -298,5 +307,30 @@ describe('reconcileSubscriptions', () => {
 
     expect(mocks.processWebhookEvent).toHaveBeenCalledTimes(2);
     expect(out).toEqual({ checked: 0, updated: 0 });
+  });
+
+  it('remove subscription_events antigos em lote limitado', async () => {
+    mocks.findManySubEvents.mockResolvedValue([{ id: 'e1' }, { id: 'e2' }]);
+
+    await reconcileSubscriptions(now);
+
+    const arg = mocks.findManySubEvents.mock.calls[0][0] as { limit?: number };
+    expect(arg.limit).toBe(1000);
+    expect(mocks.del).toHaveBeenCalledTimes(1);
+    expect(mocks.delWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it('não apaga nada quando não há subscription_events antigos', async () => {
+    mocks.findManySubEvents.mockResolvedValue([]);
+
+    await reconcileSubscriptions(now);
+
+    expect(mocks.del).not.toHaveBeenCalled();
+  });
+
+  it('falha ao limpar subscription_events não aborta a reconciliação', async () => {
+    mocks.findManySubEvents.mockRejectedValue(new Error('db down'));
+
+    await expect(reconcileSubscriptions(now)).resolves.toEqual({ checked: 0, updated: 0 });
   });
 });

@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { addCredits } from '@/lib/credits';
 import { isInvoiceEnabled } from '@/lib/payments/asaas/invoice-config';
+import { getAsaasConfig } from '@/lib/payments/asaas/config';
 import { configureInvoiceSettings, getFiscalInfo } from '@/lib/payments/asaas/subscription';
 import { addCycle } from './cycle';
 
@@ -454,6 +455,14 @@ async function configureInvoiceIfEnabled(
 ): Promise<void> {
   if (!isInvoiceEnabled()) return;
   try {
+    // NFS-e exige certificado digital real: configurar em sandbox/teste pode
+    // emitir nota fiscal de verdade. Só configura com ASAAS_ENV=production.
+    if (getAsaasConfig().env !== 'production') {
+      console.warn(
+        `[apply-event] ASAAS_ENV != production; NFS-e não configurada para ${asaasSubscriptionId}`
+      );
+      return;
+    }
     const fiscal = await getFiscalInfo();
     if (!fiscal.ok) {
       console.warn(

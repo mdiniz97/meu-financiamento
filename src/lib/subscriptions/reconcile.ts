@@ -12,6 +12,8 @@ const PAYMENT_LAG_DAYS = 2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_WEBHOOK_ATTEMPTS = 3;
 const WEBHOOK_RETRY_LIMIT = 50;
+const SUBSCRIPTION_EVENT_RETENTION_DAYS = 90;
+const SUBSCRIPTION_EVENT_DELETE_BATCH = 1000;
 
 interface SubscriptionPatch {
   status?: string;
@@ -23,6 +25,33 @@ interface SubscriptionPatch {
 function parseDueDate(value?: string | null): Date | null {
   if (!value) return null;
   return new Date(`${value}T00:00:00Z`);
+}
+
+/**
+ * Retenção de auditoria: remove `subscription_events` mais antigos que 90 dias,
+ * em lote limitado. Envolvido em try/catch para que uma falha de limpeza nunca
+ * derrube a reconciliação.
+ */
+async function pruneSubscriptionEvents(now: Date): Promise<void> {
+  try {
+    const cutoff = new Date(now.getTime() - SUBSCRIPTION_EVENT_RETENTION_DAYS * DAY_MS);
+    const stale = await db.query.subscriptionEvents.findMany({
+      columns: { id: true },
+      where: lt(schema.subscriptionEvents.createdAt, cutoff),
+      limit: SUBSCRIPTION_EVENT_DELETE_BATCH,
+    });
+    if (stale.length === 0) return;
+    await db
+      .delete(schema.subscriptionEvents)
+      .where(
+        inArray(
+          schema.subscriptionEvents.id,
+          stale.map((row) => row.id)
+        )
+      );
+  } catch (e) {
+    console.warn(`[reconcile] falha ao limpar subscription_events: ${String(e)}`);
+  }
 }
 
 export async function reconcileSubscriptions(
@@ -143,6 +172,8 @@ export async function reconcileSubscriptions(
       }
     }
   }
+
+  await pruneSubscriptionEvents(now);
 
   return { checked, updated };
 }

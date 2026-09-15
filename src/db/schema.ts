@@ -278,6 +278,7 @@ export const invoices = pgTable(
   (table) => [
     index('invoices_subscription_id_idx').on(table.subscriptionId),
     index('invoices_asaas_payment_id_idx').on(table.asaasPaymentId),
+    index('invoices_user_id_idx').on(table.userId),
   ]
 );
 

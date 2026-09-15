@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   addCredits: vi.fn(),
   getFiscalInfo: vi.fn(),
   configureInvoiceSettings: vi.fn(),
+  getAsaasConfig: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -60,6 +61,10 @@ vi.mock('@/lib/payments/asaas/subscription', () => ({
   configureInvoiceSettings: mocks.configureInvoiceSettings,
 }));
 
+vi.mock('@/lib/payments/asaas/config', () => ({
+  getAsaasConfig: mocks.getAsaasConfig,
+}));
+
 vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
   and: (...args: unknown[]) => args,
@@ -81,10 +86,13 @@ let byCheckout: Row | null;
 let byId: Row | null;
 let updateChains: ReturnType<typeof chain>[];
 const originalInvoiceFlag = process.env.ASAAS_INVOICE_ENABLED;
+const originalAsaasEnv = process.env.ASAAS_ENV;
 
 afterEach(() => {
   if (originalInvoiceFlag === undefined) delete process.env.ASAAS_INVOICE_ENABLED;
   else process.env.ASAAS_INVOICE_ENABLED = originalInvoiceFlag;
+  if (originalAsaasEnv === undefined) delete process.env.ASAAS_ENV;
+  else process.env.ASAAS_ENV = originalAsaasEnv;
 });
 
 const routeFindSub = async ({ where }: { where: { col: unknown } }) => {
@@ -113,6 +121,7 @@ const setPatch = (c: ReturnType<typeof chain>) =>
 
 beforeEach(() => {
   delete process.env.ASAAS_INVOICE_ENABLED;
+  delete process.env.ASAAS_ENV;
   byProvider = null;
   byCheckout = null;
   byId = null;
@@ -121,6 +130,10 @@ beforeEach(() => {
   mocks.getFiscalInfo.mockResolvedValue({ ok: true });
   mocks.configureInvoiceSettings.mockReset();
   mocks.configureInvoiceSettings.mockResolvedValue(undefined);
+  mocks.getAsaasConfig.mockReset();
+  mocks.getAsaasConfig.mockImplementation(() => ({
+    env: process.env.ASAAS_ENV ?? 'sandbox',
+  }));
   mocks.findSub.mockReset();
   mocks.findSub.mockImplementation(routeFindSub);
   mocks.findEvent.mockReset();
@@ -1066,8 +1079,9 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
     expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
   });
 
-  it('flag on + fiscal ok configura invoiceSettings e grava invoiceConfiguredAt', async () => {
+  it('flag on + produção + fiscal ok configura invoiceSettings e grava invoiceConfiguredAt', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
     byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
 
     await applyAsaasEvent(createdEvent());
@@ -1076,6 +1090,22 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
     expect(mocks.configureInvoiceSettings).toHaveBeenCalledWith('sub_1');
     const patches = updateChains.map(setPatch);
     expect(patches.some((p) => p.invoiceConfiguredAt instanceof Date)).toBe(true);
+  });
+
+  it('sandbox: não configura invoiceSettings nem consulta fiscalInfo', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'sandbox';
+    byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
+
+    expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
+    expect(mocks.getFiscalInfo).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    // o SUBSCRIPTION_CREATED segue gravando providerId normalmente
+    expect(updateChains.some((c) => 'providerId' in setPatch(c))).toBe(true);
+    warn.mockRestore();
   });
 
   it('flag on + fiscal 404 (ok:false) loga e segue sem configurar', async () => {
