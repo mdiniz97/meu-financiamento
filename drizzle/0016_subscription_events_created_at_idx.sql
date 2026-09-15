@@ -1,0 +1,1 @@
+CREATE INDEX "subscription_events_created_at_idx" ON "subscription_events" USING btree ("created_at");

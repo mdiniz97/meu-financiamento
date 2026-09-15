@@ -113,6 +113,13 @@
       "when": 1789440752740,
       "tag": "0015_invoices_user_id_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789441028923,
+      "tag": "0016_subscription_events_created_at_idx",
+      "breakpoints": true
     }
   ]
 }

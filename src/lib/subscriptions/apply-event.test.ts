@@ -1110,12 +1110,14 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
 
   it('flag on + fiscal 404 (ok:false) loga e segue sem configurar', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
     byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
     mocks.getFiscalInfo.mockResolvedValue({ ok: false });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
 
+    expect(mocks.getFiscalInfo).toHaveBeenCalledTimes(1);
     expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
     expect(updateChains.some((c) => 'providerId' in setPatch(c))).toBe(true);
     warn.mockRestore();
@@ -1123,24 +1125,29 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
 
   it('erro na config não derruba o SUBSCRIPTION_CREATED', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
     byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
     mocks.configureInvoiceSettings.mockRejectedValue(new Error('asaas down'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
 
+    expect(mocks.getFiscalInfo).toHaveBeenCalledTimes(1);
+    expect(mocks.configureInvoiceSettings).toHaveBeenCalledWith('sub_1');
     expect(updateChains.some((c) => 'providerId' in setPatch(c))).toBe(true);
     warn.mockRestore();
   });
 
   it('getFiscalInfo com erro não-404 também não derruba o evento', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
     byCheckout = { id: 'sub-1', userId: 'user-1', cycle: 'YEARLY', currentPeriodEnd: null };
     mocks.getFiscalInfo.mockRejectedValue(new Error('boom'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(applyAsaasEvent(createdEvent())).resolves.toBeUndefined();
 
+    expect(mocks.getFiscalInfo).toHaveBeenCalledTimes(1);
     expect(mocks.configureInvoiceSettings).not.toHaveBeenCalled();
     warn.mockRestore();
   });

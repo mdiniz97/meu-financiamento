@@ -296,7 +296,10 @@ export const subscriptionEvents = pgTable(
     result: text('result').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('subscription_events_user_id_idx').on(table.userId)]
+  (table) => [
+    index('subscription_events_user_id_idx').on(table.userId),
+    index('subscription_events_created_at_idx').on(table.createdAt),
+  ]
 );
 
 export type SubscriptionEvent = typeof subscriptionEvents.$inferSelect;
