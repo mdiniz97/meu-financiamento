@@ -1,0 +1,34 @@
+# Imagem Docker — exclui o que nunca deve entrar no build (segredos e artefatos).
+**/node_modules
+**/.next
+**/out
+**/build
+
+# segredos e configs locais
+.env
+.env.*
+!.env.example
+
+# git e metadados
+.git
+.gitignore
+.github
+.vercel
+.opencode
+.superpowers
+.worktree
+.worktrees
+.venv
+
+# testes e artefatos
+coverage
+test-results
+playwright-report
+e2e
+
+# ruído local
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+pnpm-lock.yaml
+*.xlsx

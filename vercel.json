@@ -1,7 +1,0 @@
-{
-  "framework": "nextjs",
-  "crons": [
-    { "path": "/api/cron/reconcile", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/dunning", "schedule": "0 7 * * *" }
-  ]
-}

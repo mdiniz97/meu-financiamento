@@ -1,492 +1,396 @@
-# Deploy — Vercel + Neon
+# Deploy — Railway + Neon + Cloudflare + Asaas
 
-Guia passo a passo para publicar o **amortiza.me** em produção (Vercel)
-com banco Postgres gerenciado (Neon).
+Guia de produção do **amortiza.me**: app Next.js 16 (App Router) em container
+**Railway**, banco Postgres gerenciado no **Neon**, borda/DNS/WAF no
+**Cloudflare** e cobrança/assinaturas no **Asaas**.
+
+> Este documento substitui o guia antigo (Vercel). O `vercel.json` foi
+> **removido** — o Railway não lê esse arquivo e manter os dois implicaria que a
+> Vercel ainda é o alvo. Os schedules dos crons estão documentados abaixo.
 
 ## Arquitetura
 
-| Camada  | Tecnologia | Observação |
-| ------- | ---------- | ---------- |
-| Front/API | Next.js 16 (App Router) | Runtime **Node.js** (padrão) — nenhuma rota usa `export const runtime = 'edge'`, e o `pg` (node-postgres) é compatível. **Não usar edge runtime.** |
-| Banco | Postgres (Neon) | Acesso via `drizzle-orm/node-postgres` (`src/db/index.ts`). Porta padrão **5432**. |
-| Auth | NextAuth v5 + JWT | Assinado por `AUTH_SECRET`. |
-| Pagamento | Provider via env `PAYMENT_PROVIDER` | `fake` (só dev), `stripe` ou `asaas` (ver aviso abaixo). |
+| Camada | Tecnologia | Observação |
+| ------ | ---------- | ---------- |
+| App/API | Next.js 16 (App Router, RSC, Server Actions, `after()`) | Runtime **Node.js**. Nenhuma rota usa `export const runtime = 'edge'`; o `pg` (node-postgres) e o `@react-pdf/renderer` exigem Node. |
+| Processo | Docker (`output: 'standalone'`) no Railway | Processo Node **de vida longa** — `db.transaction` e `pg.Pool` funcionam normalmente. |
+| Banco | Postgres (Neon) | App usa a conexão **POOLED** (`DATABASE_URL`); migrações usam a **UNPOOLED** (`DATABASE_URL_UNPOOLED`). |
+| Auth | NextAuth v5 + JWT | Sessão assinada por `AUTH_SECRET`; login de produção é só Google. |
+| Pagamento | Asaas | Provider selecionado por `PAYMENT_PROVIDER=asaas`. |
+| Borda | Cloudflare (proxy laranja) | DNS, WAF, CDN. Origem: domínio custom do Railway. |
 
-`next.config.ts` já declara `serverExternalPackages: ['@react-pdf/renderer']`
-(necessário para o export de PDF — funciona no runtime Node da Vercel, sem
-configuração extra).
+## O que mudou em relação à Vercel
 
-## Portas e URLs de conexão
+| Item | Vercel | Railway |
+| ---- | ------ | ------- |
+| Build | gerenciado pelo framework | `Dockerfile` multi-stage (`output: 'standalone'`) |
+| Start | automático | `node server.js` (`railway.json`) |
+| Healthcheck | — | `GET /api/health` (novo, sem tocar no banco) |
+| Migrações | passo manual | **release step** (`preDeployCommand`, roda antes de trocar o tráfego) |
+| Cron | `vercel.json` | **Railway Cron Jobs** (serviços separados) |
+| Segredos | `vercel env` | variáveis do serviço no Railway |
 
-| Ambiente | URL | Porta |
-| -------- | --- | ----- |
-| Local (docker-compose) | `postgres://postgres:postgres@localhost:5433/financiamento` | **5433** (mapeada para 5432 do container) |
-| CI (GitHub Actions) | service container | **5432** |
-| Neon / Vercel | `postgresql://<user>:<pass>@ep-*.neon.tech/<db>?sslmode=require` | **5432** |
+## Artefatos de deploy no repositório
 
-> A porta local (5433) é **só para dev**. Nunca use a string local em deploy.
+| Arquivo | Papel |
+| ------- | ----- |
+| `Dockerfile` | Imagem Node 22 multi-stage: `deps` → `builder` (`npm ci` + `npm run build`) → `runner` (não-root). Copia `.next/standalone`, `.next/static` e `public/`. |
+| `.dockerignore` | Exclui `node_modules`, `.next`, `.env*` (segredos), testes, planilhas etc. |
+| `railway.json` | Builder Dockerfile, start `node server.js`, healthcheck `/api/health`, release step de migração, restart policy. |
+| `next.config.ts` | `output: 'standalone'` + `serverExternalPackages: ['@react-pdf/renderer']` + headers de segurança. |
+| `src/app/api/health/route.ts` | Healthcheck leve (`{ ok: true }`, `no-store`), sem banco. |
+| `scripts/migrate.mjs` | Migrador de runtime (`drizzle-orm/node-postgres/migrator`) — não precisa de `drizzle-kit` na imagem final. |
+| `drizzle.config.ts` | Prefere `DATABASE_URL_UNPOOLED ?? DATABASE_URL` (dev/CI cai no fallback). |
 
 ## Pré-requisitos
 
-- Node.js 20+
-- Conta em [neon.tech](https://neon.tech) e [vercel.com](https://vercel.com)
-- CLI do Vercel: `npm i -g vercel`
+- Conta no [Railway](https://railway.app), projeto no [Neon](https://neon.tech) e conta Cloudflare com o domínio `amortiza.me`.
+- Conta Asaas (produção) com chave de API e dados do webhook.
+- Node.js 22+ e Docker local (para testar a imagem) — opcional.
 
-## Passo 1 — Criar projeto Neon e buscar a connection string
+## Passo 1 — Neon (pooled vs. unpooled)
 
-1. Em https://console.neon.tech → **New Project** (nome sugerido: `meu-financiamento`, região próxima aos usuários, ex. `São Paulo (sa-east-1)`).
-2. Na aba **Connect**, copie a connection string do Postgres (formato `postgresql://...neon.tech/...?sslmode=require`).
-   - A string padrão do Neon já traz `sslmode=require`, suportado pelo driver `pg`. Se ocorrer erro de SSL, adicione `?sslmode=require` ao final da URL.
+No console do Neon, aba **Connect**, copie **duas** strings do mesmo banco/role:
 
-## Passo 2 — Migrar e popular o banco (localmente, apontando para o Neon)
+- **Pooled** (host com `-pooler`) → `DATABASE_URL`. O app é um processo Node de
+  vida longa com `pg.Pool`; o pooler do Neon (PgBouncer) atende bem esse padrão.
+- **Unpooled** (host sem `-pooler`) → `DATABASE_URL_UNPOOLED`. Usada **só** por
+  migrações (DDL via pooler é problemático).
 
-Na raiz do projeto, rodar migrações e seed **com a URL do Neon** (não a local):
+Ambas já trazem `sslmode=require`. Seed inicial (idempotente, uma vez, apontando
+para o Neon):
 
 ```bash
-DATABASE_URL="postgresql://...neon.tech/...?sslmode=require" npm run db:migrate
-DATABASE_URL="postgresql://...neon.tech/...?sslmode=require" npx tsx src/db/seed.ts
+DATABASE_URL_UNPOOLED="postgresql://...neon.tech/...?sslmode=require" npm run db:migrate
+DATABASE_URL_UNPOOLED="postgresql://...neon.tech/...?sslmode=require" npx tsx src/db/seed.ts
 ```
 
-- `db:migrate` = `drizzle-kit migrate` (aplica as migrações em `drizzle/`).
-- `seed.ts` insere os packs `credits10` (10 créditos) e `unlimited` (assinatura) — idempotente (`onConflictDoNothing`).
-- Verifique no console do Neon: tabelas criadas + tabela `packs` com 2 linhas.
+> O seed insere os packs `credits10` e `unlimited` (`onConflictDoNothing`).
+> **Assinaturas**: confirme a migração `0010_asaas_subscriptions.sql` aplicada
+> ANTES de ligar `PAYMENT_PROVIDER=asaas` (cria `webhook_events`,
+> `subscriptions.asaas_*` e `payments`).
 
-> Migrações **não** rodam automaticamente no deploy. Em toda mudança de schema,
-> repita este passo (ou `vercel run npm run db:migrate`, que usa as variáveis do projeto).
+## Passo 2 — Railway
 
-> **Assinaturas (Asaas): rode a migração `0010_asaas_subscriptions.sql` ANTES do
-> deploy** que liga as assinaturas (`ASAAS_*` + `PAYMENT_PROVIDER=asaas`). Ela cria
-> `webhook_events`, `subscriptions.asaas_*` e `payments`. Deploy sem ela → o
-> endpoint do webhook e o cron de dunning quebram ao consultar as tabelas.
+### 2.1 Serviço
 
-## Passo 3 — Conectar a Vercel e configurar variáveis de ambiente
+1. **New Project → Deploy from GitHub repo** (branch `main`).
+2. O Railway detecta o `railway.json` e usa o **Dockerfile**.
+3. Cada push em `main` gera um novo deploy; o release step roda as migrações
+   antes do tráfego ser trocado.
 
-```bash
-vercel login
-vercel link          # escolha o projeto (ou crie novo) e o scope
+### 2.2 Variáveis de ambiente
+
+Defina no serviço (Settings → Variables). Lista completa na seção
+[Variáveis](#variáveis-ambiente) abaixo. Mínimo para subir:
+
+```
+DATABASE_URL            # pooled (Neon)
+DATABASE_URL_UNPOOLED   # unpooled (Neon) — usada pelas migrações
+AUTH_SECRET             # openssl rand -base64 32 (estável)
+AUTH_URL                # https://amortiza.me
+AUTH_GOOGLE_ID
+AUTH_GOOGLE_SECRET
+PAYMENT_PROVIDER        # asaas
+APP_URL                 # https://amortiza.me
+CRON_SECRET             # openssl rand -hex 32
+ASAAS_ENV               # production
+ASAAS_API_KEY
+ASAAS_WEBHOOK_AUTH_TOKEN
 ```
 
-Adicionar as variáveis para os ambientes **preview** e **production**:
+> **`PORT` e `HOSTNAME`**: o Railway injeta `PORT`; o `Dockerfile` já define
+> `HOSTNAME=0.0.0.0` e o server standalone escuta em `0.0.0.0:$PORT`. Não
+> sobrescreva. **Não defina `NODE_ENV`** (o Dockerfile fixa `production`).
 
-```bash
-vercel env add DATABASE_URL preview     # connection string do Neon (idem para production)
-vercel env add AUTH_SECRET preview      # mesmo valor nos dois ambientes
-vercel env add AUTH_GOOGLE_ID preview       # id do OAuth Google (idem para production)
-vercel env add AUTH_GOOGLE_SECRET preview   # secret do OAuth Google (idem para production)
-vercel env add PAYMENT_PROVIDER preview # fake
-vercel env add PAYMENT_PROVIDER production  # fake (ver AVISO) — trocar por stripe|asaas antes do lançamento
+### 2.3 `railway.json`
 
-# Asaas (assinaturas) — só necessárias quando PAYMENT_PROVIDER=asaas
-vercel env add ASAAS_ENV production              # sandbox | production
-vercel env add ASAAS_BASE_URL production         # https://api.asaas.com/v3 (prod) ou ...sandbox...
-vercel env add ASAAS_API_KEY production          # chave do ambiente (ver pegadinha do $ abaixo)
-vercel env add ASAAS_WEBHOOK_AUTH_TOKEN production  # token do header asaas-access-token, mín. 32 chars
-vercel env add ASAAS_WEBHOOK_IP_ALLOWLIST production  # opcional: CSV de IPs do Asaas (ver Segurança do webhook)
-vercel env add APP_URL production                # https://amortiza.me (base do webhook/callbacks)
-vercel env add CRON_SECRET production            # openssl rand -hex 32 (protege /api/cron/dunning)
+```json
+{
+  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "deploy": {
+    "startCommand": "node server.js",
+    "preDeployCommand": "node scripts/migrate.mjs",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
 ```
 
-| Variável | Valor | Detalhe |
-| -------- | ----- | ------- |
-| `DATABASE_URL` | connection string do Neon | mesma para preview e production |
-| `AUTH_SECRET` | `openssl rand -base64 32` | **mesmo valor nos dois ambientes** — se mudar, todas as sessões são invalidadas |
-| `AUTH_GOOGLE_ID` | id do OAuth Google | credenciais em console.cloud.google.com |
-| `AUTH_GOOGLE_SECRET` | secret do OAuth Google | mesmo valor nos dois ambientes |
-| `PAYMENT_PROVIDER` | `fake` | dev/preview; em produção ver AVISO abaixo |
-| `ASAAS_ENV` | `sandbox` \| `production` | escolhe a base URL default; sem `ASAAS_BASE_URL` usa a do ambiente |
-| `ASAAS_BASE_URL` | `https://api.asaas.com/v3` | produção; sandbox = `https://api-sandbox.asaas.com/v3` |
-| `ASAAS_API_KEY` | `$aact_prod_...` | **pegadinha do `$`** (abaixo); nunca versionar |
-| `ASAAS_WEBHOOK_AUTH_TOKEN` | `openssl rand -base64 48` | mínimo 32 chars; é o `authToken` do webhook, **não** a API key |
-| `ASAAS_WEBHOOK_IP_ALLOWLIST` | CSV de IPs (opcional) | vazio = não bloqueia por IP; em produção use os 4 IPs oficiais (ver Segurança do webhook) |
-| `APP_URL` | `https://amortiza.me` | base de `${APP_URL}/api/asaas/webhook` e das callbacks do checkout |
-| `CRON_SECRET` | `openssl rand -hex 32` | protege `/api/cron/dunning` |
+- **`preDeployCommand`**: roda na mesma imagem, antes do release. Usa
+  `DATABASE_URL_UNPOOLED ?? DATABASE_URL`. Se falhar, o deploy **não** promove.
+- **Healthcheck** `/api/health`: leve e sem banco (o schema já foi migrado no
+  release step), evita falso negativo em cold start do Neon.
 
-### Pegadinha do `$` na `ASAAS_API_KEY`
+### 2.4 Domínio custom
 
-A chave sandbox (`$aact_hmlg_...`) e a de produção (`$aact_prod_...`) começam com
-`$`, que o shell **e** o `@next/env`/dotenv-expand interpretam como expansão de
-variável. Aspas simples/duplas **não** resolvem (o dotenv-expand remove as aspas
-e depois expande). Sem escapismo a variável chega VAZIA e a API responde `401` —
-mesmo com a chave visível no arquivo. A única forma que sobrevive é escapar com
-`\` **no valor**:
+1. Railway → Settings → **Networking → Custom Domain**: adicione `amortiza.me`
+   (e, se quiser, `www`).
+2. O Railway emite um certificado de origem; anote o **CNAME/TXT** de validação.
+3. Configure no Cloudflare (Passo 3) e só então valide o domínio no Railway.
+
+## Passo 3 — Cloudflare (DNS/WAF/CDN)
+
+Nenhuma mudança é feita por este repositório; os passos abaixo são de painel.
+
+### 3.1 DNS
+
+- Registro `CNAME` de `@`/`amortiza.me` para o alvo do Railway, **Proxy status =
+  Proxied** (nuvem laranja). Idem para `www` se existir.
+
+### 3.2 SSL/TLS — modo **Full** (end-to-end)
+
+- Cloudflare → SSL/TLS → Overview: **Full**. O Railway **exige `Full`** (e não
+  `Full (Strict)`) quando o proxy Cloudflare está ligado — a doc do Railway é
+  explícita: com proxy, *"Full (Strict) will not work as intended"*.
+- Habilite **Always Use HTTPS** e **Automatic HTTPS Rewrites**.
+- **Não** use "Flexible" (quebraria cookies `Secure` e o HSTS do app).
+- O app já envia HSTS (`max-age=63072000; includeSubDomains; preload`). Só envie
+  para preload no Cloudflare **se** tiver certeza de que todos os subdomínios
+  são HTTPS.
+
+### 3.3 WAF — restringir `/api/asaas/webhook` aos IPs do Asaas
+
+Crie uma regra (Security → WAF → Custom rules):
+
+- **Expressão**: `(http.request.uri.path eq "/api/asaas/webhook" and not ip.src in {52.67.12.206 18.230.8.159 54.94.136.112 54.94.183.101})`
+- **Ação**: `Block`.
+
+Isso é o **espelho na borda** da allowlist opcional do app
+(`ASAAS_WEBHOOK_IP_ALLOWLIST`, mesmo CSV). Se a regra WAF estiver ativa, a env do
+app pode ficar **vazia** (defense-in-depth em um lugar só); se preferir cinto e
+suspensório, configure as duas.
+
+> **Importante (origem acessível):** o domínio padrão `*.up.railway.app`
+> continua público e **não** passa pelo Cloudflare. Um atacante que descubra esse
+> host pode chamar `/api/asaas/webhook` direto e forjar `x-forwarded-for`. Para
+> tornar a allowlist por IP confiável, **restrinja o acesso à origem** (ex.:
+> desabilitar o domínio público do Railway, usar um domínio só exposto via
+> Cloudflare, ou aceitar que o `asaas-access-token` é a defesa primária).
+> Enquanto isso, a regra WAF continua válida para o tráfego via `amortiza.me`.
+
+### 3.4 Cache e cabeçalhos
+
+Crie uma **Cache Rule** (Caching → Cache Rules) para `amortiza.me/api/*` com
+**Bypass cache**. Motivos:
+
+- As rotas `/api/*` são dinâmicas e sensíveis a sessão; cachear vaza dados entre
+  usuários.
+- O webhook do Asaas e os crons **não podem** ser cacheados.
+- `Set-Cookie` deve passar **intacto** (o app usa cookies de sessão do
+  NextAuth). **Não** habilite "Cache Everything" em `/api/*` nem transformações
+  que removam cookies.
+
+O Next já marca páginas dinâmicas com `Cache-Control: private, no-cache,
+no-store`; o Cloudflare respeita isso quando não há cache forçado. Assets
+imutáveis (`/_next/static/*`, `/_next/image`) já vêm com `immutable` e são
+seguros de cachear.
+
+### 3.5 Proxy, IP do cliente e streaming
+
+- O app lê o cliente em `x-forwarded-for` (primeiro valor) e `x-real-ip`. O
+  Cloudflare sobrescreve `x-forwarded-for` com o IP real, então a allowlist do
+  Asaas funciona **atrás** do proxy. **Não** confie nesse header se a origem for
+  alcançável diretamente (ver 3.3).
+- App Router usa streaming: mantenha o Cloudflare sem buffering agressivo.
+  O Cloudflare não faz buffering que quebre streaming por padrão; se adicionar
+  regras, evite transformações na resposta HTML.
+
+## Passo 4 — Asaas
+
+### 4.1 Registrar o webhook (uma vez por ambiente)
+
+Com `ASAAS_ENV=production`, `ASAAS_API_KEY`, `ASAAS_WEBHOOK_AUTH_TOKEN`,
+`APP_URL=https://amortiza.me` e `WEBHOOK_ADMIN_EMAIL` no ambiente local:
 
 ```bash
-# .env / .env.local (lido por @next/env/dotenv-expand → precisa do \)
-ASAAS_API_KEY=\$aact_hmlg_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# Vercel: a plataforma injeta process.env direto, SEM dotenv-expand — grave o
-# valor REAL (sem `\`). Só impeça o shell local de expandir usando aspas simples:
-vercel env add ASAAS_API_KEY production <<< '$aact_prod_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-```
-
-Resumo: `\$` **apenas** dentro de arquivos `.env`/`.env.local`; na Vercel, chave crua.
-
-Não defina `NODE_ENV` — a Vercel e o Next.js gerenciam (`production` em todo
-deploy, inclusive preview). O `PAYMENT_PROVIDER=fake` + `NODE_ENV=production`
-faz o guard do `getPaymentProvider` lançar erro — ver AVISO.
-
-**Login em produção é somente Google** (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`):
-o cadastro por email/senha fica desativado (rota `/cadastro` redireciona para
-`/login` e a API `/api/signup` responde 403). Cada conta Google cria um
-usuário local com bônus único de 2 créditos — reentrar com a mesma conta
-Google reutiliza o usuário, impedindo farming de créditos. Em desenvolvimento
-o email/senha continua ativo para facilitar testes. No console do Google,
-adicione as callback URLs `https://<projeto>.vercel.app/api/auth/callback/google`
-(preview) e `https://<dominio>/api/auth/callback/google` (produção).
-
-## Passo 4 — Deploy
-
-```bash
-vercel             # deploy de preview (URL *.vercel.app)
-vercel --prod      # deploy de produção
-```
-
-Ou conecte o repositório no painel da Vercel (GitHub) para deploy automático:
-push em `main` → produção, PR → preview.
-
-## Registrar o webhook do Asaas (produção)
-
-Depois do deploy com `PAYMENT_PROVIDER=asaas` e `APP_URL` corretos, registre o
-webhook uma vez por ambiente. O script é **idempotente**: consulta
-`GET /v3/webhooks`, localiza o webhook cuja `url` é `${APP_URL}/api/asaas/webhook`
-e, se existir, **atualiza** via `PUT /v3/webhooks/{id}`; senão cria via
-`POST /v3/webhooks` (DTO em `references/06-webhooks.md §2.1`). Só inclui os eventos
-da spec §7.2.
-
-```bash
-# com ASAAS_ENV=production/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local
 npx tsx scripts/register-asaas-webhook.ts
 # → webhook criado: wh_...   (ou "webhook atualizado: wh_..." se já existia)
 ```
 
-- `url` = `${APP_URL}/api/asaas/webhook`; `authToken` = `ASAAS_WEBHOOK_AUTH_TOKEN`
-  (o token **não** volta em consultas posteriores — guarde-o).
-- Sandbox e produção são independentes: rode o script apontando para cada ambiente.
-- O `email` configurado recebe os alertas de penalização/fila pausada (15 falhas
-  pausam a fila e eventos com +14 dias somem). Monitore `GET /v3/webhooks`.
-- **NFS-e**: o registro já inclui os 8 eventos `INVOICE_*` (inofensivos com a
-  feature desligada). Se o webhook de um ambiente foi criado antes desta mudança,
-  **rode o script** ao habilitar `ASAAS_INVOICE_ENABLED=true`: ele é idempotente e
-  **atualiza o webhook existente** (`PUT /v3/webhooks/{id}`) para que a assinatura
-  de eventos passe a incluir as notas, em vez de criar um duplicado; sem isso o
-  Asaas não envia `INVOICE_*` e as notas nunca aparecem em `invoices`.
-- **Créditos DETACHED**: a correlação dos `PAYMENT_*` de checkout avulso usa
-  `payment.checkoutSession`; confirme o campo no payload real **no sandbox** antes
-  de vender em produção (se o Asaas omitir `checkoutSession`, a compra não é
-  correlacionada e os créditos não são liberados).
+O script é idempotente: consulta `GET /v3/webhooks`, casa pela `url`
+`${APP_URL}/api/asaas/webhook` e faz `PUT` no existente ou `POST` se não houver.
+Valide com `GET /v3/webhooks` (`enabled: true`, `interrupted: false`).
 
-## Segurança do webhook
+### 4.2 Auditoria de segurança/comportamento (código)
 
-O endpoint `/api/asaas/webhook` valida o header `asaas-access-token` (comparação
-em tempo constante). Como **defesa em profundidade** contra um token vazado, há
-uma allowlist de IP de origem **opt-in**, controlada por
-`ASAAS_WEBHOOK_IP_ALLOWLIST`:
+| Tema | Como está no código | Arquivo |
+| ---- | ------------------- | ------- |
+| Autenticação do webhook | Header `asaas-access-token` comparado em **tempo constante** (`timingSafeEqual`, tamanho igual). Sem token/segredo → nega. | `src/lib/payments/asaas/webhook.ts` |
+| Allowlist de IP (opcional) | `ASAAS_WEBHOOK_IP_ALLOWLIST` vazia = não bloqueia; preenchida = 403 antes de validar o token, usando o 1º IP de `x-forwarded-for`/`x-real-ip`. | `src/app/api/asaas/webhook/route.ts` |
+| Idempotência | `webhook_events.asaas_event_id` é **UNIQUE**; `insert ... onConflictDoNothing` descarta reentrega. Só processa se a linha foi criada. | `webhook_events` (schema) |
+| Processamento assíncrono | `after(() => processWebhookEvent(rowId))` — responde 200 rápido e processa em background (suportado no self-host com `next start`/standalone). | `src/app/api/asaas/webhook/route.ts` |
+| Retries/reprocessamento | Eventos com `processed_at IS NULL` são reprocessados pelo cron de **reconcile** (falha do `after()`/queda do processo). `attempts` e `last_error` ficam gravados. | `src/lib/subscriptions/reconcile.ts`, `processWebhookEvent` |
+| Persistência de eventos | `webhook_events` guarda payload **sanitizado** (remove CVV/CVC/token e `customerData`; cartão mascarado nos 4 últimos). | `src/lib/subscriptions/apply-event.ts` |
+| Assinatura | `CHECKOUT_*`/`SUBSCRIPTION_*`/`PAYMENT_*` correlacionam por `providerId → asaasCheckoutId → externalReference`; renovação **estende** o período, nunca encolhe; acesso só em `PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`. | `applyAsaasEvent` |
+| Créditos avulsos | `DETACHED` libera crédito com descrição estável `Compra créditos (providerId pay_)` sob índice único parcial — replay não duplica. | `applyCreditPurchase` |
+| NFS-e | **Gated** por `ASAAS_INVOICE_ENABLED=true`; configura só com `ASAAS_ENV=production`; upsert de `INVOICE_*` por `asaas_invoice_id`. | `applyInvoiceEvent`, `configureInvoiceIfEnabled` |
 
-- **Ausente ou vazia** → comportamento atual: nenhum bloqueio por IP (mantém
-  testes e sandbox funcionando).
-- **Preenchida** → CSV de IPs permitidos. O endpoint extrai o **primeiro** IP de
-  `x-forwarded-for` (o cliente, à esquerda da cadeia) ou, na ausência dele,
-  `x-real-ip`; se esse IP não pertencer à lista, responde `403 forbidden` **antes**
-  de validar o token.
+> NFS-e continua **desligada** (`ASAAS_INVOICE_ENABLED=false` por default) e não
+> é validável em sandbox nesta conta (exige certificado A1). Ver histórico no
+> guia anterior/`.env.example`.
 
-IPs oficiais de produção do Asaas (origem dos webhooks):
+## Crons no Railway
 
-```
-52.67.12.206, 18.230.8.159, 54.94.136.112, 54.94.183.101
-```
+Os dois jobs do extinto `vercel.json` viram **Railway Cron Jobs**. Os endpoints
+já são autenticados por `Authorization: Bearer $CRON_SECRET`
+(`src/lib/cron-auth.ts`) e aceitam `GET` ou `POST`.
 
-```bash
-vercel env add ASAAS_WEBHOOK_IP_ALLOWLIST production
-# valor: 52.67.12.206,18.230.8.159,54.94.136.112,54.94.183.101
-```
+| Job | Endpoint | Schedule (UTC) |
+| --- | -------- | -------------- |
+| Reconciliação de assinaturas + reprocesso de webhooks | `POST /api/cron/reconcile` | `0 6 * * *` |
+| Dunning (inadimplência/carência) | `POST /api/cron/dunning` | `0 7 * * *` |
 
-> **Sandbox tem IPs extras.** O Asaas sandbox envia webhooks de IPs adicionais
-> que não estão na lista de produção. **Não** configure a allowlist em sandbox
-> (deixe a env vazia), sob pena de o webhook ser rejeitado com `403` durante os
-> testes.
-
-**Rotação do `ASAAS_WEBHOOK_AUTH_TOKEN`**: o token é compartilhado entre Asaas e
-o deploy; se houver suspeita de vazamento, gere um novo
-(`openssl rand -base64 48`), atualize a env na Vercel (`vercel env add
-ASAAS_WEBHOOK_AUTH_TOKEN production`), faça o redeploy e **rode o script de
-registro** (`npx tsx scripts/register-asaas-webhook.ts`) para o Asaas passar a
-enviar o novo `authToken`. A allowlist de IP reduz a janela de exploração
-enquanto a rotação não é concluída, mas **não** substitui a rotação.
-
-## Créditos avulsos
-
-Compra de créditos fora do plano Ilimitado, via **Asaas Checkout `DETACHED`**
-(cartão **e** Pix). Não exige env nova — usa as mesmas chaves `ASAAS_*` e o
-`APP_URL` já configurados para as assinaturas.
-
-- **Checkout**: `POST /api/checkout` com `PAYMENT_PROVIDER=asaas` e um pack
-  **não-assinatura** (`isSubscription=false`) insere uma linha `pending` em
-  `credit_purchases` (migração `0011`) e chama `POST /v3/checkouts` com
-  `billingTypes: ['CREDIT_CARD','PIX']`, `chargeTypes: ['DETACHED']` e
-  `externalReference` = id local da compra (uuid). A resposta devolve
-  `{ checkoutUrl }` e o botão redireciona para a tela do Asaas.
-- **Liberação**: os créditos entram quando o pagamento confirma —
-  **cartão → `PAYMENT_CONFIRMED`**, **Pix → `PAYMENT_RECEIVED`** — no mesmo
-  webhook `/api/asaas/webhook` (ramo acionado quando nenhuma assinatura resolve).
-- **Idempotência por `pay_`**: o lançamento usa a descrição estável
-  `Compra créditos (providerId <pay_>)` sob o índice único parcial
-  `(user_id, kind='purchase', description)`; reentrega do mesmo pagamento não
-  credita de novo. A compra é `paid` também em curto-circuito, então o replay é
-  seguro mesmo se o índice for contornado.
-- **Nunca expiram**: créditos avulsos são saldo permanente (`credit_ledger`,
-  `kind='purchase'`). Assinantes Ilimitado também podem comprar — é saldo à parte.
-- `CHECKOUT_EXPIRED`/`CHECKOUT_CANCELED` marcam a compra como `expired`/`canceled`
-  e **não** liberam crédito. `PAYMENT_CREATED` é registrado sem liberar.
-- Pack de assinatura em `/api/checkout` responde `400` apontando `/assinar`.
-- O fluxo `PAYMENT_PROVIDER=fake` permanece intacto.
-
-Nada a configurar na Vercel além do que as assinaturas já exigem. Confirme que a
-migração `0011` está aplicada antes do deploy (ver Passo 2).
-
-## NFS-e (opcional)
-
-Emissão automática de **NFS-e por assinatura**, **desligada por padrão**. NÃO é
-necessária para vender; habilite só quando a contabilidade estiver pronta.
-
-- **Gate**: `isInvoiceEnabled()` é `true` apenas com
-  `ASAAS_INVOICE_ENABLED=true`. Com `false` (default) **nada** roda: nenhum
-  `GET /v3/fiscalInfo/`, nenhum `POST /v3/subscriptions/{id}/invoiceSettings`,
-  nenhum upsert de evento `INVOICE_*`.
-- **Pré-requisito fiscal** (sem isso a feature fica inerte): a conta Asaas precisa
-  de `fiscalInfo` configurado — `GET /v3/fiscalInfo/` respondendo **200**
-  (404 = conta sem configuração fiscal). É preciso também que a prefeitura aceite
-  a emissão da credencial.
-- **Credencial municipal**: nesta conta o município retornou
-  `authenticationType=CERTIFICATE`, ou seja, exige **certificado digital A1**
-  (arquivo `.pfx` + senha) cadastrado no Asaas. Por isso **não é validável em
-  sandbox nesta conta** — a ativação fica para quando houver certificado A1 e o
-  bloco de impostos preenchido pelo contador.
-- **Guarda de ambiente (sandbox)**: mesmo com a flag ligada, a configuração
-  automática de NFS-e **só roda com `ASAAS_ENV=production`**. Com `ASAAS_ENV=sandbox`
-  (ou ausente), o servidor loga um aviso e **retorna sem chamar**
-  `POST /v3/subscriptions/{id}/invoiceSettings` nem consultar `fiscalInfo` — assim
-  uma conta de teste nunca configura emissão (que poderia gerar NFS-e real com um
-  certificado A1 de verdade).
-- **Comportamento quando ligada**: em `SUBSCRIPTION_CREATED` (após gravar o
-  `asaas_subscription_id`), o servidor consulta `GET /v3/fiscalInfo/`; se `ok`,
-  faz `POST /v3/subscriptions/{id}/invoiceSettings` com
-  `{ effectiveDatePeriod, municipalServiceCode, municipalServiceName, taxes: { retainIss, iss, pis, cofins, csll, inss, ir } }`
-  e grava `subscriptions.invoice_configured_at`. Sem `fiscalInfo` (404) ou se a
-  configuração falhar, apenas loga um aviso — o wrapper é `try/catch` e **nunca**
-  derruba o webhook da assinatura.
-- **Eventos de nota**: `INVOICE_CREATED|INVOICE_UPDATED|INVOICE_SYNCHRONIZED|INVOICE_AUTHORIZED|INVOICE_PROCESSING_CANCELLATION|INVOICE_CANCELED|INVOICE_CANCELLATION_DENIED|INVOICE_ERROR`
-  fazem upsert em `invoices` (por `asaas_invoice_id`); só são processados com a
-  flag ligada. Painel/download da nota para o cliente **não** entra no MVP.
-
-Variáveis (bloco comentado no `.env.example`; nunca versionar valores reais):
-
-| Variável | Valor | Detalhe |
-| -------- | ----- | ------- |
-| `ASAAS_INVOICE_ENABLED` | `false` (default) \| `true` | único gatilho; só `true` exato habilita |
-| `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` | código do serviço | **obrigatório** com a flag ligada (falha no uso) |
-| `ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME` | nome do serviço | |
-| `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) \| `ON_PAYMENT_DUE_DATE` \| `BEFORE_PAYMENT_DUE_DATE` \| `ON_DUE_DATE_MONTH` \| `ON_NEXT_MONTH` | valor inválido: `invoiceSettingsBody()` lança; o chamador captura e **avisa no log**, sem derrubar o webhook |
-| `ASAAS_INVOICE_RETAIN_ISS` | `true` \| `false` | |
-| `ASAAS_INVOICE_ISS` / `PIS` / `COFINS` / `CSLL` / `INSS` / `IR` | número (%) | vazio = `0` |
-| `ASAAS_INVOICE_NBS_CODE` / `TAX_SITUATION_CODE` / `TAX_CLASSIFICATION_CODE` / `OPERATION_INDICATOR_CODE` / `OBSERVATIONS` | opcionais | omitidos do body quando vazios |
-
-### NFS-e — configuração única (DF/GDF)
-
-Esta configuração é **ação do usuário na conta Asaas**, feita **uma vez** (não é
-código). Sem os passos 1–3 abaixo a feature fica **inerte**: `GET /v3/fiscalInfo/`
-responde 404, o `POST .../invoiceSettings` não roda e a lista de notas no `/perfil`
-fica **vazia**. Depois de configurado, **o próprio Asaas emite a nota** a cada
-cobrança confirmada; nós apenas configuramos a assinatura uma vez e persistimos os
-webhooks `INVOICE_*` — **nunca** chamamos `POST /v3/invoices`.
-
-Os identificadores (`municipalServiceId`/`municipalServiceCode`, `municipalOptions`,
-`specialTaxRegime`, `serviceListItem`, certificado) seguem a API de Fiscal Info do
-Asaas (`/v3/fiscalInfo*`); não inventar campos.
-
-**1. Descobrir o que o município exige** — `GET /v3/fiscalInfo/municipalOptions`:
+Passos (por job): **New → Empty Service → Cron Job**; use a imagem
+`curlimages/curl` e o comando abaixo; defina `APP_URL` e `CRON_SECRET` como
+variáveis do serviço e o **Cron Schedule** no formato acima.
 
 ```bash
-curl -s -H "access_token: $ASAAS_API_KEY" \
-  "$ASAAS_BASE_URL/fiscalInfo/municipalOptions" | jq
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/reconcile"'
+# e, no outro serviço:
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/dunning"'
 ```
 
-- `authenticationType`: `CERTIFICATE` \| `TOKEN` \| `USER_AND_PASSWORD`. A conta
-  DF/GDF retornou **`CERTIFICATE`**, ou seja, exige **certificado digital A1**
-  (`.pfx`) → no passo 2 enviar `certificateFile` + `certificatePassword`.
-- `usesSpecialTaxRegimes=true` → preencher `specialTaxRegime` com um `value` de
-  `specialTaxRegimesList` (regime tributário).
-- `usesServiceListItem=true` → preencher `serviceListItem` (item da lista de
-  serviços, ex. `1.01`).
+> ⚠️ **Não verificado neste repo**: o `railway.json` (config-as-code) **não**
+> expressa cron schedules; a configuração é feita no painel/CLI do Railway.
+> Confirme o fuso (o schedule do Railway é em **UTC**) e o formato na
+> documentação atual do Railway antes de confiar nos horários.
 
-**2. Cadastrar os dados fiscais** — `POST /v3/fiscalInfo/` (`multipart/form-data`),
-com os dados da empresa + a credencial do município. `email` e `simplesNacional`
-são obrigatórios; use os valores de `specialTaxRegime`/`serviceListItem` do passo 1:
+## Deploy
+
+1. Push em `main` (ou deploy manual pelo Railway).
+2. Railway faz o build da imagem (`npm ci` → `npm run build` → runner standalone).
+3. **Release step**: `node scripts/migrate.mjs` aplica migrações pendentes
+   (`drizzle/`) usando `DATABASE_URL_UNPOOLED`.
+4. Sobe o container (`node server.js`) e só recebe tráfego após `/api/health`
+   responder 200.
+
+Build/run local da imagem (paridade com o Railway):
 
 ```bash
-curl -s -X POST -H "access_token: $ASAAS_API_KEY" \
-  -F email="fiscal@example.com" \
-  -F simplesNacional=false \
-  -F municipalInscription="<inscricao municipal>" \
-  -F cnae="<cnae>" \
-  -F specialTaxRegime="<value da lista>" \
-  -F serviceListItem="<item, ex. 1.01>" \
-  -F certificateFile=@certificado.pfx \
-  -F certificatePassword="<senha do A1>" \
-  "$ASAAS_BASE_URL/fiscalInfo/"
+docker build -t amortiza-me .
+docker run --rm -p 3000:3000 \
+  -e DATABASE_URL="postgresql://...pooler.../db?sslmode=require" \
+  -e DATABASE_URL_UNPOOLED="postgresql://.../db?sslmode=require" \
+  -e AUTH_SECRET=dev -e AUTH_URL=http://localhost:3000 \
+  -e PAYMENT_PROVIDER=fake \
+  amortiza-me
+curl -s localhost:3000/api/health
 ```
 
-Ao final, `GET /v3/fiscalInfo/` deve responder **200** (404 = conta ainda sem
-configuração fiscal). O `client.ts` usa exatamente esse `GET` como pré-requisito
-(`getFiscalInfo()` em `src/lib/payments/asaas/subscription.ts`).
+> Em `docker run --env-file .env.local`, o escape `\$` da `ASAAS_API_KEY` (usado
+> pelo dotenv do Next) chega **literal** ao container. Para testar Asaas na
+> imagem, passe `ASAAS_API_KEY` sem o `\` (`-e ASAAS_API_KEY='$aact_...'`).
 
-**3. Escolher o serviço municipal** — `GET /v3/fiscalInfo/services`:
+## Migrações
+
+- **Release step** (automático): `node scripts/migrate.mjs`. Usa
+  `DATABASE_URL_UNPOOLED ?? DATABASE_URL` e roda antes do tráfego.
+- **Manual / offline**:
 
 ```bash
-curl -s -H "access_token: $ASAAS_API_KEY" \
-  "$ASAAS_BASE_URL/fiscalInfo/services" | jq
+npx drizzle-kit generate          # gera SQL a partir de src/db/schema.ts
+DATABASE_URL_UNPOOLED="<neon-unpooled>" npm run db:migrate
 ```
 
-- Se o município **listar** o serviço, use o `id` retornado como
-  `municipalServiceId`.
-- Se **não listar**, use o `municipalServiceCode` (código/CTISS obtido na
-  prefeitura). Para o **GDF**, pegue o código do serviço (ISS) junto à
-  prefeitura/contador.
-- O código deste repo hoje envia apenas `municipalServiceCode` (ver
-  `src/lib/payments/asaas/invoice-config.ts`); a API do Asaas aceita
-  `municipalServiceId` como alternativa — ver a nota no `.env.example`.
+- Migrações são **forward-only** (sem down). Um rollback de código deve ser
+  compatível com o schema já aplicado.
 
-**4. Preencher as env `ASAAS_INVOICE_*`** (bloco comentado no `.env.example`):
-código/nome do serviço, `municipalServiceName`, os tributos
-(`iss`/`pis`/`cofins`/`csll`/`inss`/`ir` e `retainIss`) com o contador, e manter
-`ASAAS_INVOICE_EFFECTIVE_PERIOD=ON_PAYMENT_CONFIRMATION` (default; emite quando o
-pagamento confirma).
+## Rollback
 
-**5. Re-registrar o webhook para assinar os `INVOICE_*`** — o registro precisa
-incluir os 8 eventos `INVOICE_*` para o Asaas enviá-los; se o webhook do ambiente
-foi criado antes, **rode o script com `ASAAS_INVOICE_ENABLED=true`**: ele é
-idempotente e **atualiza o webhook existente** (`PUT /v3/webhooks/{id}`) com a lista
-completa de eventos, em vez de criar um duplicado:
+1. Railway → serviço → **Deployments** → selecione o deploy anterior →
+   **Redeploy** (volta a imagem/commit anterior).
+2. Como as migrações já foram aplicadas e são **forward-only**, garanta que o
+   código antigo tolera o schema novo (migrações devem ser aditivas). Se a
+   migração for destrutiva, o rollback de código exige um passo manual de banco
+   (fora do escopo deste guia).
+3. O release step do deploy antigo tentará rodar migrações — como o journal já
+   está aplicado, é no-op.
+
+## Observabilidade
+
+- **Railway**: logs do deploy e do runtime (stdout/stderr), métricas de CPU/RAM,
+  histórico de deploys e healthchecks.
+- **Healthcheck**: `GET /api/health` (200 = processo vivo). Não mede banco de
+  propósito.
+- **Neon**: console com queries/consumo; monitore conexões do `pg.Pool`.
+- **Asaas**: `GET /v3/webhooks` mostra `enabled`/`interrupted`. 15 falhas pausam
+  a fila e eventos com +14 dias somem — o cron `reconcile` cobre lacunas de
+  processamento local, não a fila do Asaas.
+- **Webhooks**: tabela `webhook_events` (`processed_at`, `attempts`,
+  `last_error`) é a fonte para investigar eventos não processados.
+
+## Variáveis de ambiente
+
+| Variável | Valor / origem | Detalhe |
+| -------- | -------------- | ------- |
+| `DATABASE_URL` | Neon **pooled** | Runtime do app. |
+| `DATABASE_URL_UNPOOLED` | Neon **unpooled** | Migrações (release step e `drizzle.config.ts`). Fallback para `DATABASE_URL`. |
+| `AUTH_SECRET` | `openssl rand -base64 32` | **Estável** entre deploys — mudar invalida sessões. |
+| `AUTH_TRUST_HOST` | `true` | **Obrigatório** atrás do proxy (Cloudflare+Railway): confia no `X-Forwarded-Host`. Sem isso o login quebra. |
+| `AUTH_URL` | `https://amortiza.me` (opcional) | Canônico; no v5 o host já é inferido dos headers. |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google Cloud Console | Callback: `https://amortiza.me/api/auth/callback/google`. |
+| `PAYMENT_PROVIDER` | `asaas` | `fake` é bloqueado com `NODE_ENV=production`. |
+| `ASAAS_ENV` | `production` \| `sandbox` | Escolhe a base URL default. |
+| `ASAAS_BASE_URL` | `https://api.asaas.com/v3` | Produção (sandbox: `...api-sandbox.asaas.com/v3`). |
+| `ASAAS_API_KEY` | `$aact_prod_...` | Ver pegadinha do `$` abaixo. |
+| `ASAAS_WEBHOOK_AUTH_TOKEN` | `openssl rand -base64 48` | `authToken` do webhook (header `asaas-access-token`), mín. 32 chars. |
+| `ASAAS_WEBHOOK_IP_ALLOWLIST` | CSV de IPs (opcional) | Vazio = não bloqueia; produção = os 4 IPs oficiais. Não use em sandbox. |
+| `APP_URL` | `https://amortiza.me` | Base do webhook/callbacks (`${APP_URL}/api/asaas/webhook`). Sem barra final. |
+| `CRON_SECRET` | `openssl rand -hex 32` | Protege `/api/cron/*` via `Authorization: Bearer`. |
+| `WEBHOOK_ADMIN_EMAIL` | email | Alertas do webhook no Asaas (só o script de registro lê). |
+| `ASAAS_INVOICE_ENABLED` | `false` (default) | NFS-e; só `true` exato habilita. |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` / `_NAME` | código/nome | Obrigatórios com a flag ligada. |
+| `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) | Entre outros valores válidos do Asaas. |
+| `ASAAS_INVOICE_RETAIN_ISS`, `_ISS`, `_PIS`, `_COFINS`, `_CSLL`, `_INSS`, `_IR` | `true/false` e % | Opcionais. |
+| `ASAAS_INVOICE_NBS_CODE` / `_TAX_SITUATION_CODE` / `_TAX_CLASSIFICATION_CODE` / `_OPERATION_INDICATOR_CODE` / `_OBSERVATIONS` | opcionais | Omitidos se vazios. |
+| `NODE_ENV` | **não definir** | O Dockerfile fixa `production`. |
+
+### Pegadinha do `$` na `ASAAS_API_KEY`
+
+A chave começa com `$` (`$aact_prod_...`), que o shell e o `@next/env` /
+dotenv-expand expandem. Em arquivos `.env*`, escape com `\` **no valor**:
 
 ```bash
-# com ASAAS_ENV/ASAAS_API_KEY/ASAAS_WEBHOOK_AUTH_TOKEN/APP_URL no .env.local
-npx tsx scripts/register-asaas-webhook.ts
+# .env.local (lido com dotenv-expand → precisa do \)
+ASAAS_API_KEY=\$aact_prod_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Sem isso o Asaas não envia `INVOICE_*` e as notas nunca aparecem em `invoices`.
+No **Railway** (e em `docker run -e`) o valor é injetado direto, **sem**
+dotenv-expand: grave a chave **crua** (use aspas simples no shell para o próprio
+shell não expandir).
 
-**6. Ligar a flag**: `ASAAS_INVOICE_ENABLED=true` (só o valor exato `true`
-habilita). A partir daí, em cada `SUBSCRIPTION_CREATED` o servidor chama
-`POST /v3/subscriptions/{id}/invoiceSettings` e grava
-`subscriptions.invoice_configured_at`.
+## Checklist de produção
 
-> **Assinaturas já existentes**: o `invoiceSettings` é aplicado no
-> `SUBSCRIPTION_CREATED`. Assinaturas criadas **antes** de ligar a flag não são
-> reconfiguradas automaticamente — crie-as de novo ou configure-as no painel do
-> Asaas.
+- [ ] Neon: `DATABASE_URL` (pooled) e `DATABASE_URL_UNPOOLED` definidas no Railway.
+- [ ] Migrações aplicadas (`0010` em diante) — confira o release step verde.
+- [ ] `AUTH_SECRET` estável; **`AUTH_TRUST_HOST=true`**; `AUTH_URL=https://amortiza.me` (opcional).
+- [ ] Google OAuth com callback `https://amortiza.me/api/auth/callback/google`.
+- [ ] `PAYMENT_PROVIDER=asaas`; `ASAAS_ENV=production`; chave de produção (sem `\`).
+- [ ] `APP_URL=https://amortiza.me` (sem barra final) e webhook registrado
+      (`GET /v3/webhooks` com `enabled: true`, `interrupted: false`).
+- [ ] `ASAAS_WEBHOOK_IP_ALLOWLIST` com os 4 IPs **ou** regra WAF no Cloudflare
+      (decida uma; cinto e suspensório é válido).
+- [ ] `CRON_SECRET` forte e os dois Railway Cron Jobs criados (UTC).
+- [ ] Cloudflare: proxy laranja, SSL **Full** (não `Full (Strict)`), bypass de cache em `/api/*`.
+- [ ] Healthcheck `/api/health` verde e domínio custom validado no Railway.
+- [ ] Fluxos: cadastro/login Google, simulação, PDF (Ilimitado), comparador,
+      checkout de créditos, assinatura (sandbox → produção), webhook e crons.
+- [ ] Origem pública do Railway restringida (ou risco de bypass do WAF aceito).
 
-## Homologação Asaas (sandbox)
+## Não verificado neste ambiente
 
-> Execução de **2026-09-13** no worktree `asaas-assinaturas`, apenas chamadas de
-> API contra `https://api-sandbox.asaas.com/v3`. Nenhum cartão foi usado, nenhum
-> pagamento/checkout foi concluído, nenhum customer foi criado e nenhum webhook
-> foi registrado (localhost não é alcançável pelo Asaas).
-
-### Validado automaticamente (API)
-
-| Verificação | Resultado |
-| ----------- | --------- |
-| Carregamento de `.env.local` via `@next/env` | `ASAAS_API_KEY` chegou preenchida (166 chars, prefixo `$aact_`) — o escape `\$` no arquivo sobreviveu ao `dotenv-expand`. |
-| `GET /v3/myAccount/status` | `commercialInfo`, `bankAccountInfo`, `documentation` e `general` = `APPROVED`. |
-| `createSubscriptionCheckout` (Task 7) com callbacks `https://` | Aceito. `POST /v3/checkouts` retornou `id` + `link` de sessão de checkout (`https://sandbox.asaas.com/checkoutSession/show/<id>`). O DTO enviado (`billingTypes: ['CREDIT_CARD']`, `chargeTypes: ['RECURRENT']`, `items`, `subscription: {cycle, nextDueDate}`, `externalReference`, `callback`) foi aceito. |
-| `GET /v3/subscriptions` | `{"totalCount":0,"hasMore":false,"data":[]}`. |
-
-Script usado (descartável, fora do git em `.superpowers/`):
-
-```bash
-npx tsx .superpowers/sdd/2026-09-13-assinaturas-asaas/smoke-checkout.ts
-```
-
-**Achado (não é defeito do DTO):** com callbacks `http://localhost:3012/...` o
-`POST /v3/checkouts` responde `400 invalid_object` para `successUrl`, `cancelUrl`
-e `expiredUrl`. O mesmo corpo com callbacks `https://amortiza.me/...` é aceito —
-logo o DTO da Task 7 está correto; o Asaas apenas exige callbacks **https
-públicas**. Em dev local, para concluir um checkout no sandbox é preciso expor a
-app por túnel (`APP_URL` https) ou usar URLs https de teste. Nenhuma alteração de
-código foi feita; decisão fica com o controller.
-
-### Pendente de validação manual (não executado)
-
-Não marcar como validado o que segue — exige app rodando, navegador, URL pública
-de webhook e cartão de teste no sandbox:
-
-- [ ] Assinar com cartão aprovado no sandbox e confirmar a ordem dos eventos
-      (`CHECKOUT_PAID` / `SUBSCRIPTION_CREATED` / `PAYMENT_CREATED` /
-      `PAYMENT_CONFIRMED`) e que o acesso só libera em `PAYMENT_CONFIRMED`.
-- [ ] Idempotência: reenviar o mesmo webhook → sem duplicar pagamento nem
-      estender o período duas vezes.
-- [ ] Inadimplência: `POST /v3/sandbox/payment/{id}/overdue` → `past_due` +
-      carência; rodar `runDunning` e conferir avisos/suspensão.
-- [ ] Cancelamento: acesso mantido até `currentPeriodEnd`, sem nova cobrança.
-- [ ] Registrar webhook sandbox (`npx tsx scripts/register-asaas-webhook.ts`) —
-      omitido aqui porque `localhost` não é roteável pelo Asaas.
-- [ ] Lacunas ⚠ da spec §13: `nextDueDate` futuro cobra na hora?; cartões de
-      recusa `5184019740373151` / `4916561358240741` vêm como `PAYMENT_OVERDUE`
-      e/ou `PAYMENT_CREDIT_CARD_CAPTURE_REFUSED`; `INACTIVE` + reativar sem
-      `nextDueDate` retorna `400`; `DELETE` da assinatura emite
-      `PAYMENT_DELETED` das pendentes; tokenização só para cupom/`PUT value`
-      (fora do MVP) e política de retry de cartão (assumir 1 tentativa).
-
-## Passo 5 — Checklist pós-deploy
-
-Com o deploy no ar (URL de produção):
-
-- [ ] **Domínio**: configurar `amortiza.me` no provedor, com HTTPS. URLs canônicas, sitemap e PDFs usam `https://amortiza.me`, definido em `src/lib/site.ts`; não derivar URLs públicas do host da requisição ou de previews.
-- [ ] **Google OAuth**: cadastrar `https://amortiza.me/api/auth/callback/google` como callback de produção no painel do Google.
-- [ ] **SEO**: conferir `/robots.txt`, `/sitemap.xml` e `/opengraph-image`; enviar o sitemap ao Search Console após verificar o domínio. Somente home, juros, custos e blog entram no sitemap; páginas privadas e autenticação usam `noindex`.
-- [ ] **Previews**: manter proteção de acesso/noindex no ambiente de preview da hospedagem. Canonical de produção não impede sozinho a indexação de previews.
-
-- [ ] **Cadastro** — criar conta na URL do deploy; conferir no console Neon que o usuário e o bônus (2 créditos, `kind='bonus'`) foram gravados.
-- [ ] **Login/logout** — sessão JWT funciona (valida `AUTH_SECRET` estável).
-- [ ] **Simulação** — SAC e PRICE funcionam (a conta nova já tem 2 créditos de bônus; sem necessidade de compra).
-- [ ] **PDF gate** — exportar PDF após simulação; conferir que o download acontece (usa `@react-pdf/renderer` no runtime Node).
-- [ ] **Comparador** — com conta Ilimitado, comparar 2–3 propostas, conferir ranking, alerta de CET, salvar/reabrir/recalcular e PDF.
-- [ ] **Créditos fake (compra)** — ⚠️ **não testável no Vercel** (nem em preview): `NODE_ENV=production` em todo deploy da Vercel, e o guard bloqueia `PAYMENT_PROVIDER=fake` em produção (`src/lib/payments/index.ts:9`). Isso é **intencional**. Para testar o fluxo de compra fake, rode localmente: `npm run dev` com `DATABASE_URL` apontando para o Neon e `PAYMENT_PROVIDER=fake`, depois `GET /api/webhooks/payments?userId=<id>&packId=credits10` e confira créditos no `credit_ledger`.
-- [ ] **Webhook Asaas (produção)** — migração `0010` aplicada ANTES do deploy; `npx tsx scripts/register-asaas-webhook.ts` rodado com a env de produção; `GET /v3/webhooks` mostra `enabled: true`, `interrupted: false` e a URL `https://amortiza.me/api/asaas/webhook`.
-
-## AVISO IMPORTANTE — PAYMENT_PROVIDER=fake em produção
-
-O guard em `src/lib/payments/index.ts` lança erro se `PAYMENT_PROVIDER=fake` e
-`NODE_ENV=production`. Na Vercel isso vale para **qualquer** deploy (preview
-também). Consequência: com `fake`, `/api/checkout` e `/api/webhooks/payments`
-respondem 500 em produção.
-
-Isso é **intencional** (bloqueia venda sem cobrança real). Para o lançamento
-comercial:
-
-1. Implementar/ativar provider real (`StripeProvider`/`AsaasProvider` já existem em `src/lib/payments/`).
-2. Configurar chaves de API nos provedores e o webhook real.
-3. Trocar `vercel env add PAYMENT_PROVIDER` para `stripe` ou `asaas` (preview + production).
-
-## Mudanças futuras de schema
-
-```bash
-npx drizzle-kit generate          # gerar migração a partir de src/db/schema.ts
-DATABASE_URL="<neon>" npm run db:migrate   # aplicar no Neon
-```
-
-## Resumo de comandos
-
-```bash
-npm i -g vercel
-vercel login && vercel link
-DATABASE_URL="<neon>" npm run db:migrate
-DATABASE_URL="<neon>" npx tsx src/db/seed.ts
-vercel env add DATABASE_URL preview
-vercel env add DATABASE_URL production
-vercel env add AUTH_SECRET preview      # openssl rand -base64 32
-vercel env add AUTH_SECRET production
-vercel env add PAYMENT_PROVIDER preview
-vercel env add PAYMENT_PROVIDER production
-npx tsx scripts/register-asaas-webhook.ts   # registra o webhook Asaas (por ambiente)
-vercel && vercel --prod
-```
+- **Cron no Railway**: formato local (painel/CLI), fuso UTC e limites — confirmar
+  na documentação atual; `railway.json` não expressa schedules aqui.
+- **SSL `Full`** com o certificado de origem do Railway e a ordem DNS/Railway —
+  a doc do Railway exige `Full` (não `Strict`) com proxy Cloudflare; confirmar
+  no painel.
+- **`AUTH_TRUST_HOST=true`**: é o requisito documentado pelo Auth.js v5 atrás de
+  proxy (`X-Forwarded-Host`). O código **não** seta `trustHost` de propósito.
+  Ainda assim, validar em staging: `GET /api/auth/providers` com
+  `X-Forwarded-Host: amortiza.me` deve responder 200 (e nenhum redirect para
+  `*.up.railway.app`).
+- **PDF em produção**: validado que `@react-pdf/renderer` carrega na imagem
+  Docker (build `npm ci`); o fluxo autenticado de download não foi exercitado.

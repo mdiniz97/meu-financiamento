@@ -16,6 +16,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Build auto-contido para deploy em container (Railway/Docker): gera
+  // `.next/standalone/server.js` com apenas o runtime necessário. Exige copiar
+  // `.next/static` e `public/` para o diretório do standalone (ver Dockerfile).
+  output: "standalone",
   serverExternalPackages: ["@react-pdf/renderer"],
   ...(devOrigins.length > 0 ? { allowedDevOrigins: devOrigins } : {}),
   headers() {
