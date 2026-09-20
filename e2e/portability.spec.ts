@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -20,7 +21,7 @@ async function cadastrarEAssinar(page: Page, prefix: string) {
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -706,7 +707,7 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
 
   const transferred = JSON.parse(
     execSync(
-      `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select payload from simulations s join users u on u.id = s.user_id where u.email like 'port-transfer%@teste.com' order by s.created_at desc limit 1"`
+      `psql "${DB_URL}" -t -A -c "select payload from simulations s join users u on u.id = s.user_id where u.email like 'port-transfer%@teste.com' order by s.created_at desc limit 1"`
     ).toString().trim()
   ) as { input: Record<string, unknown> };
   expect(transferred.input).toMatchObject({

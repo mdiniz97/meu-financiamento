@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 
@@ -20,7 +21,7 @@ test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ p
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
 
-  const uid = execSync(`psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`).toString().trim();
+  const uid = execSync(`psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`).toString().trim();
   const res = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(res.ok()).toBeTruthy();
 

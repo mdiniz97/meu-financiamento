@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -65,10 +66,10 @@ test('simulação de usuário free não é salva após a janela de 6 horas', asy
   await page.waitForURL(/nova-simulacao/);
 
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -c "insert into simulations (id, user_id, name, payload, result, system, credits_spent, created_at) values (gen_random_uuid(), '${uid}', 'Simulação expirada', '{}', '{}', 'PRICE', 1, now() - interval '7 hours')"`
+    `psql "${DB_URL}" -c "insert into simulations (id, user_id, name, payload, result, system, credits_spent, created_at) values (gen_random_uuid(), '${uid}', 'Simulação expirada', '{}', '{}', 'PRICE', 1, now() - interval '7 hours')"`
   );
 
   await page.goto('/minhas-simulacoes');
@@ -85,14 +86,14 @@ test('simulação de assinante Ilimitado fica listada (sem janela de 6 horas)', 
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const res = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
   );
   expect(res.ok()).toBeTruthy();
   execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -c "insert into simulations (id, user_id, name, payload, result, system, credits_spent, created_at) values (gen_random_uuid(), '${uid}', 'Simulação antiga', '{}', '{}', 'PRICE', 1, now() - interval '3 days')"`
+    `psql "${DB_URL}" -c "insert into simulations (id, user_id, name, payload, result, system, credits_spent, created_at) values (gen_random_uuid(), '${uid}', 'Simulação antiga', '{}', '{}', 'PRICE', 1, now() - interval '3 days')"`
   );
 
   await page.goto('/minhas-simulacoes');
@@ -131,7 +132,7 @@ test('assinante Ilimitado não vê banners de upgrade', async ({ page }) => {
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const res = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -154,7 +155,7 @@ test('assinante Ilimitado não vê opções de compra no perfil', async ({ page 
   await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const res = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`

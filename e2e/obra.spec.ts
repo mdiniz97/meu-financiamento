@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -23,7 +24,7 @@ async function cadastrar(page: Page) {
 
 async function assinar(page: Page, email: string) {
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -56,7 +57,7 @@ test('portabilidade calculada aparece em minhas simulações', async ({ page }) 
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   await page.goto('/portabilidade');

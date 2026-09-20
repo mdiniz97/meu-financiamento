@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { addMonthsISO, todayISO } from '../src/lib/meu-financiamento/dates';
@@ -13,9 +14,9 @@ const PARAMS_E2E: ContractParams = {
   insuranceMonthly: 100, parcelasTotais: 360,
 };
 
-// Banco local do repo (docker 5433). Mesmo padrão de e2e/comparator.spec.ts:
-// só os testes que tocam o banco via psql pulam quando o cliente não existe.
-const DB_URL = 'postgres://postgres:postgres@localhost:5433/financiamento';
+// Banco vem de `DB_URL` (env no CI, docker local no fallback). Mesmo padrão de
+// e2e/comparator.spec.ts: só os testes que tocam o banco via psql pulam quando
+// o cliente não existe.
 const hasPsql = (() => {
   try {
     execSync('which psql', { stdio: 'ignore' });

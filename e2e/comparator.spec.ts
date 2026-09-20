@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -23,7 +24,7 @@ async function cadastrar(page: Page, prefix: string) {
 
 async function assinar(page: Page, email: string) {
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   )
     .toString()
     .trim();

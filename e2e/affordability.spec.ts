@@ -1,3 +1,4 @@
+import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -24,7 +25,7 @@ async function cadastrar(page: Page, prefix: string) {
 
 async function assinar(page: Page, email: string) {
   const uid = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select id from users where email='${email}'"`
+    `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   const response = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -287,7 +288,7 @@ test('transferência direta grava valores monetários em formato BRL para /simul
   await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
 
   const payload = execSync(
-    `psql "postgres://postgres:postgres@localhost:5433/financiamento" -t -A -c "select payload::json->'input'->>'insuranceMonthly' from simulations where user_id = (select id from users where email='${email}') order by created_at desc limit 1"`
+    `psql "${DB_URL}" -t -A -c "select payload::json->'input'->>'insuranceMonthly' from simulations where user_id = (select id from users where email='${email}') order by created_at desc limit 1"`
   ).toString().trim();
   expect(payload).toBe('123.45');
 });
