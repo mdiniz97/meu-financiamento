@@ -10,6 +10,7 @@ import { recommendSmart, type SmartRecommendation } from './smart';
 import type { LoanInput } from './types';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {} }) }));
+vi.mock('@/components/upgrade-dialog', () => ({ UpgradeDialog: () => null }));
 afterEach(() => vi.unstubAllGlobals());
 
 const input: LoanInput = {

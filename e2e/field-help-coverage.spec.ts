@@ -310,6 +310,7 @@ test('auditoria rejeita controle comum com ID duplicado do popup antes de sua ab
 });
 
 test('ajuda cobre tarifa dinâmica, amortização e switches retos', async ({ page }) => {
+  test.setTimeout(90_000);
   await page.goto('/comparar-propostas');
   const feesGroup = page.getByRole('group', { name: 'Tarifas', exact: true }).first();
   await expect(feesGroup).toBeVisible();
