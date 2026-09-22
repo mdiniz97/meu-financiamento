@@ -25,7 +25,10 @@ export interface InvoiceSettingsTaxes {
 
 export interface InvoiceSettingsBody {
   effectiveDatePeriod: EffectiveDatePeriod;
-  municipalServiceCode: string;
+  /** Municípios com lista de serviços (ex.: Brasília) usam o `id` retornado por
+   * `GET /v3/fiscalInfo/services`. Só um entre id e código é enviado. */
+  municipalServiceId?: string;
+  municipalServiceCode?: string;
   municipalServiceName: string;
   taxes: InvoiceSettingsTaxes;
   nbsCode?: string;
@@ -62,30 +65,61 @@ function effectiveDatePeriod(): EffectiveDatePeriod {
   return raw as EffectiveDatePeriod;
 }
 
+/** Campos de serviço municipal compartilhados por `invoiceSettings` e `POST /v3/invoices`. */
+export interface InvoiceServiceFields {
+  municipalServiceId?: string;
+  municipalServiceCode?: string;
+  municipalServiceName: string;
+}
+
+/**
+ * Municípios com lista usam `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID`; sem lista,
+ * usam `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE`. O ID tem precedência.
+ */
+export function invoiceServiceFields(): InvoiceServiceFields {
+  const id = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID?.trim();
+  const code = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE?.trim();
+  const name = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME?.trim() ?? '';
+  return id ? { municipalServiceId: id, municipalServiceName: name } : { municipalServiceCode: code ?? '', municipalServiceName: name };
+}
+
+/** Bloco `taxes` conforme a situação fiscal configurada no ambiente. */
+export function invoiceTaxes(): InvoiceSettingsTaxes {
+  return {
+    retainIss: envBool('ASAAS_INVOICE_RETAIN_ISS'),
+    iss: envNumber('ASAAS_INVOICE_ISS'),
+    pis: envNumber('ASAAS_INVOICE_PIS'),
+    cofins: envNumber('ASAAS_INVOICE_COFINS'),
+    csll: envNumber('ASAAS_INVOICE_CSLL'),
+    inss: envNumber('ASAAS_INVOICE_INSS'),
+    ir: envNumber('ASAAS_INVOICE_IR'),
+  };
+}
+
 /**
  * Monta o body de `POST /subscriptions/{id}/invoiceSettings`.
- * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` quando habilitado — falha no uso,
- * nunca no import do módulo.
+ * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` ou `..._CODE` quando habilitado —
+ * falha no uso, nunca no import do módulo.
  */
+/** `true` quando há serviço municipal configurado (id ou código). */
+export function hasInvoiceService(): boolean {
+  const service = invoiceServiceFields();
+  return Boolean(service.municipalServiceId || service.municipalServiceCode);
+}
+
 export function invoiceSettingsBody(): InvoiceSettingsBody {
-  const municipalServiceCode = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE?.trim();
-  if (isInvoiceEnabled() && !municipalServiceCode) {
-    throw new Error('ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE ausente com ASAAS_INVOICE_ENABLED=true');
+  const service = invoiceServiceFields();
+  const hasService = Boolean(service.municipalServiceId || service.municipalServiceCode);
+  if (isInvoiceEnabled() && !hasService) {
+    throw new Error(
+      'ASAAS_INVOICE_MUNICIPAL_SERVICE_ID ou ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE ausente com ASAAS_INVOICE_ENABLED=true'
+    );
   }
 
   const body: InvoiceSettingsBody = {
     effectiveDatePeriod: effectiveDatePeriod(),
-    municipalServiceCode: municipalServiceCode ?? '',
-    municipalServiceName: process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME?.trim() ?? '',
-    taxes: {
-      retainIss: envBool('ASAAS_INVOICE_RETAIN_ISS'),
-      iss: envNumber('ASAAS_INVOICE_ISS'),
-      pis: envNumber('ASAAS_INVOICE_PIS'),
-      cofins: envNumber('ASAAS_INVOICE_COFINS'),
-      csll: envNumber('ASAAS_INVOICE_CSLL'),
-      inss: envNumber('ASAAS_INVOICE_INSS'),
-      ir: envNumber('ASAAS_INVOICE_IR'),
-    },
+    ...service,
+    taxes: invoiceTaxes(),
   };
 
   const optional: Array<[keyof InvoiceSettingsBody, string]> = [

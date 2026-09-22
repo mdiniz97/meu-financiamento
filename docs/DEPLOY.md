@@ -227,10 +227,14 @@ Valide com `GET /v3/webhooks` (`enabled: true`, `interrupted: false`).
 | Assinatura | `CHECKOUT_*`/`SUBSCRIPTION_*`/`PAYMENT_*` correlacionam por `providerId → asaasCheckoutId → externalReference`; renovação **estende** o período, nunca encolhe; acesso só em `PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`. | `applyAsaasEvent` |
 | Créditos avulsos | `DETACHED` libera crédito com descrição estável `Compra créditos (providerId pay_)` sob índice único parcial — replay não duplica. | `applyCreditPurchase` |
 | NFS-e | **Gated** por `ASAAS_INVOICE_ENABLED=true`; configura só com `ASAAS_ENV=production`; upsert de `INVOICE_*` por `asaas_invoice_id`. | `applyInvoiceEvent`, `configureInvoiceIfEnabled` |
+| NFS-e de créditos | Com a flag ligada, `PAYMENT_CONFIRMED`/`RECEIVED` de compra avulsa agenda `POST /v3/invoices` (consulta por `payment` antes — sem `Idempotency-Key`). Falha de nota nunca bloqueia o crédito. | `scheduleCreditInvoiceIfEnabled`, `scheduleInvoiceOnce` |
 
-> NFS-e continua **desligada** (`ASAAS_INVOICE_ENABLED=false` por default) e não
-> é validável em sandbox nesta conta (exige certificado A1). Ver histórico no
-> guia anterior/`.env.example`.
+> NFS-e é **inertes até existir serviço municipal configurado**: com a flag
+> ligada mas sem `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID`/`_CODE`, nada é emitido —
+> só um aviso no log. Não é validável em sandbox nesta conta (exige certificado
+> A1). A prefeitura de Brasília **não permite cancelar NFS-e pela API**, então
+> confirme serviço, ISS e NBS com o contador antes de configurar o serviço.
+> Ver `.env.example`.
 
 ## Crons no Railway
 
@@ -342,7 +346,9 @@ DATABASE_URL_UNPOOLED="<neon-unpooled>" npm run db:migrate
 | `CRON_SECRET` | `openssl rand -hex 32` | Protege `/api/cron/*` via `Authorization: Bearer`. |
 | `WEBHOOK_ADMIN_EMAIL` | email | Alertas do webhook no Asaas (só o script de registro lê). |
 | `ASAAS_INVOICE_ENABLED` | `false` (default) | NFS-e; só `true` exato habilita. |
-| `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` / `_NAME` | código/nome | Obrigatórios com a flag ligada. |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME` | nome | Obrigatório com a flag ligada. |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` | id | Municípios que listam serviços (ex.: Brasília, `id 290420`). Precede o código. |
+| `ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE` | código | Use quando o município não lista serviços. |
 | `ASAAS_INVOICE_EFFECTIVE_PERIOD` | `ON_PAYMENT_CONFIRMATION` (default) | Entre outros valores válidos do Asaas. |
 | `ASAAS_INVOICE_RETAIN_ISS`, `_ISS`, `_PIS`, `_COFINS`, `_CSLL`, `_INSS`, `_IR` | `true/false` e % | Opcionais. |
 | `ASAAS_INVOICE_NBS_CODE` / `_TAX_SITUATION_CODE` / `_TAX_CLASSIFICATION_CODE` / `_OPERATION_INDICATOR_CODE` / `_OBSERVATIONS` | opcionais | Omitidos se vazios. |

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getFiscalInfo: vi.fn(),
   configureInvoiceSettings: vi.fn(),
   getAsaasConfig: vi.fn(),
+  scheduleInvoiceOnce: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -65,6 +66,10 @@ vi.mock('@/lib/payments/asaas/config', () => ({
   getAsaasConfig: mocks.getAsaasConfig,
 }));
 
+vi.mock('@/lib/payments/asaas/invoice', () => ({
+  scheduleInvoiceOnce: mocks.scheduleInvoiceOnce,
+}));
+
 vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
   and: (...args: unknown[]) => args,
@@ -87,12 +92,18 @@ let byId: Row | null;
 let updateChains: ReturnType<typeof chain>[];
 const originalInvoiceFlag = process.env.ASAAS_INVOICE_ENABLED;
 const originalAsaasEnv = process.env.ASAAS_ENV;
+const originalServiceId = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID;
+const originalServiceCode = process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE;
 
 afterEach(() => {
   if (originalInvoiceFlag === undefined) delete process.env.ASAAS_INVOICE_ENABLED;
   else process.env.ASAAS_INVOICE_ENABLED = originalInvoiceFlag;
   if (originalAsaasEnv === undefined) delete process.env.ASAAS_ENV;
   else process.env.ASAAS_ENV = originalAsaasEnv;
+  if (originalServiceId === undefined) delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID;
+  else process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = originalServiceId;
+  if (originalServiceCode === undefined) delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE;
+  else process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE = originalServiceCode;
 });
 
 const routeFindSub = async ({ where }: { where: { col: unknown } }) => {
@@ -141,6 +152,10 @@ beforeEach(() => {
   mocks.findPurchase.mockResolvedValue(null);
   mocks.addCredits.mockReset();
   mocks.addCredits.mockResolvedValue(undefined);
+  mocks.scheduleInvoiceOnce.mockReset();
+  mocks.scheduleInvoiceOnce.mockResolvedValue({ id: 'inv_1' });
+  delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID;
+  delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE;
   mocks.updateSub.mockReset();
   mocks.updateSub.mockImplementation(() => {
     const c = chain();
@@ -844,6 +859,84 @@ describe('créditos avulsos — compra DETACHED', () => {
     mocks.addCredits.mockRejectedValueOnce(new Error('db down'));
 
     await expect(applyAsaasEvent(creditPayment('PAYMENT_REFUNDED'))).rejects.toThrow('db down');
+  });
+});
+
+describe('NFS-e de compras de créditos (checkout DETACHED)', () => {
+  const creditPayment = (event: string, over: Record<string, unknown> = {}) => ({
+    id: `evt_${event}`,
+    event,
+    payment: { id: 'pay_1', checkoutSession: 'chk_1', status: event.replace('PAYMENT_', ''), ...over },
+  });
+  const purchase = (over: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    userId: 'u1',
+    credits: 5,
+    status: 'pending',
+    ...over,
+  });
+
+  it('flag on + produção + serviço configurado agenda a nota ao liberar créditos', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.scheduleInvoiceOnce).toHaveBeenCalledTimes(1);
+    expect(mocks.scheduleInvoiceOnce).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentId: 'pay_1', value: 10 })
+    );
+  });
+
+  it('flag off não agenda nota', async () => {
+    delete process.env.ASAAS_INVOICE_ENABLED;
+    process.env.ASAAS_ENV = 'production';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.scheduleInvoiceOnce).not.toHaveBeenCalled();
+  });
+
+  it('sandbox não agenda nota (nunca emite documento fiscal real fora de produção)', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'sandbox';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
+
+    expect(mocks.scheduleInvoiceOnce).not.toHaveBeenCalled();
+  });
+
+  it('sem serviço municipal configurado não agenda nota', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
+    mocks.findPurchase.mockResolvedValue(purchase());
+
+    await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
+
+    expect(mocks.scheduleInvoiceOnce).not.toHaveBeenCalled();
+  });
+
+  it('falha ao agendar não impede a liberação dos créditos', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    process.env.ASAAS_ENV = 'production';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    mocks.findPurchase.mockResolvedValue(purchase());
+    mocks.scheduleInvoiceOnce.mockRejectedValue(new Error('asaas oscilou'));
+
+    await expect(
+      applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }))
+    ).resolves.toBeUndefined();
+
+    expect(mocks.addCredits).toHaveBeenCalledTimes(1);
+    expect(setPatch(updateChains[0]).status).toBe('paid');
   });
 });
 

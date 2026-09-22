@@ -17,6 +17,7 @@ const ENV_KEYS = [
   'ASAAS_WEBHOOK_AUTH_TOKEN',
   'ASAAS_INVOICE_ENABLED',
   'ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE',
+  'ASAAS_INVOICE_MUNICIPAL_SERVICE_ID',
   'ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME',
   'ASAAS_INVOICE_EFFECTIVE_PERIOD',
   'ASAAS_INVOICE_RETAIN_ISS',
@@ -159,7 +160,35 @@ describe('invoiceSettingsBody', () => {
     expect(body).not.toHaveProperty('observations');
   });
 
-  it('lança no uso quando habilitado sem municipalServiceCode', () => {
+  it('usa municipalServiceId quando o município lista serviços (Brasília) e omite o código', () => {
+    clearInvoiceEnv();
+    baseEnv({
+      ASAAS_INVOICE_ENABLED: 'true',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_ID: '290420',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME: 'Licenciamento de software',
+    });
+
+    const body = invoiceSettingsBody();
+    expect(body.municipalServiceId).toBe('290420');
+    expect(body.municipalServiceName).toBe('Licenciamento de software');
+    expect(body).not.toHaveProperty('municipalServiceCode');
+  });
+
+  it('prefere municipalServiceId quando ambos estão definidos', () => {
+    clearInvoiceEnv();
+    baseEnv({
+      ASAAS_INVOICE_ENABLED: 'true',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_ID: '290420',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE: '0107',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME: 'Licenciamento de software',
+    });
+
+    const body = invoiceSettingsBody();
+    expect(body.municipalServiceId).toBe('290420');
+    expect(body).not.toHaveProperty('municipalServiceCode');
+  });
+
+  it('lança no uso quando habilitado sem municipalServiceCode nem municipalServiceId', () => {
     clearInvoiceEnv();
     baseEnv({ ASAAS_INVOICE_ENABLED: 'true' });
     expect(() => invoiceSettingsBody()).toThrow(/MUNICIPAL_SERVICE_CODE/);

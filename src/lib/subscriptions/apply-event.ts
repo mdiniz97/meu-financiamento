@@ -1,8 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { addCredits } from '@/lib/credits';
-import { isInvoiceEnabled } from '@/lib/payments/asaas/invoice-config';
+import { hasInvoiceService, isInvoiceEnabled } from '@/lib/payments/asaas/invoice-config';
 import { getAsaasConfig } from '@/lib/payments/asaas/config';
+import { scheduleInvoiceOnce } from '@/lib/payments/asaas/invoice';
 import { configureInvoiceSettings, getFiscalInfo } from '@/lib/payments/asaas/subscription';
 import { addCycle } from './cycle';
 
@@ -298,6 +299,7 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
           paidAt: new Date(),
         })
         .where(eq(schema.creditPurchases.id, purchase.id));
+      await scheduleCreditInvoiceIfEnabled(purchase, event);
       return;
     }
 
@@ -342,6 +344,48 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
 
     default:
       return;
+  }
+}
+
+/**
+ * Agendamento de NFS-e da compra avulsa. Gated como a NFS-e de assinatura
+ * (flag + produção + fiscal), nunca lança: falha de nota não pode impedir a
+ * liberação dos créditos nem fazer o webhook responder != 200.
+ */
+async function scheduleCreditInvoiceIfEnabled(
+  purchase: NonNullable<CreditPurchaseRow>,
+  event: AsaasEvent
+): Promise<void> {
+  if (!isInvoiceEnabled()) return;
+  try {
+    if (getAsaasConfig().env !== 'production') {
+      console.warn(
+        `[apply-event] ASAAS_ENV != production; NFS-e não agendada para a compra ${purchase.id}`
+      );
+      return;
+    }
+    if (!hasInvoiceService()) {
+      console.warn(
+        `[apply-event] serviço municipal ausente; NFS-e não agendada para a compra ${purchase.id}`
+      );
+      return;
+    }
+    const paymentId = event.payment?.id;
+    const value = event.payment?.value;
+    if (!paymentId || value == null) {
+      console.warn(
+        `[apply-event] compra ${purchase.id} sem payment.id/value; NFS-e não agendada`
+      );
+      return;
+    }
+    await scheduleInvoiceOnce({
+      paymentId,
+      value,
+      effectiveDate: new Date().toISOString().slice(0, 10),
+      serviceDescription: `Créditos Meu Financiamento — compra ${purchase.id}`,
+    });
+  } catch (e) {
+    console.warn(`[apply-event] falha ao agendar NFS-e da compra ${purchase.id}:`, e);
   }
 }
 
