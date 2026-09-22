@@ -20,6 +20,8 @@ const ENV_KEYS = [
   'ASAAS_INVOICE_ISS',
   'ASAAS_INVOICE_RETAIN_ISS',
   'ASAAS_INVOICE_OBSERVATIONS',
+  'ASAAS_INVOICE_NBS_CODE',
+  'ASAAS_INVOICE_TAX_SITUATION_CODE',
 ] as const;
 
 const original = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
@@ -117,6 +119,29 @@ describe('scheduleInvoiceOnce', () => {
 
     const [, , init] = mocks.asaasFetch.mock.calls[1];
     expect(init.body).toMatchObject({ deductions: 1.5, observations: 'Mensal' });
+  });
+
+  it('envia nbsCode (e afins) dentro de taxes, como exige o DTO de /invoices', async () => {
+    process.env.ASAAS_INVOICE_NBS_CODE = '1.1103.22.00';
+    process.env.ASAAS_INVOICE_TAX_SITUATION_CODE = '000';
+    mocks.asaasFetch
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ id: 'inv_new' });
+
+    await scheduleInvoiceOnce({
+      paymentId: 'pay_1',
+      value: 10,
+      effectiveDate: '2026-09-22',
+    });
+
+    const [, , init] = mocks.asaasFetch.mock.calls[1];
+    expect(init.body.taxes).toMatchObject({
+      nbsCode: '1.1103.22.00',
+      taxSituationCode: '000',
+      iss: 5,
+    });
+    // Não deve vazar para o topo do body.
+    expect(init.body).not.toHaveProperty('nbsCode');
   });
 
   it('não repete o POST quando já existe nota para o pagamento (idempotência)', async () => {

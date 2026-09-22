@@ -1,6 +1,6 @@
 import { asaasFetch } from './client';
 import { getAsaasConfig } from './config';
-import { invoiceServiceFields, invoiceTaxes } from './invoice-config';
+import { invoicePaymentTaxes, invoiceServiceFields } from './invoice-config';
 
 export interface InvoiceSummary {
   id: string;
@@ -65,7 +65,7 @@ export async function scheduleInvoiceOnce(
       deductions: input.deductions ?? 0,
       effectiveDate: input.effectiveDate,
       ...invoiceServiceFields(),
-      taxes: invoiceTaxes(),
+      taxes: invoicePaymentTaxes(),
     },
   });
 }

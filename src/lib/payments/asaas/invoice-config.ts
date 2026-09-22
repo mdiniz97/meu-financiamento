@@ -96,6 +96,31 @@ export function invoiceTaxes(): InvoiceSettingsTaxes {
   };
 }
 
+/** Códigos fiscais opcionais (Reforma Tributária / NBS), dentro de `taxes`. */
+export type InvoiceOptionalCodes = Partial<
+  Record<'nbsCode' | 'taxSituationCode' | 'taxClassificationCode' | 'operationIndicatorCode', string>
+>;
+
+const OPTIONAL_CODE_ENV: ReadonlyArray<[keyof InvoiceOptionalCodes, string]> = [
+  ['nbsCode', 'ASAAS_INVOICE_NBS_CODE'],
+  ['taxSituationCode', 'ASAAS_INVOICE_TAX_SITUATION_CODE'],
+  ['taxClassificationCode', 'ASAAS_INVOICE_TAX_CLASSIFICATION_CODE'],
+  ['operationIndicatorCode', 'ASAAS_INVOICE_OPERATION_INDICATOR_CODE'],
+];
+
+/**
+ * Bloco `taxes` de `POST /v3/invoices`. Diferente do `invoiceSettings`, aqui os
+ * códigos fiscais (NBS etc.) ficam **dentro** de `taxes`.
+ */
+export function invoicePaymentTaxes(): InvoiceSettingsTaxes & InvoiceOptionalCodes {
+  const taxes: InvoiceSettingsTaxes & InvoiceOptionalCodes = { ...invoiceTaxes() };
+  for (const [key, env] of OPTIONAL_CODE_ENV) {
+    const value = process.env[env]?.trim();
+    if (value) taxes[key] = value;
+  }
+  return taxes;
+}
+
 /**
  * Monta o body de `POST /subscriptions/{id}/invoiceSettings`.
  * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` ou `..._CODE` quando habilitado —

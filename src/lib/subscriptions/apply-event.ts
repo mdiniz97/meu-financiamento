@@ -382,7 +382,8 @@ async function scheduleCreditInvoiceIfEnabled(
       paymentId,
       value,
       effectiveDate: new Date().toISOString().slice(0, 10),
-      serviceDescription: `Créditos Meu Financiamento — compra ${purchase.id}`,
+      serviceDescription: 'Licenciamento de uso de software amortiza.me — compra avulsa de créditos.',
+      observations: `Compra ${purchase.id}. Valor: R$ ${value.toFixed(2)}.`,
     });
   } catch (e) {
     console.warn(`[apply-event] falha ao agendar NFS-e da compra ${purchase.id}:`, e);
