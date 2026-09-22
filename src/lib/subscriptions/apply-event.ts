@@ -448,6 +448,16 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
   if (!invoice?.id) return;
 
   const sub = await findSubscription(event);
+  // Nota de compra avulsa (checkout DETACHED): sem assinatura, mas com
+  // pagamento. Resolve o dono pela compra de créditos para a nota aparecer no
+  // app (`invoices.user_id` é o que o InvoicesCard filtra).
+  let ownerId: string | null = sub?.userId ?? null;
+  if (!sub && invoice.payment) {
+    const purchase = await db.query.creditPurchases.findFirst({
+      where: eq(schema.creditPurchases.asaasPaymentId, invoice.payment),
+    });
+    ownerId = purchase?.userId ?? null;
+  }
   const status = invoice.status ?? event.event.replace('INVOICE_', '');
   const valueCents = invoice.value != null ? Math.round(invoice.value * 100) : null;
   const effectiveDate = parseDate(invoice.effectiveDate);
@@ -472,6 +482,8 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
   if (sub) {
     set.subscriptionId = sub.id;
     set.userId = sub.userId;
+  } else if (ownerId) {
+    set.userId = ownerId;
   }
 
   await db
@@ -479,7 +491,7 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
     .values({
       asaasInvoiceId: invoice.id,
       subscriptionId: sub?.id ?? null,
-      userId: sub?.userId ?? null,
+      userId: ownerId,
       status,
       number: invoice.number ?? null,
       valueCents,

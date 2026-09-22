@@ -1155,7 +1155,29 @@ describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
     expect(set).not.toHaveProperty('asaasPaymentId');
   });
 
-  it('flag on upserta invoice sem assinatura correlacionada (nullable)', async () => {
+  it('sem assinatura: resolve o usuário pela compra de créditos do pagamento', async () => {
+    process.env.ASAAS_INVOICE_ENABLED = 'true';
+    mocks.findPurchase.mockResolvedValue({ id: 'p1', userId: 'u1', credits: 5, status: 'paid' });
+
+    await applyAsaasEvent(
+      invoiceEvent('INVOICE_CREATED', { payment: 'pay_1', status: 'CREATED' })
+    );
+
+    const inserted = invoiceInsert();
+    expect(inserted).not.toBeNull();
+    expect(inserted!.args).toMatchObject({
+      asaasInvoiceId: 'inv_1',
+      subscriptionId: null,
+      userId: 'u1',
+      asaasPaymentId: 'pay_1',
+    });
+    // O upsert também mantém o dono quando a nota já existia.
+    expect(inserted!.conflict.onConflictDoUpdate.mock.calls[0][0].set).toMatchObject({
+      userId: 'u1',
+    });
+  });
+
+  it('sem assinatura correlacionada (nullable)', async () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
 
     await applyAsaasEvent(invoiceEvent('INVOICE_CREATED', { status: 'CREATED' }));
