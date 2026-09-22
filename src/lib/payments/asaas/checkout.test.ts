@@ -110,7 +110,7 @@ describe('createCreditsCheckout', () => {
     expect(body.items).toEqual([{ name: 'Créditos amortiza.me', quantity: 1, value: 10 }]);
   });
 
-  it('cai para cartão quando o Asaas recusa por falta de chave Pix', async () => {
+  it('propaga recusa do Pix sem trocar silenciosamente para cartão', async () => {
     env();
     const fetchMock = vi
       .fn()
@@ -132,17 +132,16 @@ describe('createCreditsCheckout', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    const out = await createCreditsCheckout({
-      externalReference: 'p3',
-      valueCents: 1000,
-      successUrl: 'https://a/s',
-      cancelUrl: 'https://a/c',
-      expiredUrl: 'https://a/e',
-    });
+    await expect(
+      createCreditsCheckout({
+        externalReference: 'p3',
+        valueCents: 1000,
+        successUrl: 'https://a/s',
+        cancelUrl: 'https://a/c',
+        expiredUrl: 'https://a/e',
+      })
+    ).rejects.toMatchObject({ status: 400 });
 
-    expect(out).toEqual({ id: 'chk_c3', link: 'https://x/y3' });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const second = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
-    expect(second.billingTypes).toEqual(['CREDIT_CARD']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

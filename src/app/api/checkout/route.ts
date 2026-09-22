@@ -68,12 +68,29 @@ export async function POST(req: Request) {
         expiredUrl: `${appUrl}/perfil`,
       });
     } catch (e) {
-      // Erro do Asaas (ex.: conta sem chave Pix e sem cartão) → 502 legível,
-      // não um 500 cru. A compra fica `pending` e pode ser retomada.
+      // A rejected checkout (400) has no remote resource. Preserve pending
+      // for other outcomes, especially timeouts, rate limits and server errors.
       const detail = e instanceof AsaasApiError ? e.message : 'erro inesperado';
+      const checkoutRejected = e instanceof AsaasApiError && e.status === 400;
+      const pixUnavailable =
+        e instanceof AsaasApiError && e.status === 400 && /pix/i.test(JSON.stringify(e.body));
       console.error(`[checkout] falha ao criar checkout de créditos: ${detail}`);
+      if (checkoutRejected) {
+        try {
+          await db
+            .update(schema.creditPurchases)
+            .set({ status: 'canceled' })
+            .where(eq(schema.creditPurchases.id, purchase.id));
+        } catch (updateError) {
+          console.error('[checkout] falha ao cancelar compra rejeitada', updateError);
+        }
+      }
       return NextResponse.json(
-        { error: 'Não foi possível iniciar a compra agora. Tente de novo em instantes.' },
+        {
+          error: pixUnavailable
+            ? 'Pix está indisponível no momento. Entre em contato com o suporte para concluir sua compra.'
+            : 'Não foi possível iniciar a compra agora. Tente de novo em instantes.',
+        },
         { status: 502 }
       );
     }

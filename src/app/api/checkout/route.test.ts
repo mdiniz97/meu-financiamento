@@ -191,5 +191,44 @@ describe('POST /api/checkout', () => {
 
     expect(res.status).toBe(502);
     expect(m.insert).toHaveBeenCalledTimes(1);
+    expect(m.updateSet).toHaveBeenCalledWith({ status: 'canceled' });
+  });
+
+  it.each([408, 429, 500, 503])('preserva compra pendente após HTTP %i', async (status) => {
+    m.packFindFirst.mockResolvedValue({ id: 'credits5', priceCents: 1000, isSubscription: false, credits: 5 });
+    m.createCreditsCheckout.mockRejectedValue(new AsaasApiError(status, { errors: [] }));
+    const res = await POST(req({ packId: 'credits5' }));
+    expect(res.status).toBe(502);
+    expect(m.update).not.toHaveBeenCalled();
+  });
+
+  it('preserva compra pendente após timeout de rede', async () => {
+    m.packFindFirst.mockResolvedValue({ id: 'credits5', priceCents: 1000, isSubscription: false, credits: 5 });
+    m.createCreditsCheckout.mockRejectedValue(new DOMException('Timeout', 'AbortError'));
+    const res = await POST(req({ packId: 'credits5' }));
+    expect(res.status).toBe(502);
+    expect(m.update).not.toHaveBeenCalled();
+  });
+
+  it('explica quando Pix está indisponível na conta Asaas', async () => {
+    m.packFindFirst.mockResolvedValue({
+      id: 'credits5',
+      priceCents: 1000,
+      isSubscription: false,
+      credits: 5,
+    });
+    m.createCreditsCheckout.mockRejectedValue(
+      new AsaasApiError(400, {
+        errors: [{ description: 'Para gerar cobranças com Pix é necessário criar uma chave Pix no Asaas.' }],
+      })
+    );
+
+    const res = await POST(req({ packId: 'credits5' }));
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: 'Pix está indisponível no momento. Entre em contato com o suporte para concluir sua compra.',
+    });
+    expect(m.updateSet).toHaveBeenCalledWith({ status: 'canceled' });
   });
 });
