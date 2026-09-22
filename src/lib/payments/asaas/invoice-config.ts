@@ -101,10 +101,13 @@ export function invoiceTaxes(): InvoiceSettingsTaxes {
  * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` ou `..._CODE` quando habilitado —
  * falha no uso, nunca no import do módulo.
  */
-/** `true` quando há serviço municipal configurado (id ou código). */
+/**
+ * `true` quando há serviço municipal completo (id ou código **e** nome).
+ * O nome é obrigatório no DTO da API, então sem ele a emissão daria 400.
+ */
 export function hasInvoiceService(): boolean {
   const service = invoiceServiceFields();
-  return Boolean(service.municipalServiceId || service.municipalServiceCode);
+  return Boolean((service.municipalServiceId || service.municipalServiceCode) && service.municipalServiceName);
 }
 
 export function invoiceSettingsBody(): InvoiceSettingsBody {

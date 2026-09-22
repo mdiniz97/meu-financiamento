@@ -15,7 +15,11 @@ export interface ScheduleInvoiceInput {
   effectiveDate: string;
   serviceDescription?: string;
   observations?: string;
+  /** Deduções (não alteram o valor total, mudam a base do ISS). Default 0. */
+  deductions?: number;
 }
+
+const DEFAULT_OBSERVATIONS = 'NFS-e emitida automaticamente pelo sistema.';
 
 function listFrom(payload: unknown): InvoiceSummary[] {
   if (Array.isArray(payload)) return payload as InvoiceSummary[];
@@ -50,12 +54,16 @@ export async function scheduleInvoiceOnce(
   const cfg = getAsaasConfig();
   return asaasFetch<InvoiceSummary>(cfg, '/invoices', {
     method: 'POST',
+    // `serviceDescription`, `observations`, `value`, `deductions`,
+    // `effectiveDate`, `municipalServiceName` e `taxes` são todos obrigatórios
+    // no `InvoiceSaveRequestDTO` — omitir qualquer um devolve 400.
     body: {
       payment: input.paymentId,
+      serviceDescription: input.serviceDescription ?? 'Créditos pré-pagos',
+      observations: input.observations ?? DEFAULT_OBSERVATIONS,
       value: input.value,
+      deductions: input.deductions ?? 0,
       effectiveDate: input.effectiveDate,
-      ...(input.serviceDescription ? { serviceDescription: input.serviceDescription } : {}),
-      ...(input.observations ? { observations: input.observations } : {}),
       ...invoiceServiceFields(),
       taxes: invoiceTaxes(),
     },

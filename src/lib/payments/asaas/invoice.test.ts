@@ -91,11 +91,32 @@ describe('scheduleInvoiceOnce', () => {
       value: 10,
       effectiveDate: '2026-09-22',
       serviceDescription: 'Compra de créditos',
+      // `deductions` e `observations` são obrigatórios no DTO da API.
+      deductions: 0,
+      observations: expect.any(String),
       municipalServiceId: '290420',
       municipalServiceName: 'Licenciamento de software',
       taxes: expect.objectContaining({ iss: 5 }),
     });
     expect(init.body).not.toHaveProperty('municipalServiceCode');
+  });
+
+  it('permite sobrescrever deductions e observations quando informados', async () => {
+    mocks.asaasFetch
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ id: 'inv_new' });
+
+    await scheduleInvoiceOnce({
+      paymentId: 'pay_1',
+      value: 10,
+      effectiveDate: '2026-09-22',
+      serviceDescription: 'Compra',
+      deductions: 1.5,
+      observations: 'Mensal',
+    });
+
+    const [, , init] = mocks.asaasFetch.mock.calls[1];
+    expect(init.body).toMatchObject({ deductions: 1.5, observations: 'Mensal' });
   });
 
   it('não repete o POST quando já existe nota para o pagamento (idempotência)', async () => {

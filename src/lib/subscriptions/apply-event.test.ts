@@ -880,6 +880,7 @@ describe('NFS-e de compras de créditos (checkout DETACHED)', () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
     process.env.ASAAS_ENV = 'production';
     process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME = 'Licenciamento de software';
     mocks.findPurchase.mockResolvedValue(purchase());
 
     await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
@@ -895,6 +896,7 @@ describe('NFS-e de compras de créditos (checkout DETACHED)', () => {
     delete process.env.ASAAS_INVOICE_ENABLED;
     process.env.ASAAS_ENV = 'production';
     process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME = 'Licenciamento de software';
     mocks.findPurchase.mockResolvedValue(purchase());
 
     await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
@@ -907,6 +909,7 @@ describe('NFS-e de compras de créditos (checkout DETACHED)', () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
     process.env.ASAAS_ENV = 'sandbox';
     process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME = 'Licenciamento de software';
     mocks.findPurchase.mockResolvedValue(purchase());
 
     await applyAsaasEvent(creditPayment('PAYMENT_RECEIVED', { value: 10 }));
@@ -928,6 +931,7 @@ describe('NFS-e de compras de créditos (checkout DETACHED)', () => {
     process.env.ASAAS_INVOICE_ENABLED = 'true';
     process.env.ASAAS_ENV = 'production';
     process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID = '290420';
+    process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME = 'Licenciamento de software';
     mocks.findPurchase.mockResolvedValue(purchase());
     mocks.scheduleInvoiceOnce.mockRejectedValue(new Error('asaas oscilou'));
 
