@@ -144,6 +144,18 @@ describe('scheduleInvoiceOnce', () => {
     expect(init.body).not.toHaveProperty('nbsCode');
   });
 
+  it('reemite quando a única nota existente está em ERROR', async () => {
+    mocks.asaasFetch
+      .mockResolvedValueOnce({ data: [{ id: 'inv_erro', status: 'ERROR' }] })
+      .mockResolvedValueOnce({ id: 'inv_nova', status: 'SCHEDULED' });
+
+    await expect(
+      scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+    ).resolves.toEqual({ id: 'inv_nova', status: 'SCHEDULED' });
+
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('não repete o POST quando já existe nota para o pagamento (idempotência)', async () => {
     mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_existing' }] });
 

@@ -49,7 +49,9 @@ export async function scheduleInvoiceOnce(
   input: ScheduleInvoiceInput
 ): Promise<InvoiceSummary | null> {
   const existing = await listInvoicesForPayment(input.paymentId);
-  if (existing.length > 0) return null;
+  // Nota em ERROR não é documento válido (a prefeitura recusou): permite
+  // reemitir depois de corrigir a causa. Qualquer outro status bloqueia.
+  if (existing.some((invoice) => invoice.status !== 'ERROR')) return null;
 
   const cfg = getAsaasConfig();
   return asaasFetch<InvoiceSummary>(cfg, '/invoices', {
