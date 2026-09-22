@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "node server.js",
-    "preDeployCommand": "node scripts/migrate.mjs",
+    "preDeployCommand": ["node scripts/migrate.mjs"],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
