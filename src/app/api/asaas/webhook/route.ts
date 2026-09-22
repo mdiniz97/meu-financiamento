@@ -13,9 +13,17 @@ function isAllowedWebhookIp(req: Request): boolean {
     .map((ip) => ip.trim())
     .filter(Boolean);
 
+  // amortiza.me passa pela Cloudflare: o IP de origem real (Asaas) vem em
+  // cf-connecting-ip; x-forwarded-for/x-real-ip podem trazer o IP do proxy.
+  const cfIp = (req.headers.get('cf-connecting-ip') ?? '').trim();
   const firstForwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const clientIp = firstForwarded || (req.headers.get('x-real-ip') ?? '').trim();
-  return allowed.includes(clientIp);
+  const clientIp = cfIp || firstForwarded || (req.headers.get('x-real-ip') ?? '').trim();
+  if (allowed.includes(clientIp)) return true;
+
+  console.warn(
+    `[asaas-webhook] IP rejeitado pela allowlist: resolved=${clientIp || '(vazio)'} cf=${cfIp || '-'} xff=${firstForwarded || '-'}`
+  );
+  return false;
 }
 
 export async function POST(req: Request) {

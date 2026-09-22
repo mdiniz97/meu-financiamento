@@ -153,6 +153,35 @@ describe('POST /api/asaas/webhook — allowlist de IP (RS2b)', () => {
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
+  it('atrás da Cloudflare usa cf-connecting-ip (IP real do Asaas), não o IP do proxy', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '52.67.12.206');
+    insertedRow([{ id: 'row-1' }]);
+    const res = await POST(
+      reqWithHeaders(
+        {
+          'asaas-access-token': valid,
+          'cf-connecting-ip': '52.67.12.206',
+          'x-forwarded-for': '172.70.1.1',
+          'x-real-ip': '172.70.1.1',
+        },
+        { id: 'e1', event: 'PAYMENT_RECEIVED' }
+      )
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('cf-connecting-ip fora da lista → 403 mesmo se x-forwarded-for estiver na lista', async () => {
+    vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '52.67.12.206');
+    const res = await POST(
+      reqWithHeaders(
+        { 'asaas-access-token': valid, 'cf-connecting-ip': '9.9.9.9', 'x-forwarded-for': '52.67.12.206' },
+        { id: 'e1', event: 'PAYMENT_RECEIVED' }
+      )
+    );
+    expect(res.status).toBe(403);
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
   it('aceita x-real-ip quando x-forwarded-for está ausente', async () => {
     vi.stubEnv('ASAAS_WEBHOOK_IP_ALLOWLIST', '1.2.3.4');
     insertedRow([{ id: 'row-1' }]);
