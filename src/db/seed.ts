@@ -1,11 +1,9 @@
 import { db } from './index';
 import { packs } from './schema';
+import { DEFAULT_PACKS } from '../../scripts/seed-packs.mjs';
 
 async function main() {
-  await db.insert(packs).values([
-    { id: 'credits5', name: '5 créditos', priceCents: 1000, credits: 5, isSubscription: false },
-    { id: 'unlimited', name: 'Ilimitado', priceCents: 11990, credits: null, isSubscription: true },
-  ]).onConflictDoNothing();
+  await db.insert(packs).values(DEFAULT_PACKS).onConflictDoNothing();
   console.log('packs seeded');
 }
 

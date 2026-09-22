@@ -38,6 +38,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # `drizzle-orm` é copiado inteiro para garantir o subpath
 # `drizzle-orm/node-postgres/migrator`, que não é traçado pelo Next.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-packs.mjs ./scripts/seed-packs.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 

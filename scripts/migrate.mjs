@@ -9,6 +9,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
+import { seedPacks } from './seed-packs.mjs';
 
 const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 if (!url) {
@@ -20,6 +21,7 @@ const pool = new pg.Pool({ connectionString: url });
 try {
   const db = drizzle(pool);
   await migrate(db, { migrationsFolder: 'drizzle' });
+  await seedPacks(pool);
   console.log('[migrate] migrações aplicadas com sucesso');
 } finally {
   await pool.end();

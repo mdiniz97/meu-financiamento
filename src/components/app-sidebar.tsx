@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, Coins, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, User, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, CreditCard, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -21,7 +21,7 @@ type NavItem = {
   highlight?: boolean;
 };
 
-const NAV: NavItem[] = [
+export const NAV: NavItem[] = [
   { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, requiresContract: true, highlight: true },
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
@@ -36,7 +36,7 @@ const NAV: NavItem[] = [
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
-  { href: '/perfil', label: 'Meu perfil', icon: User },
+  { href: '/perfil', label: 'Planos e créditos', icon: CreditCard },
 ];
 
 function NavLinks({
