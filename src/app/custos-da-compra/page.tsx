@@ -4,7 +4,6 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
-import { getContract } from '@/lib/meu-financiamento/repo';
 import { CompraCustosCalculator } from '@/components/simulation/CompraCustosCalculator';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
 import { publicMetadata } from '@/lib/site';
@@ -43,10 +42,9 @@ export default async function CustosDaCompraPage() {
   );
 
   if (signedIn && balance) {
-    const showMeuFinanciamento = (await getContract(session!.userId)) !== null;
     return (
       <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
-        <AppSidebar credits={balance.credits} isUnlimited={balance.isUnlimited} showMeuFinanciamento={showMeuFinanciamento} />
+        <AppSidebar credits={balance.credits} isUnlimited={balance.isUnlimited} />
         <main className="flex min-w-0 flex-1 flex-col items-center gap-8 bg-muted p-4 sm:p-6">
           <div className="flex w-full max-w-6xl flex-col items-center gap-8">{content}</div>
         </main>

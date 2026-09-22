@@ -15,14 +15,12 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Só aparece com contrato cadastrado (regra de visibilidade atual). */
-  requiresContract?: boolean;
   /** Destaque fixo do item, independente de estar ativo. */
   highlight?: boolean;
 };
 
 export const NAV: NavItem[] = [
-  { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, requiresContract: true, highlight: true },
+  { href: '/meu-financiamento', label: 'Meu financiamento', icon: Landmark, highlight: true },
   { href: '/nova-simulacao', label: 'Simulações', icon: Calculator },
   { href: '/amortizador-inteligente', label: 'Amortizador Inteligente', icon: Sparkles },
   { href: '/juros', label: 'Juros de mercado', icon: Percent },
@@ -41,18 +39,15 @@ export const NAV: NavItem[] = [
 
 function NavLinks({
   compact = false,
-  showMeuFinanciamento = false,
   onNavigate,
 }: {
   compact?: boolean;
-  showMeuFinanciamento?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const visibleItems = NAV.filter((item) => !item.requiresContract || showMeuFinanciamento);
   return (
     <nav className="flex flex-col gap-1">
-      {visibleItems.map(({ href, label, icon: Icon, highlight }) => {
+      {NAV.map(({ href, label, icon: Icon, highlight }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
@@ -110,13 +105,11 @@ function MobileDrawer({
   onClose,
   credits,
   isUnlimited,
-  showMeuFinanciamento = false,
 }: {
   open: boolean;
   onClose: () => void;
   credits: number;
   isUnlimited: boolean;
-  showMeuFinanciamento?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -147,7 +140,7 @@ function MobileDrawer({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-          <NavLinks showMeuFinanciamento={showMeuFinanciamento} onNavigate={onClose} />
+          <NavLinks onNavigate={onClose} />
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
@@ -163,11 +156,9 @@ function MobileDrawer({
 export function AppSidebar({
   credits,
   isUnlimited,
-  showMeuFinanciamento = false,
 }: {
   credits: number;
   isUnlimited: boolean;
-  showMeuFinanciamento?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -180,7 +171,7 @@ export function AppSidebar({
           </Link>
         </div>
         <div className="flex flex-1 flex-col justify-between p-3">
-          <NavLinks compact showMeuFinanciamento={showMeuFinanciamento} />
+          <NavLinks compact />
           <div className="flex flex-col gap-3 border-t border-border pt-3">
             <PlanChip credits={credits} isUnlimited={isUnlimited} />
             <ActionsRow />
@@ -202,7 +193,6 @@ export function AppSidebar({
         onClose={() => setOpen(false)}
         credits={credits}
         isUnlimited={isUnlimited}
-        showMeuFinanciamento={showMeuFinanciamento}
       />
     </>
   );

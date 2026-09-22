@@ -181,7 +181,8 @@ async function pagarProximaNaTabela(page: Page, aporteReais = 0): Promise<number
 }
 
 test('onboarding salva rascunho e continua após reload', async ({ page }) => {
-  await criarConta(page, 'Onboarding');
+  const conta = await criarConta(page, 'Onboarding');
+  await assinar(page, conta.id);
   await page.goto('/meu-financiamento');
   await expect(page.getByText('Passo 1 de 4')).toBeVisible({ timeout: 60_000 });
 
@@ -215,15 +216,12 @@ test('onboarding salva rascunho e continua após reload', async ({ page }) => {
   await expect(page.getByText('Parcela estimada da parcela 141', { exact: true })).toBeVisible();
 });
 
-test('criação exige Ilimitado: wizard completo mostra UpgradeCard sem contrato', async ({ page }) => {
+test('usuário sem Ilimitado vê acesso bloqueado sem wizard', async ({ page }) => {
   const conta = await criarConta(page, 'Paywall Criação');
-  await preencherWizard(page, todayISO());
-
-  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByText('Passo 4 de 4')).toBeVisible();
-  await page.getByRole('button', { name: 'Criar meu financiamento', exact: true }).click();
-  await expect(page.getByText('Crie seu financiamento com o plano Ilimitado')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('button', { name: /Assinar Ilimitado/ })).toBeVisible();
+  await page.goto('/meu-financiamento');
+  await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Ver opções de acesso', exact: true })).toBeVisible();
+  await expect(page.getByText('Passo 1 de 4')).toHaveCount(0);
   await expect(page.getByText('Saldo devedor atual', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Parcelas do Financiamento', exact: true })).toHaveCount(0);
 
