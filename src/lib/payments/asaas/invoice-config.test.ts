@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AsaasApiError } from './client';
 import { isInvoiceEnabled, invoiceSettingsBody } from './invoice-config';
-import { configureInvoiceSettings, getFiscalInfo } from './subscription';
+import { configureInvoiceSettings, getFiscalInfo, updateInvoiceSettings } from './subscription';
 
 const mocks = vi.hoisted(() => ({ asaasFetch: vi.fn() }));
 
@@ -229,6 +229,30 @@ describe('configureInvoiceSettings', () => {
       municipalServiceCode: '0107',
       municipalServiceName: 'Consultoria',
       taxes: { retainIss: true, iss: 0, pis: 0, cofins: 0, csll: 0, inss: 0, ir: 1.2 },
+    });
+  });
+});
+
+describe('updateInvoiceSettings', () => {
+  it('faz PUT /subscriptions/{id}/invoiceSettings com o body atual', async () => {
+    clearInvoiceEnv();
+    baseEnv({
+      ASAAS_INVOICE_ENABLED: 'true',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_ID: '290420',
+      ASAAS_INVOICE_MUNICIPAL_SERVICE_NAME: 'Licenciamento de software',
+      ASAAS_INVOICE_ISS: '2.01',
+    });
+    mocks.asaasFetch.mockResolvedValue({});
+
+    await updateInvoiceSettings('sub_1');
+
+    const [cfg, path, init] = mocks.asaasFetch.mock.calls[0];
+    expect(cfg).toMatchObject({ baseUrl: 'https://api-sandbox.asaas.com/v3' });
+    expect(path).toBe('/subscriptions/sub_1/invoiceSettings');
+    expect(init.method).toBe('PUT');
+    expect(init.body).toMatchObject({
+      municipalServiceId: '290420',
+      taxes: expect.objectContaining({ iss: 2.01 }),
     });
   });
 });

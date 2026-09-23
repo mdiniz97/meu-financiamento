@@ -38,6 +38,19 @@ export async function configureInvoiceSettings(asaasSubscriptionId: string): Pro
   });
 }
 
+/**
+ * Reenvia a configuração de NFS-e de uma assinatura. Usado pelo job mensal:
+ * o `invoiceSettings` é aplicado uma vez e a Asaas reusa a alíquota nas
+ * cobranças seguintes, então uma mudança de ISS precisa ser propagada.
+ */
+export async function updateInvoiceSettings(asaasSubscriptionId: string): Promise<void> {
+  const cfg = getAsaasConfig();
+  await asaasFetch(cfg, `/subscriptions/${asaasSubscriptionId}/invoiceSettings`, {
+    method: 'PUT',
+    body: invoiceSettingsBody(),
+  });
+}
+
 export async function reactivateSubscription(id: string, nextDueDate: string): Promise<void> {
   const cfg = getAsaasConfig();
   await asaasFetch(cfg, `/subscriptions/${id}`, {

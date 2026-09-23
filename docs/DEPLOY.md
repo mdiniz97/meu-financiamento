@@ -246,6 +246,7 @@ já são autenticados por `Authorization: Bearer $CRON_SECRET`
 | --- | -------- | -------------- |
 | Reconciliação de assinaturas + reprocesso de webhooks | `POST /api/cron/reconcile` | `0 6 * * *` |
 | Dunning (inadimplência/carência) | `POST /api/cron/dunning` | `0 7 * * *` |
+| Reajuste do ISS das assinaturas (NFS-e) | `POST /api/cron/invoice-settings` | `0 8 1 * *` (mensal) |
 
 Passos (por job): **New → Empty Service → Cron Job**; use a imagem
 `curlimages/curl` e o comando abaixo; defina `APP_URL` e `CRON_SECRET` como
@@ -253,9 +254,15 @@ variáveis do serviço e o **Cron Schedule** no formato acima.
 
 ```bash
 sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/reconcile"'
-# e, no outro serviço:
+# e, nos outros serviços:
 sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/dunning"'
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/invoice-settings"'
 ```
+
+> O cron de NFS-e existe porque o ISS varia com o faturamento e o
+> `invoiceSettings` de uma assinatura é aplicado **uma única vez** — sem
+> reenvio, as cobranças seguintes mantêm a alíquota da contratação. Compras
+> avulsas não precisam dele: o `taxes` vai em cada `POST /v3/invoices`.
 
 > ⚠️ **Não verificado neste repo**: o `railway.json` (config-as-code) **não**
 > expressa cron schedules; a configuração é feita no painel/CLI do Railway.
