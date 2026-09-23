@@ -238,9 +238,11 @@ Valide com `GET /v3/webhooks` (`enabled: true`, `interrupted: false`).
 
 ## Crons no Railway
 
-Os dois jobs do extinto `vercel.json` viram **Railway Cron Jobs**. Os endpoints
+Os jobs do extinto `vercel.json` vivem como **Railway Cron Jobs**. Os endpoints
 já são autenticados por `Authorization: Bearer $CRON_SECRET`
-(`src/lib/cron-auth.ts`) e aceitam `GET` ou `POST`.
+(`src/lib/cron-auth.ts`) e aceitam `GET` ou `POST`. Um cron do Railway roda o
+**start command** do serviço no horário e o processo precisa **terminar** —
+caso contrário o Railway pula a execução seguinte.
 
 | Job | Endpoint | Schedule (UTC) |
 | --- | -------- | -------------- |
@@ -248,16 +250,27 @@ já são autenticados por `Authorization: Bearer $CRON_SECRET`
 | Dunning (inadimplência/carência) | `POST /api/cron/dunning` | `0 7 * * *` |
 | Reajuste do ISS das assinaturas (NFS-e) | `POST /api/cron/invoice-settings` | `0 8 1 * *` (mensal) |
 
-Passos (por job): **New → Empty Service → Cron Job**; use a imagem
-`curlimages/curl` e o comando abaixo; defina `APP_URL` e `CRON_SECRET` como
-variáveis do serviço e o **Cron Schedule** no formato acima.
+Receita verificada em produção: **imagem `alpine:3.20`** + start command
+abaixo, `APP_URL` e `CRON_SECRET` referenciando o serviço web
+(`${{amortiza-web.APP_URL}}`, `${{amortiza-web.CRON_SECRET}}`) e o
+**Cron Schedule** da tabela.
 
 ```bash
-sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/reconcile"'
-# e, nos outros serviços:
-sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/dunning"'
-sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/invoice-settings"'
+sh -c 'echo "[cron-reconcile] start"; wget -S -O - --header="Authorization: Bearer $CRON_SECRET" --post-data="" "$APP_URL/api/cron/reconcile" 2>&1; code=$?; echo; echo "[cron-reconcile] exit=$code"'
+# e, nos outros serviços, troque o endpoint no fim:
+#   ... "$APP_URL/api/cron/dunning"        → "[cron-dunning]"
+#   ... "$APP_URL/api/cron/invoice-settings" → "[cron-invoice-settings]"
 ```
+
+O `echo`/`-S` não são decorativos: sem eles um `401` (segredo trocado) falha
+**em silêncio** e o cron parece saudável. Confira o `[cron-...] exit=0` e o
+`HTTP/1.1 200 OK` nos logs.
+
+> ⚠️ **Não use `curlimages/curl`.** O entrypoint dessa imagem **é o próprio
+> `curl`**, então `sh -c '...'` é interpretado como argumentos e o resultado é
+> uma tempestade de `curl: try 'curl --help'`. Já quebrou em produção. O
+> `alpine` traz `wget` (busybox) embutido — sem `apk add` (que também falha:
+> sem rede no start, resulta em `sh: curl: not found`).
 
 > O cron de NFS-e existe porque o ISS varia com o faturamento e o
 > `invoiceSettings` de uma assinatura é aplicado **uma única vez** — sem
