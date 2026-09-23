@@ -21,6 +21,9 @@ export interface ScheduleInvoiceInput {
 
 const DEFAULT_OBSERVATIONS = 'NFS-e emitida automaticamente pelo sistema.';
 
+/** Status que NÃO representam documento válido — permitem reemissão. */
+const REISSUABLE_STATUSES = new Set(['ERROR', 'CANCELED', 'CANCELLATION_DENIED']);
+
 function listFrom(payload: unknown): InvoiceSummary[] {
   if (Array.isArray(payload)) return payload as InvoiceSummary[];
   if (payload && typeof payload === 'object') {
@@ -49,9 +52,10 @@ export async function scheduleInvoiceOnce(
   input: ScheduleInvoiceInput
 ): Promise<InvoiceSummary | null> {
   const existing = await listInvoicesForPayment(input.paymentId);
-  // Nota em ERROR não é documento válido (a prefeitura recusou): permite
-  // reemitir depois de corrigir a causa. Qualquer outro status bloqueia.
-  if (existing.some((invoice) => invoice.status !== 'ERROR')) return null;
+  // Só bloqueia se já houver nota "viva". ERROR / CANCELED / CANCELLATION_DENIED
+  // não são documentos válidos: permitem reemitir depois de corrigir a causa.
+  // Status desconhecido é tratado como vivo, por segurança.
+  if (existing.some((invoice) => !REISSUABLE_STATUSES.has(invoice.status ?? ''))) return null;
 
   const cfg = getAsaasConfig();
   return asaasFetch<InvoiceSummary>(cfg, '/invoices', {

@@ -144,16 +144,29 @@ describe('scheduleInvoiceOnce', () => {
     expect(init.body).not.toHaveProperty('nbsCode');
   });
 
-  it('reemite quando a única nota existente está em ERROR', async () => {
-    mocks.asaasFetch
-      .mockResolvedValueOnce({ data: [{ id: 'inv_erro', status: 'ERROR' }] })
-      .mockResolvedValueOnce({ id: 'inv_nova', status: 'SCHEDULED' });
+  it.each(['ERROR', 'CANCELED', 'CANCELLATION_DENIED'])(
+    'reemite quando a única nota existente está em %s (não é documento válido)',
+    async (status) => {
+      mocks.asaasFetch
+        .mockResolvedValueOnce({ data: [{ id: 'inv_antiga', status }] })
+        .mockResolvedValueOnce({ id: 'inv_nova', status: 'SCHEDULED' });
+
+      await expect(
+        scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+      ).resolves.toEqual({ id: 'inv_nova', status: 'SCHEDULED' });
+
+      expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('não reemite quando já existe nota viva (AUTHORIZED)', async () => {
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_ok', status: 'AUTHORIZED' }] });
 
     await expect(
       scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
-    ).resolves.toEqual({ id: 'inv_nova', status: 'SCHEDULED' });
+    ).resolves.toBeNull();
 
-    expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(1);
   });
 
   it('não repete o POST quando já existe nota para o pagamento (idempotência)', async () => {
