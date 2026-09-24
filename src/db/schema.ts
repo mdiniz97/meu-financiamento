@@ -45,6 +45,10 @@ export const subscriptions = pgTable(
     canceledAt: timestamp('canceled_at', { withTimezone: true }),
     graceUntil: timestamp('grace_until', { withTimezone: true }),
     invoiceConfiguredAt: timestamp('invoice_configured_at', { withTimezone: true }),
+    // Guarda de idempotência do e-mail de dunning: sem ela o cron diário
+    // mandaria uma cobrança por dia durante toda a carência. Zerado quando o
+    // pagamento é confirmado, para uma nova inadimplência voltar a avisar.
+    dunningRemindedAt: timestamp('dunning_reminded_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('subscriptions_provider_id_unique')

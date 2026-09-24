@@ -282,6 +282,39 @@ O `echo`/`-S` não são decorativos: sem eles um `401` (segredo trocado) falha
 > Confirme o fuso (o schedule do Railway é em **UTC**) e o formato na
 > documentação atual do Railway antes de confiar nos horários.
 
+## E-mail transacional (Resend)
+
+O domínio `amortiza.me` está verificado no Resend (região **sa-east-1**), com os
+registros criados no Cloudflare:
+
+| Tipo | Nome | Função |
+| --- | --- | --- |
+| TXT | `resend._domainkey.amortiza.me` | DKIM |
+| MX (10) | `send.amortiza.me` | Return-Path (SPF do envelope) |
+| TXT | `send.amortiza.me` | SPF (`include:amazonses.com`) |
+| CNAME | `rsend.amortiza.me` | Return-Path (`send.forge.rmta.net`, **DNS only**) |
+
+O MX do Resend fica no subdomínio `send.`, então **não conflita** com o MX do
+domínio raiz — dá para usar Email Routing (recebimento) em paralelo.
+
+Variáveis (fail-closed: sem as três, o cron não envia nada):
+
+```env
+EMAIL_ENABLED=true
+RESEND_API_KEY=re_...            # resend.com/api-keys, permissão de envio
+EMAIL_FROM=amortiza.me <financeiro@amortiza.me>
+EMAIL_REPLY_TO=contato@amortiza.me   # opcional
+```
+
+O envio usa `fetch` direto na API do Resend (`src/lib/email/`), sem SDK novo.
+O conteúdo vive em `templates.ts` (função pura, testada).
+
+**Dunning.** Dentro da carência, `runDunning` envia **um** aviso por
+inadimplência e grava `subscriptions.dunning_reminded_at` (migração `0017`).
+Sem essa guarda o cron diário mandaria e-mail todo dia. A coluna é zerada
+quando o pagamento é confirmado, para uma nova inadimplência voltar a avisar.
+Falha de envio só loga — não derruba o cron nem marca como avisado.
+
 ## Deploy
 
 1. Push em `main` (ou deploy manual pelo Railway).

@@ -398,6 +398,7 @@ interface SubscriptionPatch {
   currentPeriodEnd?: Date;
   nextDueDate?: Date;
   graceUntil?: Date | null;
+  dunningRemindedAt?: Date | null;
   asaasStatus?: string;
   billingType?: string;
   cycle?: string;
@@ -612,6 +613,7 @@ export async function applyAsaasEvent(
         currentPeriodEnd,
         nextDueDate: currentPeriodEnd,
         graceUntil: null,
+        dunningRemindedAt: null,
         asaasStatus: 'ACTIVE',
         cardLast4: event.payment?.creditCard?.creditCardNumber?.slice(-4) ?? undefined,
         cardBrand: event.payment?.creditCard?.creditCardBrand ?? undefined,

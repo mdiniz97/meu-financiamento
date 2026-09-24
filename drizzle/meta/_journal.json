@@ -120,6 +120,13 @@
       "when": 1789441028923,
       "tag": "0016_subscription_events_created_at_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790247539145,
+      "tag": "0017_whole_mandarin",
+      "breakpoints": true
     }
   ]
 }

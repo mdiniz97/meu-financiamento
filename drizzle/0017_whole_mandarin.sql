@@ -1,0 +1,1 @@
+ALTER TABLE "subscriptions" ADD COLUMN "dunning_reminded_at" timestamp with time zone;
