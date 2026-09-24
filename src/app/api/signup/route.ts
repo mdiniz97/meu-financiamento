@@ -3,6 +3,12 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import bcrypt from 'bcryptjs';
 import { emailLoginEnabled } from '@/lib/auth-mode';
+import { isEmailEnabled } from '@/lib/email/config';
+import { sendEmail } from '@/lib/email/client';
+import { welcomeEmail } from '@/lib/email/templates';
+
+/** Bônus concedido no cadastro; o mesmo valor vai para o e-mail de boas-vindas. */
+const WELCOME_BONUS_CREDITS = 2;
 
 export async function POST(req: Request) {
   if (!emailLoginEnabled()) {
@@ -45,12 +51,27 @@ export async function POST(req: Request) {
       .returning();
     await tx.insert(schema.creditLedger).values({
       userId: created.id,
-      amount: 2,
+      amount: WELCOME_BONUS_CREDITS,
       kind: 'bonus',
       description: 'Bônus de boas-vindas',
     });
     return created;
   });
+
+  // Best-effort: o cadastro já está feito e não pode falhar porque o e-mail não
+  // saiu (Resend fora, chave ausente etc). Só loga.
+  if (isEmailEnabled()) {
+    try {
+      const rendered = welcomeEmail({
+        name: user.name,
+        credits: WELCOME_BONUS_CREDITS,
+        appUrl: process.env.APP_URL,
+      });
+      await sendEmail({ to: user.email, ...rendered });
+    } catch (e) {
+      console.warn(`[signup] falha ao enviar boas-vindas para ${user.id}: ${String(e)}`);
+    }
+  }
 
   return NextResponse.json({ id: user.id }, { status: 201 });
 }

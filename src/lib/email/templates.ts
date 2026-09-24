@@ -84,4 +84,37 @@ export function dunningReminderEmail(input: DunningReminderInput): RenderedEmail
   };
 }
 
+export interface WelcomeInput {
+  name: string;
+  credits: number;
+  appUrl?: string;
+}
+
+const DEFAULT_APP_URL = 'https://amortiza.me';
+
+export function welcomeEmail(input: WelcomeInput): RenderedEmail {
+  const firstName = escapeHtml(input.name.trim().split(/\s+/)[0] || input.name);
+  const appUrl = escapeHtml(input.appUrl ?? DEFAULT_APP_URL);
+  const creditsLabel = input.credits === 1 ? '1 crédito' : `${input.credits} créditos`;
+
+  const html = [
+    `<p>Olá, ${firstName}! Sua conta no ${PRODUCT} está pronta.</p>`,
+    `<p>Creditamos <strong>${creditsLabel}</strong> de bônus para você começar sem pagar nada.</p>`,
+    `<p><a href="${appUrl}">Começar agora</a></p>`,
+    `<p>Link direto: ${appUrl}</p>`,
+    '<p>Qualquer dúvida, é só responder este e-mail.</p>',
+    `<p>Equipe ${PRODUCT}</p>`,
+  ].join('\n');
+
+  const text = [
+    `Olá, ${input.name}! Sua conta no ${PRODUCT} está pronta.`,
+    `Creditamos ${creditsLabel} de bônus para você começar sem pagar nada.`,
+    `Começar agora: ${input.appUrl ?? DEFAULT_APP_URL}`,
+    'Qualquer dúvida, é só responder este e-mail.',
+    `Equipe ${PRODUCT}`,
+  ].join('\n');
+
+  return { subject: `Bem-vindo ao ${PRODUCT}`, html, text };
+}
+
 export { escapeHtml };

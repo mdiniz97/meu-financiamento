@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dunningReminderEmail } from './templates';
+import { dunningReminderEmail, welcomeEmail } from './templates';
 
 const base = {
   name: 'Maria',
@@ -36,5 +36,35 @@ describe('dunningReminderEmail', () => {
     expect(out.html).not.toContain('undefined');
     expect(out.html).not.toContain('null');
     expect(out.text).not.toContain('undefined');
+  });
+});
+
+describe('welcomeEmail', () => {
+  it('saúda pelo primeiro nome, cita os créditos de bônus e o link do app', () => {
+    const out = welcomeEmail({ name: 'Marcos Paulo Silva', credits: 2 });
+
+    expect(out.subject).toContain('amortiza.me');
+    expect(out.html).toContain('Marcos');
+    expect(out.html).not.toContain('Paulo Silva');
+    expect(out.html).toContain('2 créditos');
+    expect(out.html).toContain('https://amortiza.me');
+    expect(out.text).toContain('2 créditos');
+  });
+
+  it('usa singular para um crédito', () => {
+    const out = welcomeEmail({ name: 'Ana', credits: 1 });
+    expect(out.html).toContain('1 crédito');
+    expect(out.html).not.toContain('1 créditos');
+  });
+
+  it('escapa o nome (não injeta HTML)', () => {
+    const out = welcomeEmail({ name: '<script>alert(1)</script>', credits: 2 });
+    expect(out.html).not.toContain('<script>');
+    expect(out.html).toContain('&lt;script&gt;');
+  });
+
+  it('respeita appUrl customizada', () => {
+    const out = welcomeEmail({ name: 'Ana', credits: 2, appUrl: 'https://staging.exemplo.com' });
+    expect(out.html).toContain('https://staging.exemplo.com');
   });
 });
