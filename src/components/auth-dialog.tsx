@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import Link from 'next/link';
 import { LoginForm } from '@/app/(auth)/login/login-form';
 import { CadastroForm } from '@/app/(auth)/cadastro/cadastro-form';
 import { useAuthDialog } from './auth-dialog-provider';
@@ -34,6 +35,14 @@ export function AuthDialog() {
           </DialogDescription>
         </DialogHeader>
         {isSignup ? <CadastroForm callbackUrl={next} /> : <LoginForm callbackUrl={next} />}
+        {isSignup && (
+          <p className="text-center text-xs text-muted-foreground">
+            Ao criar conta, consulte nossos{' '}
+            <Link href="/termos" className="underline underline-offset-2">Termos de Uso</Link>
+            {' '}e a{' '}
+            <Link href="/privacidade" className="underline underline-offset-2">Política de Privacidade</Link>.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -20,6 +20,15 @@ export function Footer() {
           <Link href="/blog" className="hover:text-foreground">
             Blog
           </Link>
+          <Link href="/termos" className="hover:text-foreground">
+            Termos de Uso
+          </Link>
+          <Link href="/privacidade" className="hover:text-foreground">
+            Privacidade
+          </Link>
+          <Link href="/cookies" className="hover:text-foreground">
+            Cookies
+          </Link>
           <AuthButton mode="login" label="Entrar" className="hover:text-foreground" />
           <AuthButton mode="signup" label="Criar conta" className="hover:text-foreground" />
         </div>
