@@ -68,3 +68,19 @@ describe('welcomeEmail', () => {
     expect(out.html).toContain('https://staging.exemplo.com');
   });
 });
+
+describe('dunningReminderEmail — ordem do link', () => {
+  it('mostra o link em texto DEPOIS do botão "Pagar agora"', () => {
+    const { html } = dunningReminderEmail(base);
+    const botao = html.indexOf('Pagar agora');
+    const linkTexto = html.indexOf('copie e cole');
+    expect(botao).toBeGreaterThan(-1);
+    expect(linkTexto).toBeGreaterThan(botao);
+  });
+
+  it('não mostra botão nem link quando não há invoiceUrl', () => {
+    const { html } = dunningReminderEmail({ ...base, invoiceUrl: null });
+    expect(html).not.toContain('Pagar agora');
+    expect(html).not.toContain('copie e cole');
+  });
+});

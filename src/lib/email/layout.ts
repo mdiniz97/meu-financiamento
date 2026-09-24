@@ -61,6 +61,8 @@ export interface LayoutInput {
   title?: string;
   preheader?: string;
   cta?: EmailButtonInput;
+  /** Conteúdo renderizado DEPOIS do CTA (ex.: o link em texto puro). */
+  postCtaHtml?: string;
   /** Parágrafos extras no rodapé (ex.: motivo do recebimento). */
   footerNote?: string;
 }
@@ -100,6 +102,7 @@ ${preheader}
 ${title}
 ${input.contentHtml}
 ${cta}
+${input.postCtaHtml ?? ''}
 </td></tr>
 <tr><td style="padding:24px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
 ${footerNote}

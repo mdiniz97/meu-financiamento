@@ -56,14 +56,14 @@ export function dunningReminderEmail(input: DunningReminderInput): RenderedEmail
       `<p style="margin:0 0 16px 0;">Olá, ${firstName}. Não identificamos o pagamento da sua assinatura do ${PRODUCT}.</p>`,
       rows.length > 0 ? emailDetails(rows) : '',
       `<p style="margin:16px 0 0 0;">Seu acesso continua ativo até <strong>${deadline}</strong>. Depois dessa data, a assinatura é cancelada automaticamente.</p>`,
-      input.invoiceUrl
-        ? `<p style="margin:16px 0 0 0;font-size:14px;color:#71717a;">Link direto: ${escapeHtml(input.invoiceUrl)}</p>`
-        : '',
       '<p style="margin:16px 0 0 0;">Se o pagamento já foi feito, é só ignorar este e-mail.</p>',
     ]
       .filter(Boolean)
       .join('\n'),
     cta: input.invoiceUrl ? { label: 'Pagar agora', url: input.invoiceUrl } : undefined,
+    postCtaHtml: input.invoiceUrl
+      ? `<p style="margin:0;font-size:13px;line-height:1.6;color:#71717a;">Se o botão não funcionar, copie e cole este endereço:<br><span style="word-break:break-all;">${escapeHtml(input.invoiceUrl)}</span></p>`
+      : '',
     footerNote: 'Este aviso é enviado automaticamente sobre sua assinatura.',
   });
 
