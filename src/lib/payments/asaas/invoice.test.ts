@@ -144,7 +144,7 @@ describe('scheduleInvoiceOnce', () => {
     expect(init.body).not.toHaveProperty('nbsCode');
   });
 
-  it.each(['ERROR', 'CANCELED', 'CANCELLATION_DENIED'])(
+  it.each(['ERROR', 'CANCELED'])(
     'reemite quando a única nota existente está em %s (não é documento válido)',
     async (status) => {
       mocks.asaasFetch
@@ -159,8 +159,27 @@ describe('scheduleInvoiceOnce', () => {
     }
   );
 
-  it('não reemite quando já existe nota viva (AUTHORIZED)', async () => {
-    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_ok', status: 'AUTHORIZED' }] });
+  // `CANCELLATION_DENIED` é cancelamento RECUSADO: a nota continua valendo
+  // (doc Asaas: "mantenha a nota fiscal sincronizada com o estado retornado").
+  // Reemitir aqui emitiria um SEGUNDO documento fiscal para a mesma cobrança.
+  it.each([
+    'SCHEDULED',
+    'SYNCHRONIZED',
+    'AUTHORIZED',
+    'PROCESSING_CANCELLATION',
+    'CANCELLATION_DENIED',
+  ])('não reemite quando a nota existente está em %s (documento vivo)', async (status) => {
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_ok', status }] });
+
+    await expect(
+      scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+    ).resolves.toBeNull();
+
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('não reemite com status desconhecido (conservador)', async () => {
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_x', status: 'STATUS_NOVO' }] });
 
     await expect(
       scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })

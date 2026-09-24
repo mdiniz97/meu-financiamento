@@ -21,8 +21,18 @@ export interface ScheduleInvoiceInput {
 
 const DEFAULT_OBSERVATIONS = 'NFS-e emitida automaticamente pelo sistema.';
 
-/** Status que NÃO representam documento válido — permitem reemissão. */
-const REISSUABLE_STATUSES = new Set(['ERROR', 'CANCELED', 'CANCELLATION_DENIED']);
+/**
+ * Status que **não** representam documento válido — os únicos que permitem
+ * reemissão. Qualquer outro (inclusive status novo que o Asaas venha a criar)
+ * bloqueia, porque reemitir sobre documento vivo gera **segundo documento
+ * fiscal** para a mesma cobrança.
+ *
+ * `CANCELLATION_DENIED` **não** entra aqui: é cancelamento **recusado**, ou
+ * seja, a nota continua valendo (doc Asaas: "mantenha a nota fiscal
+ * sincronizada com o estado retornado pelo Asaas"). Tratá-lo como reemissível
+ * duplicava a nota.
+ */
+const REISSUABLE_STATUSES = new Set(['ERROR', 'CANCELED']);
 
 function listFrom(payload: unknown): InvoiceSummary[] {
   if (Array.isArray(payload)) return payload as InvoiceSummary[];
@@ -52,9 +62,8 @@ export async function scheduleInvoiceOnce(
   input: ScheduleInvoiceInput
 ): Promise<InvoiceSummary | null> {
   const existing = await listInvoicesForPayment(input.paymentId);
-  // Só bloqueia se já houver nota "viva". ERROR / CANCELED / CANCELLATION_DENIED
-  // não são documentos válidos: permitem reemitir depois de corrigir a causa.
-  // Status desconhecido é tratado como vivo, por segurança.
+  // Só bloqueia se já houver nota "viva". Só ERROR e CANCELED liberam
+  // reemissão; status desconhecido conta como vivo, por segurança.
   if (existing.some((invoice) => !REISSUABLE_STATUSES.has(invoice.status ?? ''))) return null;
 
   const cfg = getAsaasConfig();
