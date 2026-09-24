@@ -21,16 +21,17 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const { login } = await searchParams;
-  const isLoginState = (Array.isArray(login) ? login[0] : login) === '1';
+  const { login, signup } = await searchParams;
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const isAuthState = first(login) === '1' || first(signup) === '1';
   const meta = publicMetadata({
     title: 'Simulador de financiamento imobiliário SAC e PRICE',
     description: SITE_DESCRIPTION,
     path: '/',
   });
-  // `?login=1` é estado de UI (modal aberto), não uma página: não deve ser
-  // indexado nem disputar canônica com a home limpa.
-  if (!isLoginState) return meta;
+  // `?login=1` / `?signup=1` são estado de UI (modal aberto), não páginas: não
+  // devem ser indexados nem disputar canônica com a home limpa.
+  if (!isAuthState) return meta;
   return { ...meta, alternates: undefined, robots: { index: false, follow: false } };
 }
 

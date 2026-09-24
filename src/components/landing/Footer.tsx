@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { LoginButton } from "@/components/login-button";
+import { AuthButton } from "@/components/auth-button";
 import { SITE_NAME } from "@/lib/site";
 
 export function Footer() {
@@ -20,10 +20,8 @@ export function Footer() {
           <Link href="/blog" className="hover:text-foreground">
             Blog
           </Link>
-          <LoginButton label="Entrar" className="hover:text-foreground" />
-          <Link href="/cadastro" className="hover:text-foreground">
-            Criar conta
-          </Link>
+          <AuthButton mode="login" label="Entrar" className="hover:text-foreground" />
+          <AuthButton mode="signup" label="Criar conta" className="hover:text-foreground" />
         </div>
       </div>
       <p className="border-t border-border py-4 text-center text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
-import { LoginButton } from "@/components/login-button";
+import { AuthButton } from "@/components/auth-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverScale } from "@/components/landing/motion-primitives";
@@ -33,7 +33,8 @@ export function CTA({ signedIn = false }: { signedIn?: boolean }) {
                 <ArrowRightIcon className="size-4" />
               </Link>
             </HoverScale>
-            <LoginButton
+            <AuthButton
+              mode="login"
               variant="ghost"
               label="Fazer login"
               className="h-12 border border-background/30 px-8 text-base text-background hover:bg-background/10 hover:text-background"

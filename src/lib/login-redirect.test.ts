@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { clearLoginParams, loginHref, loginHrefOn, sanitizeNext } from './login-redirect';
+import {
+  authHrefOn,
+  clearAuthParams,
+  loginHref,
+  loginHrefOn,
+  readAuthMode,
+  sanitizeNext,
+  signupHref,
+  signupHrefOn,
+} from './login-redirect';
 
 describe('sanitizeNext', () => {
   it('aceita caminho interno absoluto', () => {
@@ -56,19 +65,64 @@ describe('loginHrefOn', () => {
   });
 });
 
-describe('clearLoginParams', () => {
-  it('remove login e next', () => {
-    expect(clearLoginParams('?login=1&next=%2Fx')).toBe('');
-    expect(clearLoginParams('?login=1')).toBe('');
+describe('signupHref', () => {
+  it('aponta para o modal de cadastro na home', () => {
+    expect(signupHref()).toBe('/?signup=1');
+    expect(signupHref('/perfil')).toBe('/?signup=1&next=%2Fperfil');
+  });
+
+  it('usa o parâmetro de cadastro, nunca o de login', () => {
+    expect(signupHref()).not.toContain('login=1');
+  });
+
+  it('descarta destino inválido', () => {
+    expect(signupHref('//evil.com')).toBe('/?signup=1');
+  });
+});
+
+describe('signupHrefOn', () => {
+  it('abre o cadastro na página atual', () => {
+    expect(signupHrefOn('/planos')).toBe('/planos?signup=1');
+  });
+});
+
+describe('authHrefOn', () => {
+  it('nunca emite os dois modos juntos', () => {
+    expect(authHrefOn('/', 'login')).toBe('/?login=1');
+    expect(authHrefOn('/', 'signup')).toBe('/?signup=1');
+  });
+});
+
+describe('readAuthMode', () => {
+  it('identifica o modo pedido', () => {
+    expect(readAuthMode('?login=1')).toBe('login');
+    expect(readAuthMode('?signup=1')).toBe('signup');
+  });
+
+  it('devolve null quando não há modal pedido', () => {
+    expect(readAuthMode('')).toBeNull();
+    expect(readAuthMode('?foo=bar')).toBeNull();
+    expect(readAuthMode('?login=0')).toBeNull();
+  });
+
+  it('aceita URLSearchParams', () => {
+    expect(readAuthMode(new URLSearchParams('?signup=1'))).toBe('signup');
+  });
+});
+
+describe('clearAuthParams', () => {
+  it('remove login, signup e next', () => {
+    expect(clearAuthParams('?login=1&next=%2Fx')).toBe('');
+    expect(clearAuthParams('?signup=1')).toBe('');
   });
 
   it('preserva os outros parâmetros', () => {
-    expect(clearLoginParams('?login=1&foo=bar')).toBe('?foo=bar');
-    expect(clearLoginParams('?a=1&login=1&b=2')).toBe('?a=1&b=2');
+    expect(clearAuthParams('?login=1&foo=bar')).toBe('?foo=bar');
+    expect(clearAuthParams('?a=1&signup=1&b=2')).toBe('?a=1&b=2');
   });
 
   it('sem nada a remover devolve o mesmo', () => {
-    expect(clearLoginParams('?a=1')).toBe('?a=1');
-    expect(clearLoginParams('')).toBe('');
+    expect(clearAuthParams('?a=1')).toBe('?a=1');
+    expect(clearAuthParams('')).toBe('');
   });
 });

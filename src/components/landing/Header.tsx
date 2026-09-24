@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { LoginButton } from "@/components/login-button";
+import { AuthButton } from "@/components/auth-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -61,17 +61,18 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
             </>
           ) : (
             <>
-              <LoginButton
+              <AuthButton
+                mode="login"
                 variant="ghost"
                 label="Fazer login"
                 className="hidden px-4 text-sm sm:inline-flex"
               />
-              <Link
-                href="/cadastro"
-                className={cn(buttonVariants({ variant: "default" }), "px-5 text-sm")}
-              >
-                Criar conta grátis
-              </Link>
+              <AuthButton
+                mode="signup"
+                variant="default"
+                label="Criar conta grátis"
+                className="px-5 text-sm"
+              />
             </>
           )}
           <ThemeToggle />

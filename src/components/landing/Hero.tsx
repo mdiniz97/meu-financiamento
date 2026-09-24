@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
-import { LoginButton } from "@/components/login-button";
+import { AuthButton } from "@/components/auth-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { simulate } from "@/lib/finance/engine";
@@ -42,13 +42,24 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
           financiamento imobiliário.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          <Link
-            href={signedIn ? "/nova-simulacao" : "/cadastro"}
-            className={cn(buttonVariants({ variant: "default" }), "h-12 px-8 text-base")}
-          >
-            {signedIn ? "Simular meu financiamento" : "Criar conta grátis"}
-            <ArrowRightIcon className="size-4" />
-          </Link>
+          {signedIn ? (
+            <Link
+              href="/nova-simulacao"
+              className={cn(buttonVariants({ variant: "default" }), "h-12 px-8 text-base")}
+            >
+              Simular meu financiamento
+              <ArrowRightIcon className="size-4" />
+            </Link>
+          ) : (
+            <AuthButton
+              mode="signup"
+              variant="default"
+              label="Criar conta grátis"
+              className="h-12 px-8 text-base"
+            >
+              <ArrowRightIcon className="size-4" />
+            </AuthButton>
+          )}
           {signedIn ? (
             <Link
               href="/minhas-simulacoes"
@@ -57,7 +68,8 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
               Minhas simulações
             </Link>
           ) : (
-            <LoginButton
+            <AuthButton
+              mode="login"
               variant="outline"
               label="Fazer login"
               className="h-12 px-8 text-base"

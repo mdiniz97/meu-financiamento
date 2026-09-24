@@ -6,9 +6,9 @@ import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Link from 'next/link';
 import { GoogleButton } from '@/components/google-button';
 import { emailLoginEnabled } from '@/lib/auth-mode';
+import { useAuthDialog } from '@/components/auth-dialog-provider';
 
 const DEFAULT_REDIRECT = '/nova-simulacao';
 
@@ -18,6 +18,7 @@ const DEFAULT_REDIRECT = '/nova-simulacao';
  */
 export function LoginForm({ callbackUrl = null }: { callbackUrl?: string | null }) {
   const router = useRouter();
+  const { openSignup, dismiss } = useAuthDialog();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -35,6 +36,9 @@ export function LoginForm({ callbackUrl = null }: { callbackUrl?: string | null 
         setError('Email ou senha incorretos');
         return;
       }
+      // Fecha antes de navegar: sem isso o modal fica um instante aberto sobre
+      // a página nova, até o efeito da URL rodar.
+      dismiss();
       router.push(target);
       router.refresh();
     } catch {
@@ -93,12 +97,13 @@ export function LoginForm({ callbackUrl = null }: { callbackUrl?: string | null 
       <GoogleButton label="Entrar com Google" callbackUrl={target} />
       <p className="mt-4 text-sm text-muted-foreground">
         Não tem conta?{' '}
-        <Link
-          href="/cadastro"
+        <button
+          type="button"
+          onClick={() => openSignup(callbackUrl ?? undefined)}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           Cadastre-se
-        </Link>
+        </button>
       </p>
     </>
   );
