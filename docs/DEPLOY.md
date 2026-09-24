@@ -97,7 +97,7 @@ CRON_SECRET             # openssl rand -hex 32
 ASAAS_ENV               # production
 ASAAS_API_KEY
 ASAAS_WEBHOOK_AUTH_TOKEN
-NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN  # token público do projeto PostHog; definido antes do build
+POSTHOG_PROJECT_TOKEN              # token público do projeto PostHog; lido no runtime
 NEXT_PUBLIC_POSTHOG_HOST           # https://us.i.posthog.com
 ```
 
@@ -105,11 +105,12 @@ NEXT_PUBLIC_POSTHOG_HOST           # https://us.i.posthog.com
 > `HOSTNAME=0.0.0.0` e o server standalone escuta em `0.0.0.0:$PORT`. Não
 > sobrescreva. **Não defina `NODE_ENV`** (o Dockerfile fixa `production`).
 
-> **Analytics**: configure `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` antes do build.
-> Sem ele, a coleta e o aviso de escolha ficam desativados. A migração
-> `0018_mysterious_lady_ursula.sql` cria `users.analytics_consent`; o release
-> step deve aplicá-la antes de a nova versão receber tráfego. Teste o aceite,
-> a recusa e a revogação em ambiente de prévia antes de ativar em produção.
+> **Analytics**: configure `POSTHOG_PROJECT_TOKEN` no serviço.
+> O navegador recebe somente o token público da rota dinâmica
+> `/api/analytics-consent`, evitando depender de variável embutida no build.
+> Com token, coleta de páginas e funil começa por padrão; recusas explícitas
+> anteriores e novas desativações continuam respeitadas. Migração `0018`
+> armazena a preferência da conta; teste navegação e desativação após deploy.
 
 ### 2.3 `railway.json`
 

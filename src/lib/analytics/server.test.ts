@@ -11,6 +11,7 @@ import { captureAccountEvent } from './server';
 
 const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+const serverToken = process.env.POSTHOG_PROJECT_TOKEN;
 const originalFetch = global.fetch;
 
 beforeEach(() => {
@@ -26,10 +27,32 @@ afterEach(() => {
   else process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = token;
   if (host === undefined) delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
   else process.env.NEXT_PUBLIC_POSTHOG_HOST = host;
+  if (serverToken === undefined) delete process.env.POSTHOG_PROJECT_TOKEN;
+  else process.env.POSTHOG_PROJECT_TOKEN = serverToken;
 });
 
 describe('captureAccountEvent', () => {
   it('does not send events for accounts that declined analytics', async () => {
+    await captureAccountEvent('u1', 'purchase_confirmed', 'payment-1');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('captures confirmed purchases when account has not opted out', async () => {
+    mocks.findFirst.mockResolvedValue({ analyticsConsent: null });
+    await captureAccountEvent('u1', 'purchase_confirmed', 'payment-1');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses server runtime token when no browser build-time token exists', async () => {
+    mocks.findFirst.mockResolvedValue({ analyticsConsent: null });
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = '';
+    process.env.POSTHOG_PROJECT_TOKEN = 'phc_runtime';
+    await captureAccountEvent('u1', 'simulation_completed', 'sim1');
+    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0][1]!.body as string).api_key).toBe('phc_runtime');
+  });
+
+  it('does not capture events for deleted accounts', async () => {
+    mocks.findFirst.mockResolvedValue(undefined);
     await captureAccountEvent('u1', 'purchase_confirmed', 'payment-1');
     expect(global.fetch).not.toHaveBeenCalled();
   });

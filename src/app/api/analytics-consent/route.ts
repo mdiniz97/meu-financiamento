@@ -3,19 +3,26 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { assertSameOrigin } from '@/lib/security/same-origin';
-import { captureAccountEvent } from '@/lib/analytics/server';
+
+function analyticsConfig() {
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
+  return {
+    token: process.env.POSTHOG_PROJECT_TOKEN || process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN || '',
+    host: /^https:\/\/(us|eu)\.i\.posthog\.com$/.test(host) ? host : '',
+  };
+}
 
 export async function GET() {
   const session = await auth();
   if (!session?.userId) {
-    return NextResponse.json({ userId: null, consent: null }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ userId: null, consent: null, analytics: analyticsConfig() }, { headers: { 'Cache-Control': 'no-store' } });
   }
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, session.userId),
     columns: { analyticsConsent: true },
   });
   return NextResponse.json(
-    { userId: session.userId, consent: user?.analyticsConsent ?? null },
+    { userId: session.userId, consent: user?.analyticsConsent ?? null, analytics: analyticsConfig() },
     { headers: { 'Cache-Control': 'no-store' } }
   );
 }
@@ -39,18 +46,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Consentimento inválido' }, { status: 400 });
   }
   const consent = (body as { consent: boolean }).consent;
-  // Account creation may precede consent (e.g. Google login). Only count a
-  // recently created, newly consenting account as a signup after opt-in.
-  const user = consent ? await db.query.users.findFirst({
-    where: eq(schema.users.id, session.userId),
-    columns: { analyticsConsent: true, createdAt: true },
-  }) : null;
   await db.update(schema.users).set({ analyticsConsent: consent }).where(eq(schema.users.id, session.userId));
-  if (consent && user?.analyticsConsent === null && user.createdAt) {
-    const age = Date.now() - user.createdAt.getTime();
-    if (age >= 0 && age <= 30 * 60 * 1000) {
-      await captureAccountEvent(session.userId, 'signup_completed', session.userId);
-    }
-  }
   return NextResponse.json({ userId: session.userId, consent }, { headers: { 'Cache-Control': 'no-store' } });
 }

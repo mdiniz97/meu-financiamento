@@ -2,66 +2,58 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { captureBrowserEvent, setAnalyticsIdentity } from '@/lib/analytics/browser';
+import { captureBrowserEvent, captureNavigationClick, setAnalyticsConfig, setAnalyticsIdentity } from '@/lib/analytics/browser';
+import { ANALYTICS_PREFERENCE, getVisitorIdentity, isTrackingAllowed } from '@/lib/analytics/identity';
 
-const PREFERENCE = 'amortiza-analytics-consent-v1';
-const ANONYMOUS_ID = 'amortiza-analytics-session-v1';
-const configured = Boolean(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN);
-type Status = 'loading' | 'choice' | 'accepted' | 'declined' | 'error';
-
-function anonymousId(): string {
-  let id = sessionStorage.getItem(ANONYMOUS_ID);
-  if (!id) {
-    id = `anon:${crypto.randomUUID()}`;
-    sessionStorage.setItem(ANONYMOUS_ID, id);
-  }
-  return id;
-}
+type TrackingState = 'loading' | 'enabled' | 'disabled' | 'unavailable';
 
 export function AnalyticsConsent() {
   const pathname = usePathname();
-  const [status, setStatus] = useState<Status>('loading');
+  const [state, setState] = useState<TrackingState>('loading');
   const [accountId, setAccountId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (!configured) return;
     let cancelled = false;
     setAnalyticsIdentity(null);
-    // Consent is account-scoped when signed in. Re-check on navigation to catch login/logout.
+
     async function load() {
       try {
         const response = await fetch('/api/analytics-consent', { cache: 'no-store' });
-        if (!response.ok) throw new Error('consent unavailable');
-        const result = (await response.json()) as { userId: string | null; consent: boolean | null };
+        if (!response.ok) throw new Error('analytics unavailable');
+        const result = (await response.json()) as {
+          userId: string | null;
+          consent: boolean | null;
+          analytics: { token: string; host: string };
+        };
         if (cancelled) return;
+        setAnalyticsConfig(result.analytics.token, result.analytics.host);
+        setAccountId(result.userId);
 
-        let consent = result.consent;
-        const local = localStorage.getItem(PREFERENCE);
-        if (result.userId && consent === null && (local === 'accepted' || local === 'declined')) {
+        const local = localStorage.getItem(ANALYTICS_PREFERENCE);
+        // Keep an explicit refusal after login, even if another session opted in.
+        if (result.userId && local === 'declined' && result.consent !== false) {
           const saved = await fetch('/api/analytics-consent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ consent: local === 'accepted' }),
+            body: JSON.stringify({ consent: false }),
           });
-          if (!saved.ok) throw new Error('consent sync failed');
-          consent = local === 'accepted';
+          if (!saved.ok) throw new Error('analytics opt-out unavailable');
         }
         if (cancelled) return;
-        setAccountId(result.userId);
-        const accepted = result.userId ? consent === true : local === 'accepted';
-        const declined = result.userId ? consent === false : local === 'declined';
-        if (accepted) {
-          setAnalyticsIdentity(result.userId ?? anonymousId());
-          setStatus('accepted');
-          void captureBrowserEvent('$pageview', pathname);
-        } else {
-          setStatus(declined ? 'declined' : 'choice');
+
+        if (!isTrackingAllowed(result.consent, local)) {
+          localStorage.setItem(ANALYTICS_PREFERENCE, 'declined');
+          setState('disabled');
+          return;
         }
+
+        setAnalyticsIdentity(result.userId ?? getVisitorIdentity(localStorage));
+        setState('enabled');
+        void captureBrowserEvent('$pageview', pathname);
       } catch {
-        if (!cancelled) setStatus('error');
+        if (!cancelled) setState('unavailable');
       }
     }
     void load();
@@ -70,61 +62,71 @@ export function AnalyticsConsent() {
 
   useEffect(() => {
     const show = () => setOpen(true);
+    const trackLink = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      const href = link?.getAttribute('href');
+      // Next Link prevents default navigation before this delegated handler runs.
+      if (href) void captureNavigationClick(href, window.location.origin);
+    };
     window.addEventListener('analytics-preferences', show);
-    return () => window.removeEventListener('analytics-preferences', show);
+    document.addEventListener('click', trackLink);
+    return () => {
+      window.removeEventListener('analytics-preferences', show);
+      document.removeEventListener('click', trackLink);
+    };
   }, []);
 
-  async function choose(consent: boolean) {
-    setStatus('loading');
+  async function choose(enabled: boolean) {
+    setState('loading');
     setAnalyticsIdentity(null);
     if (accountId) {
       try {
         const response = await fetch('/api/analytics-consent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ consent }),
+          body: JSON.stringify({ consent: enabled }),
         });
-        if (!response.ok) throw new Error('consent save failed');
+        if (!response.ok) throw new Error('analytics preference unavailable');
       } catch {
-        setStatus('error');
+        setState('unavailable');
         return;
       }
     }
-    localStorage.setItem(PREFERENCE, consent ? 'accepted' : 'declined');
-    if (consent) {
-      setAnalyticsIdentity(accountId ?? anonymousId());
-      setStatus('accepted');
+    localStorage.setItem(ANALYTICS_PREFERENCE, enabled ? 'accepted' : 'declined');
+    if (enabled) {
+      setAnalyticsIdentity(accountId ?? getVisitorIdentity(localStorage));
+      setState('enabled');
       void captureBrowserEvent('$pageview', pathname);
     } else {
-      sessionStorage.removeItem(ANONYMOUS_ID);
-      setStatus('declined');
+      setState('disabled');
     }
     setOpen(false);
   }
 
-  if (!configured || (!open && status !== 'choice' && status !== 'error')) return null;
+  if (!open) return null;
   return (
     <aside aria-label="Preferências de análise" className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-2xl rounded-xl border border-border bg-background p-5 shadow-xl" role="dialog">
       <p className="font-semibold">Análise de uso</p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Podemos medir páginas visitadas e etapas de uso para melhorar o site? Sua escolha não altera o acesso. Não enviamos dados de simulação ou formulário.{' '}
-        <Link className="underline" href="/cookies">Saiba mais</Link>.
+        Medimos navegação e etapas de uso. Não enviamos formulários, valores ou dados de financiamento.
+        Estado: {state === 'enabled' ? 'ativada' : state === 'disabled' ? 'desativada' : 'indisponível'}.
       </p>
-      {status === 'error' && <p role="alert" className="mt-2 text-sm text-destructive">Não foi possível consultar ou salvar sua escolha. Tente novamente.</p>}
+      {state === 'unavailable' && <p role="alert" className="mt-2 text-sm text-destructive">Não foi possível consultar ou salvar sua escolha.</p>}
       <div className="mt-4 flex flex-wrap gap-3">
-        {status === 'error' ? (
-          <button type="button" onClick={() => { setStatus('loading'); setRetry((n) => n + 1); }} className="rounded-md border px-4 py-2 text-sm">Tentar novamente</button>
+        {state === 'unavailable' ? (
+          <button type="button" onClick={() => { setState('loading'); setRetry((n) => n + 1); }} className="rounded-md border px-4 py-2 text-sm">Tentar novamente</button>
         ) : (
           <>
-            <button type="button" disabled={status === 'loading'} onClick={() => void choose(false)} className="rounded-md border px-4 py-2 text-sm">Recusar</button>
-            <button type="button" disabled={status === 'loading'} onClick={() => void choose(true)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Aceitar analytics</button>
+            <button type="button" disabled={state === 'loading'} onClick={() => void choose(false)} className="rounded-md border px-4 py-2 text-sm">Desativar analytics</button>
+            <button type="button" disabled={state === 'loading'} onClick={() => void choose(true)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Ativar analytics</button>
           </>
         )}
+        <button type="button" onClick={() => setOpen(false)} className="rounded-md px-4 py-2 text-sm">Fechar</button>
       </div>
     </aside>
   );
 }
 
 export function AnalyticsPreferencesButton() {
-  return <button type="button" className="underline" onClick={() => window.dispatchEvent(new Event('analytics-preferences'))}>Alterar escolha de analytics</button>;
+  return <button type="button" className="underline" onClick={() => window.dispatchEvent(new Event('analytics-preferences'))}>Gerenciar analytics</button>;
 }

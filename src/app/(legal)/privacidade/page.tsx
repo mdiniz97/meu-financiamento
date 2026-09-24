@@ -41,11 +41,11 @@ export default function PrivacidadePage() {
             prevenir abuso e diagnosticar falhas.
           </li>
           <li>
-            Somente com aceite de analytics: identificador de conta ou sessão temporária,
-            caminho da página sem parâmetros, origem de campanha válida e eventos de simulação
-            concluída, checkout iniciado, cliques nos botões de compra e compra confirmada.
-            Não enviamos valores, dados de financiamento, conteúdo de formulário
-            ou e-mail ao PostHog.
+            Para análise de uso com PostHog: identificador aleatório do visitante por até
+            30 dias ou identificador de conta, caminhos de páginas e links internos sem
+            parâmetros, domínio do site de origem, campanha válida e eventos de cadastro,
+            simulação concluída, checkout iniciado, cliques de compra e compra confirmada.
+            Não enviamos valores, dados de financiamento, conteúdo de formulários ou e-mail ao PostHog.
           </li>
         </ul>
         <p>
@@ -63,7 +63,7 @@ export default function PrivacidadePage() {
           observados seus direitos. Fornecedores envolvidos na operação podem tratar dados
           conforme suas funções: Google (login), Asaas (pagamentos e notas), Resend (e-mails),
           Railway e Neon (hospedagem e banco de dados), Cloudflare (entrega e proteção do site)
-          e, somente após aceite, PostHog (análise de uso, hospedado nos EUA).
+          e PostHog (análise de uso, hospedado nos EUA, com descarte de IP antes do armazenamento).
           Alguns desses serviços podem processar dados fora do Brasil, conforme suas
           infraestruturas e regras aplicáveis. Não vendemos seus dados pessoais.
         </p>
@@ -98,9 +98,9 @@ export default function PrivacidadePage() {
         <h2>Cookies e mudanças</h2>
         <p>
           Veja a <Link className="underline" href="/cookies">Política de Cookies</Link> para
-          conhecer o armazenamento usado pelo site e alterar sua escolha de analytics.
-          Recusar ou retirar o aceite interrompe novos eventos, sem eliminar automaticamente
-          os já enviados. Alterações relevantes serão comunicadas pelos canais disponíveis.
+          conhecer o armazenamento usado pelo site e desativar ou reativar a análise de uso.
+          A desativação interrompe novos eventos, sem eliminar automaticamente os já enviados.
+          Alterações relevantes serão comunicadas pelos canais disponíveis.
         </p>
       </section>
     </>

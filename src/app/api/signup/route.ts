@@ -4,6 +4,7 @@ import { db, schema } from '@/db';
 import bcrypt from 'bcryptjs';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
+import { captureAccountEvent } from '@/lib/analytics/server';
 
 export async function POST(req: Request) {
   if (!emailLoginEnabled()) {
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
   // Best-effort: o cadastro já está feito e não pode falhar porque o e-mail não
   // saiu. `sendWelcomeEmail` nunca lança.
   await sendWelcomeEmail({ name: user.name, email: user.email });
+  await captureAccountEvent(user.id, 'signup_completed', user.id);
 
   return NextResponse.json({ id: user.id }, { status: 201 });
 }

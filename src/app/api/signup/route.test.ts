@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
   hash: vi.fn(),
   sendWelcomeEmail: vi.fn(),
+  captureAccountEvent: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -24,6 +25,7 @@ vi.mock('@/lib/email/notify', () => ({
   sendWelcomeEmail: mocks.sendWelcomeEmail,
   WELCOME_BONUS_CREDITS: 2,
 }));
+vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
 
 import { POST } from './route';
 
@@ -48,6 +50,7 @@ beforeEach(() => {
   );
   mocks.hash.mockReset().mockResolvedValue('hash');
   mocks.sendWelcomeEmail.mockReset().mockResolvedValue(true);
+  mocks.captureAccountEvent.mockReset().mockResolvedValue(undefined);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -62,6 +65,7 @@ describe('POST /api/signup', () => {
     });
     const bonus = mocks.values.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'bonus');
     expect((bonus?.[0] as { amount: number }).amount).toBe(2);
+    expect(mocks.captureAccountEvent).toHaveBeenCalledWith('user-1', 'signup_completed', 'user-1');
   });
 
   it('chama o envio de boas-vindas (que é best-effort por contrato)', async () => {
@@ -78,5 +82,6 @@ describe('POST /api/signup', () => {
 
     expect(res.status).toBe(409);
     expect(mocks.sendWelcomeEmail).not.toHaveBeenCalled();
+    expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
   });
 });

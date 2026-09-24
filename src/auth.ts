@@ -8,6 +8,7 @@ import { randomBytes } from 'node:crypto';
 import { db, schema } from '@/db';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
+import { captureAccountEvent } from '@/lib/analytics/server';
 
 const providers: Provider[] = [];
 
@@ -69,6 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Best-effort: nunca lança. Este é o ÚNICO caminho de cadastro em
         // produção (login por e-mail está desligado lá).
         await sendWelcomeEmail({ name: created.name, email: created.email });
+        await captureAccountEvent(created.id, 'signup_completed', created.id);
       }
       return true;
     },

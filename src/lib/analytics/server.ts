@@ -4,7 +4,7 @@ import { db, schema } from '@/db';
 
 /** Best-effort analytics. A failed metrics request must never affect billing or simulations. */
 export async function captureAccountEvent(userId: string, event: string, uniqueId: string): Promise<void> {
-  const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+  const token = process.env.POSTHOG_PROJECT_TOKEN || process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
   if (!token || !host || !/^https:\/\/(us|eu)\.i\.posthog\.com$/.test(host)) return;
 
@@ -13,7 +13,7 @@ export async function captureAccountEvent(userId: string, event: string, uniqueI
       where: eq(schema.users.id, userId),
       columns: { analyticsConsent: true },
     });
-    if (user?.analyticsConsent !== true) return;
+    if (!user || user.analyticsConsent === false) return;
 
     const response = await fetch(`${host}/i/v0/e/`, {
       method: 'POST',
