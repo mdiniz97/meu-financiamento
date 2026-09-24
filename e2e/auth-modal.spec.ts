@@ -70,10 +70,22 @@ test.describe('login e cadastro como modal', () => {
     await expect(page).not.toHaveURL(/signup=1/);
   });
 
-  test('página protegida sem sessão cai na home com o modal aberto', async ({ page }) => {
+  test('página protegida sem sessão cai na home com o modal e guarda o destino', async ({
+    page,
+  }) => {
     await page.goto('/minhas-simulacoes');
 
-    await expect(page).toHaveURL(/\/\?login=1/);
+    await expect(page).toHaveURL(/\/\?login=1&next=%2Fminhas-simulacoes/);
     await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
+  test('o destino guardado sobrevive à troca de modo', async ({ page }) => {
+    await page.goto('/perfil');
+
+    await expect(page).toHaveURL(/next=%2Fperfil/);
+    await page.getByRole('button', { name: 'Cadastre-se' }).click();
+
+    await expect(page).toHaveURL(/signup=1/);
+    await expect(page).toHaveURL(/next=%2Fperfil/);
   });
 });
