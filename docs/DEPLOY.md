@@ -307,7 +307,19 @@ EMAIL_REPLY_TO=contato@amortiza.me   # opcional
 ```
 
 O envio usa `fetch` direto na API do Resend (`src/lib/email/`), sem SDK novo.
-O conteúdo vive em `templates.ts` (função pura, testada).
+Os dois e-mails (boas-vindas e dunning) saem do mesmo layout institucional
+(`layout.ts`): tabela, estilo inline, sem `<style>`, cor primária `#820ad1`,
+cantos retos (a marca usa `--radius: 0`) e rodapé com CNPJ. `templates.ts`
+guarda só o conteúdo de cada e-mail.
+
+> ⚠️ **Não use `<style>`, classes, flex ou grid.** Cliente de e-mail não é
+> browser. O layout existente já segue essa regra — mantenha ao editar.
+
+**Tracking.** `open_tracking` e `click_tracking` estão **desligados** no domínio.
+Ligar reescreveria os links (inclusive o de pagamento) por um domínio de
+tracking e adicionaria pixel — piora entregabilidade e confiança em e-mail de
+cobrança. Só ligue se precisar do dado de funil, e registre no aviso de
+privacidade.
 
 **Dunning.** Dentro da carência, `runDunning` envia **um** aviso por
 inadimplência e grava `subscriptions.dunning_reminded_at` (migração `0017`).
