@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { db, schema } from '@/db';
 import { emailLoginEnabled } from '@/lib/auth-mode';
+import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
 
 const providers: Provider[] = [];
 
@@ -58,13 +59,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .returning();
           await tx.insert(schema.creditLedger).values({
             userId: row.id,
-            amount: 2,
+            amount: WELCOME_BONUS_CREDITS,
             kind: 'bonus',
             description: 'Bônus de boas-vindas',
           });
           return row;
         });
         user.id = created.id;
+        // Best-effort: nunca lança. Este é o ÚNICO caminho de cadastro em
+        // produção (login por e-mail está desligado lá).
+        await sendWelcomeEmail({ name: created.name, email: created.email });
       }
       return true;
     },

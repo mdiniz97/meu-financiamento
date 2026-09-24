@@ -7,9 +7,7 @@ const mocks = vi.hoisted(() => ({
   values: vi.fn(),
   returning: vi.fn(),
   hash: vi.fn(),
-  isEmailEnabled: vi.fn(),
-  sendEmail: vi.fn(),
-  welcomeEmail: vi.fn(),
+  sendWelcomeEmail: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -22,9 +20,10 @@ vi.mock('@/db', () => ({
 vi.mock('drizzle-orm', () => ({ eq: vi.fn() }));
 vi.mock('bcryptjs', () => ({ default: { hash: mocks.hash } }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => true }));
-vi.mock('@/lib/email/config', () => ({ isEmailEnabled: mocks.isEmailEnabled }));
-vi.mock('@/lib/email/client', () => ({ sendEmail: mocks.sendEmail }));
-vi.mock('@/lib/email/templates', () => ({ welcomeEmail: mocks.welcomeEmail }));
+vi.mock('@/lib/email/notify', () => ({
+  sendWelcomeEmail: mocks.sendWelcomeEmail,
+  WELCOME_BONUS_CREDITS: 2,
+}));
 
 import { POST } from './route';
 
@@ -48,9 +47,7 @@ beforeEach(() => {
     fn({ insert: mocks.insert })
   );
   mocks.hash.mockReset().mockResolvedValue('hash');
-  mocks.isEmailEnabled.mockReset().mockReturnValue(true);
-  mocks.sendEmail.mockReset().mockResolvedValue({ id: 'email_1' });
-  mocks.welcomeEmail.mockReset().mockReturnValue({ subject: 'S', html: '<p>h</p>', text: 't' });
+  mocks.sendWelcomeEmail.mockReset().mockResolvedValue(true);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -59,34 +56,19 @@ describe('POST /api/signup', () => {
     const res = await POST(req(VALID));
 
     expect(res.status).toBe(201);
-    expect(mocks.welcomeEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Maria Silva', credits: 2 })
-    );
-    expect(mocks.sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'maria@exemplo.com', subject: 'S' })
-    );
+    expect(mocks.sendWelcomeEmail).toHaveBeenCalledWith({
+      name: 'Maria Silva',
+      email: 'maria@exemplo.com',
+    });
     const bonus = mocks.values.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'bonus');
     expect((bonus?.[0] as { amount: number }).amount).toBe(2);
   });
 
-  it('não envia quando o e-mail está desabilitado', async () => {
-    mocks.isEmailEnabled.mockReturnValue(false);
-
+  it('chama o envio de boas-vindas (que é best-effort por contrato)', async () => {
     const res = await POST(req(VALID));
 
     expect(res.status).toBe(201);
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
-  });
-
-  it('falha no envio NÃO quebra o cadastro', async () => {
-    mocks.sendEmail.mockRejectedValue(new Error('Resend 500'));
-
-    const res = await POST(req(VALID));
-
-    expect(res.status).toBe(201);
-    expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('[signup] falha ao enviar boas-vindas')
-    );
+    expect(mocks.sendWelcomeEmail).toHaveBeenCalledTimes(1);
   });
 
   it('não tenta enviar se o e-mail já existe', async () => {
@@ -95,6 +77,6 @@ describe('POST /api/signup', () => {
     const res = await POST(req(VALID));
 
     expect(res.status).toBe(409);
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.sendWelcomeEmail).not.toHaveBeenCalled();
   });
 });
