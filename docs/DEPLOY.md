@@ -293,16 +293,32 @@ registros criados no Cloudflare:
 | MX (10) | `send.amortiza.me` | Return-Path (SPF do envelope) |
 | TXT | `send.amortiza.me` | SPF (`include:amazonses.com`) |
 | CNAME | `rsend.amortiza.me` | Return-Path (`send.forge.rmta.net`, **DNS only**) |
+| MX (10) | `amortiza.me` | **Recebimento** (inbound) |
+| TXT | `_dmarc.amortiza.me` | DMARC (`p=none`, monitoramento) |
 
-O MX do Resend fica no subdomínio `send.`, então **não conflita** com o MX do
-domínio raiz — dá para usar Email Routing (recebimento) em paralelo.
+**Envio por subdomínio.** O `From` visível usa `@send.amortiza.me`, um domínio
+próprio verificado, para isolar a reputação do raiz. Registros dele (note o
+`send.` dobrado — o domínio já é o `send`):
+
+| Tipo | Nome | Função |
+| --- | --- | --- |
+| TXT | `resend._domainkey.send.amortiza.me` | DKIM |
+| MX (10) | `send.send.amortiza.me` | Return-Path |
+| TXT | `send.send.amortiza.me` | SPF |
+| CNAME | `rsend.send.amortiza.me` | Return-Path (DNS only) |
+
+Não colide com o Return-Path do raiz (que fica em `send.amortiza.me`).
+⚠️ A `RESEND_API_KEY` precisa ser restrita ao domínio de `EMAIL_FROM`: uma
+chave do raiz **não** envia por `send.amortiza.me` (Resend devolve 403).
+
+O recebimento usa o MX do **raiz**, então não há conflito com o envio.
 
 Variáveis (fail-closed: sem as três, o cron não envia nada):
 
 ```env
 EMAIL_ENABLED=true
 RESEND_API_KEY=re_...            # resend.com/api-keys, permissão de envio
-EMAIL_FROM=amortiza.me <financeiro@amortiza.me>
+EMAIL_FROM=amortiza.me <financeiro@send.amortiza.me>
 EMAIL_REPLY_TO=contato@amortiza.me   # opcional
 ```
 
@@ -315,11 +331,17 @@ guarda só o conteúdo de cada e-mail.
 > ⚠️ **Não use `<style>`, classes, flex ou grid.** Cliente de e-mail não é
 > browser. O layout existente já segue essa regra — mantenha ao editar.
 
-**Tracking.** `open_tracking` e `click_tracking` estão **desligados** no domínio.
-Ligar reescreveria os links (inclusive o de pagamento) por um domínio de
-tracking e adicionaria pixel — piora entregabilidade e confiança em e-mail de
-cobrança. Só ligue se precisar do dado de funil, e registre no aviso de
-privacidade.
+**Tracking.** Ligado em `send.amortiza.me`: `open_tracking` e `click_tracking`,
+com **Tracking Subdomain `links`** (`links.send.amortiza.me` → CNAME
+`links2.resend-dns.com`, **DNS only**). O subdomínio de tracking mantém os
+links reescritos no **nosso** domínio em vez de um domínio do Resend.
+
+> O HTML devolvido por `GET /emails/{id}` **não** mostra a reescrita nem o
+> pixel: o Resend injeta o tracking na entrega. Não conclua que está quebrado
+> a partir do HTML da API — confira no e-mail recebido.
+
+> Ligar tracking gera dado de comportamento (abertura/clique) — precisa estar
+> no aviso de privacidade. Desligar é só remover os dois campos e o CNAME.
 
 **Dunning.** Dentro da carência, `runDunning` envia **um** aviso por
 inadimplência e grava `subscriptions.dunning_reminded_at` (migração `0017`).
