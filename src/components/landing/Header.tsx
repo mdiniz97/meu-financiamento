@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { LoginButton } from "@/components/login-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -60,15 +61,11 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
             </>
           ) : (
             <>
-              <Link
-                href="/login"
-                className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  "hidden px-4 text-sm sm:inline-flex"
-                )}
-              >
-                Fazer login
-              </Link>
+              <LoginButton
+                variant="ghost"
+                label="Fazer login"
+                className="hidden px-4 text-sm sm:inline-flex"
+              />
               <Link
                 href="/cadastro"
                 className={cn(buttonVariants({ variant: "default" }), "px-5 text-sm")}

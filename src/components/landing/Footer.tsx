@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { LoginButton } from "@/components/login-button";
 import { SITE_NAME } from "@/lib/site";
 
 export function Footer() {
@@ -19,9 +20,7 @@ export function Footer() {
           <Link href="/blog" className="hover:text-foreground">
             Blog
           </Link>
-          <Link href="/login" className="hover:text-foreground">
-            Entrar
-          </Link>
+          <LoginButton label="Entrar" className="hover:text-foreground" />
           <Link href="/cadastro" className="hover:text-foreground">
             Criar conta
           </Link>

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { TrendingUp } from 'lucide-react';
@@ -10,7 +11,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 
 export default async function InvestirOuAmortizarPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/investir-ou-amortizar'));
   const { isUnlimited } = await getCreditBalance(session.userId);
   const selicAnnual = await getSelicAnnual();
   return (

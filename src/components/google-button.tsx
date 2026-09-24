@@ -26,13 +26,19 @@ function GoogleIcon() {
   );
 }
 
-export function GoogleButton({ label }: { label: string }) {
+export function GoogleButton({
+  label,
+  callbackUrl = '/nova-simulacao',
+}: {
+  label: string;
+  callbackUrl?: string;
+}) {
   return (
     <Button
       type="button"
       variant="outline"
       className="w-full"
-      onClick={() => signIn('google', { callbackUrl: '/nova-simulacao' })}
+      onClick={() => signIn('google', { callbackUrl })}
     >
       <GoogleIcon />
       {label}

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { Home } from 'lucide-react';
@@ -10,7 +11,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 
 export default async function ComprarNaPlantaPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/comprar-na-planta'));
   const { isUnlimited } = await getCreditBalance(session.userId);
   const selicAnnual = await getSelicAnnual();
   return (

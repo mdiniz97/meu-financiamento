@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { KeyRound } from 'lucide-react';
@@ -10,7 +11,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 
 export default async function AlugarOuComprarPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/alugar-ou-comprar'));
   const { isUnlimited } = await getCreditBalance(session.userId);
   const selicAnnual = await getSelicAnnual();
   return (

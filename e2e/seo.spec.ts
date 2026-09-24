@@ -115,13 +115,24 @@ test('imagem Open Graph é PNG público com dimensões de compartilhamento', asy
   expect(png.readUInt32BE(20)).toBe(630);
 });
 
-test('login e cadastro não são indexáveis nem herdam canonical da landing', async ({ page }) => {
-  for (const path of ['/login', '/cadastro']) {
-    await page.goto(path);
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
-    await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute('content', /^https:\/\/amortiza\.me\//);
-  }
+test('cadastro não é indexável nem herda canonical da landing', async ({ page }) => {
+  await page.goto('/cadastro');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+  await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute('content', /^https:\/\/amortiza\.me\//);
+});
+
+test('/login encaminha para a home com o modal e esse estado não é indexável', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/\?login=1/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+});
+
+test('a home limpa continua indexável, com canônica', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /index/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /amortiza\.me/);
 });
 
 test('checkout e APIs recebem noindex também nas respostas sem HTML', async ({ request }) => {

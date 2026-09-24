@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { Scale } from 'lucide-react';
@@ -15,7 +16,7 @@ export default async function CompararPropostasPage({
 }) {
   const { id } = await searchParams;
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/comparar-propostas'));
   const { isUnlimited } = await getCreditBalance(session.userId);
   const saved = isUnlimited && typeof id === 'string' && id ? await loadComparison(id) : null;
 

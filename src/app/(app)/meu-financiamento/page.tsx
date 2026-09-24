@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { Landmark } from 'lucide-react';
 import { auth } from '@/auth';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MeuFinanciamentoPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/meu-financiamento'));
 
   let state: PageState | null = null;
   let draft: unknown = null;

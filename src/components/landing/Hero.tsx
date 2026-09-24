@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
+import { LoginButton } from "@/components/login-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { simulate } from "@/lib/finance/engine";
@@ -48,12 +49,20 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
             {signedIn ? "Simular meu financiamento" : "Criar conta grátis"}
             <ArrowRightIcon className="size-4" />
           </Link>
-          <Link
-            href={signedIn ? "/minhas-simulacoes" : "/login"}
-            className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
-          >
-            {signedIn ? "Minhas simulações" : "Fazer login"}
-          </Link>
+          {signedIn ? (
+            <Link
+              href="/minhas-simulacoes"
+              className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
+            >
+              Minhas simulações
+            </Link>
+          ) : (
+            <LoginButton
+              variant="outline"
+              label="Fazer login"
+              className="h-12 px-8 text-base"
+            />
+          )}
         </div>
         <ul className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
           {trustPoints.map((point) => (

@@ -180,7 +180,7 @@ test('assinar pela landing: não logado cai no login e depois no checkout do Ili
   await page.waitForURL(/login/);
 
   await page.goto('/assinar');
-  await page.waitForURL(/\/login\?callbackUrl=\/assinar/);
+  await page.waitForURL(/\/\?login=1&next=%2Fassinar/);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();

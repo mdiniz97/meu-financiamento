@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { eq } from 'drizzle-orm';
 import { ZapIcon } from 'lucide-react';
 import { auth } from '@/auth';
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 
 export default async function AssinarPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login?callbackUrl=/assinar');
+  if (!session?.userId) redirect(loginHref('/assinar'));
 
   const { isUnlimited } = await getCreditBalance(session.userId);
   if (isUnlimited) redirect('/perfil');

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { and, eq } from 'drizzle-orm';
@@ -14,7 +15,7 @@ import { InvoicesCard } from '@/components/invoices-card';
 
 export default async function PerfilPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/perfil'));
 
   const [user, { credits, isUnlimited }, packs, asaasSubscription] = await Promise.all([
     db.query.users.findFirst({ where: eq(schema.users.id, session.userId) }),

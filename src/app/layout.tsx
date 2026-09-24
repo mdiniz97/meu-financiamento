@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Syne } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LoginDialogProvider } from "@/components/login-dialog-provider";
+import { LoginDialog } from "@/components/login-dialog";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -55,7 +57,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </Script>
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <LoginDialogProvider>
+            {children}
+            <LoginDialog />
+          </LoginDialogProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

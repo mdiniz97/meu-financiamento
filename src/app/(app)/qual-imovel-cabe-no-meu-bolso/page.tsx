@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { Home } from 'lucide-react';
@@ -9,7 +10,7 @@ import { AffordabilityCalculator } from '@/components/simulation/AffordabilityCa
 
 export default async function QualImovelPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/qual-imovel-cabe-no-meu-bolso'));
   const { isUnlimited } = await getCreditBalance(session.userId);
 
   const name = 'Qual imóvel cabe no meu bolso?';

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
@@ -15,11 +16,23 @@ import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 import { publicMetadata, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
-export const metadata = publicMetadata({
-  title: 'Simulador de financiamento imobiliário SAC e PRICE',
-  description: SITE_DESCRIPTION,
-  path: '/',
-});
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<Metadata> {
+  const { login } = await searchParams;
+  const isLoginState = (Array.isArray(login) ? login[0] : login) === '1';
+  const meta = publicMetadata({
+    title: 'Simulador de financiamento imobiliário SAC e PRICE',
+    description: SITE_DESCRIPTION,
+    path: '/',
+  });
+  // `?login=1` é estado de UI (modal aberto), não uma página: não deve ser
+  // indexado nem disputar canônica com a home limpa.
+  if (!isLoginState) return meta;
+  return { ...meta, alternates: undefined, robots: { index: false, follow: false } };
+}
 
 export default async function Home() {
   const session = await auth();

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { deleteSimulation, listSimulations } from '../simulacao/actions';
@@ -122,7 +123,7 @@ function SimulationCard({ sim, isUnlimited }: { sim: Sim; isUnlimited: boolean }
 
 export default async function MinhasSimulacoesPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/minhas-simulacoes'));
 
   const { isUnlimited } = await getCreditBalance(session.userId);
   const sims = await listSimulations();

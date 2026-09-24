@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { Target } from 'lucide-react';
@@ -9,7 +10,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 
 export default async function MetaDeQuitacaoPage() {
   const session = await auth();
-  if (!session?.userId) redirect('/login');
+  if (!session?.userId) redirect(loginHref('/meta-de-quitacao'));
   const { isUnlimited } = await getCreditBalance(session.userId);
 
   return (
