@@ -51,16 +51,16 @@ afterEach(() => {
 
 describe('listInvoicesForPayment', () => {
   it('consulta /invoices filtrando pelo pagamento e extrai o array `data`', async () => {
-    mocks.asaasFetch.mockResolvedValue({ data: [{ id: 'inv_1' }] });
+    mocks.asaasFetch.mockResolvedValue({ data: [{ id: 'inv_1' }], hasMore: false });
 
     await expect(listInvoicesForPayment('pay_1')).resolves.toEqual([{ id: 'inv_1' }]);
     const [cfg, path] = mocks.asaasFetch.mock.calls[0];
     expect(cfg).toMatchObject({ baseUrl: 'https://api.asaas.com/v3' });
-    expect(path).toBe('/invoices?payment=pay_1&limit=1');
+    expect(path).toBe('/invoices?payment=pay_1&limit=100&offset=0');
   });
 
-  it('aceita lista crua (payload sem envelope) e retorna vazio quando não há notas', async () => {
-    mocks.asaasFetch.mockResolvedValue([]);
+  it('retorna vazio quando não há notas', async () => {
+    mocks.asaasFetch.mockResolvedValue({ data: [], hasMore: false });
     await expect(listInvoicesForPayment('pay_1')).resolves.toEqual([]);
   });
 });
@@ -68,7 +68,7 @@ describe('listInvoicesForPayment', () => {
 describe('scheduleInvoiceOnce', () => {
   it('agenda via POST /invoices com payment, serviço municipal e taxes', async () => {
     mocks.asaasFetch
-      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [], hasMore: false })
       .mockResolvedValueOnce({ id: 'inv_new', status: 'SCHEDULED' });
 
     const result = await scheduleInvoiceOnce({
@@ -82,7 +82,7 @@ describe('scheduleInvoiceOnce', () => {
     expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
 
     const [, listPath] = mocks.asaasFetch.mock.calls[0];
-    expect(listPath).toBe('/invoices?payment=pay_1&limit=1');
+    expect(listPath).toBe('/invoices?payment=pay_1&limit=100&offset=0');
 
     const [cfg, path, init] = mocks.asaasFetch.mock.calls[1];
     expect(cfg).toMatchObject({ baseUrl: 'https://api.asaas.com/v3' });
@@ -105,7 +105,7 @@ describe('scheduleInvoiceOnce', () => {
 
   it('permite sobrescrever deductions e observations quando informados', async () => {
     mocks.asaasFetch
-      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [], hasMore: false })
       .mockResolvedValueOnce({ id: 'inv_new' });
 
     await scheduleInvoiceOnce({
@@ -125,7 +125,7 @@ describe('scheduleInvoiceOnce', () => {
     process.env.ASAAS_INVOICE_NBS_CODE = '1.1103.22.00';
     process.env.ASAAS_INVOICE_TAX_SITUATION_CODE = '000';
     mocks.asaasFetch
-      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [], hasMore: false })
       .mockResolvedValueOnce({ id: 'inv_new' });
 
     await scheduleInvoiceOnce({
@@ -148,7 +148,7 @@ describe('scheduleInvoiceOnce', () => {
     'reemite quando a única nota existente está em %s (não é documento válido)',
     async (status) => {
       mocks.asaasFetch
-        .mockResolvedValueOnce({ data: [{ id: 'inv_antiga', status }] })
+        .mockResolvedValueOnce({ data: [{ id: 'inv_antiga', status }], hasMore: false })
         .mockResolvedValueOnce({ id: 'inv_nova', status: 'SCHEDULED' });
 
       await expect(
@@ -158,6 +158,42 @@ describe('scheduleInvoiceOnce', () => {
       expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
     }
   );
+
+  it('blocks reissue when a later page contains a live invoice', async () => {
+    mocks.asaasFetch
+      .mockResolvedValueOnce({ data: [{ id: 'inv_canceled', status: 'CANCELED' }], hasMore: true })
+      .mockResolvedValueOnce({ data: [{ id: 'inv_live', status: 'AUTHORIZED' }], hasMore: false });
+
+    await expect(
+      scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+    ).resolves.toBeNull();
+
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(2);
+    expect(mocks.asaasFetch.mock.calls.map(([, path]) => path)).toEqual([
+      '/invoices?payment=pay_1&limit=100&offset=0',
+      '/invoices?payment=pay_1&limit=100&offset=100',
+    ]);
+  });
+
+  it('does not issue an invoice when a paginated response has no invoice list', async () => {
+    mocks.asaasFetch.mockResolvedValueOnce({ hasMore: false });
+
+    await expect(
+      scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+    ).rejects.toThrow('Invalid Asaas invoice list response');
+
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not issue an invoice when pagination metadata is missing', async () => {
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_canceled', status: 'CANCELED' }] });
+
+    await expect(
+      scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
+    ).rejects.toThrow('Invalid Asaas invoice list response');
+
+    expect(mocks.asaasFetch).toHaveBeenCalledTimes(1);
+  });
 
   // `CANCELLATION_DENIED` é cancelamento RECUSADO: a nota continua valendo
   // (doc Asaas: "mantenha a nota fiscal sincronizada com o estado retornado").
@@ -169,7 +205,7 @@ describe('scheduleInvoiceOnce', () => {
     'PROCESSING_CANCELLATION',
     'CANCELLATION_DENIED',
   ])('não reemite quando a nota existente está em %s (documento vivo)', async (status) => {
-    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_ok', status }] });
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_ok', status }], hasMore: false });
 
     await expect(
       scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
@@ -179,7 +215,7 @@ describe('scheduleInvoiceOnce', () => {
   });
 
   it('não reemite com status desconhecido (conservador)', async () => {
-    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_x', status: 'STATUS_NOVO' }] });
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_x', status: 'STATUS_NOVO' }], hasMore: false });
 
     await expect(
       scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })
@@ -189,7 +225,7 @@ describe('scheduleInvoiceOnce', () => {
   });
 
   it('não repete o POST quando já existe nota para o pagamento (idempotência)', async () => {
-    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_existing' }] });
+    mocks.asaasFetch.mockResolvedValueOnce({ data: [{ id: 'inv_existing' }], hasMore: false });
 
     await expect(
       scheduleInvoiceOnce({ paymentId: 'pay_1', value: 10, effectiveDate: '2026-09-22' })

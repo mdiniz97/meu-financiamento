@@ -35,28 +35,39 @@ const DEFAULT_OBSERVATIONS = 'NFS-e emitida automaticamente pelo sistema.';
 const REISSUABLE_STATUSES = new Set(['ERROR', 'CANCELED']);
 
 function listFrom(payload: unknown): InvoiceSummary[] {
-  if (Array.isArray(payload)) return payload as InvoiceSummary[];
   if (payload && typeof payload === 'object') {
-    const data = (payload as { data?: unknown }).data;
-    if (Array.isArray(data)) return data as InvoiceSummary[];
+    const page = payload as { data?: unknown; hasMore?: unknown };
+    if (Array.isArray(page.data) && typeof page.hasMore === 'boolean') {
+      return page.data as InvoiceSummary[];
+    }
   }
-  return [];
+  throw new Error('Invalid Asaas invoice list response');
 }
 
-/** Notas já existentes para um pagamento. GET — seguro para repetir. */
+/** Paginate all invoices for a payment; GET is safe to retry. */
 export async function listInvoicesForPayment(paymentId: string): Promise<InvoiceSummary[]> {
   const cfg = getAsaasConfig();
-  const payload = await asaasFetch<unknown>(
-    cfg,
-    `/invoices?payment=${encodeURIComponent(paymentId)}&limit=1`
-  );
-  return listFrom(payload);
+  const invoices: InvoiceSummary[] = [];
+  const limit = 100;
+  for (let offset = 0; ; offset += limit) {
+    const payload = await asaasFetch<unknown>(
+      cfg,
+      `/invoices?payment=${encodeURIComponent(paymentId)}&limit=${limit}&offset=${offset}`
+    );
+    const page = listFrom(payload);
+    invoices.push(...page);
+    if ((payload as { hasMore: boolean }).hasMore) {
+      if (page.length === 0) throw new Error('Invalid Asaas invoice list response');
+      continue;
+    }
+    return invoices;
+  }
 }
 
 /**
  * Agenda a NFS-e de uma cobrança avulsa. A API do Asaas não tem
- * `Idempotency-Key` (skill §8), então consulta antes de repetir o POST: se já
- * existir nota para o pagamento, devolve `null` sem criar outra.
+ * `Idempotency-Key` (skill §8), so it checks every page before POST. A live
+ * invoice on any page blocks reissue; this does not prevent concurrent POSTs.
  */
 export async function scheduleInvoiceOnce(
   input: ScheduleInvoiceInput
