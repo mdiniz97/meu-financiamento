@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AnalyticsPreferencesButton } from '@/components/analytics-consent';
 
 export const metadata: Metadata = {
   title: 'Política de Cookies',
@@ -28,11 +29,14 @@ export default function CookiesPage() {
       <section>
         <h2>Análise de uso</h2>
         <p>
-          Nesta versão, não há SDK de análise de comportamento instalado no site. Planejamos
-          medir acessos e engajamento para melhorar a experiência, mas qualquer ativação de
-          ferramenta como PostHog exige atualização destas informações e configuração da
-          coleta antes do início do rastreamento. Não tratamos esta página como autorização
-          para gravar formulários ou dados de financiamento em ferramentas de analytics.
+          Com sua autorização, enviamos ao PostHog páginas visitadas (caminho sem parâmetros
+          de URL), origem de campanha válida e etapas concluídas de simulação, início de
+          checkout, cliques nos botões de compra e compra confirmada. A escolha é opcional:
+          recusar não impede usar o site.
+          Não gravamos sessões, cliques automáticos, respostas de formulários, valores ou detalhes
+          de financiamento. Visitantes autorizados recebem um identificador temporário da sessão;
+          contas autorizadas usam identificador de conta. O PostHog pode processar endereço IP
+          no recebimento dos eventos; usamos a região de hospedagem dos EUA.
         </p>
       </section>
 
@@ -41,6 +45,10 @@ export default function CookiesPage() {
         <p>
           Você pode gerenciar ou apagar cookies e dados locais nas configurações do navegador.
           Desativar os itens necessários pode impedir o login ou a conservação de preferências.
+          A preferência de análise fica no armazenamento local; para visitantes autorizados,
+          o identificador temporário fica no armazenamento da sessão. Para contas, a escolha
+          também fica salva no servidor. Você pode <AnalyticsPreferencesButton /> a qualquer
+          momento; a recusa interrompe novos eventos, sem apagar automaticamente dados já enviados.
           Para pedidos sobre seus dados, consulte nossa{' '}
           <Link className="underline" href="/privacidade">Política de Privacidade</Link> ou
           escreva para <a className="underline" href="mailto:contato@amortiza.me">contato@amortiza.me</a>.

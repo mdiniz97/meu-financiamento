@@ -8,6 +8,7 @@ import { hasActiveAccess } from '@/lib/subscriptions/access';
 import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 import { getPaymentProvider } from '@/lib/payments';
+import { captureAccountEvent } from '@/lib/analytics/server';
 
 function isUniqueViolation(e: unknown): boolean {
   // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
@@ -129,5 +130,6 @@ export async function startSubscription(): Promise<void> {
     .set({ asaasCheckoutId: checkout.id })
     .where(eq(schema.subscriptions.id, localId));
 
+  await captureAccountEvent(userId, 'checkout_started', checkout.id);
   redirect(checkout.link);
 }

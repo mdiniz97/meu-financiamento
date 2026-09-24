@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { addCredits } from '@/lib/credits';
+import { captureAccountEvent } from '@/lib/analytics/server';
 import { hasInvoiceService, isInvoiceEnabled } from '@/lib/payments/asaas/invoice-config';
 import { getAsaasConfig } from '@/lib/payments/asaas/config';
 import { scheduleInvoiceOnce } from '@/lib/payments/asaas/invoice';
@@ -299,6 +300,9 @@ async function applyCreditPurchase(event: AsaasEvent): Promise<void> {
           paidAt: new Date(),
         })
         .where(eq(schema.creditPurchases.id, purchase.id));
+      if (event.payment?.id) {
+        await captureAccountEvent(purchase.userId, 'purchase_confirmed', event.payment.id);
+      }
       await scheduleCreditInvoiceIfEnabled(purchase, event);
       return;
     }
@@ -618,6 +622,9 @@ export async function applyAsaasEvent(
         cardLast4: event.payment?.creditCard?.creditCardNumber?.slice(-4) ?? undefined,
         cardBrand: event.payment?.creditCard?.creditCardBrand ?? undefined,
       });
+      if (event.payment?.id) {
+        await captureAccountEvent(sub.userId, 'purchase_confirmed', event.payment.id);
+      }
       return;
     }
 

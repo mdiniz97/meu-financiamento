@@ -4,6 +4,7 @@ import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthDialogProvider } from "@/components/auth-dialog-provider";
 import { AuthDialog } from "@/components/auth-dialog";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <AuthDialogProvider>
             {children}
             <AuthDialog />
+            <AnalyticsConsent />
           </AuthDialogProvider>
         </ThemeProvider>
       </body>

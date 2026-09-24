@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   configureInvoiceSettings: vi.fn(),
   getAsaasConfig: vi.fn(),
   scheduleInvoiceOnce: vi.fn(),
+  captureAccountEvent: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -69,6 +70,8 @@ vi.mock('@/lib/payments/asaas/config', () => ({
 vi.mock('@/lib/payments/asaas/invoice', () => ({
   scheduleInvoiceOnce: mocks.scheduleInvoiceOnce,
 }));
+
+vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
@@ -154,6 +157,7 @@ beforeEach(() => {
   mocks.addCredits.mockResolvedValue(undefined);
   mocks.scheduleInvoiceOnce.mockReset();
   mocks.scheduleInvoiceOnce.mockResolvedValue({ id: 'inv_1' });
+  mocks.captureAccountEvent.mockReset().mockResolvedValue(undefined);
   delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_ID;
   delete process.env.ASAAS_INVOICE_MUNICIPAL_SERVICE_CODE;
   mocks.updateSub.mockReset();
@@ -188,6 +192,7 @@ describe('applyAsaasEvent — §7.2', () => {
     const patch = setPatch(c);
     expect(patch.status).toBe('active');
     expect((patch.currentPeriodEnd as Date).toISOString()).toBe('2027-09-13T00:00:00.000Z');
+    expect(mocks.captureAccountEvent).toHaveBeenCalledWith('user-1', 'purchase_confirmed', 'pay_1');
   });
 
   it('PAYMENT_OVERDUE marca past_due com carência', async () => {
@@ -630,6 +635,7 @@ describe('créditos avulsos — compra DETACHED', () => {
     expect(patch.status).toBe('paid');
     expect(patch.asaasPaymentId).toBe('pay_1');
     expect(patch.paidAt).toBeInstanceOf(Date);
+    expect(mocks.captureAccountEvent).toHaveBeenCalledWith('u1', 'purchase_confirmed', 'pay_1');
 
     const cols = mocks.findPurchase.mock.calls.map(
       (call) => (call[0] as { where: { col: string } }).where.col
@@ -657,6 +663,7 @@ describe('créditos avulsos — compra DETACHED', () => {
 
     expect(mocks.addCredits).toHaveBeenCalledTimes(1);
     expect(updateChains).toHaveLength(1);
+    expect(mocks.captureAccountEvent).toHaveBeenCalledTimes(1);
   });
 
   it('assinatura resolvida nunca concede créditos mesmo com compra correlacionada', async () => {

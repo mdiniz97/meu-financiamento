@@ -97,11 +97,19 @@ CRON_SECRET             # openssl rand -hex 32
 ASAAS_ENV               # production
 ASAAS_API_KEY
 ASAAS_WEBHOOK_AUTH_TOKEN
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN  # token público do projeto PostHog; definido antes do build
+NEXT_PUBLIC_POSTHOG_HOST           # https://us.i.posthog.com
 ```
 
 > **`PORT` e `HOSTNAME`**: o Railway injeta `PORT`; o `Dockerfile` já define
 > `HOSTNAME=0.0.0.0` e o server standalone escuta em `0.0.0.0:$PORT`. Não
 > sobrescreva. **Não defina `NODE_ENV`** (o Dockerfile fixa `production`).
+
+> **Analytics**: configure `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` antes do build.
+> Sem ele, a coleta e o aviso de escolha ficam desativados. A migração
+> `0018_mysterious_lady_ursula.sql` cria `users.analytics_consent`; o release
+> step deve aplicá-la antes de a nova versão receber tráfego. Teste o aceite,
+> a recusa e a revogação em ambiente de prévia antes de ativar em produção.
 
 ### 2.3 `railway.json`
 

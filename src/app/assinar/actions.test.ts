@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   updateWhere: vi.fn(),
   updateSet: vi.fn(),
   update: vi.fn(),
+  captureAccountEvent: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ redirect: m.redirect }));
@@ -25,6 +26,7 @@ vi.mock('@/lib/payments/asaas/checkout', () => ({
 vi.mock('@/lib/payments/asaas/subscription', () => ({
   cancelAtPeriodEnd: m.cancelAtPeriodEnd,
 }));
+vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: m.captureAccountEvent }));
 vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (...args: unknown[]) => args,
@@ -89,6 +91,7 @@ describe('startSubscription', () => {
     });
     expect(m.updateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-existing']);
     expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_1' });
+    expect(m.captureAccountEvent).toHaveBeenCalledWith('user-1', 'checkout_started', 'chk_1');
     expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
       expect.objectContaining({
         externalReference: 'sub-existing',

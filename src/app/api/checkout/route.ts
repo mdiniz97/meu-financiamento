@@ -5,6 +5,7 @@ import { db, schema } from '@/db';
 import { getPaymentProvider } from '@/lib/payments';
 import { createCreditsCheckout } from '@/lib/payments/asaas/checkout';
 import { AsaasApiError } from '@/lib/payments/asaas/client';
+import { captureAccountEvent } from '@/lib/analytics/server';
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -100,6 +101,7 @@ export async function POST(req: Request) {
       .set({ asaasCheckoutId: checkout.id })
       .where(eq(schema.creditPurchases.id, purchase.id));
 
+    await captureAccountEvent(session.userId, 'checkout_started', purchase.id);
     return NextResponse.json({ checkoutUrl: checkout.link });
   }
 

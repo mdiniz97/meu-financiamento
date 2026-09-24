@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "analytics_consent" boolean;

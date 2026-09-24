@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Coins, ZapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { startSubscription } from '@/app/assinar/actions';
+import { captureCtaClick } from '@/lib/analytics/browser';
 
 export function BuyPackButton({
   packId,
@@ -20,6 +21,7 @@ export function BuyPackButton({
   const [error, setError] = useState<string | null>(null);
 
   async function buy() {
+    void captureCtaClick('buy_credits');
     setBusy(true);
     setError(null);
     try {
@@ -53,7 +55,11 @@ export function BuyPackButton({
   // falso "erro de rede" mesmo com a navegação funcionando).
   if (isSubscription) {
     return (
-      <form action={startSubscription} className="w-full">
+      <form
+        action={startSubscription}
+        onSubmit={() => { void captureCtaClick('subscribe'); }}
+        className="w-full"
+      >
         <Button type="submit" className="w-full">
           <ZapIcon className="size-4" />
           {label}

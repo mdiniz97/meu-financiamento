@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
+import { captureAccountEvent } from '@/lib/analytics/server';
 import { validateLoanInput } from '@/lib/finance/engine';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
 
@@ -69,6 +70,7 @@ export async function saveSimulation(
   });
 
   if (savedId == null) return { error: 'Créditos insuficientes' };
+  await captureAccountEvent(session.userId, 'simulation_completed', savedId);
   return { id: savedId };
 }
 
@@ -174,6 +176,7 @@ export async function saveToolSimulation(input: {
   });
 
   if (savedId == null) return { error: 'Créditos insuficientes' };
+  await captureAccountEvent(session.userId, 'simulation_completed', savedId);
   revalidatePath('/minhas-simulacoes');
   return { id: savedId };
 }

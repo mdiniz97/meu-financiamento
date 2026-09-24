@@ -16,6 +16,7 @@ const m = vi.hoisted(() => {
     insertReturning,
     updateSet,
     updateWhere,
+    captureAccountEvent: vi.fn(),
   };
 });
 
@@ -40,6 +41,7 @@ vi.mock('@/lib/payments', () => ({
 vi.mock('@/lib/payments/asaas/checkout', () => ({
   createCreditsCheckout: m.createCreditsCheckout,
 }));
+vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: m.captureAccountEvent }));
 vi.mock('drizzle-orm', () => ({ eq: (...args: unknown[]) => args }));
 
 import { POST } from './route';
@@ -102,6 +104,7 @@ describe('POST /api/checkout', () => {
     expect(m.updateWhere).toHaveBeenCalledTimes(1);
     expect(m.updateWhere).toHaveBeenCalledWith(['credit_purchases.id', 'purchase-1']);
     expect(m.createCheckout).not.toHaveBeenCalled();
+    expect(m.captureAccountEvent).toHaveBeenCalledWith('user-1', 'checkout_started', 'purchase-1');
   });
 
   it('asaas + pack avulso sem créditos responde 400 sem inserir', async () => {
@@ -119,6 +122,7 @@ describe('POST /api/checkout', () => {
     expect(m.insert).not.toHaveBeenCalled();
     expect(m.createCreditsCheckout).not.toHaveBeenCalled();
     expect(m.createCheckout).not.toHaveBeenCalled();
+    expect(m.captureAccountEvent).not.toHaveBeenCalled();
   });
 
   it('asaas + pack avulso com credits null responde 400 sem inserir', async () => {
