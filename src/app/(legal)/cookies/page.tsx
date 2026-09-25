@@ -12,7 +12,7 @@ export default function CookiesPage() {
     <>
       <header>
         <h1>Política de Cookies</h1>
-        <p>Última atualização: 24 de setembro de 2026.</p>
+        <p>Última atualização: 25 de setembro de 2026.</p>
       </header>
 
       <section>
@@ -21,21 +21,31 @@ export default function CookiesPage() {
           O site utiliza cookies de sessão e autenticação para permitir login, manter sua
           sessão e proteger o acesso à conta. A preferência de tema (claro, escuro ou do
           sistema) é guardada no armazenamento local do navegador. Serviços envolvidos na
-          entrega, segurança e login, como Cloudflare e Google, também podem utilizar
-          tecnologias necessárias às suas respectivas funções.
+          entrega, segurança e login também podem utilizar tecnologias necessárias às suas
+          respectivas funções.
+        </p>
+      </section>
+
+      <section>
+        <h2>Medição de publicidade</h2>
+        <p>
+          Uma tag de publicidade carregada nas páginas pode usar cookies e identificadores
+          do navegador para medir campanhas e visitas. O controle de análise de uso abaixo
+          não desativa essa tag; você pode restringir cookies e rastreadores nas configurações
+          do navegador.
         </p>
       </section>
 
       <section>
         <h2>Análise de uso</h2>
         <p>
-          Medimos uso do site com PostHog sem exigir aceite prévio. Registramos páginas
+          Medimos uso do site com ferramenta de análise sem exigir aceite prévio. Registramos páginas
           visitadas e destinos de links internos (caminhos sem parâmetros de URL), origem
           de campanha válida, domínio do site de origem, cliques em botões de compra e etapas
           concluídas de cadastro, simulação, checkout e compra confirmada. Não gravamos replay
           de sessões, respostas de formulários, valores ou detalhes de financiamento. Para visitantes não logados,
           o identificador aleatório dura até 30 dias no armazenamento local; para contas,
-          usamos o identificador da conta. PostHog processa IP no recebimento dos eventos,
+          usamos o identificador da conta. O prestador de análise processa IP no recebimento dos eventos,
           mas está configurado para descartá-lo antes de armazená-los. Dados ficam na região
           de hospedagem dos EUA.
         </p>

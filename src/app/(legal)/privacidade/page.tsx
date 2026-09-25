@@ -11,7 +11,7 @@ export default function PrivacidadePage() {
     <>
       <header>
         <h1>Política de Privacidade</h1>
-        <p>Última atualização: 24 de setembro de 2026.</p>
+        <p>Última atualização: 25 de setembro de 2026.</p>
       </header>
 
       <section>
@@ -41,17 +41,25 @@ export default function PrivacidadePage() {
             prevenir abuso e diagnosticar falhas.
           </li>
           <li>
-            Para análise de uso com PostHog: identificador aleatório do visitante por até
+            Para análise de uso: identificador aleatório do visitante por até
             30 dias ou identificador de conta, caminhos de páginas e links internos sem
             parâmetros, domínio do site de origem, campanha válida e eventos de cadastro,
             simulação concluída, checkout iniciado, cliques de compra e compra confirmada.
-            Não enviamos valores, dados de financiamento, conteúdo de formulários ou e-mail ao PostHog.
+            Não enviamos valores, dados de financiamento, conteúdo de formulários ou e-mail
+            à ferramenta de análise.
+          </li>
+          <li>
+            Para medição de publicidade: uma tag de terceiro pode processar dados técnicos
+            de navegação, identificadores do navegador e origem de campanhas para avaliar
+            desempenho de anúncios. Não configuramos eventos próprios de conversão de compra
+            nessa tag nesta etapa.
           </li>
         </ul>
         <p>
-          O cadastro em produção utiliza login Google. Quando o cadastro por e-mail está
-          disponível, a senha é armazenada como hash, não em texto puro. Dados completos
-          de cartão são informados no checkout do Asaas, não nos formulários do nosso site.
+          O cadastro em produção utiliza um provedor externo de autenticação. Quando o
+          cadastro por e-mail está disponível, a senha é armazenada como hash, não em texto
+          puro. Dados completos de cartão são informados no checkout do prestador de
+          pagamentos, não nos formulários do nosso site.
         </p>
       </section>
 
@@ -60,12 +68,14 @@ export default function PrivacidadePage() {
         <p>
           Tratamos dados necessários à execução do serviço solicitado, ao cumprimento de
           obrigações legais e, quando cabível, à segurança e melhoria da plataforma,
-          observados seus direitos. Fornecedores envolvidos na operação podem tratar dados
-          conforme suas funções: Google (login), Asaas (pagamentos e notas), Resend (e-mails),
-          Railway e Neon (hospedagem e banco de dados), Cloudflare (entrega e proteção do site)
-          e PostHog (análise de uso, hospedado nos EUA, com descarte de IP antes do armazenamento).
-          Alguns desses serviços podem processar dados fora do Brasil, conforme suas
-          infraestruturas e regras aplicáveis. Não vendemos seus dados pessoais.
+          observados seus direitos. Prestadores envolvidos na operação podem tratar dados
+          para autenticação, processamento de pagamentos e notas fiscais, envio de e-mails,
+          hospedagem e banco de dados, entrega e proteção do site, análise de uso e medição
+          de publicidade.
+          Alguns desses serviços podem processar dados fora do Brasil; a análise de uso
+          utiliza infraestrutura nos EUA e descarta o IP antes de armazenar eventos.
+          Não vendemos seus dados pessoais. Você pode solicitar informações sobre os
+          compartilhamentos aplicáveis pelo contato indicado acima.
         </p>
       </section>
 
@@ -99,7 +109,8 @@ export default function PrivacidadePage() {
         <p>
           Veja a <Link className="underline" href="/cookies">Política de Cookies</Link> para
           conhecer o armazenamento usado pelo site e desativar ou reativar a análise de uso.
-          A desativação interrompe novos eventos, sem eliminar automaticamente os já enviados.
+          Esse controle não desativa a tag de publicidade. A desativação da análise de uso
+          interrompe novos eventos dessa ferramenta, sem eliminar automaticamente os já enviados.
           Alterações relevantes serão comunicadas pelos canais disponíveis.
         </p>
       </section>
