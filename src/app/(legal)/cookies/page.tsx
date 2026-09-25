@@ -30,8 +30,8 @@ export default function CookiesPage() {
         <h2>Medição de publicidade</h2>
         <p>
           Uma tag de publicidade carregada nas páginas pode usar cookies e identificadores
-          do navegador para medir campanhas e visitas. O controle de análise de uso abaixo
-          não desativa essa tag; você pode restringir cookies e rastreadores nas configurações
+          do navegador para medir campanhas, visitas e cadastros concluídos. O controle de
+          análise de uso abaixo não desativa essa tag; você pode restringir cookies e rastreadores nas configurações
           do navegador.
         </p>
       </section>

@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
 import { captureAccountEvent } from '@/lib/analytics/server';
+import { adsSignupConversionValue } from '@/lib/ads/signup-conversion-id';
 
 export async function POST(req: Request) {
   if (!emailLoginEnabled()) {
@@ -37,12 +38,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Email já cadastrado' }, { status: 409 });
 
   const user = await db.transaction(async (tx) => {
+    const conversionId = adsSignupConversionValue();
     const [created] = await tx
       .insert(schema.users)
       .values({
         name,
         email: normalized,
         passwordHash: await bcrypt.hash(password, 10),
+        ...(conversionId ? { adsSignupConversionId: conversionId } : {}),
       })
       .returning();
     await tx.insert(schema.creditLedger).values({

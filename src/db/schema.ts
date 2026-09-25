@@ -8,6 +8,10 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('user'),
   analyticsConsent: boolean('analytics_consent'),
+  adsSignupConversionId: text('ads_signup_conversion_id').unique(),
+  adsSignupClaimToken: uuid('ads_signup_claim_token'),
+  adsSignupClaimUntil: timestamp('ads_signup_claim_until', { withTimezone: true }),
+  adsSignupSentAt: timestamp('ads_signup_sent_at', { withTimezone: true }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

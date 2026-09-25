@@ -51,8 +51,8 @@ export default function PrivacidadePage() {
           <li>
             Para medição de publicidade: uma tag de terceiro pode processar dados técnicos
             de navegação, identificadores do navegador e origem de campanhas para avaliar
-            desempenho de anúncios. Não configuramos eventos próprios de conversão de compra
-            nessa tag nesta etapa.
+            desempenho de anúncios e cadastros concluídos. Não configuramos eventos próprios
+            de conversão de compra nessa tag nesta etapa.
           </li>
         </ul>
         <p>

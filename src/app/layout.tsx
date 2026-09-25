@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthDialogProvider } from "@/components/auth-dialog-provider";
 import { AuthDialog } from "@/components/auth-dialog";
 import { AnalyticsConsent } from "@/components/analytics-consent";
+import { GoogleAdsSignupConversion } from "@/components/google-ads-signup-conversion";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
             <AuthDialog />
             <AnalyticsConsent />
+            <GoogleAdsSignupConversion />
           </AuthDialogProvider>
         </ThemeProvider>
         <Script

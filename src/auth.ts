@@ -9,6 +9,7 @@ import { db, schema } from '@/db';
 import { emailLoginEnabled } from '@/lib/auth-mode';
 import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
 import { captureAccountEvent } from '@/lib/analytics/server';
+import { adsSignupConversionValue } from '@/lib/ads/signup-conversion-id';
 
 const providers: Provider[] = [];
 
@@ -50,12 +51,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return true;
         }
         const created = await db.transaction(async (tx) => {
+          const conversionId = adsSignupConversionValue();
           const [row] = await tx
             .insert(schema.users)
             .values({
               name: user.name ?? email.split('@')[0],
               email,
               passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
+              ...(conversionId ? { adsSignupConversionId: conversionId } : {}),
             })
             .returning();
           await tx.insert(schema.creditLedger).values({

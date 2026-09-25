@@ -134,6 +134,13 @@
       "when": 1790260847419,
       "tag": "0018_mysterious_lady_ursula",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790344126706,
+      "tag": "0019_ads_signup_conversion",
+      "breakpoints": true
     }
   ]
 }

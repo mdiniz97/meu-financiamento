@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   findFirstUser: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('@/db', () => ({
   },
   schema: { users: { email: 'email' }, creditLedger: {} },
 }));
-vi.mock('drizzle-orm', () => ({ eq: vi.fn() }));
+vi.mock('drizzle-orm', () => ({ eq: vi.fn(), sql: () => 'SQL_EXPRESSION' }));
 vi.mock('bcryptjs', () => ({ default: { hash: mocks.hash } }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => true }));
 vi.mock('@/lib/email/notify', () => ({
@@ -53,6 +53,7 @@ beforeEach(() => {
   mocks.captureAccountEvent.mockReset().mockResolvedValue(undefined);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe('POST /api/signup', () => {
   it('cria a conta e envia boas-vindas com o mesmo bônus do ledger', async () => {
@@ -83,5 +84,17 @@ describe('POST /api/signup', () => {
     expect(res.status).toBe(409);
     expect(mocks.sendWelcomeEmail).not.toHaveBeenCalled();
     expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not mark development email signups for Google Ads conversion', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    await POST(req(VALID));
+    expect(mocks.values.mock.calls[0][0]).not.toHaveProperty('adsSignupConversionId');
+  });
+
+  it('marks a production email signup if email registration is enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    await POST(req(VALID));
+    expect(mocks.values.mock.calls[0][0]).toHaveProperty('adsSignupConversionId');
   });
 });
