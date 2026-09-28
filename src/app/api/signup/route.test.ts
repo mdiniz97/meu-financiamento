@@ -23,7 +23,7 @@ vi.mock('bcryptjs', () => ({ default: { hash: mocks.hash } }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => true }));
 vi.mock('@/lib/email/notify', () => ({
   sendWelcomeEmail: mocks.sendWelcomeEmail,
-  WELCOME_BONUS_CREDITS: 2,
+  WELCOME_BONUS_CREDITS: 5,
 }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
 
@@ -65,7 +65,7 @@ describe('POST /api/signup', () => {
       email: 'maria@exemplo.com',
     });
     const bonus = mocks.values.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'bonus');
-    expect((bonus?.[0] as { amount: number }).amount).toBe(2);
+    expect((bonus?.[0] as { amount: number }).amount).toBe(5);
     expect(mocks.captureAccountEvent).toHaveBeenCalledWith('user-1', 'signup_completed', 'user-1');
   });
 

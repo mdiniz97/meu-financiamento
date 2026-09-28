@@ -18,7 +18,7 @@ test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ p
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
 
   const uid = execSync(`psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`).toString().trim();

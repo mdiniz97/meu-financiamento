@@ -37,6 +37,17 @@ export default function CookiesPage() {
       </section>
 
       <section>
+        <h2>Resgate de créditos</h2>
+        <p>
+          Ao abrir o link de bônus de ativação recebido por e-mail, guardamos o código em um
+          cookie necessário, protegido contra leitura por scripts, por até 15 minutos. O link
+          permanece válido até seu resgate: se o cookie expirar, abra o mesmo e-mail novamente.
+          O resgate exige login na conta destinatária e confirmação por botão. Você pode
+          recusar ofertas futuras no <Link className="underline" href="/perfil">perfil</Link>.
+        </p>
+      </section>
+
+      <section>
         <h2>Análise de uso</h2>
         <p>
           Medimos uso do site com ferramenta de análise sem exigir aceite prévio. Registramos páginas

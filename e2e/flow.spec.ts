@@ -2,6 +2,10 @@ import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 
+if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE) {
+  test.use({ launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } });
+}
+
 const hasPsql = (() => {
   try {
     execSync('which psql', { stdio: 'ignore' });
@@ -17,7 +21,7 @@ async function cadastrar(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   return email;
 }
 
@@ -33,11 +37,11 @@ test('cadastro → simular (auto-save 1 crédito) → comprar créditos', async 
   await page.goto('/perfil');
   await page.getByRole('button', { name: /5 créditos/i }).click();
   await page.waitForURL(/\/perfil/);
-  await expect(page.getByText('Saldo de créditos').locator('..').getByText('6', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saldo de créditos').locator('..').getByText('9', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /5 créditos/i }).click();
   await page.waitForURL(/\/perfil/);
-  await expect(page.getByText('Saldo de créditos').locator('..').getByText('11', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saldo de créditos').locator('..').getByText('14', { exact: true })).toBeVisible();
 });
 
 test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {
@@ -62,7 +66,7 @@ test('simulação de usuário free não é salva após a janela de 6 horas', asy
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
 
   const uid = execSync(
@@ -83,7 +87,7 @@ test('simulação de assinante Ilimitado fica listada (sem janela de 6 horas)', 
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
@@ -129,7 +133,7 @@ test('assinante Ilimitado não vê banners de upgrade', async ({ page }) => {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
@@ -152,7 +156,7 @@ test('assinante Ilimitado não vê opções de compra no perfil', async ({ page 
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
@@ -174,7 +178,7 @@ test('assinar pela landing: não logado cai no login e depois no checkout do Ili
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
   await page.getByRole('button', { name: 'Sair' }).click();
   await page.waitForURL(/login/);

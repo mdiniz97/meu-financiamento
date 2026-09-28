@@ -76,7 +76,7 @@ async function criarConta(page: Page, nome: string): Promise<{ id: string; email
   const signup = page.waitForResponse(
     (response) => response.url().endsWith('/api/signup') && response.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   const response = await signup;
   expect(response.ok()).toBe(true);
   const { id } = (await response.json()) as { id: string };

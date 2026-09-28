@@ -17,7 +17,7 @@ vi.mock('next-auth', () => ({
 vi.mock('next-auth/providers/google', () => ({ default: () => ({ id: 'google' }) }));
 vi.mock('next-auth/providers/credentials', () => ({ default: () => ({ id: 'credentials' }) }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => false }));
-vi.mock('@/lib/email/notify', () => ({ sendWelcomeEmail: mocks.sendWelcomeEmail, WELCOME_BONUS_CREDITS: 2 }));
+vi.mock('@/lib/email/notify', () => ({ sendWelcomeEmail: mocks.sendWelcomeEmail, WELCOME_BONUS_CREDITS: 5 }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
 vi.mock('@/db', () => ({ db: { query: { users: { findFirst: mocks.findFirst } }, transaction: mocks.transaction }, schema: { users: { email: 'email' }, creditLedger: {} } }));
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), sql: () => 'SQL_EXPRESSION' }));
@@ -44,6 +44,7 @@ describe('Google account creation analytics', () => {
     const user = { email: 'user@example.com', name: 'User' };
     await signIn()({ user, account: { provider: 'google' } });
     expect(mocks.captureAccountEvent).toHaveBeenCalledWith('u1', 'signup_completed', 'u1');
+    expect(mocks.insertedValues.mock.calls.find(([value]) => value.kind === 'bonus')?.[0].amount).toBe(5);
   });
 
   it('does not count a returning Google login as signup', async () => {

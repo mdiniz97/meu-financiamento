@@ -141,6 +141,13 @@
       "when": 1790344126706,
       "tag": "0019_ads_signup_conversion",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790370074061,
+      "tag": "0020_activation_bonus",
+      "breakpoints": true
     }
   ]
 }

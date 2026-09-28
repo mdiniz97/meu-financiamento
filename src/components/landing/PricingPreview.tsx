@@ -28,7 +28,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             Planos simples, preços honestos
           </h2>
           <p className="mt-3 text-lg text-muted-foreground">
-            Comece grátis com 2 créditos de boas-vindas e evolua quando precisar.
+            Comece grátis com 5 créditos de boas-vindas e evolua quando precisar.
           </p>
         </div>
 

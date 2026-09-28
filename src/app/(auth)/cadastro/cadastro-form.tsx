@@ -122,7 +122,7 @@ export function CadastroForm({ callbackUrl = null }: { callbackUrl?: string | nu
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={loading}>
-          {loading ? 'Criando conta…' : 'Criar conta e ganhar 2 créditos'}
+          {loading ? 'Criando conta…' : 'Criar conta e ganhar 5 créditos'}
         </Button>
       </form>
       <div className="my-4 flex items-center gap-3">

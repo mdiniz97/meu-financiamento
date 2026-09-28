@@ -12,6 +12,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
 import { InvoicesCard } from '@/components/invoices-card';
+import { ActivationEmailPreference } from '@/components/activation-email-preference';
 
 export default async function PerfilPage() {
   const session = await auth();
@@ -65,6 +66,16 @@ export default async function PerfilPage() {
           <div>
             <LogoutButton />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Comunicações por e-mail</CardTitle>
+          <CardDescription>Escolha se deseja receber ofertas e bônus de ativação.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ActivationEmailPreference initiallyEnabled={!user?.activationBonusOptOutAt} />
         </CardContent>
       </Card>
 

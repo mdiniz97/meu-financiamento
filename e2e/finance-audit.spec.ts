@@ -9,7 +9,7 @@ async function assinar(page: Page) {
   await page.getByLabel('Email').fill(`audit-${crypto.randomUUID()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
   const signup = page.waitForResponse((response) => response.url().endsWith('/api/signup') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: /criar conta e ganhar 2 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
   const response = await signup;
   expect(response.ok()).toBe(true);
   const { id } = await response.json() as { id: string };

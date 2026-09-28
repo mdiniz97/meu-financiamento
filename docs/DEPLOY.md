@@ -258,6 +258,7 @@ caso contrário o Railway pula a execução seguinte.
 | Reconciliação de assinaturas + reprocesso de webhooks | `POST /api/cron/reconcile` | `0 6 * * *` |
 | Dunning (inadimplência/carência) | `POST /api/cron/dunning` | `0 7 * * *` |
 | Reajuste do ISS das assinaturas (NFS-e) | `POST /api/cron/invoice-settings` | `0 8 1 * *` (mensal) |
+| Bônus único de ativação (+2 créditos) — **criar só após go-live autorizado** | `POST /api/cron/activation-bonus` | `0 * * * *` (horário) |
 
 Receita verificada em produção: **imagem `alpine:3.20`** + start command
 abaixo, `APP_URL` e `CRON_SECRET` referenciando o serviço web
@@ -269,6 +270,7 @@ sh -c 'echo "[cron-reconcile] start"; wget -S -O - --header="Authorization: Bear
 # e, nos outros serviços, troque o endpoint no fim:
 #   ... "$APP_URL/api/cron/dunning"        → "[cron-dunning]"
 #   ... "$APP_URL/api/cron/invoice-settings" → "[cron-invoice-settings]"
+#   ... "$APP_URL/api/cron/activation-bonus" → "[cron-activation-bonus]"
 ```
 
 O `echo`/`-S` não são decorativos: sem eles um `401` (segredo trocado) falha
@@ -332,7 +334,7 @@ EMAIL_REPLY_TO=contato@amortiza.me   # opcional
 ```
 
 O envio usa `fetch` direto na API do Resend (`src/lib/email/`), sem SDK novo.
-Os dois e-mails (boas-vindas e dunning) saem do mesmo layout institucional
+Os e-mails (boas-vindas, dunning e bônus de ativação) saem do mesmo layout institucional
 (`layout.ts`): tabela, estilo inline, sem `<style>`, cor primária `#820ad1`,
 cantos retos (a marca usa `--radius: 0`) e rodapé com CNPJ. `templates.ts`
 guarda só o conteúdo de cada e-mail.
@@ -357,6 +359,38 @@ inadimplência e grava `subscriptions.dunning_reminded_at` (migração `0017`).
 Sem essa guarda o cron diário mandaria e-mail todo dia. A coluna é zerada
 quando o pagamento é confirmado, para uma nova inadimplência voltar a avisar.
 Falha de envio só loga — não derruba o cron nem marca como avisado.
+
+### Bônus único de ativação
+
+Migração `0020` adiciona uma preferência de recusa em `users` e uma oferta
+única por conta. O app continua sem enviar esta campanha até
+`ACTIVATION_BONUS_START_AT` (RFC3339 com fuso, por exemplo
+`2026-09-25T21:00:00Z`) estar definido **e** `EMAIL_ENABLED=true`,
+`RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` e `CRON_SECRET` estarem corretos.
+Não crie o cron como parte do deploy do app: espere confirmação da migração e
+da URL pública. Depois crie **outro serviço Railway Cron Job**, imagem
+`alpine:3.20`, schedule `0 * * * *` UTC, com as mesmas referências de env do
+serviço web e o comando acima apontando para `/api/cron/activation-bonus`.
+Não aplique outras mudanças pendentes da tela Railway junto com este serviço.
+
+Por execução, a consulta prioriza até 20 contas novas com 24h e separa até
+30 contas anteriores ao marco. Assinatura Ilimitado ativa exclui a conta
+definitivamente; recusa no perfil impede seleção. Um registro `attempted` é
+confirmado **antes** da API de e-mail: falha incerta não gera retry automático.
+Contagens `eligible`, `attempted`, `skipped`, `failed` não contêm dados pessoais.
+O envio é sequencial: com timeout de 10 segundos por e-mail, 50 destinatários
+podem ocupar cerca de **500 segundos** mais consultas; medir duração em
+ambiente de teste e validar limites do cron/reverse proxy antes de ativar.
+Caso exceda limites, revisar lotes/schedule antes do go-live — nunca disparar
+lote histórico manualmente para compensar erro.
+
+O link `/resgatar/link?t=...` troca o token da URL por cookie HttpOnly de 15
+minutos, então exige login e clique explícito para inserir +2 no ledger;
+token sem prazo e conta diferente nunca concede crédito. Confirmar antes do
+go-live que logs de borda/origem e tracking de links do prestador de e-mail
+não guardem a URL inicial com token. Testes de integração usam **somente**
+`DATABASE_URL=postgres://postgres:postgres@localhost:5433/financiamento_bonus_test`
+com `ACTIVATION_BONUS_DB_TESTS=1` e provedor de e-mail mockado.
 
 ## Deploy
 

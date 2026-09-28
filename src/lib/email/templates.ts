@@ -119,3 +119,42 @@ export function welcomeEmail(input: WelcomeInput): RenderedEmail {
 
   return { subject: `Bem-vindo ao ${PRODUCT}`, html, text };
 }
+
+export type ActivationVariant = 'first_simulation' | 'keep_exploring';
+
+export function activationBonusEmail(input: {
+  name: string;
+  variant: ActivationVariant;
+  redeemUrl: string;
+  preferencesUrl: string;
+}): RenderedEmail {
+  const firstName = firstNameOf(input.name);
+  const intro = input.variant === 'first_simulation'
+    ? 'Você ainda não salvou uma simulação. Explore a plataforma com mais 2 créditos.'
+    : 'Você já fez simulações. Continue explorando com mais 2 créditos.';
+  const html = renderEmailLayout({
+    preheader: 'Mais 2 créditos para suas simulações.',
+    title: 'Mais 2 créditos para você',
+    contentHtml: [
+      `<p style="margin:0 0 16px 0;">Olá, ${escapeHtml(firstName)}.</p>`,
+      `<p style="margin:0 0 16px 0;">${escapeHtml(intro)}</p>`,
+      '<p style="margin:0 0 16px 0;">Seus créditos não expiram. Este bônus de ativação é único para sua conta.</p>',
+      `<p style="margin:0;">Você pode <a href="${escapeHtml(input.preferencesUrl)}">recusar ofertas nas suas preferências</a>.</p>`,
+    ].join('\n'),
+    cta: { label: 'Resgatar 2 créditos', url: input.redeemUrl },
+    footerNote: 'Oferta única de ativação para sua conta.',
+  });
+
+  return {
+    subject: 'Mais 2 créditos para suas simulações',
+    html,
+    text: [
+      `Olá, ${firstName}.`,
+      intro,
+      'Seus créditos não expiram. Este bônus de ativação é único para sua conta.',
+      `Resgatar: ${input.redeemUrl}`,
+      `Recusar ofertas: ${input.preferencesUrl}`,
+      `Equipe ${PRODUCT}`,
+    ].join('\n'),
+  };
+}

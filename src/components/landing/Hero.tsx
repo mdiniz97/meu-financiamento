@@ -7,7 +7,7 @@ import { simulate } from "@/lib/finance/engine";
 import type { LoanInput } from "@/lib/finance/types";
 import { AnimatedNumber, TypewriterPhrase } from "@/components/landing/motion-primitives";
 
-const trustPoints = ["Grátis para começar", "Sem cartão de crédito", "2 créditos de boas-vindas"];
+const trustPoints = ["Grátis para começar", "Sem cartão de crédito", "5 créditos de boas-vindas"];
 
 const input: LoanInput = {
   system: "PRICE", principal: 1000000, annualRate: 0.10, months: 360,
@@ -27,7 +27,7 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
     <section className="border-b border-border">
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
         <span className="inline-flex items-center gap-2 border border-border px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-primary">
-          <span className="font-mono">2</span> créditos de boas-vindas
+          <span className="font-mono">5</span> créditos de boas-vindas
         </span>
         <h1 className="font-display mt-6 flex min-h-[139px] max-w-3xl flex-col items-center gap-1 text-4xl font-extrabold leading-tight tracking-tight sm:min-h-[124px] sm:text-5xl sm:leading-tight">
           <span>Prefere</span>

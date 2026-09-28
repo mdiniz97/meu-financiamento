@@ -29,6 +29,15 @@ export default function PrivacidadePage() {
         <ul>
           <li>Nome, e-mail e identificador de conta: cadastro, autenticação e comunicação.</li>
           <li>
+            Para bônus único de ativação por e-mail, usamos data do cadastro, existência de
+            simulações salvas e acesso Ilimitado ativo. Após 24 horas, contas elegíveis podem
+            receber um convite para resgatar dois créditos extras, inclusive contas antigas
+            avaliadas gradualmente. O link é exclusivo da conta destinatária, sem vencimento
+            até o resgate e utilizável uma só vez. Não enviamos detalhes das simulações ao
+            prestador de e-mail. Você pode recusar ou reativar ofertas no{' '}
+            <Link className="underline" href="/perfil">perfil</Link>; avisos operacionais continuam.
+          </li>
+          <li>
             Dados de simulações e financiamento que você informa (como saldos, taxas, prazos e
             movimentações): calcular e guardar os cenários solicitados.
           </li>

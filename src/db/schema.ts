@@ -8,11 +8,23 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('user'),
   analyticsConsent: boolean('analytics_consent'),
+  activationBonusOptOutAt: timestamp('activation_bonus_opt_out_at', { withTimezone: true }),
   adsSignupConversionId: text('ads_signup_conversion_id').unique(),
   adsSignupClaimToken: uuid('ads_signup_claim_token'),
   adsSignupClaimUntil: timestamp('ads_signup_claim_until', { withTimezone: true }),
   adsSignupSentAt: timestamp('ads_signup_sent_at', { withTimezone: true }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const activationBonusOffers = pgTable('activation_bonus_offers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  state: text('state').notNull(),
+  variant: text('variant'),
+  tokenHash: text('token_hash').unique(),
+  emailAttemptedAt: timestamp('email_attempted_at', { withTimezone: true }),
+  redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const packs = pgTable('packs', {

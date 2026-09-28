@@ -31,7 +31,7 @@ if (emailLoginEnabled()) {
 }
 
 // Em produção o login é somente Google: cada conta Google vira um usuário
-// local (2 créditos de bônus só na primeira criação) e o id da sessão é o
+// local (créditos de bônus só na primeira criação) e o id da sessão é o
 // UUID local, preservando créditos, simulações e assinatura.
 providers.push(Google);
 

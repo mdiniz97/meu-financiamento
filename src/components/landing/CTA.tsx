@@ -11,7 +11,7 @@ export function CTA({ signedIn = false }: { signedIn?: boolean }) {
       <div className="border border-foreground bg-foreground px-6 py-16 text-center text-background sm:px-12">
         <div className="mx-auto max-w-2xl">
           <span className="text-xs font-medium uppercase tracking-widest text-background/70">
-            <span className="font-mono">2</span> créditos de boas-vindas · sem cartão de crédito
+            <span className="font-mono">5</span> créditos de boas-vindas · sem cartão de crédito
           </span>
           <h2 className="font-display mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
             Pronto para enxergar o que está por trás das parcelas?

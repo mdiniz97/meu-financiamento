@@ -107,7 +107,6 @@ ${input.postCtaHtml ?? ''}
 <tr><td style="padding:24px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
 ${footerNote}
 <p style="margin:0 0 8px 0;">${COMPANY} &middot; CNPJ ${CNPJ}</p>
-<p style="margin:0;">Você recebeu este e-mail porque tem uma conta no amortiza.me.</p>
 </td></tr>
 </table>
 </td></tr>

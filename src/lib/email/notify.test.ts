@@ -25,8 +25,9 @@ describe('sendWelcomeEmail', () => {
 
     expect(sent).toBe(true);
     expect(mocks.welcomeEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Maria', credits: WELCOME_BONUS_CREDITS })
+      expect.objectContaining({ name: 'Maria', credits: 5 })
     );
+    expect(WELCOME_BONUS_CREDITS).toBe(5);
     expect(mocks.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'm@e.com', subject: 'S' })
     );
