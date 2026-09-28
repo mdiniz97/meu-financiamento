@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   accumulateSeries,
   buildHistory,
+  getMarketOverview,
+  getSelicAnnual,
   lastPoint,
   olindaToMortgage,
   parseSgsValue,
@@ -194,5 +196,60 @@ describe('olindaToMortgage', () => {
       const rates = institution.products.map((p) => p.rateYear);
       expect(rates).toEqual([...rates].sort((a, b) => a - b));
     }
+  });
+});
+
+describe('getMarketOverview com falha de fonte externa', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const sgs = [{ data: '01/08/2026', valor: '1.04' }];
+  const olinda = { value: [{
+    InicioPeriodo: '2026-08-01', FimPeriodo: '2026-08-31', codigoModalidade: '903201',
+    Modalidade: 'Financiamento imobiliário TR', InstituicaoFinanceira: 'BANCO TESTE',
+    TaxaJurosAoMes: 0.86, TaxaJurosAoAno: 10.8,
+  }] };
+
+  function mockSources(overrides: Record<string, () => Response | Promise<Response>>) {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      const key = url.includes('olinda.bcb.gov.br') ? 'olinda'
+        : url.includes('bcdata.sgs.432') ? 'latest'
+        : url.includes('bcdata.sgs.4390') ? 'selic'
+        : url.includes('bcdata.sgs.433') ? 'ipca' : 'tr';
+      return overrides[key]?.() ?? Response.json(key === 'olinda' ? olinda : sgs);
+    });
+  }
+
+  it('não derruba página quando SGS devolve XML com HTTP 200; mantém demais dados', async () => {
+    mockSources({ selic: () => new Response('<?xml version="1.0"?><erro/>', {
+      status: 200, headers: { 'Content-Type': 'application/xml' },
+    }) });
+    const overview = await getMarketOverview();
+    expect(overview.indicators.selic).toBeNull();
+    expect(overview.indicators.ipca?.value).toBe(1.04);
+    expect(overview.mortgage[0].institution).toBe('BANCO TESTE');
+  });
+
+  it('não derruba indicadores quando Olinda devolve XML com HTTP 200', async () => {
+    mockSources({ olinda: () => new Response('<?xml version="1.0"?><erro/>', {
+      status: 200, headers: { 'Content-Type': 'application/xml' },
+    }) });
+    const overview = await getMarketOverview();
+    expect(overview.mortgage).toEqual([]);
+    expect(overview.indicators.selic?.value).toBe(1.04);
+  });
+
+  it('mantém série mensal quando taxa anual sofre falha de rede', async () => {
+    mockSources({ latest: () => Promise.reject(new Error('network timeout')) });
+    const overview = await getMarketOverview();
+    expect(overview.indicators.selic?.value).toBe(1.04);
+    expect(overview.indicators.selic?.annualRate).toBeNull();
+  });
+
+  it('getSelicAnnual também falha fechado para telas que usam Selic diretamente', async () => {
+    mockSources({ latest: () => new Response('<?xml version="1.0"?><erro/>', {
+      status: 200, headers: { 'Content-Type': 'application/xml' },
+    }) });
+    expect(await getSelicAnnual()).toBeNull();
   });
 });

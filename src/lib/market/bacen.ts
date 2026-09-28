@@ -202,16 +202,27 @@ export function lastPoint(points: MarketPoint[], annualRate: number | null = nul
 }
 
 export async function getSelicAnnual(): Promise<number | null> {
-  return fetchSgsLatest(432);
+  return availableOr('sgs-selic-anual', fetchSgsLatest(432), null);
+}
+
+async function availableOr<T>(source: string, request: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await request;
+  } catch {
+    // A API externa pode responder XML com HTTP 200 ou ficar indisponível.
+    // Não propagar falha de uma fonte para os outros indicadores nem expor o payload.
+    console.warn(`[market] fonte ${source} indisponível`);
+    return fallback;
+  }
 }
 
 export async function getMarketOverview(): Promise<MarketOverview> {
   const [selic, ipca, tr, selicAnnual, mortgage] = await Promise.all([
-    fetchSgsSeries(4390, 13),
-    fetchSgsSeries(433, 13),
-    fetchSgsSeries(7811, 13),
-    fetchSgsLatest(432),
-    fetchMortgageRates(),
+    availableOr('sgs-selic', fetchSgsSeries(4390, 13), []),
+    availableOr('sgs-ipca', fetchSgsSeries(433, 13), []),
+    availableOr('sgs-tr', fetchSgsSeries(7811, 13), []),
+    availableOr('sgs-selic-anual', fetchSgsLatest(432), null),
+    availableOr('olinda', fetchMortgageRates(), []),
   ]);
 
   const history = buildHistory({ selic, ipca, tr }, 12);
