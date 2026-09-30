@@ -57,20 +57,27 @@ export function TrialOfferProvider({
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
-  const reveal = useCallback(() => {
+  // Marca "visto" uma única vez (para o vídeo de preload sumir e o auto-modal
+  // não voltar). NÃO controla a abertura: reabrir precisa funcionar sempre.
+  const markSeenOnce = useCallback(() => {
     if (revealedRef.current) return;
     revealedRef.current = true;
     setRevealed(true);
-    setOpen(true);
     void markTrialOfferSeenAction().catch(() => {
       // Se gravar falhar, a próxima visita autenticada pode oferecer de novo.
     });
   }, []);
 
+  const reveal = useCallback(() => {
+    markSeenOnce();
+    setOpen(true);
+  }, [markSeenOnce]);
+
   const openManually = useCallback(() => {
     setError('');
-    reveal();
-  }, [reveal]);
+    markSeenOnce();
+    setOpen(true);
+  }, [markSeenOnce]);
 
   const value = useMemo(() => ({ open: openManually }), [openManually]);
 

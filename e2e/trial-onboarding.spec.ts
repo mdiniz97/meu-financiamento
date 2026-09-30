@@ -67,7 +67,9 @@ test('perfil reabre o modal da oferta pelo card do trial', async ({ page }) => {
     await expect(modal).toBeVisible();
     await modal.getByRole('button', { name: 'Agora não' }).click();
     await expect(modal).toHaveCount(0);
-    await page.goto('/perfil');
+    // Navegação SUAVE pelo menu (sem reload): era exatamente aqui que reabrir falhava.
+    await page.getByRole('link', { name: 'Planos e créditos' }).click();
+    await expect(page).toHaveURL(/\/perfil$/);
     await page.getByRole('button', { name: 'Ver oferta do trial' }).click();
     await expect(page.getByRole('dialog', { name: /7 dias do Ilimitado/ })).toBeVisible();
     await expect(page.getByRole('dialog', { name: /7 dias do Ilimitado/ }).locator('video')).toBeVisible();
