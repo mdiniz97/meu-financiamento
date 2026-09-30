@@ -11,7 +11,7 @@ export default function TermosPage() {
     <>
       <header>
         <h1>Termos de Uso</h1>
-        <p>Última atualização: 24 de setembro de 2026.</p>
+        <p>Última atualização: 30 de setembro de 2026.</p>
       </header>
 
       <section>
@@ -52,6 +52,17 @@ export default function TermosPage() {
           use créditos consome a quantidade informada antes de sua execução. Pagamento e
           liberação dos créditos são confirmados pelo provedor de pagamentos; retornar do
           checkout, por si só, não confirma a compra.
+        </p>
+      </section>
+
+      <section>
+        <h2>Teste gratuito do Ilimitado</h2>
+        <p>
+          Contas novas podem iniciar um teste gratuito de 7 dias do plano Ilimitado
+          nas primeiras 48 horas após o cadastro, uma única vez por conta. O período
+          começa na ativação, sem cartão e sem cobrança automática. Ao terminar,
+          o acesso volta ao plano de créditos, preservando seu saldo. Uma assinatura
+          paga exige contratação separada e confirmação do pagamento.
         </p>
       </section>
 

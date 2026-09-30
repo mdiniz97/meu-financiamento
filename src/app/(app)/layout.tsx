@@ -6,6 +6,8 @@ import { PATHNAME_HEADER } from '@/lib/request-path';
 import { auth } from '@/auth';
 import { getCreditBalance } from '@/lib/credits';
 import { AppSidebar } from '@/components/app-sidebar';
+import { TrialOfferProvider } from '@/components/trial/trial-offer';
+import { getTrialState } from '@/lib/trial/state';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -18,17 +20,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const pathname = (await headers()).get(PATHNAME_HEADER) ?? undefined;
     redirect(loginHref(pathname));
   }
-  let credits = 0;
-  let isUnlimited = false;
-  if (session?.userId) {
-    const bal = await getCreditBalance(session.userId);
-    credits = bal.credits;
-    isUnlimited = bal.isUnlimited;
-  }
+  const [bal, trial] = await Promise.all([
+    getCreditBalance(session.userId),
+    getTrialState(session.userId),
+  ]);
   return (
-    <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
-      <AppSidebar credits={credits} isUnlimited={isUnlimited} />
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
-    </div>
+    <TrialOfferProvider canOffer={trial.offerAvailable} autoOpen={trial.showModal}>
+      <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
+        <AppSidebar credits={bal.credits} isUnlimited={bal.isUnlimited} />
+        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+      </div>
+    </TrialOfferProvider>
   );
 }

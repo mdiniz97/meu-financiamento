@@ -45,6 +45,12 @@ export default function PrivacidadePage() {
             promocional automaticamente por essa indicação.
           </li>
           <li>
+            Para oferta de teste grátis do Ilimitado, registramos data do cadastro,
+            elegibilidade, exibição da oferta, início e fim do acesso. O teste não cria
+            cadastro de pagamento nem exige cartão. Esses registros permitem respeitar
+            o prazo de 48 horas e impedir nova ativação do mesmo teste.
+          </li>
+          <li>
             Dados de simulações e financiamento que você informa (como saldos, taxas, prazos e
             movimentações): calcular e guardar os cenários solicitados.
           </li>

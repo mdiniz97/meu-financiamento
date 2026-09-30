@@ -60,6 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .values({
               name: user.name ?? email.split('@')[0],
               email,
+              trialOfferEligibleAt: new Date(),
               passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
               ...(conversionId ? { adsSignupConversionId: conversionId } : {}),
             })

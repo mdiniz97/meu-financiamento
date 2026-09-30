@@ -13,12 +13,14 @@ import { BuyPackButton } from '@/app/(app)/planos/buy-pack-button';
 import { LogoutButton } from './logout-button';
 import { InvoicesCard } from '@/components/invoices-card';
 import { ActivationEmailPreference } from '@/components/activation-email-preference';
+import { TrialOfferActions } from '@/components/trial/trial-actions';
+import { getTrialState } from '@/lib/trial/state';
 
 export default async function PerfilPage() {
   const session = await auth();
   if (!session?.userId) redirect(loginHref('/perfil'));
 
-  const [user, { credits, isUnlimited }, packs, asaasSubscription] = await Promise.all([
+  const [user, { credits, isUnlimited }, packs, asaasSubscription, trial] = await Promise.all([
     db.query.users.findFirst({ where: eq(schema.users.id, session.userId) }),
     getCreditBalance(session.userId),
     db.query.packs.findMany({ orderBy: (packs, { asc }) => [asc(packs.priceCents)] }),
@@ -30,6 +32,7 @@ export default async function PerfilPage() {
         eq(schema.subscriptions.status, 'active')
       ),
     }),
+    getTrialState(session.userId),
   ]);
 
   return (
@@ -69,6 +72,40 @@ export default async function PerfilPage() {
         </CardContent>
       </Card>
 
+      {trial.offerAvailable && !trial.isTrialActive && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">7 dias grátis do Ilimitado</CardTitle>
+            <CardDescription>Ative nas primeiras 48 horas após criar sua conta. Sem cartão e sem cobrança automática.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 text-sm">
+            <p>Ao ativar, você terá 7 dias completos de acesso Ilimitado; seus créditos ficam guardados.</p>
+            <TrialOfferActions />
+          </CardContent>
+        </Card>
+      )}
+
+      {trial.isTrialActive && trial.trialEndsAt && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Teste grátis do Ilimitado</CardTitle>
+            <CardDescription>Simulações ilimitadas e recursos exclusivos durante seu trial.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            <p className="font-semibold">Trial ativo até {trial.trialEndsAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+            <p className="text-muted-foreground">Sem cartão e sem cobrança automática. Assinatura disponível após o trial.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {trial.offerWindowExpired && !isUnlimited && (
+        <p className="text-sm text-muted-foreground">Oferta do trial encerrada: ativação disponível apenas nas primeiras 48 horas após o cadastro.</p>
+      )}
+
+      {trial.blockedByPendingCheckout && !isUnlimited && (
+        <p className="text-sm text-muted-foreground">Você tem um checkout do Ilimitado em aberto. Conclua o pagamento ou aguarde a expiração para usar a oferta do trial.</p>
+      )}
+
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Comunicações por e-mail</CardTitle>
@@ -79,7 +116,7 @@ export default async function PerfilPage() {
         </CardContent>
       </Card>
 
-      {isUnlimited ? (
+      {isUnlimited && !trial.isTrialActive ? (
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Plano Ilimitado</CardTitle>
@@ -113,7 +150,7 @@ export default async function PerfilPage() {
             ) : null}
           </CardContent>
         </Card>
-      ) : (
+      ) : !isUnlimited ? (
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Planos</CardTitle>
@@ -141,7 +178,7 @@ export default async function PerfilPage() {
             ))}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       <InvoicesCard userId={session.userId} />
       </div>

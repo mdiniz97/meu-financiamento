@@ -51,6 +51,7 @@ describe('Google account creation analytics', () => {
     await signIn()({ user, account: { provider: 'google' } });
     expect(mocks.captureAccountEvent).toHaveBeenCalledWith('u1', 'signup_completed', 'u1');
     expect(mocks.insertedValues.mock.calls.find(([value]) => value.kind === 'bonus')?.[0].amount).toBe(10);
+    expect(mocks.insertedValues.mock.calls.find(([value]) => value.email === 'user@example.com')?.[0].trialOfferEligibleAt).toBeInstanceOf(Date);
     expect(mocks.reserveReferral).toHaveBeenCalledWith(expect.anything(), {
       inviteeId: 'u1', inviteeEmail: 'user@example.com', code: 'AbCdEfGhIjKlMnOpQrStUv',
     });
@@ -62,6 +63,7 @@ describe('Google account creation analytics', () => {
     expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
     expect(mocks.readReferralCode).not.toHaveBeenCalled();
     expect(mocks.reserveReferral).not.toHaveBeenCalled();
+    expect(mocks.insertedValues).not.toHaveBeenCalled();
   });
 
   it('marks only a newly created production Google account for an ads signup', async () => {

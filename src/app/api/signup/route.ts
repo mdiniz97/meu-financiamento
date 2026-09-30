@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       .values({
         name,
         email: normalized,
+        trialOfferEligibleAt: new Date(),
         passwordHash: await bcrypt.hash(password, 10),
         ...(conversionId ? { adsSignupConversionId: conversionId } : {}),
       })

@@ -7,10 +7,17 @@ const m = vi.hoisted(() => ({
   createSubscriptionCheckout: vi.fn(),
   cancelAtPeriodEnd: vi.fn(),
   packsFindFirst: vi.fn(),
-  subsFindFirst: vi.fn(),
-  insertReturning: vi.fn(),
-  insertValues: vi.fn(),
-  insert: vi.fn(),
+  transaction: vi.fn(),
+  execute: vi.fn(),
+  txFindMany: vi.fn(),
+  txFindFirst: vi.fn(),
+  txInsert: vi.fn(),
+  txValues: vi.fn(),
+  txOnConflict: vi.fn(),
+  txReturning: vi.fn(),
+  txUpdate: vi.fn(),
+  txUpdateSet: vi.fn(),
+  txUpdateWhere: vi.fn(),
   updateWhere: vi.fn(),
   updateSet: vi.fn(),
   update: vi.fn(),
@@ -30,23 +37,24 @@ vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: m.captureAccount
 vi.mock('drizzle-orm', () => ({
   and: (...args: unknown[]) => args,
   eq: (...args: unknown[]) => args,
+  inArray: (...args: unknown[]) => args,
+  sql: Object.assign((...args: unknown[]) => args, { raw: (...args: unknown[]) => args }),
 }));
 vi.mock('@/db', () => ({
   db: {
-    query: {
-      packs: { findFirst: m.packsFindFirst },
-      subscriptions: { findFirst: m.subsFindFirst },
-    },
-    insert: m.insert,
+    query: { packs: { findFirst: m.packsFindFirst } },
+    transaction: m.transaction,
     update: m.update,
   },
   schema: {
     packs: { id: 'packs.id' },
+    users: { id: 'users.id' },
     subscriptions: {
       id: 'subscriptions.id',
       userId: 'subscriptions.user_id',
       packId: 'subscriptions.pack_id',
       provider: 'subscriptions.provider',
+      status: 'subscriptions.status',
     },
   },
 }));
@@ -56,10 +64,28 @@ import { startSubscription } from './actions';
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('PAYMENT_PROVIDER', 'asaas');
-  m.insert.mockImplementation(() => ({ values: m.insertValues }));
-  m.insertValues.mockImplementation(() => ({ returning: m.insertReturning }));
-  m.update.mockImplementation(() => ({ set: m.updateSet }));
-  m.updateSet.mockImplementation(() => ({ where: m.updateWhere }));
+
+  m.transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+    fn({
+      execute: m.execute,
+      query: { subscriptions: { findMany: m.txFindMany, findFirst: m.txFindFirst } },
+      insert: m.txInsert,
+      update: m.txUpdate,
+    })
+  );
+  m.txInsert.mockReturnValue({ values: m.txValues });
+  m.txValues.mockReturnValue({ onConflictDoNothing: m.txOnConflict });
+  m.txOnConflict.mockReturnValue({ returning: m.txReturning });
+  m.txUpdate.mockReturnValue({ set: m.txUpdateSet });
+  m.txUpdateSet.mockReturnValue({ where: m.txUpdateWhere });
+  m.update.mockReturnValue({ set: m.updateSet });
+  m.updateSet.mockReturnValue({ where: m.updateWhere });
+
+  m.execute.mockResolvedValue(undefined);
+  m.txFindMany.mockResolvedValue([]);
+  m.txFindFirst.mockResolvedValue(null);
+  m.txReturning.mockResolvedValue([{ id: 'sub-new' }]);
+
   m.redirect.mockImplementation((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   });
@@ -70,26 +96,45 @@ beforeEach(() => {
     id: 'chk_1',
     link: 'https://sandbox.asaas.com/checkoutSession/show/chk_1',
   });
-  m.insertReturning.mockResolvedValue([{ id: 'sub-new' }]);
   m.cancelAtPeriodEnd.mockReset().mockResolvedValue(undefined);
 });
 
 describe('startSubscription', () => {
+  it('serializa trial x checkout: lock do usuário e re-checagem dentro da transação', async () => {
+    // Pré-cheque passou (corrida): o acesso ativo só aparece dentro do lock.
+    m.hasActiveAccess.mockResolvedValue(false);
+    m.txFindMany.mockResolvedValue([
+      { status: 'active', currentPeriodEnd: new Date(Date.now() + 60_000), graceUntil: null },
+    ]);
+
+    await expect(startSubscription()).rejects.toThrow('REDIRECT:/perfil');
+
+    expect(m.execute).toHaveBeenCalledTimes(1);
+    expect(m.txInsert).not.toHaveBeenCalled();
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+
+  it('não inicia checkout pago enquanto acesso Ilimitado local está ativo', async () => {
+    m.hasActiveAccess.mockResolvedValue(true);
+    await expect(startSubscription()).rejects.toThrow('REDIRECT:/perfil');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+
   it('reusa a linha local em retry (não insere outra) e redireciona ao link', async () => {
-    m.subsFindFirst.mockResolvedValue({ id: 'sub-existing' });
+    m.txFindFirst.mockResolvedValue({ id: 'sub-existing' });
 
     await expect(startSubscription()).rejects.toThrow(
       'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
     );
 
-    expect(m.insert).not.toHaveBeenCalled();
-    expect(m.updateSet).toHaveBeenCalledWith({
+    expect(m.txInsert).not.toHaveBeenCalled();
+    expect(m.txUpdateSet).toHaveBeenCalledWith({
       status: 'incomplete',
       asaasCheckoutId: null,
       asaasSubscriptionId: null,
       providerId: null,
     });
-    expect(m.updateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-existing']);
+    expect(m.txUpdateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-existing']);
     expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_1' });
     expect(m.captureAccountEvent).toHaveBeenCalledWith('user-1', 'checkout_started', 'chk_1');
     expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
@@ -102,7 +147,7 @@ describe('startSubscription', () => {
   });
 
   it('cancela a assinatura Asaas antiga antes de criar o novo checkout', async () => {
-    m.subsFindFirst.mockResolvedValue({
+    m.txFindFirst.mockResolvedValue({
       id: 'sub-existing',
       asaasSubscriptionId: 'asaas_old',
       asaasStatus: 'ACTIVE',
@@ -119,7 +164,7 @@ describe('startSubscription', () => {
   });
 
   it('não cancela quando o Asaas antigo já está INACTIVE', async () => {
-    m.subsFindFirst.mockResolvedValue({
+    m.txFindFirst.mockResolvedValue({
       id: 'sub-existing',
       asaasSubscriptionId: 'asaas_old',
       asaasStatus: 'INACTIVE',
@@ -132,13 +177,11 @@ describe('startSubscription', () => {
     expect(m.cancelAtPeriodEnd).not.toHaveBeenCalled();
   });
 
-  it('reusa a linha vencedora quando o insert colide (23505)', async () => {
-    m.subsFindFirst
+  it('reusa a linha vencedora quando o insert não grava (conflito)', async () => {
+    m.txFindFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 'sub-winner' });
-    m.insertReturning.mockRejectedValueOnce(
-      Object.assign(new Error('duplicate key'), { code: '23505' })
-    );
+    m.txReturning.mockResolvedValueOnce([]);
 
     await expect(startSubscription()).rejects.toThrow(
       'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
@@ -150,14 +193,14 @@ describe('startSubscription', () => {
   });
 
   it('insere linha nova quando não existe e atualiza o checkout id', async () => {
-    m.subsFindFirst.mockResolvedValue(null);
+    m.txFindFirst.mockResolvedValue(null);
 
     await expect(startSubscription()).rejects.toThrow(
       'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
     );
 
-    expect(m.insert).toHaveBeenCalledTimes(1);
-    expect(m.insertValues).toHaveBeenCalledWith(
+    expect(m.txInsert).toHaveBeenCalledTimes(1);
+    expect(m.txValues).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
         packId: 'unlimited',
@@ -173,15 +216,6 @@ describe('startSubscription', () => {
         successUrl: expect.stringContaining('/assinar/sucesso'),
       })
     );
-  });
-
-  it('redireciona para /perfil se já há acesso ativo (sem novo checkout)', async () => {
-    m.hasActiveAccess.mockResolvedValue(true);
-
-    await expect(startSubscription()).rejects.toThrow('REDIRECT:/perfil');
-
-    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
-    expect(m.insert).not.toHaveBeenCalled();
   });
 
   it('manda para o login com callbackUrl quando não autenticado', async () => {

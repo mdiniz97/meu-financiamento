@@ -72,6 +72,7 @@ describe('POST /api/signup', () => {
     });
     const bonus = mocks.values.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'bonus');
     expect((bonus?.[0] as { amount: number }).amount).toBe(10);
+    expect(mocks.values.mock.calls.find(([value]) => value.email === 'maria@exemplo.com')?.[0].trialOfferEligibleAt).toBeInstanceOf(Date);
     expect(mocks.reserveReferral).toHaveBeenCalledWith(expect.anything(), {
       inviteeId: 'user-1', inviteeEmail: 'maria@exemplo.com', code: 'AbCdEfGhIjKlMnOpQrStUv',
     });
@@ -94,6 +95,7 @@ describe('POST /api/signup', () => {
     expect(mocks.sendWelcomeEmail).not.toHaveBeenCalled();
     expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
     expect(mocks.reserveReferral).not.toHaveBeenCalled();
+    expect(mocks.values).not.toHaveBeenCalled();
   });
 
   it('does not mark development email signups for Google Ads conversion', async () => {

@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
@@ -10,25 +10,88 @@ import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 import { getPaymentProvider } from '@/lib/payments';
 import { captureAccountEvent } from '@/lib/analytics/server';
 
-function isUniqueViolation(e: unknown): boolean {
-  // Drizzle aninha o erro do pg em `cause`; percorre a cadeia até achar o code.
-  let err = e as { code?: unknown; cause?: unknown } | null;
-  while (err && typeof err.code === 'undefined' && err.cause) {
-    err = err.cause as { code?: unknown; cause?: unknown } | null;
-  }
-  return err?.code === '23505';
-}
+type CheckoutClaim =
+  | { status: 'already_active' }
+  | { status: 'ready'; localId: string; cancelSubscriptionId?: string };
 
-function resetForNewCheckout(id: string) {
-  return db
-    .update(schema.subscriptions)
-    .set({
+/**
+ * RS4 — reserva a linha de checkout sob o MESMO lock de usuário usado por
+ * `activateTrial`. Sem isso, ativar o trial e abrir o checkout pago em
+ * requisições concorrentes passariam ambos pelo pré-cheque e o usuário ficaria
+ * com trial e cobrança pendentes. O lock serializa os dois caminhos.
+ */
+async function claimCheckoutSlot(userId: string): Promise<CheckoutClaim> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
+
+    const now = new Date();
+    const live = await tx.query.subscriptions.findMany({
+      where: and(
+        eq(schema.subscriptions.userId, userId),
+        inArray(schema.subscriptions.status, ['active', 'past_due'])
+      ),
+    });
+    const active = live.some((sub) =>
+      sub.status === 'active'
+        ? Boolean(sub.currentPeriodEnd && sub.currentPeriodEnd > now)
+        : Boolean(sub.graceUntil && sub.graceUntil > now)
+    );
+    if (active) return { status: 'already_active' };
+
+    const resetForNewCheckout = {
       status: 'incomplete',
       asaasCheckoutId: null,
       asaasSubscriptionId: null,
       providerId: null,
-    })
-    .where(eq(schema.subscriptions.id, id));
+    };
+
+    const existing = await tx.query.subscriptions.findFirst({
+      where: and(
+        eq(schema.subscriptions.userId, userId),
+        eq(schema.subscriptions.packId, 'unlimited'),
+        eq(schema.subscriptions.provider, 'asaas')
+      ),
+    });
+    if (existing) {
+      const cancelSubscriptionId =
+        existing.asaasSubscriptionId &&
+        existing.asaasStatus !== 'INACTIVE' &&
+        existing.asaasStatus !== 'DELETED'
+          ? existing.asaasSubscriptionId
+          : undefined;
+      await tx
+        .update(schema.subscriptions)
+        .set(resetForNewCheckout)
+        .where(eq(schema.subscriptions.id, existing.id));
+      return { status: 'ready', localId: existing.id, cancelSubscriptionId };
+    }
+
+    // ON CONFLICT evita abortar a transação (o catch de 23505 não funciona
+    // dentro de tx: o Postgres marca a transação como falha).
+    const [created] = await tx
+      .insert(schema.subscriptions)
+      .values({
+        userId,
+        packId: 'unlimited',
+        provider: 'asaas',
+        status: 'incomplete',
+        cycle: 'YEARLY',
+        billingType: 'CREDIT_CARD',
+      })
+      .onConflictDoNothing()
+      .returning({ id: schema.subscriptions.id });
+    if (created) return { status: 'ready', localId: created.id };
+
+    const winner = await tx.query.subscriptions.findFirst({
+      where: and(
+        eq(schema.subscriptions.userId, userId),
+        eq(schema.subscriptions.packId, 'unlimited'),
+        eq(schema.subscriptions.provider, 'asaas')
+      ),
+    });
+    if (!winner) throw new Error('assinatura não reservada');
+    return { status: 'ready', localId: winner.id };
+  });
 }
 
 export async function startSubscription(): Promise<void> {
@@ -54,62 +117,21 @@ export async function startSubscription(): Promise<void> {
     redirect(`${checkoutUrl}${sep}userId=${userId}&packId=unlimited`);
   }
 
-  const existing = await db.query.subscriptions.findFirst({
-    where: and(
-      eq(schema.subscriptions.userId, userId),
-      eq(schema.subscriptions.packId, 'unlimited'),
-      eq(schema.subscriptions.provider, 'asaas')
-    ),
-  });
+  const claimed = await claimCheckoutSlot(userId);
+  if (claimed.status === 'already_active') redirect('/perfil');
 
-  let localId: string;
-  if (existing) {
-    // I4 — recompra com assinatura Asaas ainda ativa pode continuar cobrando.
-    // Inativa a antiga antes de abrir o novo checkout e limpa os vínculos.
-    if (
-      existing.asaasSubscriptionId &&
-      existing.asaasStatus !== 'INACTIVE' &&
-      existing.asaasStatus !== 'DELETED'
-    ) {
-      try {
-        await cancelAtPeriodEnd(existing.asaasSubscriptionId);
-      } catch (e) {
-        console.warn(
-          `[assinar] falha ao inativar assinatura ${existing.asaasSubscriptionId}: ${String(e)}`
-        );
-      }
-    }
-    await resetForNewCheckout(existing.id);
-    localId = existing.id;
-  } else {
+  // I4 — recompra com assinatura Asaas ainda ativa pode continuar cobrando.
+  // Inativa a antiga ANTES de abrir o novo checkout (fora da transação: é rede).
+  if (claimed.cancelSubscriptionId) {
     try {
-      const [created] = await db
-        .insert(schema.subscriptions)
-        .values({
-          userId,
-          packId: 'unlimited',
-          provider: 'asaas',
-          status: 'incomplete',
-          cycle: 'YEARLY',
-          billingType: 'CREDIT_CARD',
-        })
-        .returning({ id: schema.subscriptions.id });
-      localId = created.id;
+      await cancelAtPeriodEnd(claimed.cancelSubscriptionId);
     } catch (e) {
-      // T7 — corrida de primeira compra: outra requisição inseriu a linha
-      // (índice único user+pack+provider). Reusa a vencedora em vez de 500.
-      if (!isUniqueViolation(e)) throw e;
-      const winner = await db.query.subscriptions.findFirst({
-        where: and(
-          eq(schema.subscriptions.userId, userId),
-          eq(schema.subscriptions.packId, 'unlimited'),
-          eq(schema.subscriptions.provider, 'asaas')
-        ),
-      });
-      if (!winner) throw e;
-      localId = winner.id;
+      console.warn(
+        `[assinar] falha ao inativar assinatura ${claimed.cancelSubscriptionId}: ${String(e)}`
+      );
     }
   }
+  const localId = claimed.localId;
 
   // APP_URL lido em runtime (não no topo do módulo): evita congelar o valor
   // antigo quando .env.local muda; trim da barra final evita `//assinar`.
