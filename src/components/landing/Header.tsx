@@ -4,6 +4,7 @@ import { AuthButton } from "@/components/auth-button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobilePublicNav } from "@/components/landing/mobile-public-nav";
 
 export function Header({ signedIn = false }: { signedIn?: boolean }) {
   return (
@@ -76,6 +77,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
             </>
           )}
           <ThemeToggle />
+          <MobilePublicNav signedIn={signedIn} />
         </nav>
       </div>
     </header>
