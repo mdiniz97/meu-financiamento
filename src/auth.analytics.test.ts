@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   insertedValues: vi.fn(),
   sendWelcomeEmail: vi.fn(),
   captureAccountEvent: vi.fn(),
+  readReferralCode: vi.fn(),
+  reserveReferral: vi.fn(),
 }));
 vi.mock('next-auth', () => ({
   default: (config: unknown) => {
@@ -17,8 +19,10 @@ vi.mock('next-auth', () => ({
 vi.mock('next-auth/providers/google', () => ({ default: () => ({ id: 'google' }) }));
 vi.mock('next-auth/providers/credentials', () => ({ default: () => ({ id: 'credentials' }) }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => false }));
-vi.mock('@/lib/email/notify', () => ({ sendWelcomeEmail: mocks.sendWelcomeEmail, WELCOME_BONUS_CREDITS: 5 }));
+vi.mock('@/lib/email/notify', () => ({ sendWelcomeEmail: mocks.sendWelcomeEmail, WELCOME_BONUS_CREDITS: 10 }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
+vi.mock('@/lib/referrals/cookie', () => ({ readReferralCode: mocks.readReferralCode }));
+vi.mock('@/lib/referrals/reserve', () => ({ reserveReferralForNewUser: mocks.reserveReferral }));
 vi.mock('@/db', () => ({ db: { query: { users: { findFirst: mocks.findFirst } }, transaction: mocks.transaction }, schema: { users: { email: 'email' }, creditLedger: {} } }));
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), sql: () => 'SQL_EXPRESSION' }));
 vi.mock('bcryptjs', () => ({ default: { hash: vi.fn().mockResolvedValue('hash') } }));
@@ -32,6 +36,8 @@ beforeEach(() => {
   mocks.findFirst.mockReset().mockResolvedValue(null);
   mocks.captureAccountEvent.mockReset().mockResolvedValue(undefined);
   mocks.sendWelcomeEmail.mockReset().mockResolvedValue(true);
+  mocks.readReferralCode.mockReset().mockResolvedValue('AbCdEfGhIjKlMnOpQrStUv');
+  mocks.reserveReferral.mockReset().mockResolvedValue(true);
   mocks.insertedValues.mockReset().mockImplementation(() => ({ returning: async () => [{ id: 'u1', name: 'User', email: 'user@example.com' }] }));
   mocks.transaction.mockReset().mockImplementation(async (fn) => fn({
     insert: () => ({ values: mocks.insertedValues }),
@@ -44,13 +50,18 @@ describe('Google account creation analytics', () => {
     const user = { email: 'user@example.com', name: 'User' };
     await signIn()({ user, account: { provider: 'google' } });
     expect(mocks.captureAccountEvent).toHaveBeenCalledWith('u1', 'signup_completed', 'u1');
-    expect(mocks.insertedValues.mock.calls.find(([value]) => value.kind === 'bonus')?.[0].amount).toBe(5);
+    expect(mocks.insertedValues.mock.calls.find(([value]) => value.kind === 'bonus')?.[0].amount).toBe(10);
+    expect(mocks.reserveReferral).toHaveBeenCalledWith(expect.anything(), {
+      inviteeId: 'u1', inviteeEmail: 'user@example.com', code: 'AbCdEfGhIjKlMnOpQrStUv',
+    });
   });
 
   it('does not count a returning Google login as signup', async () => {
     mocks.findFirst.mockResolvedValue({ id: 'existing' });
     await signIn()({ user: { email: 'user@example.com' }, account: { provider: 'google' } });
     expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
+    expect(mocks.readReferralCode).not.toHaveBeenCalled();
+    expect(mocks.reserveReferral).not.toHaveBeenCalled();
   });
 
   it('marks only a newly created production Google account for an ads signup', async () => {

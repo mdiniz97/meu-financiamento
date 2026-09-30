@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
+import { awardReferralForSavedSimulation } from '@/lib/referrals/award';
 import { captureAccountEvent } from '@/lib/analytics/server';
 import { validateLoanInput } from '@/lib/finance/engine';
 import type { LoanInput, SimulationResult, Strategies } from '@/lib/finance/types';
@@ -66,6 +67,7 @@ export async function saveSimulation(
         creditsSpent: 1,
       })
       .returning();
+    await awardReferralForSavedSimulation(tx, session.userId);
     return row.id;
   });
 
@@ -172,6 +174,7 @@ export async function saveToolSimulation(input: {
         creditsSpent: charge && !unlimited ? 1 : 0,
       })
       .returning();
+    await awardReferralForSavedSimulation(tx, session.userId);
     return row.id;
   });
 

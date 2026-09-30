@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, Coins, CreditCard, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, CreditCard, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, UsersRound, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -35,6 +35,7 @@ export const NAV: NavItem[] = [
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
   { href: '/perfil', label: 'Planos e créditos', icon: CreditCard },
+  { href: '/indique-amigos', label: 'Indique amigos', icon: UsersRound },
 ];
 
 function NavLinks({
@@ -93,7 +94,7 @@ function ActionsRow() {
   return (
     <div className="flex items-center justify-between gap-2">
       <ThemeToggle />
-      <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => signOut()}>
+      <Button type="button" variant="outline" className="flex-1" onClick={() => signOut()}>
         Sair
       </Button>
     </div>

@@ -11,7 +11,7 @@ export default function PrivacidadePage() {
     <>
       <header>
         <h1>Política de Privacidade</h1>
-        <p>Última atualização: 25 de setembro de 2026.</p>
+        <p>Última atualização: 30 de setembro de 2026.</p>
       </header>
 
       <section>
@@ -36,6 +36,13 @@ export default function PrivacidadePage() {
             até o resgate e utilizável uma só vez. Não enviamos detalhes das simulações ao
             prestador de e-mail. Você pode recusar ou reativar ofertas no{' '}
             <Link className="underline" href="/perfil">perfil</Link>; avisos operacionais continuam.
+          </li>
+          <li>
+            Para indicações, usamos código pessoal compartilhado por link, atribuição por cookie
+            essencial válido por 7 dias, data do cadastro, existência da primeira simulação salva
+            e histórico dos créditos concedidos. O convidante vê apenas o e-mail mascarado de
+            cada convidado e o estado da indicação, limitado a cinco vagas. Não enviamos e-mail
+            promocional automaticamente por essa indicação.
           </li>
           <li>
             Dados de simulações e financiamento que você informa (como saldos, taxas, prazos e

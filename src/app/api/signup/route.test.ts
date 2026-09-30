@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   hash: vi.fn(),
   sendWelcomeEmail: vi.fn(),
   captureAccountEvent: vi.fn(),
+  readReferralCode: vi.fn(),
+  reserveReferral: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -23,9 +25,11 @@ vi.mock('bcryptjs', () => ({ default: { hash: mocks.hash } }));
 vi.mock('@/lib/auth-mode', () => ({ emailLoginEnabled: () => true }));
 vi.mock('@/lib/email/notify', () => ({
   sendWelcomeEmail: mocks.sendWelcomeEmail,
-  WELCOME_BONUS_CREDITS: 5,
+  WELCOME_BONUS_CREDITS: 10,
 }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
+vi.mock('@/lib/referrals/cookie', () => ({ readReferralCode: mocks.readReferralCode }));
+vi.mock('@/lib/referrals/reserve', () => ({ reserveReferralForNewUser: mocks.reserveReferral }));
 
 import { POST } from './route';
 
@@ -51,6 +55,8 @@ beforeEach(() => {
   mocks.hash.mockReset().mockResolvedValue('hash');
   mocks.sendWelcomeEmail.mockReset().mockResolvedValue(true);
   mocks.captureAccountEvent.mockReset().mockResolvedValue(undefined);
+  mocks.readReferralCode.mockReset().mockResolvedValue('AbCdEfGhIjKlMnOpQrStUv');
+  mocks.reserveReferral.mockReset().mockResolvedValue(true);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -65,7 +71,10 @@ describe('POST /api/signup', () => {
       email: 'maria@exemplo.com',
     });
     const bonus = mocks.values.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'bonus');
-    expect((bonus?.[0] as { amount: number }).amount).toBe(5);
+    expect((bonus?.[0] as { amount: number }).amount).toBe(10);
+    expect(mocks.reserveReferral).toHaveBeenCalledWith(expect.anything(), {
+      inviteeId: 'user-1', inviteeEmail: 'maria@exemplo.com', code: 'AbCdEfGhIjKlMnOpQrStUv',
+    });
     expect(mocks.captureAccountEvent).toHaveBeenCalledWith('user-1', 'signup_completed', 'user-1');
   });
 
@@ -84,6 +93,7 @@ describe('POST /api/signup', () => {
     expect(res.status).toBe(409);
     expect(mocks.sendWelcomeEmail).not.toHaveBeenCalled();
     expect(mocks.captureAccountEvent).not.toHaveBeenCalled();
+    expect(mocks.reserveReferral).not.toHaveBeenCalled();
   });
 
   it('does not mark development email signups for Google Ads conversion', async () => {

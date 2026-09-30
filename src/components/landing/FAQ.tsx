@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     q: "Quanto custa cada simulação?",
-    a: "Cada simulação completa (juros de obra, investir ou amortizar, imóvel no bolso e portabilidade) usa 1 crédito. O pacote de 5 créditos custa R$ 10,00 e você ganha 5 créditos de boas-vindas ao criar a conta. No plano Ilimitado, tudo é liberado sem consumir créditos.",
+    a: "Cada simulação completa (juros de obra, investir ou amortizar, imóvel no bolso e portabilidade) usa 1 crédito. O pacote de 5 créditos custa R$ 10,00 e você ganha 10 créditos de boas-vindas ao criar a conta. No plano Ilimitado, tudo é liberado sem consumir créditos.",
   },
   {
     q: "Os créditos expiram? E as simulações salvas?",
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "Preciso criar conta para usar?",
-    a: "Sim, ao criar a conta você ganha 5 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado (R$ 119,90/ano).",
+    a: "Sim, ao criar a conta você ganha 10 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado (R$ 119,90/ano).",
   },
 ];
 

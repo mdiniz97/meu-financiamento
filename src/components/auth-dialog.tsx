@@ -31,7 +31,7 @@ export function AuthDialog() {
         <DialogHeader>
           <DialogTitle>{isSignup ? 'Criar conta' : 'Entrar'}</DialogTitle>
           <DialogDescription>
-            {isSignup ? 'Ganhe 5 créditos grátis para começar' : 'Acesse sua conta para continuar'}
+            {isSignup ? 'Ganhe 10 créditos grátis para começar' : 'Acesse sua conta para continuar'}
           </DialogDescription>
         </DialogHeader>
         {isSignup ? <CadastroForm callbackUrl={next} /> : <LoginForm callbackUrl={next} />}

@@ -12,7 +12,7 @@ export default function CookiesPage() {
     <>
       <header>
         <h1>Política de Cookies</h1>
-        <p>Última atualização: 25 de setembro de 2026.</p>
+        <p>Última atualização: 30 de setembro de 2026.</p>
       </header>
 
       <section>
@@ -33,6 +33,16 @@ export default function CookiesPage() {
           do navegador para medir campanhas, visitas e cadastros concluídos. O controle de
           análise de uso abaixo não desativa essa tag; você pode restringir cookies e rastreadores nas configurações
           do navegador.
+        </p>
+      </section>
+
+      <section>
+        <h2>Indicação de amigos</h2>
+        <p>
+          Ao abrir um link de indicação, guardamos um código em cookie necessário,
+          protegido contra leitura por scripts, por até 7 dias. Ele permite vincular
+          somente um cadastro novo ao convite; abrir o link não reserva vaga nem
+          movimenta créditos. Você pode apagar o cookie nas configurações do navegador.
         </p>
       </section>
 

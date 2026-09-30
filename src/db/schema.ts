@@ -1,10 +1,11 @@
-import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, doublePrecision, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, uuid, boolean, timestamp, jsonb, doublePrecision, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
+  referralCode: text('referral_code').unique(),
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('user'),
   analyticsConsent: boolean('analytics_consent'),
@@ -105,8 +106,23 @@ export const creditLedger = pgTable(
     uniqueIndex('credit_ledger_user_kind_description_unique')
       .on(table.userId, table.kind, table.description)
       .where(sql`${table.kind} IN ('purchase', 'refund')`),
+    uniqueIndex('credit_ledger_referral_unique')
+      .on(table.userId, table.description)
+      .where(sql`${table.kind} = 'referral'`),
   ]
 );
+
+export const referrals = pgTable('referrals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  inviterId: uuid('inviter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  inviteeId: uuid('invitee_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  state: text('state', { enum: ['pending', 'awarded'] }).notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  awardedAt: timestamp('awarded_at', { withTimezone: true }),
+}, table => [
+  index('referrals_inviter_id_idx').on(table.inviterId),
+  check('referrals_state_check', sql`${table.state} IN ('pending', 'awarded')`),
+]);
 
 export const simulations = pgTable('simulations', {
   id: uuid('id').primaryKey().defaultRandom(),

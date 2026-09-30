@@ -6,6 +6,8 @@ import { emailLoginEnabled } from '@/lib/auth-mode';
 import { sendWelcomeEmail, WELCOME_BONUS_CREDITS } from '@/lib/email/notify';
 import { captureAccountEvent } from '@/lib/analytics/server';
 import { adsSignupConversionValue } from '@/lib/ads/signup-conversion-id';
+import { readReferralCode } from '@/lib/referrals/cookie';
+import { reserveReferralForNewUser } from '@/lib/referrals/reserve';
 
 export async function POST(req: Request) {
   if (!emailLoginEnabled()) {
@@ -37,6 +39,7 @@ export async function POST(req: Request) {
   if (exists)
     return NextResponse.json({ error: 'Email já cadastrado' }, { status: 409 });
 
+  const referralCode = await readReferralCode();
   const user = await db.transaction(async (tx) => {
     const conversionId = adsSignupConversionValue();
     const [created] = await tx
@@ -53,6 +56,9 @@ export async function POST(req: Request) {
       amount: WELCOME_BONUS_CREDITS,
       kind: 'bonus',
       description: 'Bônus de boas-vindas',
+    });
+    await reserveReferralForNewUser(tx, {
+      inviteeId: created.id, inviteeEmail: created.email, code: referralCode,
     });
     return created;
   });

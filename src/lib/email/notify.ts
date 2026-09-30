@@ -3,7 +3,7 @@ import { sendEmail } from './client';
 import { welcomeEmail } from './templates';
 
 /** Bônus concedido no cadastro; o mesmo valor vai para o e-mail. */
-export const WELCOME_BONUS_CREDITS = 5;
+export const WELCOME_BONUS_CREDITS = 10;
 
 export interface WelcomeUser {
   name: string;

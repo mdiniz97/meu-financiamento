@@ -24,6 +24,7 @@ vi.mock('drizzle-orm', () => ({
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: mocks.captureAccountEvent }));
 vi.mock('@/lib/credits', () => ({ getCreditBalance: vi.fn() }));
+vi.mock('@/lib/referrals/award', () => ({ awardReferralForSavedSimulation: vi.fn().mockResolvedValue(false) }));
 vi.mock('@/lib/finance/engine', () => ({ validateLoanInput: vi.fn() }));
 
 import { saveToolSimulation } from './actions';
