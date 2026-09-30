@@ -9,6 +9,7 @@ import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { ArticleBody, ArticleHeader } from '@/components/landing/Article';
 import { publicMetadata, SITE_NAME, SITE_URL } from '@/lib/site';
+import { getCreditBalance } from '@/lib/credits';
 
 export const dynamicParams = false;
 
@@ -42,6 +43,8 @@ export default async function ArtigoPage({
   if (!artigo) notFound();
   const session = await auth();
   const signedIn = Boolean(session?.userId);
+  const unlimited =
+    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
   const sugestoes = ARTIGOS.filter((a) => a.slug !== artigo.slug).slice(0, 3);
   const url = `${SITE_URL}/blog/${artigo.slug}`;
   const structuredData = {
@@ -76,7 +79,7 @@ export default async function ArtigoPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
       />
-      <Header signedIn={signedIn} />
+      <Header signedIn={signedIn} unlimited={unlimited} />
       <main className="flex flex-1 flex-col items-center gap-10 bg-muted p-6">
         <div className="flex w-full max-w-4xl flex-col gap-8">
           <ArticleHeader artigo={artigo} />

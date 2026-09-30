@@ -6,6 +6,7 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { publicMetadata } from '@/lib/site';
+import { getCreditBalance } from '@/lib/credits';
 
 export const metadata = publicMetadata({
   title: 'Blog sobre financiamento imobiliário e amortização',
@@ -17,10 +18,12 @@ export const metadata = publicMetadata({
 export default async function BlogPage() {
   const session = await auth();
   const signedIn = Boolean(session?.userId);
+  const unlimited =
+    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
 
   return (
     <div className="flex flex-1 flex-col">
-      <Header signedIn={signedIn} />
+      <Header signedIn={signedIn} unlimited={unlimited} />
       <main className="flex flex-1 flex-col items-center gap-10 bg-muted p-6">
         <div className="flex w-full max-w-6xl flex-col items-center gap-10">
           <div className="flex flex-col gap-2 text-center">

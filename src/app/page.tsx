@@ -15,6 +15,7 @@ import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 import { publicMetadata, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { getCreditBalance } from "@/lib/credits";
 
 export async function generateMetadata({
   searchParams,
@@ -38,6 +39,8 @@ export async function generateMetadata({
 export default async function Home() {
   const session = await auth();
   const signedIn = Boolean(session?.userId);
+  const unlimited =
+    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -64,9 +67,9 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
       />
-      <Header signedIn={signedIn} />
+      <Header signedIn={signedIn} unlimited={unlimited} />
       <main className="flex-1">
-        <Hero signedIn={signedIn} />
+        <Hero signedIn={signedIn} unlimited={unlimited} />
         <TrustRow />
         <HowItWorks />
         <SystemsExplain />

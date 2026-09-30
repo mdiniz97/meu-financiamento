@@ -5,8 +5,10 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobilePublicNav } from "@/components/landing/mobile-public-nav";
+import { signedInNavItem } from "@/lib/landing/signed-in-nav";
 
-export function Header({ signedIn = false }: { signedIn?: boolean }) {
+export function Header({ signedIn = false, unlimited = false }: { signedIn?: boolean; unlimited?: boolean }) {
+  const navItem = signedInNavItem(unlimited);
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -45,13 +47,13 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
           {signedIn ? (
             <>
               <Link
-                href="/minhas-simulacoes"
+                href={navItem.href}
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
                   "hidden px-4 text-sm sm:inline-flex"
                 )}
               >
-                Minhas simulações
+                {navItem.label}
               </Link>
               <Link
                 href="/nova-simulacao"
@@ -77,7 +79,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
             </>
           )}
           <ThemeToggle />
-          <MobilePublicNav signedIn={signedIn} />
+          <MobilePublicNav signedIn={signedIn} unlimited={unlimited} />
         </nav>
       </div>
     </header>

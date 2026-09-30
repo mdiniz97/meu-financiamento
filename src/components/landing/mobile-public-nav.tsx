@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useAuthDialog } from '@/components/auth-dialog-provider';
+import { signedInNavItem } from '@/lib/landing/signed-in-nav';
 
 const publicLinks = [
   { href: '/custos-da-compra', label: 'Quanto preciso para comprar?' },
@@ -14,7 +15,8 @@ const publicLinks = [
   { href: '/blog', label: 'Blog' },
 ];
 
-export function MobilePublicNav({ signedIn }: { signedIn: boolean }) {
+export function MobilePublicNav({ signedIn, unlimited = false }: { signedIn: boolean; unlimited?: boolean }) {
+  const navItem = signedInNavItem(unlimited);
   const [open, setOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const { openLogin, openSignup } = useAuthDialog();
@@ -74,7 +76,7 @@ export function MobilePublicNav({ signedIn }: { signedIn: boolean }) {
               {signedIn ? (
                 <>
                   <Link href="/nova-simulacao" onClick={() => setOpen(false)} className="px-4 py-3 text-sm font-medium hover:bg-muted">Ir para o simulador</Link>
-                  <Link href="/minhas-simulacoes" onClick={() => setOpen(false)} className="px-4 py-3 text-sm font-medium hover:bg-muted">Minhas simulações</Link>
+                  <Link href={navItem.href} onClick={() => setOpen(false)} className="px-4 py-3 text-sm font-medium hover:bg-muted">{navItem.label}</Link>
                 </>
               ) : (
                 <>

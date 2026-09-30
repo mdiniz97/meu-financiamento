@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { simulate } from "@/lib/finance/engine";
 import type { LoanInput } from "@/lib/finance/types";
 import { AnimatedNumber, TypewriterPhrase } from "@/components/landing/motion-primitives";
+import { signedInNavItem } from "@/lib/landing/signed-in-nav";
 
 const trustPoints = ["Grátis para começar", "Sem cartão de crédito", "10 créditos de boas-vindas"];
 
@@ -22,7 +23,8 @@ const smart = simulate(
   { extraLumpSum: [], reduceMode: "term", extraMonthlyPct: 0.113 }
 );
 
-export function Hero({ signedIn = false }: { signedIn?: boolean }) {
+export function Hero({ signedIn = false, unlimited = false }: { signedIn?: boolean; unlimited?: boolean }) {
+  const navItem = signedInNavItem(unlimited);
   return (
     <section className="border-b border-border">
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
@@ -62,10 +64,10 @@ export function Hero({ signedIn = false }: { signedIn?: boolean }) {
           )}
           {signedIn ? (
             <Link
-              href="/minhas-simulacoes"
+              href={navItem.href}
               className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
             >
-              Minhas simulações
+              {navItem.label}
             </Link>
           ) : (
             <AuthButton

@@ -54,6 +54,17 @@ test('oferta após cadastro mostra vídeo em loop; recusa mantém ativação no 
     await expect(page.getByRole('button', { name: 'Ativar 7 dias grátis' })).toHaveCount(0);
     await page.goto('/assinar');
     await expect(page).toHaveURL(/\/perfil$/);
+
+    // Ilimitado no trial: a landing troca "Minhas simulações" por "Meu financiamento".
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: 'Meu financiamento', exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Simulações', exact: true })).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Abrir menu' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Menu de navegação' })
+        .getByRole('link', { name: 'Meu financiamento', exact: true })
+    ).toBeVisible();
   } finally {
     await cleanup(email);
   }
@@ -73,6 +84,20 @@ test('perfil reabre o modal da oferta pelo card do trial', async ({ page }) => {
     await page.getByRole('button', { name: 'Ver oferta do trial' }).click();
     await expect(page.getByRole('dialog', { name: /7 dias do Ilimitado/ })).toBeVisible();
     await expect(page.getByRole('dialog', { name: /7 dias do Ilimitado/ }).locator('video')).toBeVisible();
+  } finally {
+    await cleanup(email);
+  }
+});
+
+test('landing mostra Simulações (sem Ilimitado) apontando para o simulador', async ({ page }) => {
+  const email = `trial-nav-free-${crypto.randomUUID()}@example.test`;
+  try {
+    await createAccount(page, email);
+    await page.goto('/');
+    const link = page.getByRole('link', { name: 'Simulações', exact: true }).first();
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', '/nova-simulacao');
+    await expect(page.getByRole('link', { name: 'Meu financiamento', exact: true })).toHaveCount(0);
   } finally {
     await cleanup(email);
   }
