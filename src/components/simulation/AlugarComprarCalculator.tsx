@@ -8,20 +8,18 @@ import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput, NumericInput, RateField } from './form-inputs';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
-  imovel: '500000,00',
-  entrada: '100000,00',
-  aluguel: '2500,00',
-  taxaFin: '10.5',
-  selic: '10.5',
-  valorizacao: '4',
-  prazoAnos: '10',
-  prazoFinAnos: '30',
+  imovel: '',
+  entrada: '',
+  aluguel: '',
+  taxaFin: '',
+  selic: '',
+  valorizacao: '',
+  prazoAnos: '',
+  prazoFinAnos: '',
 };
 
 export function AlugarComprarCalculator({
@@ -31,7 +29,7 @@ export function AlugarComprarCalculator({
 }) {
   const [form, setForm] = useState({
     ...DEFAULTS,
-    selic: selicAnnual === null ? '10.5' : String(selicAnnual),
+    selic: '',
   });
   const [result, setResult] = useState<AlugarComprarResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
@@ -127,7 +125,7 @@ export function AlugarComprarCalculator({
             </FieldHelp>
             <RateField id="acTaxa" label="Taxa do financiamento" value={parseDecimal(form.taxaFin)} kind="effective-annual" minEffectiveAnnual={0} onValueChange={(v) => set('taxaFin', String(v))} onKindChange={() => undefined} onValidityChange={setRateValid} />
             <FieldHelp htmlFor="acSelic" label="Taxa de investimento (Selic % a.a.)" help="Já vem com a Selic atual do BACEN.">
-              <NumericInput id="acSelic" aria-describedby="acSelic-help" value={parseDecimal(form.selic)} parse={parseDecimal} onValid={(v) => set('selic', String(v))} />
+              <NumericInput id="acSelic" aria-describedby="acSelic-help" placeholder={selicAnnual === null ? 'Informe a taxa' : `Referência: ${selicAnnual}% a.a.`} value={parseDecimal(form.selic)} parse={parseDecimal} onValid={(v) => set('selic', String(v))} />
             </FieldHelp>
             <FieldHelp htmlFor="acVal" label="Valorização do imóvel (% a.a.)" help="Quanto o imóvel tende a valorizar por ano.">
               <NumericInput id="acVal" aria-describedby="acVal-help" value={parseDecimal(form.valorizacao)} parse={parseDecimal} onValid={(v) => set('valorizacao', String(v))} />

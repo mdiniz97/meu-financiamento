@@ -18,14 +18,14 @@ import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
+import { NumericInput, parseIntStrict } from './form-inputs';
 import { PortabilitySandbox } from './PortabilitySandbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { RateField } from '@/components/ui/rate-field';
+import { RateField } from './form-inputs';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
+import { MoneyInput } from './form-inputs';
 import { normalizeRate, type RateKind } from '@/lib/finance/rates';
 
 type SectionKey = 'data' | 'current' | 'offered' | 'smart';
@@ -36,20 +36,20 @@ type SmartBreakEven = PortabilityBreakEven & {
 };
 
 const DEFAULTS = {
-  principal: '800000',
+  principal: '',
   currentSystem: 'PRICE' as AmortSystem,
-  currentAnnualRate: '11.5',
+  currentAnnualRate: '',
   currentAnnualRateKind: 'effective-annual' as RateKind,
-  trMonthly: '0.17',
-  insuranceMonthly: '100',
-  months: '300',
-  bank: 'Caixa',
+  trMonthly: '',
+  insuranceMonthly: '',
+  months: '',
+  bank: '',
   newSystem: 'PRICE' as AmortSystem,
-  newAnnualRate: '9',
+  newAnnualRate: '',
   newAnnualRateKind: 'effective-annual' as RateKind,
-  newInsuranceMonthly: '100',
-  newBank: 'Itaú',
-  costs: '0',
+  newInsuranceMonthly: '',
+  newBank: '',
+  costs: '',
   smartMode: false,
   targetParcela: '',
   smartResult: null as SmartBreakEven | null,

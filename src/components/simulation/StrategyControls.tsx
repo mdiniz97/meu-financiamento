@@ -35,7 +35,7 @@ interface Props {
   onChange: (s: Strategies) => void;
   base: SimulationResult;
   current: SimulationResult;
-  /** registra função que adiciona um aporte % extra (usado pelo 'Aplicar aporte' do Raio X) */
+  /** registra função que adiciona um aporte % extra (usado pelo 'Aplicar aporte' da análise) */
   onApplyAporteReady?: (fn: ((ratio: number) => void) | null) => void;
 }
 

@@ -24,7 +24,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Lock className="size-4 text-primary" /> Raio X da dívida
+            <Lock className="size-4 text-primary" /> Análise do financiamento
           </CardTitle>
           <CardDescription>
             Descubra a parcela mínima que abate sua dívida e o prazo ideal de financiamento.
@@ -59,7 +59,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
     return (
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg">Raio X da dívida</CardTitle>
+          <CardTitle className="text-lg">Análise do financiamento</CardTitle>
           <CardDescription>
             No cenário atual, a dívida {firstDescription}. A TR pode superar a amortização mesmo no SAC.
             Comparação abaixo: contratos sem estratégias.
@@ -128,7 +128,7 @@ export function DebtInsightCard({ input, result, isUnlimited, onApplyAporte }: P
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle className="text-lg">Raio X da dívida</CardTitle>
+        <CardTitle className="text-lg">Análise do financiamento</CardTitle>
         <CardDescription>No PRICE, juros + correção podem crescer mais que a amortização.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">

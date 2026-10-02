@@ -56,7 +56,7 @@ export default async function AssinarPage() {
               <ZapIcon className="size-4" /> Plano Ilimitado
             </CardTitle>
             <CardDescription>
-              Simulações ilimitadas, raio X, PDF, amortizador inteligente e portabilidade.
+              Simulações ilimitadas, análise do financiamento, PDF, amortizador inteligente e portabilidade.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 text-sm">

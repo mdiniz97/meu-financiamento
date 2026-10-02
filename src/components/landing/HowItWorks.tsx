@@ -11,7 +11,7 @@ const steps = [
   {
     icon: LightbulbIcon,
     step: "02",
-    title: "Veja o Raio X",
+    title: "Veja a análise do financiamento",
     description:
       "Parcelas, juros totais, amortização e a comparação completa entre SAC e PRICE, com o mês em que a dívida começa a cair de verdade.",
   },

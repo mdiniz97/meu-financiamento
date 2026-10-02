@@ -7,18 +7,17 @@ import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
+import { MoneyInput, NumericInput } from './form-inputs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { RateField } from '@/components/ui/rate-field';
+import { RateField } from './form-inputs';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
-  saldo: '400000,00',
-  prazo: '360',
-  taxa: '10.5',
+  saldo: '',
+  prazo: '',
+  taxa: '',
   sistema: 'PRICE' as 'PRICE' | 'SAC',
-  metaAnos: '10',
+  metaAnos: '',
 };
 
 export function MetaCalculator() {

@@ -78,6 +78,13 @@ export const DEFAULT_FORM: FormState = {
   portability: null,
 };
 
+/** New forms only: stored simulation defaults are intentionally unchanged. */
+export const EMPTY_FORM: FormState = {
+  ...DEFAULT_FORM,
+  principal: '', annualRate: '', months: '', trMonthly: '', insuranceMonthly: '', bank: '',
+  extraMonthlyPct: '', fgtsAnnual: '', fgtsStartMonth: '',
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

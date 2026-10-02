@@ -17,7 +17,7 @@ export function CTA({ signedIn = false }: { signedIn?: boolean }) {
             Pronto para enxergar o que está por trás das parcelas?
           </h2>
           <p className="mt-4 text-lg text-background/80">
-            Crie sua conta grátis e veja o raio X do seu financiamento em menos
+            Crie sua conta grátis e veja a análise do seu financiamento em menos
             de 2 minutos.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

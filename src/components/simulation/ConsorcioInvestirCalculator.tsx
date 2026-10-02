@@ -6,15 +6,14 @@ import { calcularConsorcioOuInvestir, type ConsorcioInvestirResult } from '@/lib
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
+import { MoneyInput, NumericInput } from './form-inputs';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
-  valor: '300000,00',
-  prazo: '240',
-  taxaAdmin: '18',
-  selic: '10.5',
+  valor: '',
+  prazo: '',
+  taxaAdmin: '',
+  selic: '',
 };
 
 export function ConsorcioInvestirCalculator({
@@ -24,7 +23,7 @@ export function ConsorcioInvestirCalculator({
 }) {
   const [form, setForm] = useState({
     ...DEFAULTS,
-    selic: selicAnnual === null ? '10.5' : String(selicAnnual),
+    selic: '',
   });
   const [result, setResult] = useState<ConsorcioInvestirResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);
@@ -101,7 +100,7 @@ export function ConsorcioInvestirCalculator({
             <NumericInput id="ciAdmin" aria-describedby="ciAdmin-help" value={parseDecimal(form.taxaAdmin)} parse={parseDecimal} onValid={(v) => set('taxaAdmin', String(v))} />
           </FieldHelp>
           <FieldHelp htmlFor="ciSelic" label="Taxa de investimento (Selic % a.a.)" help="Já vem com a Selic atual do BACEN.">
-            <NumericInput id="ciSelic" aria-describedby="ciSelic-help" value={parseDecimal(form.selic)} parse={parseDecimal} onValid={(v) => set('selic', String(v))} />
+            <NumericInput id="ciSelic" aria-describedby="ciSelic-help" placeholder={selicAnnual === null ? 'Informe a taxa' : `Referência: ${selicAnnual}% a.a.`} value={parseDecimal(form.selic)} parse={parseDecimal} onValid={(v) => set('selic', String(v))} />
           </FieldHelp>
         </div>
 

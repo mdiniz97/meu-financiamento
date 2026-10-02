@@ -57,10 +57,10 @@ export function ProposalCard({
         </FieldHelp>
         <div className="grid grid-cols-2 gap-2">
           <FieldHelp htmlFor={`${raw.id}-prop`} label="Imóvel (R$)" help="Preço total do imóvel usado nesta proposta, antes de descontar a entrada.">
-            <MoneyInput id={`${raw.id}-prop`} aria-describedby={`${raw.id}-prop-help`} value={parseBRLToNumber(raw.propertyValue)} onValid={(v) => onChange({ propertyValue: numberToBRLInput(v) })} />
+            <MoneyInput id={`${raw.id}-prop`} aria-describedby={`${raw.id}-prop-help`} emptyWhenZero={raw.propertyValue === ''} value={parseBRLToNumber(raw.propertyValue)} onValid={(v) => onChange({ propertyValue: numberToBRLInput(v) })} />
           </FieldHelp>
           <FieldHelp htmlFor={`${raw.id}-entry`} label="Entrada (R$)" help="Valor pago com recursos próprios; ele reduz o saldo financiado e os juros.">
-            <MoneyInput id={`${raw.id}-entry`} aria-describedby={`${raw.id}-entry-help`} value={parseBRLToNumber(raw.downPayment)} onValid={(v) => onChange({ downPayment: numberToBRLInput(v) })} />
+            <MoneyInput id={`${raw.id}-entry`} aria-describedby={`${raw.id}-entry-help`} emptyWhenZero={raw.downPayment === ''} value={parseBRLToNumber(raw.downPayment)} onValid={(v) => onChange({ downPayment: numberToBRLInput(v) })} />
           </FieldHelp>
         </div>
         <FieldHelp htmlFor={`${raw.id}-principal`} label="Valor financiado (R$)" help="Normalmente é preço menos entrada. Ajuste somente se a proposta incluir ou excluir outro valor.">
@@ -69,6 +69,7 @@ export function ProposalCard({
               id={`${raw.id}-principal`}
               aria-describedby={`${raw.id}-principal-help`}
               value={principalValue}
+              emptyWhenZero={raw.propertyValue === '' && raw.principalManual === ''}
               onValid={(v) => onChange({ principalManual: numberToBRLInput(v) })}
               onValidityChange={(valid) => onFieldValidityChange('principal', valid)}
               className="flex-1"
@@ -104,7 +105,7 @@ export function ProposalCard({
         </FieldHelp>
         <div className="grid grid-cols-2 gap-2">
           <FieldHelp htmlFor={`${raw.id}-months`} label="Prazo (meses)" help="Total de parcelas da proposta. Prazo maior costuma baixar a parcela e aumentar o custo total.">
-            <NumericInput id={`${raw.id}-months`} aria-describedby={`${raw.id}-months-help`} value={Number(raw.months)} parse={parseDecimal} onValid={(v) => onChange({ months: String(v) })} onValidityChange={(valid) => onFieldValidityChange('months', valid)} />
+            <NumericInput id={`${raw.id}-months`} aria-describedby={`${raw.id}-months-help`} value={raw.months === '' ? undefined : Number(raw.months)} parse={parseDecimal} onValid={(v) => onChange({ months: String(v) })} onValidityChange={(valid) => onFieldValidityChange('months', valid)} />
           </FieldHelp>
           <RateField id={`${raw.id}-rate`} label="Taxa contratual" value={raw.annualRate === '' ? undefined : Number(raw.annualRate)} kind={raw.annualRateKind} onValueChange={(v) => onChange({ annualRate: String(v) })} onKindChange={(annualRateKind) => onChange({ annualRateKind })} onValidityChange={(valid) => onFieldValidityChange('annualRate', valid)} />
         </div>
@@ -113,11 +114,11 @@ export function ProposalCard({
             <NumericInput id={`${raw.id}-cet`} aria-describedby={`${raw.id}-cet-help`} value={raw.cetInformed === '' ? undefined : Number(raw.cetInformed)} parse={parseDecimal} onValid={(v) => onChange({ cetInformed: String(v) })} onValidityChange={(valid) => onFieldValidityChange('cetInformed', valid)} />
           </FieldHelp>
           <FieldHelp htmlFor={`${raw.id}-tr`} label="TR mensal (%)" help="Correção monetária mensal separada dos juros. Use a taxa indicada na proposta ou zero se o contrato não aplicar TR.">
-            <NumericInput id={`${raw.id}-tr`} aria-describedby={`${raw.id}-tr-help`} value={Number(raw.trMonthly)} parse={parseDecimal} onValid={(v) => onChange({ trMonthly: String(v) })} onValidityChange={(valid) => onFieldValidityChange('trMonthly', valid)} />
+            <NumericInput id={`${raw.id}-tr`} aria-describedby={`${raw.id}-tr-help`} value={raw.trMonthly === '' ? undefined : Number(raw.trMonthly)} parse={parseDecimal} onValid={(v) => onChange({ trMonthly: String(v) })} onValidityChange={(valid) => onFieldValidityChange('trMonthly', valid)} />
           </FieldHelp>
         </div>
         <FieldHelp htmlFor={`${raw.id}-insurance`} label="Seguro (R$/mês)" help="Soma mensal dos seguros da proposta. Esse custo entra nas parcelas simuladas.">
-          <MoneyInput id={`${raw.id}-insurance`} aria-describedby={`${raw.id}-insurance-help`} value={parseBRLToNumber(raw.insuranceMonthly)} onValid={(v) => onChange({ insuranceMonthly: numberToBRLInput(v) })} />
+          <MoneyInput id={`${raw.id}-insurance`} aria-describedby={`${raw.id}-insurance-help`} emptyWhenZero={raw.insuranceMonthly === ''} value={parseBRLToNumber(raw.insuranceMonthly)} onValid={(v) => onChange({ insuranceMonthly: numberToBRLInput(v) })} />
         </FieldHelp>
         <FieldHelp group htmlFor={`${raw.id}-fees`} label="Tarifas" help="Liste nome e valor das cobranças da proposta. Marque no CET quando a tarifa já estiver incluída no custo efetivo informado.">
           {raw.fees.map((f) => (

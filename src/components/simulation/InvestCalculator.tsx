@@ -9,9 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput, NumericInput, RateField } from './form-inputs';
 
 export function InvestCalculator({
   selicAnnual,
@@ -20,11 +18,11 @@ export function InvestCalculator({
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    saldoDevedor: '500000,00',
-    prazoRestante: '360',
-    taxaFinanciamento: '10.5',
-    valorDisponivel: '100000,00',
-    selic: selicAnnual === null ? '10.5' : String(selicAnnual),
+    saldoDevedor: '',
+    prazoRestante: '',
+    taxaFinanciamento: '',
+    valorDisponivel: '',
+    selic: '',
     sistema: 'PRICE' as 'PRICE' | 'SAC',
   });
   const [result, setResult] = useState<InvestResult | null>(null);
@@ -160,6 +158,7 @@ export function InvestCalculator({
                 id="invSelic"
                 aria-describedby="invSelic-help"
                 value={parseDecimal(form.selic)}
+                placeholder={selicAnnual === null ? 'Informe a taxa' : `Referência: ${selicAnnual}% a.a.`}
                 parse={parseDecimal}
                 onValid={(v) => set('selic', String(v))}
               />

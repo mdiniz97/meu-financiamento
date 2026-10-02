@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Coins } from 'lucide-react';
 import {
   BANKS,
+  EMPTY_FORM,
   NOVA_SIMULACAO_PREFILL_KEY,
   SIM_INPUT_KEY,
   parseStoredForm,
@@ -14,16 +15,14 @@ import { numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput, NumericInput, parseIntStrict, RateField } from './form-inputs';
 import { FieldHelp } from '@/components/ui/field-help';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function WizardForm({ isUnlimited = false }: { isUnlimited?: boolean }) {
   const capturedPrefill = useRef<string | null | undefined>(undefined);
-  const [initial, setInitial] = useState(() => ({ key: 'default', form: parseStoredForm(null) }));
+  const [initial, setInitial] = useState<{ key: string; form: FormState }>(() => ({ key: 'default', form: { ...EMPTY_FORM, lumpSum: [] } }));
 
   useEffect(() => {
     if (capturedPrefill.current === undefined) {
@@ -66,6 +65,7 @@ function WizardFormContent({ initialForm, isUnlimited }: { initialForm: FormStat
     const trMonthly = parseDecimal(form.trMonthly);
     const insuranceMonthly = parseBRLToNumber(form.insuranceMonthly);
     if (!(principal > 0)) return 'Informe o valor financiado (maior que zero).';
+    if (!form.annualRate.trim()) return 'Informe uma taxa anual válida.';
     if (!rateValidRef.current || rateInvalid) return 'Informe uma taxa válida.';
     if (!(annualRate >= 0)) return 'Informe uma taxa anual válida.';
     if (!monthsValidRef.current || !monthsValid || !Number.isInteger(months)) return 'Informe um prazo válido em meses inteiros.';
@@ -89,7 +89,9 @@ function WizardFormContent({ initialForm, isUnlimited }: { initialForm: FormStat
       return;
     }
     setError('');
-    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify(form));
+    sessionStorage.setItem(SIM_INPUT_KEY, JSON.stringify({
+      ...form, trMonthly: form.trMonthly || '0', insuranceMonthly: form.insuranceMonthly || '0',
+    }));
     router.push('/simulacao');
   }
 

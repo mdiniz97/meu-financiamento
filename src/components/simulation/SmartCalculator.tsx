@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/dialog';
 import { recommendSmart, type SmartRecommendation } from '@/lib/finance/smart';
 import { BANKS } from '@/lib/simulation-context';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput, parseIntStrict } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput } from './form-inputs';
+import { NumericInput, parseIntStrict } from './form-inputs';
+import { RateField } from './form-inputs';
 import { normalizeRate, type RateKind } from '@/lib/finance/rates';
 import type { AmortSystem } from '@/lib/finance/types';
 import { numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
@@ -40,14 +40,14 @@ export interface SmartCalcFields {
 
 export const SMART_DEFAULTS: SmartCalcFields = {
   preferredSystem: 'AUTO',
-  principal: '1000000',
-  annualRate: '10.5',
+  principal: '',
+  annualRate: '',
   annualRateKind: 'effective-annual',
-  trMonthly: '0.17',
-  insuranceMonthly: '100',
-  bank: 'Caixa',
-  maxMonths: '360',
-  maxPayment: '12000',
+  trMonthly: '',
+  insuranceMonthly: '',
+  bank: '',
+  maxMonths: '',
+  maxPayment: '',
   fixedUntilMonth: '',
 };
 
@@ -91,7 +91,7 @@ export function SmartCalculator({ isUnlimited, onCalculated, onValidationFailed 
   function calcular() {
     setError('');
     onValidationFailed?.();
-    if (!annualRateValid) {
+    if (!annualRateValid || !f.annualRate.trim()) {
       return setError('Informe uma taxa válida.');
     }
     const principal = parseBRLToNumber(f.principal);

@@ -7,8 +7,8 @@ import { formatBRL, numberToBRLInput, parseBRLToNumber } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
+import { MoneyInput } from './form-inputs';
+import { NumericInput } from './form-inputs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const UF_NAMES: Record<string, string> = {
@@ -21,10 +21,10 @@ const UF_NAMES: Record<string, string> = {
 };
 
 export function CompraCustosCalculator() {
-  const [imovel, setImovel] = useState('500000,00');
-  const [entradaPct, setEntradaPct] = useState('20');
-  const [uf, setUf] = useState('SP');
-  const [extras, setExtras] = useState('3000,00');
+  const [imovel, setImovel] = useState('');
+  const [entradaPct, setEntradaPct] = useState('');
+  const [uf, setUf] = useState('');
+  const [extras, setExtras] = useState('');
   const [result, setResult] = useState<CustosCompraResult | null>(null);
   const [resultForm, setResultForm] = useState<{ imovel: string; entradaPct: string; uf: string } | null>(null);
   const [error, setError] = useState('');

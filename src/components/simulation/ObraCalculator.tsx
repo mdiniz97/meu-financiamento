@@ -9,34 +9,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput } from './form-inputs';
+import { NumericInput } from './form-inputs';
+import { RateField } from './form-inputs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
-  propertyValue: '500000,00',
-  downPaymentPct: '20',
-  annualRate: '10.5',
-  progressPct: '0',
-  insuranceMonthly: '0,00',
+  propertyValue: '',
+  downPaymentPct: '',
+  annualRate: '',
+  progressPct: '',
+  insuranceMonthly: '',
   financedDown: false,
   downKnow: 'calcular' as 'parcela' | 'calcular',
-  downParcela: '0,00',
-  downAvista: '0,00',
-  downAmount: '0,00',
-  downMonths: '24',
+  downParcela: '',
+  downAvista: '',
+  downAmount: '',
+  downMonths: '',
   downHasJuros: false,
-  downRate: '10.5',
+  downRate: '',
 };
-
-function defaultDeliveryDate(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 24);
-  return d.toISOString().slice(0, 10);
-}
 
 function monthsUntil(date: string): number {
   const target = new Date(`${date}T00:00:00`);
@@ -50,7 +44,7 @@ export function ObraCalculator({
 }) {
   const [form, setForm] = useState({
     ...DEFAULTS,
-    deliveryDate: defaultDeliveryDate(),
+    deliveryDate: '',
   });
   const [result, setResult] = useState<ObraResult | null>(null);
   const [resultForm, setResultForm] = useState<typeof form | null>(null);

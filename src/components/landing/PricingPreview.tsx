@@ -16,7 +16,7 @@ const unlimitedFeatures = [
   "Simulações ilimitadas, sem consumir créditos",
   "Amortizador inteligente: menos juros e financiamento mais curto",
   "Comparação SAC × PRICE ao vivo e portabilidade",
-  "Exportação do Raio X em PDF",
+  "Exportação da análise do financiamento em PDF",
   "Simulações salvas enquanto você for assinante",
 ];
 

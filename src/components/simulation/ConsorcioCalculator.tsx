@@ -6,16 +6,14 @@ import { calcularConsorcioOuFinanciamento, type ConsorcioResult } from '@/lib/fi
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { FieldHelp } from '@/components/ui/field-help';
-import { MoneyInput } from '@/components/ui/money-input';
-import { NumericInput } from '@/components/ui/numeric-input';
-import { RateField } from '@/components/ui/rate-field';
+import { MoneyInput, NumericInput, RateField } from './form-inputs';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
 
 const DEFAULTS = {
-  valor: '300000,00',
-  prazo: '240',
-  taxaAdmin: '18',
-  taxaFin: '10.5',
+  valor: '',
+  prazo: '',
+  taxaAdmin: '',
+  taxaFin: '',
 };
 
 export function ConsorcioCalculator() {

@@ -11,7 +11,7 @@ const faqs = [
     a: "No SAC a amortização é fixa: a parcela começa maior e cai todo mês, e a dívida abate desde a primeira parcela. No PRICE a parcela é constante, mas no começo quase tudo é juro, e com a correção (TR) a dívida pode até crescer nos primeiros anos. No total, o SAC costuma pagar bem menos juros.",
   },
   {
-    q: "O que é o 'Raio X da dívida'?",
+    q: "O que é a análise do financiamento?",
     a: "É uma análise que mostra em que mês a sua dívida começa a cair de verdade, a parcela mínima que ainda abate o saldo e o prazo ideal para o seu financiamento. Com ela você entende se a sua parcela atual está pagando a dívida ou só os juros.",
   },
   {
@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "O que o plano Ilimitado inclui?",
-    a: "R$ 119,90 por ano: simulações ilimitadas sem consumir créditos, amortizador inteligente, comparar PRICE e SAC lado a lado, portabilidade, exportação do Raio X em PDF e simulações salvas enquanto você for assinante. Cancele quando quiser, sem multa.",
+    a: "R$ 119,90 por ano: simulações ilimitadas sem consumir créditos, amortizador inteligente, comparar PRICE e SAC lado a lado, portabilidade, exportação da análise do financiamento em PDF e simulações salvas enquanto você for assinante. Cancele quando quiser, sem multa.",
   },
   {
     q: "De onde vêm os juros de mercado?",

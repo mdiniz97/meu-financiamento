@@ -37,12 +37,14 @@ export function MoneyInput({
   onCompositionEnd,
   onValidityChange,
   maxDigits = 13,
+  emptyWhenZero = false,
   ...props
 }: {
   value: number;
   onValid: (v: number) => void;
   onValidityChange?: (valid: boolean) => void;
   maxDigits?: number;
+  emptyWhenZero?: boolean;
 } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange'>) {
   const valueDigits = value > 0 ? String(Math.round(value * 100)) : '';
   const controlledValueValid = isMoneyValueWithinDigitLimit(value, maxDigits);
@@ -142,7 +144,7 @@ export function MoneyInput({
       aria-invalid={limitExceeded || props['aria-invalid'] === true || props['aria-invalid'] === 'true'}
       inputMode="numeric"
       className={className}
-      value={focused ? (composing ? digits : fmt(digits)) : formatBRL(value)}
+      value={emptyWhenZero && !digits ? '' : focused ? (composing ? digits : fmt(digits)) : formatBRL(value)}
       onFocus={handleFocus}
       onBlur={(event) => {
         setFocused(false);

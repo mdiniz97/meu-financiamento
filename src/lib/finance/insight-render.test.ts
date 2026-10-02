@@ -85,7 +85,7 @@ describe('Smart preserva o candidato ao abrir simulador', () => {
   });
 });
 
-describe('Raio X descreve saldo observado sem prometer invariancia', () => {
+describe('Análise do financiamento descreve saldo observado sem prometer invariancia', () => {
   it.each([
     { extra: 0, saldo: 120400, text: 'cresce no mês 1' },
     { extra: 500, saldo: 119900, text: 'cai no mês 1' },
