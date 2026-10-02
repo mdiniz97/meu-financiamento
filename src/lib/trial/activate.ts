@@ -1,7 +1,8 @@
-import { and, eq, gt, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
-import { blocksTrialForSubscription, TRIAL_DURATION_MS, TRIAL_OFFER_WINDOW_MS } from './state';
+import { blocksTrialForSubscription, TRIAL_DURATION_MS } from './state';
 import { captureAccountEvent } from '@/lib/analytics/server';
+import { trialOfferDeadline } from './offer-window';
 
 export type TrialActivationResult =
   | { status: 'activated'; endsAt: Date }
@@ -20,7 +21,8 @@ export async function activateTrial(userId: string, now?: Date): Promise<TrialAc
       eq(schema.subscriptions.provider, 'trial')
     ) });
     if (trial) return { status: 'already_used' };
-    if (effectiveNow.getTime() >= user.createdAt.getTime() + TRIAL_OFFER_WINDOW_MS) {
+    const deadline = trialOfferDeadline(user);
+    if (!deadline || effectiveNow >= deadline) {
       return { status: 'offer_expired' };
     }
 
@@ -51,11 +53,13 @@ export async function activateTrial(userId: string, now?: Date): Promise<TrialAc
 }
 
 export async function markTrialOfferSeen(userId: string, now = new Date()): Promise<void> {
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
+  const deadline = user ? trialOfferDeadline(user) : null;
+  if (!deadline || now >= deadline) return;
   const updated = await db.update(schema.users).set({ trialOfferSeenAt: now }).where(and(
     eq(schema.users.id, userId),
     isNotNull(schema.users.trialOfferEligibleAt),
-    isNull(schema.users.trialOfferSeenAt),
-    gt(schema.users.createdAt, new Date(now.getTime() - TRIAL_OFFER_WINDOW_MS))
+    isNull(schema.users.trialOfferSeenAt)
   )).returning({ id: schema.users.id });
   if (updated.length) await captureAccountEvent(userId, 'trial_offer_seen', userId);
 }

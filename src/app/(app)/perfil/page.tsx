@@ -166,7 +166,8 @@ export default async function PerfilPage() {
                 {pack.isSubscription ? <UnlimitedPrice priceCents={pack.priceCents} /> : (
                   <span className="text-sm text-muted-foreground">{formatBRL(pack.priceCents / 100)}</span>
                 )}
-                {trial.isTrialActive ? (
+                 <div className="mt-auto pt-2">
+                 {trial.isTrialActive ? (
                   <p className="text-xs text-muted-foreground">Contratação disponível após o trial.</p>
                 ) : <BuyPackButton
                   packId={pack.id}
@@ -176,7 +177,8 @@ export default async function PerfilPage() {
                       ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`
                       : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
                   }
-                />}
+                 />}
+                 </div>
               </div>
             ))}
           </CardContent>

@@ -1,5 +1,6 @@
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { trialOfferDeadline } from './offer-window';
 
 export const TRIAL_OFFER_WINDOW_MS = 48 * 60 * 60 * 1000;
 export const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -47,7 +48,8 @@ export async function getTrialState(userId: string, now = new Date()): Promise<T
     ) }),
   ]);
   const eligible = Boolean(user.trialOfferEligibleAt);
-  const withinWindow = now.getTime() < user.createdAt.getTime() + TRIAL_OFFER_WINDOW_MS;
+  const deadline = trialOfferDeadline(user);
+  const withinWindow = Boolean(deadline && now < deadline);
   const blockedByPendingCheckout = paidSubscriptions.some(
     sub => sub.status === 'incomplete' && Boolean(sub.asaasCheckoutId)
   );

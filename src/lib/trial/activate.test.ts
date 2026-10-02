@@ -63,6 +63,18 @@ describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
     expect((await db.select().from(schema.subscriptions).where(inArray(schema.subscriptions.userId, [eligible.id, old.id])))).toHaveLength(0);
   });
 
+  it('lets an explicitly granted old account activate once without changing creation', async () => {
+    const user = await createUser(false);
+    const grantedAt = new Date('2026-10-10T12:00:00Z');
+    await db.update(schema.users).set({ trialOfferEligibleAt: grantedAt }).where(eq(schema.users.id, user.id));
+    expect((await getTrialState(user.id, grantedAt)).offerAvailable).toBe(true);
+    const result = await activateTrial(user.id, grantedAt);
+    expect(result).toEqual({ status: 'activated', endsAt: new Date('2026-10-17T12:00:00Z') });
+    const [unchanged] = await db.select().from(schema.users).where(eq(schema.users.id, user.id));
+    expect(unchanged.createdAt).toEqual(registeredAt);
+    expect((await activateTrial(user.id, grantedAt)).status).toBe('already_used');
+  });
+
   it('rejects account with paid access and never changes paid subscription', async () => {
     const user = await createUser();
     await db.insert(schema.subscriptions).values({

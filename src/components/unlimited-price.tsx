@@ -12,13 +12,15 @@ export function UnlimitedPrice({ priceCents = 11990 }: { priceCents?: number }) 
         )}
         <span className="text-xs font-semibold text-primary">Oferta por tempo limitado</span>
       </div>
-      <span className="text-sm font-semibold text-muted-foreground">
-        De <del className="font-mono text-xl decoration-2">{formatBRL(199.9)}</del>
-      </span>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-sm font-semibold text-primary">Por</span>
-        <span className="font-mono text-3xl font-extrabold tracking-tight text-primary">{formatBRL(priceCents / 100)}</span>
-        <span className="text-sm font-medium text-muted-foreground">/ano</span>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
+          De <del className="font-mono text-xl decoration-2">{formatBRL(199.9)}</del>
+        </span>
+        <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-sm font-semibold text-primary">Por</span>
+          <span className="font-mono text-3xl font-extrabold tracking-tight text-primary">{formatBRL(priceCents / 100)}</span>
+          <span className="text-sm font-medium text-muted-foreground">/ano</span>
+        </span>
       </div>
     </div>
   );
