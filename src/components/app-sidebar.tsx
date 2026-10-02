@@ -75,11 +75,12 @@ function NavLinks({
   );
 }
 
-function PlanChip({ credits, isUnlimited }: { credits: number; isUnlimited: boolean }) {
+function PlanChip({ credits, isUnlimited, trialEndsAt }: { credits: number; isUnlimited: boolean; trialEndsAt?: number }) {
+  const days = trialEndsAt ?? 0;
   return (
     <span className="flex items-center justify-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
       {isUnlimited ? (
-        'Plano Ilimitado'
+        days > 0 ? `Trial · ${days} ${days === 1 ? 'dia' : 'dias'}` : 'Plano Ilimitado'
       ) : (
         <>
           <Coins className="size-3.5 shrink-0" />
@@ -106,11 +107,13 @@ function MobileDrawer({
   onClose,
   credits,
   isUnlimited,
+  trialEndsAt,
 }: {
   open: boolean;
   onClose: () => void;
   credits: number;
   isUnlimited: boolean;
+  trialEndsAt?: number;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -145,7 +148,7 @@ function MobileDrawer({
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
-          <PlanChip credits={credits} isUnlimited={isUnlimited} />
+          <PlanChip credits={credits} isUnlimited={isUnlimited} trialEndsAt={trialEndsAt} />
           <ActionsRow />
         </div>
       </div>
@@ -157,9 +160,11 @@ function MobileDrawer({
 export function AppSidebar({
   credits,
   isUnlimited,
+  trialEndsAt,
 }: {
   credits: number;
   isUnlimited: boolean;
+  trialEndsAt?: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -174,7 +179,7 @@ export function AppSidebar({
         <div className="flex flex-1 flex-col justify-between p-3">
           <NavLinks compact />
           <div className="flex flex-col gap-3 border-t border-border pt-3">
-            <PlanChip credits={credits} isUnlimited={isUnlimited} />
+            <PlanChip credits={credits} isUnlimited={isUnlimited} trialEndsAt={trialEndsAt} />
             <ActionsRow />
           </div>
         </div>
@@ -194,6 +199,7 @@ export function AppSidebar({
         onClose={() => setOpen(false)}
         credits={credits}
         isUnlimited={isUnlimited}
+        trialEndsAt={trialEndsAt}
       />
     </>
   );

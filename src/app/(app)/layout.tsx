@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+function remainingTrialDays(endsAt: Date): number {
+  return Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / 86400000));
+}
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.userId) {
@@ -27,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <TrialOfferProvider canOffer={trial.offerAvailable} autoOpen={trial.showModal}>
       <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
-        <AppSidebar credits={bal.credits} isUnlimited={bal.isUnlimited} />
+        <AppSidebar credits={bal.credits} isUnlimited={bal.isUnlimited} trialEndsAt={trial.isTrialActive && trial.trialEndsAt ? remainingTrialDays(trial.trialEndsAt) : undefined} />
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
       </div>
     </TrialOfferProvider>

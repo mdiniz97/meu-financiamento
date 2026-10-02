@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { db, pool, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
@@ -8,6 +8,8 @@ import { activateTrial, markTrialOfferSeen } from './activate';
 const target = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 const isolated = target?.hostname === 'localhost' && target.pathname === '/financiamento_trial_test';
 const registeredAt = new Date('2026-10-01T00:00:00Z');
+const analytics = vi.hoisted(() => ({ capture: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: analytics.capture }));
 
 describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
   const ids: string[] = [];
@@ -32,6 +34,7 @@ describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
   }
 
   it('grants exactly one 7-day trial on concurrent clicks and never consumes credits', async () => {
+    analytics.capture.mockClear();
     const user = await createUser();
     await db.insert(schema.creditLedger).values({
       userId: user.id, amount: 10, kind: 'bonus', description: 'Bônus de boas-vindas',
@@ -39,6 +42,8 @@ describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
     const click = new Date('2026-10-02T23:59:00Z');
     const results = await Promise.all([activateTrial(user.id, click), activateTrial(user.id, click)]);
     expect(results.map(result => result.status).sort()).toEqual(['activated', 'already_used']);
+    expect(analytics.capture).toHaveBeenCalledTimes(1);
+    expect(analytics.capture).toHaveBeenCalledWith(user.id, 'trial_activated', expect.any(String));
     const rows = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.userId, user.id));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ provider: 'trial', status: 'active', trialStartedAt: click });
@@ -79,10 +84,14 @@ describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
   });
 
   it('marks offer seen without using it, and never marks legacy accounts', async () => {
+    analytics.capture.mockClear();
     const user = await createUser();
     const old = await createUser(false);
     await markTrialOfferSeen(user.id);
     await markTrialOfferSeen(old.id);
+    await markTrialOfferSeen(user.id);
+    expect(analytics.capture).toHaveBeenCalledTimes(1);
+    expect(analytics.capture).toHaveBeenCalledWith(user.id, 'trial_offer_seen', user.id);
     expect(await getTrialState(user.id, new Date('2026-10-01T01:00:00Z')))
       .toMatchObject({ showModal: false, offerAvailable: true });
     const [oldAfter] = await db.select().from(schema.users).where(eq(schema.users.id, old.id));

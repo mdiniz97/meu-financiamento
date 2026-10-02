@@ -62,21 +62,21 @@ export function Hero({ signedIn = false, unlimited = false }: { signedIn?: boole
               <ArrowRightIcon className="size-4" />
             </AuthButton>
           )}
-          {signedIn ? (
+          {signedIn && navItem.href !== '/nova-simulacao' ? (
             <Link
               href={navItem.href}
               className={cn(buttonVariants({ variant: "outline" }), "h-12 px-8 text-base")}
             >
               {navItem.label}
             </Link>
-          ) : (
+          ) : !signedIn ? (
             <AuthButton
               mode="login"
               variant="outline"
               label="Fazer login"
               className="h-12 px-8 text-base"
             />
-          )}
+          ) : null}
         </div>
         <ul className="mt-8 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
           {trustPoints.map((point) => (

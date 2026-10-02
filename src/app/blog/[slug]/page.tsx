@@ -9,7 +9,7 @@ import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { ArticleBody, ArticleHeader } from '@/components/landing/Article';
 import { publicMetadata, SITE_NAME, SITE_URL } from '@/lib/site';
-import { getCreditBalance } from '@/lib/credits';
+import { canOpenFinancing } from '@/lib/landing/account-access';
 
 export const dynamicParams = false;
 
@@ -44,7 +44,7 @@ export default async function ArtigoPage({
   const session = await auth();
   const signedIn = Boolean(session?.userId);
   const unlimited =
-    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
+    signedIn && session?.userId ? await canOpenFinancing(session.userId) : false;
   const sugestoes = ARTIGOS.filter((a) => a.slug !== artigo.slug).slice(0, 3);
   const url = `${SITE_URL}/blog/${artigo.slug}`;
   const structuredData = {

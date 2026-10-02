@@ -16,6 +16,7 @@ export async function activateTrialAction(): Promise<TrialActivationResult> {
   const userId = await requireUserId();
   const result = await activateTrial(userId);
   revalidatePath('/perfil');
+  revalidatePath('/assinatura');
   revalidatePath('/nova-simulacao');
   return result;
 }

@@ -159,7 +159,9 @@ export function TrialOfferProvider({
                   className="h-full w-full object-contain"
                   onPlay={() => setPlaying(true)}
                   onPause={() => setPlaying(false)}
-                />
+                >
+                  <track kind="captions" src="/videos/trial-manifesto-v2.pt-BR.vtt" srcLang="pt-BR" label="Português — sons" />
+                </video>
                 <Button
                   type="button"
                   size="sm"

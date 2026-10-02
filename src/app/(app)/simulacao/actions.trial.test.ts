@@ -10,7 +10,7 @@ vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/analytics/server', () => ({ captureAccountEvent: vi.fn().mockResolvedValue(undefined) }));
 
-import { listSimulations, saveToolSimulation } from './actions';
+import { listSimulations, loadSimulation, saveToolSimulation } from './actions';
 import { GET as pdfGET } from '@/app/api/pdf/route';
 
 const target = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
@@ -48,6 +48,7 @@ describe.skipIf(!isolated)('trial access across actions (isolated PostgreSQL)', 
     await db.update(schema.simulations).set({ createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000) })
       .where(eq(schema.simulations.userId, user.id));
     expect(await listSimulations()).toHaveLength(1);
+    if ('id' in saved) expect(await loadSimulation(saved.id)).not.toBeNull();
     expect((await pdfGET(new Request('http://localhost/api/pdf'))).status).toBe(400);
 
     await db.update(schema.subscriptions).set({ currentPeriodEnd: new Date(Date.now() - 1000) })
@@ -57,6 +58,7 @@ describe.skipIf(!isolated)('trial access across actions (isolated PostgreSQL)', 
     expect(await saveToolSimulation({ name: 'Após trial', system: 'SAC', payload: {}, result: {}, charge: true }))
       .toEqual({ error: 'Créditos insuficientes' });
     expect(await listSimulations()).toHaveLength(0);
+    if ('id' in saved) expect(await loadSimulation(saved.id)).toBeNull();
     expect((await pdfGET(new Request('http://localhost/api/pdf'))).status).toBe(403);
   });
 });

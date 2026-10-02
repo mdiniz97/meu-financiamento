@@ -15,6 +15,7 @@ import { InvoicesCard } from '@/components/invoices-card';
 import { ActivationEmailPreference } from '@/components/activation-email-preference';
 import { TrialOfferActions } from '@/components/trial/trial-actions';
 import { getTrialState } from '@/lib/trial/state';
+import { UnlimitedPrice } from '@/components/unlimited-price';
 
 export default async function PerfilPage() {
   const session = await auth();
@@ -109,7 +110,7 @@ export default async function PerfilPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Comunicações por e-mail</CardTitle>
-          <CardDescription>Escolha se deseja receber ofertas e bônus de ativação.</CardDescription>
+          <CardDescription>Escolha se deseja receber ofertas, bônus de ativação e mensagens após o teste grátis.</CardDescription>
         </CardHeader>
         <CardContent>
           <ActivationEmailPreference initiallyEnabled={!user?.activationBonusOptOutAt} />
@@ -150,7 +151,9 @@ export default async function PerfilPage() {
             ) : null}
           </CardContent>
         </Card>
-      ) : !isUnlimited ? (
+      ) : null}
+
+      {(!isUnlimited || trial.isTrialActive) && (
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Planos</CardTitle>
@@ -160,12 +163,12 @@ export default async function PerfilPage() {
             {packs.map((pack) => (
               <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
                 <span className="font-semibold">{pack.name}</span>
-                <span className="text-sm text-muted-foreground">
-                  {pack.isSubscription
-                    ? `${formatBRL(pack.priceCents / 100)}/ano`
-                    : formatBRL(pack.priceCents / 100)}
-                </span>
-                <BuyPackButton
+                {pack.isSubscription ? <UnlimitedPrice priceCents={pack.priceCents} /> : (
+                  <span className="text-sm text-muted-foreground">{formatBRL(pack.priceCents / 100)}</span>
+                )}
+                {trial.isTrialActive ? (
+                  <p className="text-xs text-muted-foreground">Contratação disponível após o trial.</p>
+                ) : <BuyPackButton
                   packId={pack.id}
                   isSubscription={pack.isSubscription}
                   label={
@@ -173,12 +176,12 @@ export default async function PerfilPage() {
                       ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`
                       : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
                   }
-                />
+                />}
               </div>
             ))}
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
       <InvoicesCard userId={session.userId} />
       </div>

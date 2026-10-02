@@ -49,6 +49,9 @@ test('oferta após cadastro mostra vídeo em loop; recusa mantém ativação no 
     await expect(page.getByRole('button', { name: 'Ativar 7 dias grátis' })).toBeVisible();
     await page.getByRole('button', { name: 'Ativar 7 dias grátis' }).click();
     await expect(page.getByText(/Trial ativo até/)).toBeVisible();
+    await expect(page.getByText(/Trial · 7 dias/).first()).toBeVisible();
+    await expect(page.locator('del').filter({ hasText: '199,90' })).toBeVisible();
+    await expect(page.getByText('Oferta por tempo limitado')).toBeVisible();
     await expect(page.getByText(/Sem cartão e sem cobrança automática/)).toBeVisible();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Ativar 7 dias grátis' })).toHaveCount(0);
@@ -98,6 +101,8 @@ test('landing mostra Simulações (sem Ilimitado) apontando para o simulador', a
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute('href', '/nova-simulacao');
     await expect(page.getByRole('link', { name: 'Meu financiamento', exact: true })).toHaveCount(0);
+    await expect(page.locator('del').filter({ hasText: '199,90' })).toBeVisible();
+    await expect(page.getByText('Economize R$ 80,00')).toBeVisible();
   } finally {
     await cleanup(email);
   }

@@ -15,7 +15,7 @@ import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 import { publicMetadata, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
-import { getCreditBalance } from "@/lib/credits";
+import { canOpenFinancing } from "@/lib/landing/account-access";
 
 export async function generateMetadata({
   searchParams,
@@ -40,7 +40,7 @@ export default async function Home() {
   const session = await auth();
   const signedIn = Boolean(session?.userId);
   const unlimited =
-    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
+    signedIn && session?.userId ? await canOpenFinancing(session.userId) : false;
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [

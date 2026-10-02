@@ -1,13 +1,13 @@
 import { auth } from '@/auth';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { getCreditBalance } from '@/lib/credits';
+import { canOpenFinancing } from '@/lib/landing/account-access';
 
 export default async function LegalLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const signedIn = Boolean(session?.userId);
   const unlimited =
-    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
+    signedIn && session?.userId ? await canOpenFinancing(session.userId) : false;
 
   return (
     <div className="flex flex-1 flex-col">

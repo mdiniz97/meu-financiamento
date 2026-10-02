@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckIcon, Coins, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { UnlimitedPrice } from '@/components/unlimited-price';
 
 const starterFeatures = [
   "5 simulações completas (1 simulação = 1 crédito)",
@@ -60,10 +61,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
 
           <div className="flex flex-col gap-5 border-2 border-primary p-7 transition-all duration-200 hover:-translate-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-baseline gap-1">
-                <span className="font-mono text-4xl font-bold tracking-tight">R$ 119,90</span>
-                <span className="text-sm font-medium text-muted-foreground">/ano</span>
-              </div>
+              <UnlimitedPrice />
               <span className="bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
                 Melhor para quem vai financiar
               </span>

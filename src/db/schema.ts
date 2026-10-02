@@ -115,6 +115,21 @@ export const creditLedger = pgTable(
   ]
 );
 
+export const trialFollowupDeliveries = pgTable('trial_followup_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  trialSubscriptionId: uuid('trial_subscription_id').notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
+  stage: text('stage', { enum: ['day_1', 'day_7', 'day_30'] }).notNull(),
+  state: text('state', { enum: ['attempted', 'sent', 'skipped', 'failed'] }).notNull(),
+  attemptedAt: timestamp('attempted_at', { withTimezone: true }),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  providerMessageId: text('provider_message_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex('trial_followup_trial_stage_unique').on(table.trialSubscriptionId, table.stage),
+  check('trial_followup_stage_check', sql`${table.stage} IN ('day_1', 'day_7', 'day_30')`),
+  check('trial_followup_state_check', sql`${table.state} IN ('attempted', 'sent', 'skipped', 'failed')`),
+]);
+
 export const referrals = pgTable('referrals', {
   id: uuid('id').primaryKey().defaultRandom(),
   inviterId: uuid('inviter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

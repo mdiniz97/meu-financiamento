@@ -6,7 +6,7 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { publicMetadata } from '@/lib/site';
-import { getCreditBalance } from '@/lib/credits';
+import { canOpenFinancing } from '@/lib/landing/account-access';
 
 export const metadata = publicMetadata({
   title: 'Blog sobre financiamento imobiliário e amortização',
@@ -19,7 +19,7 @@ export default async function BlogPage() {
   const session = await auth();
   const signedIn = Boolean(session?.userId);
   const unlimited =
-    signedIn && session?.userId ? (await getCreditBalance(session.userId)).isUnlimited : false;
+    signedIn && session?.userId ? await canOpenFinancing(session.userId) : false;
 
   return (
     <div className="flex flex-1 flex-col">

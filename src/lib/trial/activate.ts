@@ -1,13 +1,14 @@
 import { and, eq, gt, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { blocksTrialForSubscription, TRIAL_DURATION_MS, TRIAL_OFFER_WINDOW_MS } from './state';
+import { captureAccountEvent } from '@/lib/analytics/server';
 
 export type TrialActivationResult =
   | { status: 'activated'; endsAt: Date }
   | { status: 'already_used' | 'offer_expired' | 'ineligible' | 'paid_active' | 'checkout_pending' };
 
 export async function activateTrial(userId: string, now?: Date): Promise<TrialActivationResult> {
-  return db.transaction(async tx => {
+  const result = await db.transaction<TrialActivationResult>(async tx => {
     await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
     const effectiveNow = now ?? new Date();
     const user = await tx.query.users.findFirst({ where: eq(schema.users.id, userId) });
@@ -43,13 +44,18 @@ export async function activateTrial(userId: string, now?: Date): Promise<TrialAc
     });
     return { status: 'activated', endsAt };
   });
+  if (result.status === 'activated') {
+    await captureAccountEvent(userId, 'trial_activated', userId);
+  }
+  return result;
 }
 
-export async function markTrialOfferSeen(userId: string): Promise<void> {
-  await db.update(schema.users).set({ trialOfferSeenAt: new Date() }).where(and(
+export async function markTrialOfferSeen(userId: string, now = new Date()): Promise<void> {
+  const updated = await db.update(schema.users).set({ trialOfferSeenAt: now }).where(and(
     eq(schema.users.id, userId),
     isNotNull(schema.users.trialOfferEligibleAt),
     isNull(schema.users.trialOfferSeenAt),
-    gt(schema.users.createdAt, new Date(Date.now() - TRIAL_OFFER_WINDOW_MS))
-  ));
+    gt(schema.users.createdAt, new Date(now.getTime() - TRIAL_OFFER_WINDOW_MS))
+  )).returning({ id: schema.users.id });
+  if (updated.length) await captureAccountEvent(userId, 'trial_offer_seen', userId);
 }
