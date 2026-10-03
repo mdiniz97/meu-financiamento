@@ -5,7 +5,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
-import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
+import { cancelCheckout, createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 import { addCycle } from '@/lib/subscriptions/cycle';
 import { captureAccountEvent } from '@/lib/analytics/server';
@@ -15,7 +15,7 @@ type CheckoutClaim =
   | { status: 'already_active' }
   | { status: 'pending' }
   | { status: 'reuse'; link: string }
-  | { status: 'ready'; localId: string; cancelSubscriptionId?: string };
+  | { status: 'ready'; localId: string; cancelSubscriptionId?: string; cancelCheckoutId?: string };
 
 /**
  * RS4 — reserva a linha de checkout sob o MESMO lock de usuário usado por
@@ -64,7 +64,18 @@ async function claimCheckoutSlot(userId: string, cycle: BillingCycle, priceCents
         if (existing.cycle === cycle && existing.asaasCheckoutLink) {
           return { status: 'reuse', link: existing.asaasCheckoutLink };
         }
-        return { status: 'pending' };
+        // Checkout aberto para outro ciclo (ou sem link): troca em vez de
+        // travar. Cancela o checkout antigo no Asaas antes de abrir o novo,
+        // para que o link antigo não possa ser pago depois pelo ciclo errado.
+        await tx
+          .update(schema.subscriptions)
+          .set(resetForNewCheckout)
+          .where(eq(schema.subscriptions.id, existing.id));
+        return {
+          status: 'ready',
+          localId: existing.id,
+          cancelCheckoutId: existing.asaasCheckoutId ?? undefined,
+        };
       }
       const cancelSubscriptionId =
         existing.asaasSubscriptionId &&
@@ -155,6 +166,18 @@ export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'):
     } catch (e) {
       console.warn(
         `[assinar] falha ao inativar assinatura ${claimed.cancelSubscriptionId}: ${String(e)}`
+      );
+      throw e;
+    }
+  }
+  // Troca de ciclo: inativa/cancela o artefato remoto antigo antes de abrir o
+  // novo checkout, para nunca haver duas cobranças pagáveis ao mesmo tempo.
+  if (provider !== 'fake' && claimed.cancelCheckoutId) {
+    try {
+      await cancelCheckout(claimed.cancelCheckoutId);
+    } catch (e) {
+      console.warn(
+        `[assinar] falha ao cancelar checkout antigo ${claimed.cancelCheckoutId}: ${String(e)}`
       );
       throw e;
     }

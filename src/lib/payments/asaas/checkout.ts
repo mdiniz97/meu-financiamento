@@ -16,6 +16,12 @@ export interface SubscriptionCheckout {
   link: string;
 }
 
+/** Cancela um checkout hospedado que nunca foi pago (troca de ciclo). */
+export async function cancelCheckout(checkoutId: string): Promise<void> {
+  const cfg = getAsaasConfig();
+  await asaasFetch(cfg, `/checkouts/${checkoutId}/cancel`, { method: 'POST' });
+}
+
 export async function createSubscriptionCheckout(
   input: CreateCheckoutInput
 ): Promise<SubscriptionCheckout> {

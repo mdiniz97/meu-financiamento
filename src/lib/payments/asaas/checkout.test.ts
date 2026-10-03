@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createCreditsCheckout, createSubscriptionCheckout } from './checkout';
+import { cancelCheckout, createCreditsCheckout, createSubscriptionCheckout } from './checkout';
 
 afterEach(() => vi.restoreAllMocks());
 const env = () => {
@@ -60,6 +60,20 @@ describe('createSubscriptionCheckout', () => {
       expiredUrl: 'https://app/assinar',
     });
     expect(body.items).toEqual([{ name: 'Assinatura Ilimitado', quantity: 1, value: 119.9 }]);
+  });
+});
+
+describe('cancelCheckout', () => {
+  it('faz POST /checkouts/{id}/cancel', async () => {
+    env();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'chk_old' }), { status: 200 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await cancelCheckout('chk_old');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api-sandbox.asaas.com/v3/checkouts/chk_old/cancel');
+    expect(init.method).toBe('POST');
   });
 });
 

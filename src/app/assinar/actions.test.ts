@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   auth: vi.fn(),
   hasActiveAccess: vi.fn(),
   createSubscriptionCheckout: vi.fn(),
+  cancelCheckout: vi.fn(),
   cancelAtPeriodEnd: vi.fn(),
   packsFindFirst: vi.fn(),
   transaction: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/subscriptions/access', () => ({ hasActiveAccess: m.hasActiveAccess }));
 vi.mock('@/lib/payments/asaas/checkout', () => ({
   createSubscriptionCheckout: m.createSubscriptionCheckout,
+  cancelCheckout: m.cancelCheckout,
 }));
 vi.mock('@/lib/payments/asaas/subscription', () => ({
   cancelAtPeriodEnd: m.cancelAtPeriodEnd,
@@ -97,6 +99,7 @@ beforeEach(() => {
     link: 'https://sandbox.asaas.com/checkoutSession/show/chk_1',
   });
   m.cancelAtPeriodEnd.mockReset().mockResolvedValue(undefined);
+  m.cancelCheckout.mockReset().mockResolvedValue(undefined);
 });
 
 describe('startSubscription', () => {
@@ -130,10 +133,20 @@ describe('startSubscription', () => {
     await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/existing');
     expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
   });
-  it('blocks another cycle while checkout result is uncertain', async () => {
+  it('troca de ciclo: cancela o checkout antigo e abre o novo', async () => {
+    m.txFindFirst.mockResolvedValue({ id: 'sub-existing', status: 'incomplete', cycle: 'YEARLY', asaasCheckoutId: 'chk_old', checkoutStartedAt: new Date() });
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1');
+    expect(m.cancelCheckout).toHaveBeenCalledWith('chk_old');
+    const cancelOrder = m.cancelCheckout.mock.invocationCallOrder[0];
+    const checkoutOrder = m.createSubscriptionCheckout.mock.invocationCallOrder[0];
+    expect(cancelOrder).toBeLessThan(checkoutOrder);
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(expect.objectContaining({ valueCents: 1890, cycle: 'MONTHLY' }));
+  });
+  it('troca de ciclo sem checkout antigo: apenas abre o novo', async () => {
     m.txFindFirst.mockResolvedValue({ id: 'sub-existing', status: 'incomplete', cycle: 'YEARLY', checkoutStartedAt: new Date() });
-    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:/assinar?pending=1');
-    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1');
+    expect(m.cancelCheckout).not.toHaveBeenCalled();
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(expect.objectContaining({ cycle: 'MONTHLY' }));
   });
   it('serializa trial x checkout: lock do usuário e re-checagem dentro da transação', async () => {
     // Pré-cheque passou (corrida): o acesso ativo só aparece dentro do lock.
