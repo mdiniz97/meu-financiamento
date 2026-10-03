@@ -1,25 +1,56 @@
 import Link from "next/link";
-import { CheckIcon, Coins, ZapIcon } from "lucide-react";
+import { CheckIcon, Coins, XIcon, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { UnlimitedPrice } from '@/components/unlimited-price';
 import { startSubscription } from '@/app/assinar/actions';
 
-const starterFeatures = [
-  "5 simulações completas (1 simulação = 1 crédito)",
-  "Simulação nos sistemas PRICE e SAC",
-  "Simulação de amortizações extras e FGTS",
-  "Simulações salvas automaticamente por 6 horas",
-  "Créditos não expiram",
+// Lista única de recursos: o card de créditos marca ✓ no que tem e ✗ no que é
+// exclusivo do Ilimitado; os cards pagos marcam tudo ✓.
+interface PlanFeature {
+  label: string;
+  credits: boolean;
+  creditsNote?: string;
+  paidNote?: string;
+}
+
+const planFeatures: PlanFeature[] = [
+  { label: 'Simulações completas', credits: true, creditsNote: '1 crédito cada', paidNote: 'ilimitadas, sem consumir créditos' },
+  { label: 'Simulador nos sistemas PRICE e SAC', credits: true },
+  { label: 'Amortizações extras e FGTS', credits: true },
+  { label: 'Simulações salvas', credits: true, creditsNote: 'por 6 horas', paidNote: 'enquanto assinante' },
+  { label: 'Análise do financiamento', credits: false },
+  { label: 'Amortizador inteligente: menos juros e prazo mais curto', credits: false },
+  { label: 'Comparação SAC × PRICE ao vivo', credits: false },
+  { label: 'Exportação da análise em PDF', credits: false },
+  { label: 'Portabilidade de financiamento', credits: false },
+  { label: 'Comparar propostas de bancos', credits: false },
+  { label: 'Ferramentas de decisão: qual imóvel cabe, comprar na planta, investir ou amortizar, meta de quitação, alugar ou comprar e consórcio', credits: false },
 ];
 
-const unlimitedFeatures = [
-  "Simulações ilimitadas, sem consumir créditos",
-  "Amortizador inteligente: menos juros e financiamento mais curto",
-  "Comparação SAC × PRICE ao vivo e portabilidade",
-  "Exportação da análise do financiamento em PDF",
-  "Simulações salvas enquanto você for assinante",
-];
+function FeatureList({ variant }: { variant: 'credits' | 'paid' }) {
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {planFeatures.map((feature) => {
+        const has = variant === 'paid' || feature.credits;
+        const note = variant === 'paid' ? feature.paidNote : feature.creditsNote;
+        return (
+          <li key={feature.label} className={cn('flex items-start gap-2.5 text-sm', !has && 'opacity-50')}>
+            {has ? (
+              <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
+            ) : (
+              <XIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className={cn(!has && 'text-muted-foreground line-through')}>
+              {feature.label}
+              {note ? ` · ${note}` : ''}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
   return (
@@ -43,14 +74,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
               </span>
             </div>
             <p className="text-sm font-semibold">Para tirar dúvidas pontuais</p>
-            <ul className="flex flex-col gap-2.5">
-              {starterFeatures.map((feature) => (
-                <li key={feature} className="flex items-start gap-2.5 text-sm">
-                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+            <FeatureList variant="credits" />
             <Link
               href={signedIn ? "/perfil" : "/cadastro"}
               className={cn(buttonVariants({ variant: "outline" }), "mt-auto h-11 text-base")}
@@ -60,12 +84,10 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             </Link>
           </div>
 
-          <div className="flex flex-col gap-5 border-t p-7 md:border-l md:border-t-0">
+          <div className="flex flex-col gap-5 border-t p-7 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 md:border-l md:border-t-0">
             <UnlimitedPrice priceCents={1890} cycle="MONTHLY" />
             <p className="text-sm font-semibold">Ilimitado mensal · mesmos recursos</p>
-            <ul className="flex flex-col gap-2.5">
-              {unlimitedFeatures.map(feature => <li key={feature} className="flex items-start gap-2.5 text-sm"><CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />{feature}</li>)}
-            </ul>
+            <FeatureList variant="paid" />
             {signedIn ? (
               <form action={startSubscription.bind(null, 'MONTHLY')} className="mt-auto w-full">
                 <Button type="submit" variant="outline" className="h-11 w-full text-base">
@@ -87,14 +109,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             </div>
             <p className="text-sm font-semibold">Ilimitado anual · melhor preço</p>
             <p className="text-xs text-muted-foreground">Equivale a R$ 9,99/mês, cobrado de uma vez por ano.</p>
-            <ul className="flex flex-col gap-2.5">
-              {unlimitedFeatures.map((feature) => (
-                <li key={feature} className="flex items-start gap-2.5 text-sm">
-                  <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+            <FeatureList variant="paid" />
             {signedIn ? (
               <form action={startSubscription.bind(null, 'YEARLY')} className="mt-auto w-full">
                 <Button type="submit" className="h-11 w-full gap-2 text-base">
