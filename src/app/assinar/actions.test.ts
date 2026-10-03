@@ -248,13 +248,26 @@ describe('startSubscription', () => {
     );
   });
 
-  it('manda para o login com callbackUrl quando não autenticado', async () => {
+  it('manda para o login preservando o ciclo quando não autenticado', async () => {
     m.auth.mockResolvedValue(null);
 
-    await expect(startSubscription()).rejects.toThrow(
-      'REDIRECT:/login?callbackUrl=/assinar'
+    await expect(startSubscription('MONTHLY')).rejects.toThrow(
+      'REDIRECT:/login?callbackUrl=%2Fassinar%3Fcycle%3DMONTHLY'
     );
 
     expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+
+  it('manda cancelamento e expiração do checkout para /perfil, não para /assinar', async () => {
+    await expect(startSubscription()).rejects.toThrow(
+      'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
+    );
+
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancelUrl: expect.stringMatching(/\/perfil$/),
+        expiredUrl: expect.stringMatching(/\/perfil$/),
+      })
+    );
   });
 });

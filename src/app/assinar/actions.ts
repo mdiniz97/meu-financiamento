@@ -112,7 +112,7 @@ async function claimCheckoutSlot(userId: string, cycle: BillingCycle, priceCents
 export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'): Promise<void> {
   const cycle = requireBillingCycle(selectedCycle);
   const session = await auth();
-  if (!session?.userId) redirect('/login?callbackUrl=/assinar');
+  if (!session?.userId) redirect(`/login?callbackUrl=${encodeURIComponent(`/assinar?cycle=${cycle}`)}`);
   const userId = session.userId;
 
   if (await hasActiveAccess(userId)) redirect('/perfil');
@@ -171,8 +171,8 @@ export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'):
     cycle,
     nextDueDate: today,
     successUrl: `${appUrl}/assinar/sucesso`,
-    cancelUrl: `${appUrl}/assinar`,
-    expiredUrl: `${appUrl}/assinar`,
+    cancelUrl: `${appUrl}/perfil`,
+    expiredUrl: `${appUrl}/perfil`,
   });
 
   await db

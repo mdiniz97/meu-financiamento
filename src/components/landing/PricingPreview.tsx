@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { CheckIcon, Coins, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { UnlimitedPrice } from '@/components/unlimited-price';
+import { startSubscription } from '@/app/assinar/actions';
 
 const starterFeatures = [
   "5 simulações completas (1 simulação = 1 crédito)",
@@ -65,9 +66,17 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             <ul className="flex flex-col gap-2.5">
               {unlimitedFeatures.map(feature => <li key={feature} className="flex items-start gap-2.5 text-sm"><CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />{feature}</li>)}
             </ul>
-            <Link href={signedIn ? '/assinar?cycle=MONTHLY' : '/cadastro?callbackUrl=%2Fassinar%3Fcycle%3DMONTHLY'} className={cn(buttonVariants({ variant: 'outline' }), 'mt-auto h-11 text-base')}>
-              <ZapIcon className="size-4" /> Assinar mensal
-            </Link>
+            {signedIn ? (
+              <form action={startSubscription.bind(null, 'MONTHLY')} className="mt-auto w-full">
+                <Button type="submit" variant="outline" className="h-11 w-full text-base">
+                  <ZapIcon className="size-4" /> Assinar mensal
+                </Button>
+              </form>
+            ) : (
+              <Link href="/cadastro?callbackUrl=%2Fassinar%3Fcycle%3DMONTHLY" className={cn(buttonVariants({ variant: 'outline' }), 'mt-auto h-11 text-base')}>
+                <ZapIcon className="size-4" /> Assinar mensal
+              </Link>
+            )}
           </div>
           <div className="flex flex-col gap-5 border-2 border-primary p-7 transition-all duration-200 hover:-translate-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -86,16 +95,25 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
                 </li>
               ))}
             </ul>
-            <Link
-              href={signedIn ? "/assinar" : "/cadastro?callbackUrl=/assinar"}
-              className={cn(
-                buttonVariants({ variant: "default" }),
-                "mt-auto h-11 items-center gap-2 text-base"
-              )}
-            >
-              <ZapIcon className="size-4" />
-              Assinar plano Ilimitado anual
-            </Link>
+            {signedIn ? (
+              <form action={startSubscription.bind(null, 'YEARLY')} className="mt-auto w-full">
+                <Button type="submit" className="h-11 w-full gap-2 text-base">
+                  <ZapIcon className="size-4" />
+                  Assinar plano Ilimitado anual
+                </Button>
+              </form>
+            ) : (
+              <Link
+                href="/cadastro?callbackUrl=%2Fassinar%3Fcycle%3DYEARLY"
+                className={cn(
+                  buttonVariants({ variant: "default" }),
+                  "mt-auto h-11 items-center gap-2 text-base"
+                )}
+              >
+                <ZapIcon className="size-4" />
+                Assinar plano Ilimitado anual
+              </Link>
+            )}
           </div>
         </div>
 
