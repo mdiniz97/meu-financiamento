@@ -16,6 +16,7 @@ import { ActivationEmailPreference } from '@/components/activation-email-prefere
 import { TrialOfferActions } from '@/components/trial/trial-actions';
 import { getTrialState } from '@/lib/trial/state';
 import { UnlimitedPrice } from '@/components/unlimited-price';
+import { FeatureList } from '@/components/plan-features';
 
 export default async function PerfilPage() {
   const session = await auth();
@@ -159,33 +160,39 @@ export default async function PerfilPage() {
             <CardTitle className="text-base">Planos</CardTitle>
             <CardDescription>Compre créditos avulsos ou assine o Ilimitado.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid items-stretch gap-4 sm:grid-cols-2">
             {packs.map((pack) => (
-              <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
-                <span className="font-semibold">{pack.name}</span>
-                {pack.isSubscription ? <>
-                  {pack.monthlyPriceCents && <div className="flex flex-col gap-3 border-b pb-4">
-                    <span className="text-sm font-semibold">Mensal · mesmos recursos</span>
-                    <UnlimitedPrice priceCents={pack.monthlyPriceCents} cycle="MONTHLY" />
-                    <BuyPackButton packId={pack.id} isSubscription cycle="MONTHLY" label={`Assinar mensal – ${formatBRL(pack.monthlyPriceCents / 100)}/mês`} />
-                  </div>}
-                  <span className="text-sm font-semibold">Anual · melhor preço</span>
-                  <UnlimitedPrice priceCents={pack.priceCents} />
-                  <p className="text-xs text-muted-foreground">Equivale a {formatBRL(pack.priceCents / 1200)}/mês, cobrado de uma vez por ano.</p>
-                </> : (
-                  <span className="text-sm text-muted-foreground">{formatBRL(pack.priceCents / 100)}</span>
+              <div key={pack.id} className="flex flex-col gap-4 rounded-2xl border border-border p-5">
+                <span className="font-semibold">{pack.isSubscription ? 'Ilimitado' : pack.name}</span>
+                {pack.isSubscription ? (
+                  <>
+                    {pack.monthlyPriceCents && (
+                      <div className="flex flex-col gap-3 border-b border-border pb-4">
+                        <span className="text-sm font-semibold">Mensal · mesmos recursos</span>
+                        <UnlimitedPrice priceCents={pack.monthlyPriceCents} cycle="MONTHLY" />
+                        <BuyPackButton packId={pack.id} isSubscription cycle="MONTHLY" label={`Assinar mensal – ${formatBRL(pack.monthlyPriceCents / 100)}/mês`} />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-3 border-b border-border pb-4">
+                      <span className="text-sm font-semibold">Anual · melhor preço</span>
+                      <UnlimitedPrice priceCents={pack.priceCents} />
+                      <p className="text-xs text-muted-foreground">Equivale a {formatBRL(pack.priceCents / 1200)}/mês, cobrado de uma vez por ano.</p>
+                      <BuyPackButton packId={pack.id} isSubscription label={`Assinar Ilimitado – ${formatBRL(pack.priceCents / 100)}/ano`} />
+                    </div>
+                    <div className="mt-auto">
+                      <FeatureList variant="paid" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono text-2xl font-bold tracking-tight">{formatBRL(pack.priceCents / 100)}</span>
+                    <p className="text-sm text-muted-foreground">Para tirar dúvidas pontuais</p>
+                    <FeatureList variant="credits" />
+                    <div className="mt-auto pt-2">
+                      <BuyPackButton packId={pack.id} label={`Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`} />
+                    </div>
+                  </>
                 )}
-                 <div className="mt-auto pt-2">
-                 <BuyPackButton
-                  packId={pack.id}
-                  isSubscription={pack.isSubscription}
-                  label={
-                    pack.isSubscription
-                      ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`
-                      : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
-                  }
-                 />
-                 </div>
               </div>
             ))}
           </CardContent>

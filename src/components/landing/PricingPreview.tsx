@@ -1,56 +1,10 @@
 import Link from "next/link";
-import { CheckIcon, Coins, XIcon, ZapIcon } from "lucide-react";
+import { Coins, ZapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { UnlimitedPrice } from '@/components/unlimited-price';
+import { FeatureList } from '@/components/plan-features';
 import { startSubscription } from '@/app/assinar/actions';
-
-// Lista única de recursos: o card de créditos marca ✓ no que tem e ✗ no que é
-// exclusivo do Ilimitado; os cards pagos marcam tudo ✓.
-interface PlanFeature {
-  label: string;
-  credits: boolean;
-  creditsNote?: string;
-  paidNote?: string;
-}
-
-const planFeatures: PlanFeature[] = [
-  { label: 'Simulações completas', credits: true, creditsNote: '1 crédito cada', paidNote: 'ilimitadas, sem consumir créditos' },
-  { label: 'Simulador nos sistemas PRICE e SAC', credits: true },
-  { label: 'Amortizações extras e FGTS', credits: true },
-  { label: 'Simulações salvas', credits: true, creditsNote: 'por 6 horas', paidNote: 'enquanto assinante' },
-  { label: 'Análise do financiamento', credits: false },
-  { label: 'Amortizador inteligente: menos juros e prazo mais curto', credits: false },
-  { label: 'Comparação SAC × PRICE ao vivo', credits: false },
-  { label: 'Exportação da análise em PDF', credits: false },
-  { label: 'Portabilidade de financiamento', credits: false },
-  { label: 'Comparar propostas de bancos', credits: false },
-  { label: 'Ferramentas de decisão: qual imóvel cabe, comprar na planta, investir ou amortizar, meta de quitação, alugar ou comprar e consórcio', credits: false },
-];
-
-function FeatureList({ variant }: { variant: 'credits' | 'paid' }) {
-  return (
-    <ul className="flex flex-col gap-2.5">
-      {planFeatures.map((feature) => {
-        const has = variant === 'paid' || feature.credits;
-        const note = variant === 'paid' ? feature.paidNote : feature.creditsNote;
-        return (
-          <li key={feature.label} className={cn('flex items-start gap-2.5 text-sm', !has && 'opacity-50')}>
-            {has ? (
-              <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-            ) : (
-              <XIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            )}
-            <span className={cn(!has && 'text-muted-foreground line-through')}>
-              {feature.label}
-              {note ? ` · ${note}` : ''}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
   return (
