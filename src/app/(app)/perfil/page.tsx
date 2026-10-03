@@ -163,7 +163,17 @@ export default async function PerfilPage() {
             {packs.map((pack) => (
               <div key={pack.id} className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4">
                 <span className="font-semibold">{pack.name}</span>
-                {pack.isSubscription ? <UnlimitedPrice priceCents={pack.priceCents} /> : (
+                {pack.isSubscription ? <>
+                  {pack.monthlyPriceCents && <div className="flex flex-col gap-3 border-b pb-4">
+                    <span className="text-sm font-semibold">Mensal · mesmos recursos</span>
+                    <UnlimitedPrice priceCents={pack.monthlyPriceCents} cycle="MONTHLY" />
+                    {trial.isTrialActive ? <p className="text-xs text-muted-foreground">Contratação disponível após o trial.</p> :
+                      <BuyPackButton packId={pack.id} isSubscription cycle="MONTHLY" label={`Assinar mensal – ${formatBRL(pack.monthlyPriceCents / 100)}/mês`} />}
+                  </div>}
+                  <span className="text-sm font-semibold">Anual · melhor preço</span>
+                  <UnlimitedPrice priceCents={pack.priceCents} />
+                  <p className="text-xs text-muted-foreground">Equivale a {formatBRL(pack.priceCents / 1200)}/mês, cobrado de uma vez por ano.</p>
+                </> : (
                   <span className="text-sm text-muted-foreground">{formatBRL(pack.priceCents / 100)}</span>
                 )}
                  <div className="mt-auto pt-2">

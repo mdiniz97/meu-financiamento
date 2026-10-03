@@ -109,6 +109,17 @@ describe('getOwnSubscription', () => {
     );
     expect(m.subsFindFirst).toHaveBeenCalledTimes(1);
   });
+
+  it('permite consultar assinatura fake somente quando o chamador escolhe esse provider', async () => {
+    m.subsFindFirst.mockResolvedValue({ id: 'sub-fake' });
+
+    await getOwnSubscription('user-1', 'fake');
+
+    expect(m.subsFindFirst.mock.calls[0][0].where).toContainEqual([
+      'subscriptions.provider',
+      'fake',
+    ]);
+  });
 });
 
 describe('rateLimitOk', () => {

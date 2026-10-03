@@ -6,8 +6,9 @@ import { ZapIcon } from 'lucide-react';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
 import { getCreditBalance } from '@/lib/credits';
-import { getPaymentProvider } from '@/lib/payments';
-import { formatBRL } from '@/lib/utils';
+import Link from 'next/link';
+import { UnlimitedPrice } from '@/components/unlimited-price';
+import { requireBillingCycle, subscriptionPrice } from '@/lib/subscriptions/plans';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -23,9 +24,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AssinarPage() {
+export default async function AssinarPage({ searchParams }: { searchParams: Promise<{ cycle?: string; pending?: string }> }) {
+  const query = await searchParams;
+  const cycle = requireBillingCycle(query.cycle ?? 'YEARLY');
   const session = await auth();
-  if (!session?.userId) redirect(loginHref('/assinar'));
+  if (!session?.userId) redirect(loginHref(`/assinar?cycle=${cycle}`));
 
   const { isUnlimited } = await getCreditBalance(session.userId);
   if (isUnlimited) redirect('/perfil');
@@ -35,16 +38,7 @@ export default async function AssinarPage() {
   });
   if (!pack) redirect('/perfil');
 
-  // Modo fake (e testes E2E): auto-aprova e cai em /perfil, como antes.
-  if ((process.env.PAYMENT_PROVIDER ?? 'fake') === 'fake') {
-    const { checkoutUrl } = await getPaymentProvider().createCheckout({
-      userId: session.userId,
-      packId: 'unlimited',
-      priceCents: pack.priceCents,
-    });
-    const sep = checkoutUrl.includes('?') ? '&' : '?';
-    redirect(`${checkoutUrl}${sep}userId=${session.userId}&packId=unlimited`);
-  }
+  const priceCents = subscriptionPrice(pack, cycle);
 
   // Modo Asaas: ação explícita cria/reusa a assinatura e vai ao checkout hospedado.
   return (
@@ -60,16 +54,19 @@ export default async function AssinarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 text-sm">
-            <span className="text-lg font-semibold">
-              {formatBRL(pack.priceCents / 100)}/ano
-            </span>
+            <nav className="flex gap-4" aria-label="Período de cobrança">
+              {pack.monthlyPriceCents && <Link href="/assinar?cycle=MONTHLY" aria-current={cycle === 'MONTHLY' ? 'page' : undefined} className={cycle === 'MONTHLY' ? 'font-bold text-primary' : 'underline'}>Mensal</Link>}
+              <Link href="/assinar?cycle=YEARLY" aria-current={cycle === 'YEARLY' ? 'page' : undefined} className={cycle === 'YEARLY' ? 'font-bold text-primary' : 'underline'}>Anual · melhor preço</Link>
+            </nav>
+            <UnlimitedPrice priceCents={priceCents} cycle={cycle} />
+            {query.pending && <p role="status">Checkout em processamento ou aberto para outro período. Aguarde confirmação antes de iniciar nova contratação. Se persistir, contate suporte.</p>}
             <p className="text-muted-foreground">
               Você será direcionado ao checkout seguro do Asaas para informar os dados do
-              cartão. A assinatura renova automaticamente a cada ano.
+              cartão. A assinatura renova automaticamente {cycle === 'MONTHLY' ? 'a cada mês' : 'a cada ano'}. Cancele quando quiser; acesso permanece até fim do período pago.
             </p>
-            <form action={startSubscription}>
+            <form action={startSubscription.bind(null, cycle)}>
               <Button type="submit" className="w-full">
-                Assinar Ilimitado
+                Assinar Ilimitado {cycle === 'MONTHLY' ? 'mensal' : 'anual'}
               </Button>
             </form>
           </CardContent>

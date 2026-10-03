@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "O que o plano Ilimitado inclui?",
-    a: "R$ 119,90 por ano: simulações ilimitadas sem consumir créditos, amortizador inteligente, comparar PRICE e SAC lado a lado, portabilidade, exportação da análise do financiamento em PDF e simulações salvas enquanto você for assinante. Cancele quando quiser, sem multa.",
+    a: "R$ 18,90 por mês ou R$ 119,90 por ano: simulações ilimitadas sem consumir créditos, amortizador inteligente, comparação PRICE e SAC lado a lado, portabilidade, exportação da análise do financiamento em PDF e simulações salvas enquanto você for assinante. O anual equivale a R$ 9,99 por mês e é cobrado de uma vez por ano. Cancele quando quiser, sem multa.",
   },
   {
     q: "De onde vêm os juros de mercado?",
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "Preciso criar conta para usar?",
-    a: "Sim, ao criar a conta você ganha 10 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado (R$ 119,90/ano).",
+    a: "Sim, ao criar a conta você ganha 10 créditos de boas-vindas para testar. Depois, é só escolher entre créditos avulsos (R$ 10 por 5 simulações) ou o plano Ilimitado mensal (R$ 18,90/mês) ou anual (R$ 119,90/ano).",
   },
 ];
 

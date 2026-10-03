@@ -40,14 +40,21 @@ export function UpgradeDialog({
           <div className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-4 ring-2 ring-[#820AD1]">
             <span className="font-semibold">Plano Ilimitado</span>
             <span className="text-sm text-muted-foreground">
-              R$ 119,90/ano. Simulações ilimitadas, análise do financiamento, PDF, amortizador inteligente e
-              portabilidade.
+              Mesmos recursos no mensal e anual: simulações ilimitadas, análise do financiamento, PDF,
+              amortizador inteligente e portabilidade.
             </span>
             <BuyPackButton
               packId="unlimited"
-              label="Assinar Ilimitado – R$ 119,90/ano"
+              label="Assinar mensal – R$ 18,90/mês"
+              isSubscription
+              cycle="MONTHLY"
+            />
+            <BuyPackButton
+              packId="unlimited"
+              label="Assinar anual – R$ 119,90/ano"
               isSubscription
             />
+            <span className="text-xs text-muted-foreground">Anual: melhor preço, equivalente a R$ 9,99/mês.</span>
           </div>
         </div>
       </DialogContent>

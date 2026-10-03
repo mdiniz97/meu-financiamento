@@ -5,6 +5,7 @@ import { getPaymentProvider } from '@/lib/payments';
 import { addCredits } from '@/lib/credits';
 import { auth } from '@/auth';
 import { hasFakeIdempotencyToken, recordFakeIdempotencyToken } from '@/lib/payments/fake-idempotency';
+import { addCycle } from '@/lib/subscriptions/cycle';
 
 const SUBSCRIPTION_DAYS = 365;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -104,7 +105,7 @@ function conflictRenewal() {
 type ExtendOutcome = NextResponse | { updated: true };
 
 async function extendSubscription(
-  sub: { id: string; currentPeriodEnd: Date | null },
+  sub: { id: string; currentPeriodEnd: Date | null; cycle?: string | null },
   opts: { providerId?: string; status?: string; idempotencyToken?: string; tokenKey?: string }
 ): Promise<ExtendOutcome> {
   const recordToken = () => {
@@ -115,7 +116,9 @@ async function extendSubscription(
   for (let attempt = 0; attempt < 2; attempt++) {
     const oldEnd = sub.currentPeriodEnd;
     const base = Math.max(Date.now(), oldEnd?.getTime() ?? 0);
-    const newEnd = new Date(base + SUBSCRIPTION_DAYS * DAY_MS);
+    const newEnd = sub.cycle === 'MONTHLY'
+      ? addCycle(new Date(base), 'MONTHLY')
+      : new Date(base + SUBSCRIPTION_DAYS * DAY_MS);
     const guard = oldEnd
       ? and(
           eq(schema.subscriptions.id, sub.id),
@@ -215,6 +218,8 @@ async function processPayment(
     if (current) {
       const outcome = await extendSubscription(current, {
         providerId: result.providerId,
+        idempotencyToken: opts.idempotencyToken,
+        tokenKey: `${result.userId}:${result.packId}:${opts.idempotencyToken}`,
       });
       if (!('updated' in outcome)) return outcome;
       return NextResponse.json({ ok: true });

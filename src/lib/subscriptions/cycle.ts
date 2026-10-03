@@ -1,15 +1,15 @@
 export function addCycle(date: Date, cycle: string): Date {
   const d = new Date(date.getTime());
+  const months = cycle === 'MONTHLY' ? 1 : cycle === 'QUARTERLY' ? 3 : cycle === 'SEMIANNUALLY' ? 6 : 0;
+  if (months) {
+    const day = d.getUTCDate();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(day, lastDay));
+    return d;
+  }
   switch (cycle) {
-    case 'MONTHLY':
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      return d;
-    case 'QUARTERLY':
-      d.setUTCMonth(d.getUTCMonth() + 3);
-      return d;
-    case 'SEMIANNUALLY':
-      d.setUTCMonth(d.getUTCMonth() + 6);
-      return d;
     case 'YEARLY': {
       const year = d.getUTCFullYear();
       const month = d.getUTCMonth();

@@ -80,6 +80,15 @@ describe.skipIf(!isolated)('trial offer state (isolated PostgreSQL)', () => {
     expect(await getTrialState(user.id, new Date('2026-10-01T01:00:00Z')))
       .toMatchObject({ offerAvailable: false, showModal: false });
   });
+  it('blocks trial during a checkout POST even before Asaas returns an ID', async () => {
+    const user = await createUser();
+    await db.insert(schema.subscriptions).values({
+      userId: user.id, packId: 'unlimited', provider: 'asaas', status: 'incomplete',
+      checkoutStartedAt: createdAt, cycle: 'MONTHLY', contractedPriceCents: 1890,
+    });
+    expect(await getTrialState(user.id, new Date('2026-10-01T01:00:00Z')))
+      .toMatchObject({ offerAvailable: false, blockedByPendingCheckout: true });
+  });
 
   it('reports window expiry independently from paid/checkout blockers', async () => {
     const expired = await createUser();

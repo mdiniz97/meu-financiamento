@@ -18,12 +18,12 @@ export type SubscriptionActionResult = 'ok' | 'no_subscription' | 'rate_limited'
  * RS3 — IDOR: a assinatura é sempre resolvida pela sessão (`userId`), nunca por
  * um id vindo do cliente. Nenhuma das ações de gerenciamento aceita alvo.
  */
-export function getOwnSubscription(userId: string) {
+export function getOwnSubscription(userId: string, provider: 'asaas' | 'fake' = PROVIDER) {
   return db.query.subscriptions.findFirst({
     where: and(
       eq(schema.subscriptions.userId, userId),
       eq(schema.subscriptions.packId, PACK_ID),
-      eq(schema.subscriptions.provider, PROVIDER)
+      eq(schema.subscriptions.provider, provider)
     ),
   });
 }

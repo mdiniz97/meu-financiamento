@@ -395,6 +395,7 @@ async function scheduleCreditInvoiceIfEnabled(
 }
 
 interface SubscriptionPatch {
+  contractedPriceCents?: number;
   status?: string;
   providerId?: string;
   asaasSubscriptionId?: string;
@@ -572,6 +573,8 @@ export async function applyAsaasEvent(
         asaasSubscriptionId: s.id,
         asaasCustomerId: s.customer ?? undefined,
         cycle: s.cycle ?? undefined,
+        contractedPriceCents: sub.contractedPriceCents == null && s.value != null && Number.isFinite(s.value) && s.value > 0
+          ? Math.round(s.value * 100) : undefined,
         billingType: s.billingType ?? undefined,
         nextDueDate: parseDate(s.nextDueDate) ?? undefined,
         asaasStatus: event.event === 'SUBSCRIPTION_CREATED' ? 'ACTIVE' : (s.status ?? undefined),

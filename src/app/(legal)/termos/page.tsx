@@ -69,7 +69,7 @@ export default function TermosPage() {
       <section>
         <h2>Assinatura e cancelamento</h2>
         <p>
-          O plano Ilimitado é cobrado anualmente e renova automaticamente, pelo preço e pelas
+          O plano Ilimitado é cobrado mensalmente ou anualmente, conforme o período escolhido na contratação, e renova automaticamente pelo preço e pelas
           condições apresentados no momento da contratação. Você pode cancelar a renovação
           pela área <Link className="underline" href="/assinatura">Minha assinatura</Link>.
           Após cancelar, o acesso contratado permanece até o fim do período já pago;

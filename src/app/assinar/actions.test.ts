@@ -91,7 +91,7 @@ beforeEach(() => {
   });
   m.auth.mockResolvedValue({ userId: 'user-1' });
   m.hasActiveAccess.mockResolvedValue(false);
-  m.packsFindFirst.mockResolvedValue({ id: 'unlimited', priceCents: 11990 });
+  m.packsFindFirst.mockResolvedValue({ id: 'unlimited', priceCents: 11990, monthlyPriceCents: 1890 });
   m.createSubscriptionCheckout.mockResolvedValue({
     id: 'chk_1',
     link: 'https://sandbox.asaas.com/checkoutSession/show/chk_1',
@@ -100,6 +100,41 @@ beforeEach(() => {
 });
 
 describe('startSubscription', () => {
+  it('does not reserve checkout when fake provider is forbidden in production', async () => {
+    vi.stubEnv('PAYMENT_PROVIDER', 'fake');
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      await expect(startSubscription('MONTHLY')).rejects.toThrow('PAYMENT_PROVIDER=fake não é permitido em produção');
+      expect(m.transaction).not.toHaveBeenCalled();
+    } finally {
+      vi.stubEnv('NODE_ENV', 'test');
+    }
+  });
+  it('does not open another checkout when cancellation of the old recurrence fails', async () => {
+    m.txFindFirst.mockResolvedValue({ id: 'sub-existing', asaasSubscriptionId: 'sub_old' });
+    m.cancelAtPeriodEnd.mockRejectedValueOnce(new Error('network timeout'));
+    await expect(startSubscription()).rejects.toThrow('network timeout');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+  it('uses the catalog monthly price and persists MONTHLY before checkout', async () => {
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1');
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(expect.objectContaining({ valueCents: 1890, cycle: 'MONTHLY' }));
+    expect(m.txValues).toHaveBeenCalledWith(expect.objectContaining({ cycle: 'MONTHLY', contractedPriceCents: 1890 }));
+  });
+  it('does not create checkout with an unknown cycle', async () => {
+    await expect(startSubscription('WEEKLY' as 'MONTHLY')).rejects.toThrow('Ciclo de assinatura inválido');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+  it('reuses a saved same-cycle checkout link without repeating POST', async () => {
+    m.txFindFirst.mockResolvedValue({ id: 'sub-existing', status: 'incomplete', cycle: 'MONTHLY', asaasCheckoutId: 'chk_existing', asaasCheckoutLink: 'https://sandbox.asaas.com/existing' });
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/existing');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+  it('blocks another cycle while checkout result is uncertain', async () => {
+    m.txFindFirst.mockResolvedValue({ id: 'sub-existing', status: 'incomplete', cycle: 'YEARLY', checkoutStartedAt: new Date() });
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:/assinar?pending=1');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
   it('serializa trial x checkout: lock do usuário e re-checagem dentro da transação', async () => {
     // Pré-cheque passou (corrida): o acesso ativo só aparece dentro do lock.
     m.hasActiveAccess.mockResolvedValue(false);
@@ -128,14 +163,14 @@ describe('startSubscription', () => {
     );
 
     expect(m.txInsert).not.toHaveBeenCalled();
-    expect(m.txUpdateSet).toHaveBeenCalledWith({
+    expect(m.txUpdateSet).toHaveBeenCalledWith(expect.objectContaining({
       status: 'incomplete',
       asaasCheckoutId: null,
       asaasSubscriptionId: null,
       providerId: null,
-    });
+    }));
     expect(m.txUpdateWhere).toHaveBeenCalledWith(['subscriptions.id', 'sub-existing']);
-    expect(m.updateSet).toHaveBeenCalledWith({ asaasCheckoutId: 'chk_1' });
+    expect(m.updateSet).toHaveBeenCalledWith(expect.objectContaining({ asaasCheckoutId: 'chk_1' }));
     expect(m.captureAccountEvent).toHaveBeenCalledWith('user-1', 'checkout_started', 'chk_1');
     expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -177,19 +212,14 @@ describe('startSubscription', () => {
     expect(m.cancelAtPeriodEnd).not.toHaveBeenCalled();
   });
 
-  it('reusa a linha vencedora quando o insert não grava (conflito)', async () => {
+  it('does not repeat a checkout POST when another request reserved the row', async () => {
     m.txFindFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 'sub-winner' });
     m.txReturning.mockResolvedValueOnce([]);
 
-    await expect(startSubscription()).rejects.toThrow(
-      'REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1'
-    );
-
-    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({ externalReference: 'sub-winner' })
-    );
+    await expect(startSubscription()).rejects.toThrow('REDIRECT:/assinar?pending=1');
+    expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
   });
 
   it('insere linha nova quando não existe e atualiza o checkout id', async () => {

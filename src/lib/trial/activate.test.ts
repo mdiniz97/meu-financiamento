@@ -99,9 +99,10 @@ describe.skipIf(!isolated)('trial activation (isolated PostgreSQL)', () => {
     analytics.capture.mockClear();
     const user = await createUser();
     const old = await createUser(false);
-    await markTrialOfferSeen(user.id);
-    await markTrialOfferSeen(old.id);
-    await markTrialOfferSeen(user.id);
+    const now = new Date('2026-10-01T01:00:00Z');
+    await markTrialOfferSeen(user.id, now);
+    await markTrialOfferSeen(old.id, now);
+    await markTrialOfferSeen(user.id, now);
     expect(analytics.capture).toHaveBeenCalledTimes(1);
     expect(analytics.capture).toHaveBeenCalledWith(user.id, 'trial_offer_seen', user.id);
     expect(await getTrialState(user.id, new Date('2026-10-01T01:00:00Z')))

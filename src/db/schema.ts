@@ -34,6 +34,7 @@ export const packs = pgTable('packs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   priceCents: integer('price_cents').notNull(),
+  monthlyPriceCents: integer('monthly_price_cents'),
   credits: integer('credits'),
   isSubscription: boolean('is_subscription').notNull().default(false),
 });
@@ -56,6 +57,9 @@ export const subscriptions = pgTable(
     asaasCustomerId: text('asaas_customer_id'),
     asaasSubscriptionId: text('asaas_subscription_id'),
     asaasCheckoutId: text('asaas_checkout_id'),
+    asaasCheckoutLink: text('asaas_checkout_link'),
+    checkoutStartedAt: timestamp('checkout_started_at', { withTimezone: true }),
+    contractedPriceCents: integer('contracted_price_cents'),
     billingType: text('billing_type'),
     cycle: text('cycle'),
     nextDueDate: timestamp('next_due_date', { withTimezone: true }),

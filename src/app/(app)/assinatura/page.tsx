@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { getOwnSubscription } from '@/lib/subscriptions/account';
 import { formatBRL } from '@/lib/utils';
@@ -35,14 +35,21 @@ export default async function AssinaturaPage() {
   if (!session?.userId) redirect('/login?callbackUrl=/assinatura');
   const userId = session.userId;
 
-  const [subscription, pack] = await Promise.all([
-    getOwnSubscription(userId),
-    db.query.packs.findFirst({ where: eq(schema.packs.id, 'unlimited') }),
-  ]);
+  const provider = process.env.NODE_ENV !== 'production' && (process.env.PAYMENT_PROVIDER ?? 'fake') === 'fake' ? 'fake' : 'asaas';
+  const subscription = await getOwnSubscription(userId, provider);
 
   const periodEnd = formatDate(subscription?.currentPeriodEnd);
   const graceUntil = formatDate(subscription?.graceUntil);
-  const priceLabel = pack ? formatBRL(pack.priceCents / 100) : formatBRL(119.9);
+  const monthly = subscription?.cycle === 'MONTHLY';
+  const historicalPayment = subscription && subscription.contractedPriceCents == null
+    ? await db.query.payments.findFirst({
+      where: and(eq(schema.payments.subscriptionId, subscription.id), inArray(schema.payments.status, ['CONFIRMED', 'RECEIVED'])),
+      orderBy: desc(schema.payments.createdAt),
+    }) : null;
+  const contractedPrice = subscription?.contractedPriceCents ?? historicalPayment?.valueCents;
+  const priceLabel = contractedPrice != null
+    ? formatBRL(contractedPrice / 100)
+    : 'Consulte sua cobrança';
   const cardLabel = subscription?.cardLast4
     ? `****${subscription.cardLast4}${subscription.cardBrand ? ` · ${subscription.cardBrand}` : ''}`
     : null;
@@ -69,7 +76,8 @@ export default async function AssinaturaPage() {
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-4">
                     <span className="text-xs text-muted-foreground">Valor</span>
-                    <span className="text-lg font-semibold">{priceLabel}/ano</span>
+                    <span className="text-lg font-semibold">{priceLabel}{contractedPrice != null ? (monthly ? '/mês' : '/ano') : ''}</span>
+                    <span>{monthly ? 'Assinatura mensal' : 'Assinatura anual'}</span>
                   </div>
                   {!subscription.cancelAtPeriodEnd ? (
                     <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 p-4">

@@ -14,8 +14,12 @@ describe('addCycle', () => {
   });
   it('MONTHLY soma 1 mês', () => {
     expect(addCycle(new Date('2026-01-31T00:00:00Z'), 'MONTHLY').toISOString()).toBe(
-      '2026-03-03T00:00:00.000Z'
+      '2026-02-28T00:00:00.000Z'
     );
+  });
+  it('clamps leap-year February and preserves UTC time', () => {
+    expect(addCycle(new Date('2028-01-31T12:34:56Z'), 'MONTHLY').toISOString())
+      .toBe('2028-02-29T12:34:56.000Z');
   });
   it('QUARTERLY soma 3 meses', () => {
     expect(addCycle(new Date('2026-01-15T00:00:00Z'), 'QUARTERLY').toISOString()).toBe(

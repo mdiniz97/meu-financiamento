@@ -33,7 +33,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
           </p>
         </div>
 
-        <div className="mx-auto mt-12 grid max-w-3xl border border-border md:grid-cols-2">
+        <div className="mx-auto mt-12 grid max-w-6xl border border-border md:grid-cols-3">
           <div className="flex flex-col gap-5 p-7 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30">
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-4xl font-bold tracking-tight">R$ 10</span>
@@ -59,6 +59,16 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
             </Link>
           </div>
 
+          <div className="flex flex-col gap-5 border-t p-7 md:border-l md:border-t-0">
+            <UnlimitedPrice priceCents={1890} cycle="MONTHLY" />
+            <p className="text-sm font-semibold">Ilimitado mensal · mesmos recursos</p>
+            <ul className="flex flex-col gap-2.5">
+              {unlimitedFeatures.map(feature => <li key={feature} className="flex items-start gap-2.5 text-sm"><CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />{feature}</li>)}
+            </ul>
+            <Link href={signedIn ? '/assinar?cycle=MONTHLY' : '/cadastro?callbackUrl=%2Fassinar%3Fcycle%3DMONTHLY'} className={cn(buttonVariants({ variant: 'outline' }), 'mt-auto h-11 text-base')}>
+              <ZapIcon className="size-4" /> Assinar mensal
+            </Link>
+          </div>
           <div className="flex flex-col gap-5 border-2 border-primary p-7 transition-all duration-200 hover:-translate-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <UnlimitedPrice />
@@ -66,7 +76,8 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
                 Melhor para quem vai financiar
               </span>
             </div>
-            <p className="text-sm font-semibold">Plano Ilimitado, sem limites</p>
+            <p className="text-sm font-semibold">Ilimitado anual · melhor preço</p>
+            <p className="text-xs text-muted-foreground">Equivale a R$ 9,99/mês, cobrado de uma vez por ano.</p>
             <ul className="flex flex-col gap-2.5">
               {unlimitedFeatures.map((feature) => (
                 <li key={feature} className="flex items-start gap-2.5 text-sm">
@@ -83,7 +94,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
               )}
             >
               <ZapIcon className="size-4" />
-              Assinar plano Ilimitado
+              Assinar plano Ilimitado anual
             </Link>
           </div>
         </div>

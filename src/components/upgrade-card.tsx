@@ -60,7 +60,7 @@ export function UpgradeCard({
           <ZapIcon className="size-4" />
           Assinar Ilimitado
         </Button>
-        <p className="text-center text-xs text-muted-foreground">R$ 119,90/ano · cancele quando quiser.</p>
+        <p className="text-center text-xs text-muted-foreground">A partir de R$ 18,90/mês · cancele quando quiser.</p>
         <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
       </div>
     );
@@ -87,9 +87,9 @@ export function UpgradeCard({
       <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
         <Button type="button" onClick={() => setUpgradeOpen(true)} size="lg" className="w-full sm:w-auto">
           <ZapIcon className="size-4" />
-          Assinar Ilimitado, R$ 119,90/ano
+          Assinar Ilimitado
         </Button>
-        <p className="text-xs text-muted-foreground">Cancele quando quiser.</p>
+        <p className="text-xs text-muted-foreground">Mensal R$ 18,90 · anual R$ 119,90.</p>
       </div>
       <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </div>

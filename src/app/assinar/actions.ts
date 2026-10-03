@@ -7,11 +7,14 @@ import { db, schema } from '@/db';
 import { hasActiveAccess } from '@/lib/subscriptions/access';
 import { createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
-import { getPaymentProvider } from '@/lib/payments';
+import { addCycle } from '@/lib/subscriptions/cycle';
 import { captureAccountEvent } from '@/lib/analytics/server';
+import { requireBillingCycle, subscriptionPrice, type BillingCycle } from '@/lib/subscriptions/plans';
 
 type CheckoutClaim =
   | { status: 'already_active' }
+  | { status: 'pending' }
+  | { status: 'reuse'; link: string }
   | { status: 'ready'; localId: string; cancelSubscriptionId?: string };
 
 /**
@@ -20,7 +23,7 @@ type CheckoutClaim =
  * requisições concorrentes passariam ambos pelo pré-cheque e o usuário ficaria
  * com trial e cobrança pendentes. O lock serializa os dois caminhos.
  */
-async function claimCheckoutSlot(userId: string): Promise<CheckoutClaim> {
+async function claimCheckoutSlot(userId: string, cycle: BillingCycle, priceCents: number, provider: string): Promise<CheckoutClaim> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM ${schema.users} WHERE id = ${userId} FOR UPDATE`);
 
@@ -43,16 +46,26 @@ async function claimCheckoutSlot(userId: string): Promise<CheckoutClaim> {
       asaasCheckoutId: null,
       asaasSubscriptionId: null,
       providerId: null,
+      asaasCheckoutLink: null,
+      checkoutStartedAt: new Date(),
+      cycle,
+      contractedPriceCents: priceCents,
     };
 
     const existing = await tx.query.subscriptions.findFirst({
       where: and(
         eq(schema.subscriptions.userId, userId),
         eq(schema.subscriptions.packId, 'unlimited'),
-        eq(schema.subscriptions.provider, 'asaas')
+        eq(schema.subscriptions.provider, provider)
       ),
     });
     if (existing) {
+      if (existing.status === 'incomplete' && (existing.checkoutStartedAt || existing.asaasCheckoutId)) {
+        if (existing.cycle === cycle && existing.asaasCheckoutLink) {
+          return { status: 'reuse', link: existing.asaasCheckoutLink };
+        }
+        return { status: 'pending' };
+      }
       const cancelSubscriptionId =
         existing.asaasSubscriptionId &&
         existing.asaasStatus !== 'INACTIVE' &&
@@ -73,9 +86,11 @@ async function claimCheckoutSlot(userId: string): Promise<CheckoutClaim> {
       .values({
         userId,
         packId: 'unlimited',
-        provider: 'asaas',
+        provider,
         status: 'incomplete',
-        cycle: 'YEARLY',
+        cycle,
+        contractedPriceCents: priceCents,
+        checkoutStartedAt: new Date(),
         billingType: 'CREDIT_CARD',
       })
       .onConflictDoNothing()
@@ -86,15 +101,16 @@ async function claimCheckoutSlot(userId: string): Promise<CheckoutClaim> {
       where: and(
         eq(schema.subscriptions.userId, userId),
         eq(schema.subscriptions.packId, 'unlimited'),
-        eq(schema.subscriptions.provider, 'asaas')
+        eq(schema.subscriptions.provider, provider)
       ),
     });
     if (!winner) throw new Error('assinatura não reservada');
-    return { status: 'ready', localId: winner.id };
+    return { status: 'pending' };
   });
 }
 
-export async function startSubscription(): Promise<void> {
+export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'): Promise<void> {
+  const cycle = requireBillingCycle(selectedCycle);
   const session = await auth();
   if (!session?.userId) redirect('/login?callbackUrl=/assinar');
   const userId = session.userId;
@@ -105,20 +121,31 @@ export async function startSubscription(): Promise<void> {
     where: eq(schema.packs.id, 'unlimited'),
   });
   if (!pack) redirect('/perfil');
-
-  // Modo fake (dev/E2E): auto-aprova e cai em /perfil, como sempre.
-  if ((process.env.PAYMENT_PROVIDER ?? 'fake') === 'fake') {
-    const { checkoutUrl } = await getPaymentProvider().createCheckout({
-      userId,
-      packId: 'unlimited',
-      priceCents: pack.priceCents,
-    });
-    const sep = checkoutUrl.includes('?') ? '&' : '?';
-    redirect(`${checkoutUrl}${sep}userId=${userId}&packId=unlimited`);
+  const priceCents = subscriptionPrice(pack, cycle);
+  const provider = process.env.PAYMENT_PROVIDER ?? 'fake';
+  if (provider === 'fake' && process.env.NODE_ENV === 'production') {
+    throw new Error('PAYMENT_PROVIDER=fake não é permitido em produção');
   }
-
-  const claimed = await claimCheckoutSlot(userId);
+  const claimed = await claimCheckoutSlot(userId, cycle, priceCents, provider);
   if (claimed.status === 'already_active') redirect('/perfil');
+  if (claimed.status === 'pending') redirect('/assinar?pending=1');
+  if (claimed.status === 'reuse') redirect(claimed.link);
+
+  // Fake approval stays server-side; redirecting a server action through a GET
+  // handler renders the destination but leaves the webhook URL in the router.
+  if (provider === 'fake') {
+    await db.update(schema.subscriptions).set({
+      providerId: `fake_${userId}_unlimited`,
+      status: 'active',
+      currentPeriodEnd: addCycle(new Date(), cycle),
+    }).where(and(
+      eq(schema.subscriptions.id, claimed.localId),
+      eq(schema.subscriptions.userId, userId),
+      eq(schema.subscriptions.provider, 'fake'),
+      eq(schema.subscriptions.status, 'incomplete')
+    ));
+    redirect('/perfil');
+  }
 
   // I4 — recompra com assinatura Asaas ainda ativa pode continuar cobrando.
   // Inativa a antiga ANTES de abrir o novo checkout (fora da transação: é rede).
@@ -129,6 +156,7 @@ export async function startSubscription(): Promise<void> {
       console.warn(
         `[assinar] falha ao inativar assinatura ${claimed.cancelSubscriptionId}: ${String(e)}`
       );
+      throw e;
     }
   }
   const localId = claimed.localId;
@@ -139,8 +167,8 @@ export async function startSubscription(): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const checkout = await createSubscriptionCheckout({
     externalReference: localId,
-    valueCents: pack.priceCents,
-    cycle: 'YEARLY',
+    valueCents: priceCents,
+    cycle,
     nextDueDate: today,
     successUrl: `${appUrl}/assinar/sucesso`,
     cancelUrl: `${appUrl}/assinar`,
@@ -149,7 +177,7 @@ export async function startSubscription(): Promise<void> {
 
   await db
     .update(schema.subscriptions)
-    .set({ asaasCheckoutId: checkout.id })
+    .set({ asaasCheckoutId: checkout.id, asaasCheckoutLink: checkout.link })
     .where(eq(schema.subscriptions.id, localId));
 
   await captureAccountEvent(userId, 'checkout_started', checkout.id);

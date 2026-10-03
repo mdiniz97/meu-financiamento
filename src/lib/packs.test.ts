@@ -11,7 +11,9 @@ describe('seedPacks', () => {
       { id: 'credits5', name: '5 créditos', priceCents: 1000, credits: 5, isSubscription: false },
       { id: 'unlimited', name: 'Ilimitado', priceCents: 11990, credits: null, isSubscription: true },
     ]);
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][0]).toContain('"monthly_price_cents" = 1890');
+    expect(query.mock.calls[1][0]).toContain('"monthly_price_cents" IS NULL');
     expect(query.mock.calls[0][0]).toContain('ON CONFLICT ("id") DO NOTHING');
     expect(query.mock.calls[0][1]).toEqual([
       'credits5',

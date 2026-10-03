@@ -32,7 +32,7 @@ export async function activateTrial(userId: string, now?: Date): Promise<TrialAc
       ne(schema.subscriptions.provider, 'trial'),
       inArray(schema.subscriptions.status, ['active', 'past_due', 'incomplete'])
     ) });
-    if (paidSubscriptions.some(sub => sub.status === 'incomplete' && sub.asaasCheckoutId)) {
+    if (paidSubscriptions.some(sub => sub.status === 'incomplete' && (sub.asaasCheckoutId || sub.checkoutStartedAt))) {
       return { status: 'checkout_pending' };
     }
     if (paidSubscriptions.some(sub => blocksTrialForSubscription(sub, effectiveNow))) {

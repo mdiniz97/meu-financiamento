@@ -11,10 +11,12 @@ export function BuyPackButton({
   packId,
   label,
   isSubscription = false,
+  cycle = 'YEARLY',
 }: {
   packId: string;
   label: string;
   isSubscription?: boolean;
+  cycle?: 'MONTHLY' | 'YEARLY';
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,7 @@ export function BuyPackButton({
   if (isSubscription) {
     return (
       <form
-        action={startSubscription}
+        action={startSubscription.bind(null, cycle)}
         onSubmit={() => { void captureCtaClick('subscribe'); }}
         className="w-full"
       >

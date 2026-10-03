@@ -18,4 +18,5 @@ export async function seedPacks(client) {
      ON CONFLICT ("id") DO NOTHING`,
     values
   );
+  await client.query(`UPDATE "packs" SET "monthly_price_cents" = 1890 WHERE "id" = 'unlimited' AND "monthly_price_cents" IS NULL`);
 }

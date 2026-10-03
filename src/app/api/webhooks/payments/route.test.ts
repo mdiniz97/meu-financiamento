@@ -101,6 +101,20 @@ describe('GET fake payment webhook security', () => {
     expect(mocks.auth).not.toHaveBeenCalled();
     expect(mocks.verifyWebhook).not.toHaveBeenCalled();
   });
+  it('uses the reserved monthly cycle and records first approval token', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T12:00:00Z'));
+    mocks.auth.mockResolvedValue({ userId: 'user-1' });
+    mocks.verifyWebhook.mockResolvedValue({ userId: 'user-1', packId: 'unlimited', providerId: 'fake-1' });
+    mocks.findPack.mockResolvedValue({ id: 'unlimited', isSubscription: true });
+    mocks.findSub.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'sub-1', cycle: 'MONTHLY', currentPeriodEnd: null });
+    await expectRedirect(await GET(request('user-1', 'monthly-first')));
+    expect(mocks.updateSub.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({ currentPeriodEnd: new Date('2026-02-28T12:00:00Z') }));
+    mocks.findSub.mockResolvedValue({ id: 'sub-1', cycle: 'MONTHLY', providerId: 'fake-1', currentPeriodEnd: new Date('2026-02-28T12:00:00Z') });
+    await expectRedirect(await GET(request('user-1', 'monthly-first')));
+    expect(mocks.updateSub).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
 
   it('rejects unauthenticated requests', async () => {
     mocks.auth.mockResolvedValue(null);

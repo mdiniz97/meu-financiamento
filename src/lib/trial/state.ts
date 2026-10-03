@@ -9,7 +9,7 @@ export interface TrialState {
   offerAvailable: boolean;
   /** Janela de 48h vencida, sem trial usado. Independe de bloqueio por plano pago. */
   offerWindowExpired: boolean;
-  /** Checkout anual aberto e ainda não pago: trial fica bloqueado por esse motivo, não pelo prazo. */
+  /** Checkout pago aberto e ainda não concluído: trial fica bloqueado por esse motivo, não pelo prazo. */
   blockedByPendingCheckout: boolean;
   showModal: boolean;
   trialStartedAt: Date | null;
@@ -18,10 +18,10 @@ export interface TrialState {
 }
 
 export function blocksTrialForSubscription(
-  sub: Pick<typeof schema.subscriptions.$inferSelect, 'status' | 'currentPeriodEnd' | 'graceUntil' | 'asaasCheckoutId'>,
+  sub: Pick<typeof schema.subscriptions.$inferSelect, 'status' | 'currentPeriodEnd' | 'graceUntil' | 'asaasCheckoutId'> & { checkoutStartedAt?: Date | null },
   now: Date
 ): boolean {
-  if (sub.status === 'incomplete') return Boolean(sub.asaasCheckoutId);
+  if (sub.status === 'incomplete') return Boolean(sub.asaasCheckoutId || sub.checkoutStartedAt);
   return sub.status === 'active'
     ? Boolean(sub.currentPeriodEnd && sub.currentPeriodEnd > now)
     : Boolean(sub.status === 'past_due' && sub.graceUntil && sub.graceUntil > now);
@@ -51,7 +51,7 @@ export async function getTrialState(userId: string, now = new Date()): Promise<T
   const deadline = trialOfferDeadline(user);
   const withinWindow = Boolean(deadline && now < deadline);
   const blockedByPendingCheckout = paidSubscriptions.some(
-    sub => sub.status === 'incomplete' && Boolean(sub.asaasCheckoutId)
+    sub => sub.status === 'incomplete' && Boolean(sub.asaasCheckoutId || sub.checkoutStartedAt)
   );
   const hasPaidAccess = paidSubscriptions.some(sub => blocksTrialForSubscription(sub, now));
   const offerAvailable = eligible && withinWindow && !trial && !hasPaidAccess;

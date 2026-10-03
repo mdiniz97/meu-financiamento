@@ -176,6 +176,24 @@ beforeEach(() => {
 });
 
 describe('applyAsaasEvent — §7.2', () => {
+  it('recovers legacy contracted price from subscription without changing an existing contract', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', contractedPriceCents: null };
+    await applyAsaasEvent({ id: 'monthly-created', event: 'SUBSCRIPTION_CREATED', subscription: { id: 'sub_1', externalReference: 'sub-1', cycle: 'MONTHLY', value: 18.9 } });
+    expect(setPatch(updateChains[0]).contractedPriceCents).toBe(1890);
+    byProvider = { ...byProvider, contractedPriceCents: 1690 };
+    await applyAsaasEvent({ id: 'monthly-updated', event: 'SUBSCRIPTION_UPDATED', subscription: { id: 'sub_1', externalReference: 'sub-1', cycle: 'MONTHLY', value: 18.9 } });
+    expect(setPatch(updateChains[1]).contractedPriceCents).toBeUndefined();
+  });
+  it('monthly confirmations use due date; delayed receipt never adds a second month', async () => {
+    byProvider = { id: 'sub-1', userId: 'user-1', cycle: 'MONTHLY', currentPeriodEnd: null, contractedPriceCents: 1890 };
+    await applyAsaasEvent(paymentEvent('PAYMENT_CONFIRMED', { dueDate: '2026-01-31', value: 18.9 }));
+    expect(setPatch(updateChains[0]).currentPeriodEnd).toEqual(new Date('2026-02-28T00:00:00Z'));
+    byProvider.currentPeriodEnd = setPatch(updateChains[0]).currentPeriodEnd;
+    await applyAsaasEvent(paymentEvent('PAYMENT_RECEIVED', { dueDate: '2026-01-31', value: 18.9 }));
+    expect(setPatch(updateChains[1]).currentPeriodEnd).toEqual(new Date('2026-02-28T00:00:00Z'));
+    await applyAsaasEvent(paymentEvent('PAYMENT_CONFIRMED', { id: 'pay_2', dueDate: '2026-02-28', value: 18.9 }));
+    expect(setPatch(updateChains[2]).currentPeriodEnd).toEqual(new Date('2026-03-28T00:00:00Z'));
+  });
   it('PAYMENT_CONFIRMED ativa e define current_period_end = dueDate + cycle', async () => {
     mocks.findSub.mockResolvedValue({
       id: 'sub-1',

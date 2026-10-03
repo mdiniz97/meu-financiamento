@@ -169,6 +169,13 @@
       "when": 1790972913993,
       "tag": "0023_trial_followup",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791034963272,
+      "tag": "0024_monthly_unlimited",
+      "breakpoints": true
     }
   ]
 }
