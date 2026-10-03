@@ -10,7 +10,7 @@ import { InvestExplain } from "@/components/landing/InvestExplain";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { PricingPreview } from "@/components/landing/PricingPreview";
 import { BlogPreview } from "@/components/landing/BlogPreview";
-import { StatsBar } from "@/components/landing/StatsBar";
+// import { StatsBar } from "@/components/landing/StatsBar";
 import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
@@ -78,7 +78,7 @@ export default async function Home() {
         <DashboardPreview />
         <PricingPreview signedIn={signedIn} />
         <BlogPreview />
-        <StatsBar />
+        {/* <StatsBar /> */}
         <FAQ />
         <CTA signedIn={signedIn} />
       </main>
