@@ -34,7 +34,7 @@ export function PricingPreview({ signedIn = false }: { signedIn?: boolean }) {
           </p>
         </div>
 
-        <div className="mx-auto mt-12 grid max-w-6xl border border-border md:grid-cols-3">
+        <div className="mx-auto mt-12 grid max-w-6xl grid-cols-1 border border-border md:grid-cols-3">
           <div className="flex flex-col gap-5 p-7 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30">
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-4xl font-bold tracking-tight">R$ 10</span>

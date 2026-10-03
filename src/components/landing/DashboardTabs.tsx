@@ -22,24 +22,26 @@ interface DashboardTabsProps {
 
 function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
-    <div>
-      <div className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span>{title}</span>
-        <span className="text-right">PRICE</span>
-        <span className="text-right">SAC</span>
-        <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
-      </div>
-      {rows.map((row) => (
-        <div
-          key={row.label}
-          className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
-        >
-          <span className="text-muted-foreground">{row.label}</span>
-          <span className="text-right font-mono tabular-nums">{row.price}</span>
-          <span className="text-right font-mono tabular-nums">{row.sac}</span>
-          <span className="text-right font-mono font-bold font-mono tabular-nums text-primary">{row.smart}</span>
+    <div className="overflow-x-auto">
+      <div className="min-w-[440px]">
+        <div className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span>{title}</span>
+          <span className="text-right">PRICE</span>
+          <span className="text-right">SAC</span>
+          <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
         </div>
-      ))}
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
+          >
+            <span className="text-muted-foreground">{row.label}</span>
+            <span className="text-right font-mono tabular-nums">{row.price}</span>
+            <span className="text-right font-mono tabular-nums">{row.sac}</span>
+            <span className="text-right font-mono font-bold font-mono tabular-nums text-primary">{row.smart}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -56,10 +58,10 @@ export function DashboardTabs({
   const [active, setActive] = useState(1);
 
   return (
-    <div className="mt-12 grid border border-border sm:grid-cols-[160px_1fr]">
+    <div className="mt-12 grid min-w-0 grid-cols-1 border border-border sm:grid-cols-[160px_1fr]">
       <div
         role="tablist"
-        className="flex divide-x divide-border overflow-x-auto border-b border-border sm:flex-col sm:divide-x-0 sm:divide-y sm:overflow-visible sm:border-b-0 sm:border-r"
+        className="flex min-w-0 divide-x divide-border overflow-x-auto border-b border-border sm:flex-col sm:divide-x-0 sm:divide-y sm:overflow-visible sm:border-b-0 sm:border-r"
       >
         {sidebarItems.map((item, i) => (
           <button
@@ -77,7 +79,7 @@ export function DashboardTabs({
           </button>
         ))}
       </div>
-      <div className="p-4 sm:p-6">
+      <div className="min-w-0 p-4 sm:p-6">
         {active === 0 && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">

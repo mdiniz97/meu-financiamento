@@ -76,7 +76,7 @@ export function SystemsExplain() {
           </p>
         </div>
 
-        <div className="mt-12 grid border border-border lg:grid-cols-2 lg:divide-x lg:divide-border">
+        <div className="mt-12 grid grid-cols-1 border border-border lg:grid-cols-2 lg:divide-x lg:divide-border">
           <div className="flex flex-col gap-4 border-b border-border p-6 sm:p-8 lg:border-b-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="border border-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
@@ -132,36 +132,38 @@ export function SystemsExplain() {
               Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
             </span>
           </div>
-          <div className="px-6 py-2">
-            <div className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <span>Comparativo</span>
-              <span className="text-right">PRICE</span>
-              <span className="text-right">SAC</span>
-              <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
-            </div>
-            {exampleRows.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
-              >
-                <span className="pr-2 text-muted-foreground">{row.label}</span>
-                <AnimatedNumber
-                  value={row.priceValue}
-                  format={row.format}
-                  className="text-right font-mono font-medium font-mono tabular-nums"
-                />
-                <AnimatedNumber
-                  value={row.sacValue}
-                  format={row.format}
-                  className="text-right font-mono font-semibold font-mono tabular-nums"
-                />
-                <AnimatedNumber
-                  value={row.smartValue}
-                  format={row.format}
-                  className="text-right font-mono font-bold font-mono tabular-nums text-primary"
-                />
+          <div className="overflow-x-auto">
+            <div className="min-w-[440px] px-6 py-2">
+              <div className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Comparativo</span>
+                <span className="text-right">PRICE</span>
+                <span className="text-right">SAC</span>
+                <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
               </div>
-            ))}
+              {exampleRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
+                >
+                  <span className="pr-2 text-muted-foreground">{row.label}</span>
+                  <AnimatedNumber
+                    value={row.priceValue}
+                    format={row.format}
+                    className="text-right font-mono font-medium font-mono tabular-nums"
+                  />
+                  <AnimatedNumber
+                    value={row.sacValue}
+                    format={row.format}
+                    className="text-right font-mono font-semibold font-mono tabular-nums"
+                  />
+                  <AnimatedNumber
+                    value={row.smartValue}
+                    format={row.format}
+                    className="text-right font-mono font-bold font-mono tabular-nums text-primary"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
