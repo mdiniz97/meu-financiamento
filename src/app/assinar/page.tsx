@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { loginHref } from '@/lib/login-redirect';
 import { auth } from '@/auth';
-import { getCreditBalance } from '@/lib/credits';
+import { hasActivePaidAccess } from '@/lib/subscriptions/access';
 import { requireBillingCycle } from '@/lib/subscriptions/plans';
 import { AutoStartCheckout } from './auto-start-checkout';
 
@@ -23,8 +23,8 @@ export default async function AssinarPage({ searchParams }: { searchParams: Prom
   const session = await auth();
   if (!session?.userId) redirect(loginHref(`/assinar?cycle=${cycle}`));
 
-  const { isUnlimited } = await getCreditBalance(session.userId);
-  if (isUnlimited) redirect('/perfil');
+  // Só assinatura paga ativa manda para o perfil; o trial pode contratar.
+  if (await hasActivePaidAccess(session.userId)) redirect('/perfil');
 
   if (query.pending) {
     return (

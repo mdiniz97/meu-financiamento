@@ -13,7 +13,7 @@ vi.mock('drizzle-orm', () => ({
   sql: vi.fn(),
 }));
 
-import { hasActiveAccess } from './access';
+import { hasActiveAccess, hasActivePaidAccess } from './access';
 
 beforeEach(() => mocks.findMany.mockReset());
 
@@ -102,5 +102,27 @@ describe('hasActiveAccess', () => {
   it('false quando não há linhas', async () => {
     mocks.findMany.mockResolvedValue([]);
     expect(await hasActiveAccess('u1')).toBe(false);
+  });
+});
+
+describe('hasActivePaidAccess', () => {
+  it('ignora o trial ativo (não conta como acesso pago)', async () => {
+    mocks.findMany.mockResolvedValue([
+      { provider: 'trial', status: 'active', currentPeriodEnd: new Date(Date.now() + 100000), graceUntil: null },
+    ]);
+    expect(await hasActivePaidAccess('u1')).toBe(false);
+  });
+  it('true para assinatura paga ativa', async () => {
+    mocks.findMany.mockResolvedValue([
+      { provider: 'asaas', status: 'active', currentPeriodEnd: new Date(Date.now() + 1000), graceUntil: null },
+    ]);
+    expect(await hasActivePaidAccess('u1')).toBe(true);
+  });
+  it('true para paga past_due na carência mesmo com trial ativo presente', async () => {
+    mocks.findMany.mockResolvedValue([
+      { provider: 'trial', status: 'active', currentPeriodEnd: new Date(Date.now() + 100000), graceUntil: null },
+      { provider: 'asaas', status: 'past_due', currentPeriodEnd: new Date(Date.now() - 1000), graceUntil: new Date(Date.now() + 1000) },
+    ]);
+    expect(await hasActivePaidAccess('u1')).toBe(true);
   });
 });

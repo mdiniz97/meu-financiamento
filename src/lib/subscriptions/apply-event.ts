@@ -7,6 +7,7 @@ import { getAsaasConfig } from '@/lib/payments/asaas/config';
 import { scheduleInvoiceOnce } from '@/lib/payments/asaas/invoice';
 import { configureInvoiceSettings, getFiscalInfo } from '@/lib/payments/asaas/subscription';
 import { addCycle } from './cycle';
+import { absorbActiveTrial } from './trial-conversion';
 
 const GRACE_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -614,7 +615,12 @@ export async function applyAsaasEvent(
       if (!subId || !sub) return;
       const dueDate = parseDate(event.payment?.dueDate) ?? sub.nextDueDate ?? new Date();
       const cycle = sub.cycle ?? 'YEARLY';
-      const currentPeriodEnd = extendedPeriodEnd(sub.currentPeriodEnd, dueDate, cycle);
+      const firstActivation = sub.currentPeriodEnd == null;
+      let currentPeriodEnd = extendedPeriodEnd(sub.currentPeriodEnd, dueDate, cycle);
+      // 1ª ativação: absorve o trial ativo (soma os dias restantes e encerra a linha).
+      if (firstActivation) {
+        currentPeriodEnd = await absorbActiveTrial(sub.userId, currentPeriodEnd, new Date());
+      }
       await patchSubscription(subId, {
         status: 'active',
         currentPeriodEnd,

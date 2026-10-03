@@ -4,10 +4,11 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db, schema } from '@/db';
-import { hasActiveAccess } from '@/lib/subscriptions/access';
+import { hasActivePaidAccess } from '@/lib/subscriptions/access';
 import { cancelCheckout, createSubscriptionCheckout } from '@/lib/payments/asaas/checkout';
 import { cancelAtPeriodEnd } from '@/lib/payments/asaas/subscription';
 import { addCycle } from '@/lib/subscriptions/cycle';
+import { absorbActiveTrial } from '@/lib/subscriptions/trial-conversion';
 import { captureAccountEvent } from '@/lib/analytics/server';
 import { requireBillingCycle, subscriptionPrice, type BillingCycle } from '@/lib/subscriptions/plans';
 
@@ -35,9 +36,10 @@ async function claimCheckoutSlot(userId: string, cycle: BillingCycle, priceCents
       ),
     });
     const active = live.some((sub) =>
-      sub.status === 'active'
+      sub.provider !== 'trial' &&
+      (sub.status === 'active'
         ? Boolean(sub.currentPeriodEnd && sub.currentPeriodEnd > now)
-        : Boolean(sub.graceUntil && sub.graceUntil > now)
+        : Boolean(sub.graceUntil && sub.graceUntil > now))
     );
     if (active) return { status: 'already_active' };
 
@@ -126,7 +128,8 @@ export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'):
   if (!session?.userId) redirect(`/login?callbackUrl=${encodeURIComponent(`/assinar?cycle=${cycle}`)}`);
   const userId = session.userId;
 
-  if (await hasActiveAccess(userId)) redirect('/perfil');
+  // Só assinatura PAGA ativa bloqueia; durante o trial a contratação é liberada.
+  if (await hasActivePaidAccess(userId)) redirect('/perfil');
 
   const pack = await db.query.packs.findFirst({
     where: eq(schema.packs.id, 'unlimited'),
@@ -145,10 +148,12 @@ export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'):
   // Fake approval stays server-side; redirecting a server action through a GET
   // handler renders the destination but leaves the webhook URL in the router.
   if (provider === 'fake') {
+    const now = new Date();
+    const periodEnd = await absorbActiveTrial(userId, addCycle(now, cycle), now);
     await db.update(schema.subscriptions).set({
       providerId: `fake_${userId}_unlimited`,
       status: 'active',
-      currentPeriodEnd: addCycle(new Date(), cycle),
+      currentPeriodEnd: periodEnd,
     }).where(and(
       eq(schema.subscriptions.id, claimed.localId),
       eq(schema.subscriptions.userId, userId),

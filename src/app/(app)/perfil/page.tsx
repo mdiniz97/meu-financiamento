@@ -94,7 +94,7 @@ export default async function PerfilPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
             <p className="font-semibold">Trial ativo até {trial.trialEndsAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
-            <p className="text-muted-foreground">Sem cartão e sem cobrança automática. Assinatura disponível após o trial.</p>
+            <p className="text-muted-foreground">Sem cartão e sem cobrança automática. Você pode assinar agora e os dias restantes do trial são somados ao seu plano.</p>
           </CardContent>
         </Card>
       )}
@@ -167,8 +167,7 @@ export default async function PerfilPage() {
                   {pack.monthlyPriceCents && <div className="flex flex-col gap-3 border-b pb-4">
                     <span className="text-sm font-semibold">Mensal · mesmos recursos</span>
                     <UnlimitedPrice priceCents={pack.monthlyPriceCents} cycle="MONTHLY" />
-                    {trial.isTrialActive ? <p className="text-xs text-muted-foreground">Contratação disponível após o trial.</p> :
-                      <BuyPackButton packId={pack.id} isSubscription cycle="MONTHLY" label={`Assinar mensal – ${formatBRL(pack.monthlyPriceCents / 100)}/mês`} />}
+                    <BuyPackButton packId={pack.id} isSubscription cycle="MONTHLY" label={`Assinar mensal – ${formatBRL(pack.monthlyPriceCents / 100)}/mês`} />
                   </div>}
                   <span className="text-sm font-semibold">Anual · melhor preço</span>
                   <UnlimitedPrice priceCents={pack.priceCents} />
@@ -177,9 +176,7 @@ export default async function PerfilPage() {
                   <span className="text-sm text-muted-foreground">{formatBRL(pack.priceCents / 100)}</span>
                 )}
                  <div className="mt-auto pt-2">
-                 {trial.isTrialActive ? (
-                  <p className="text-xs text-muted-foreground">Contratação disponível após o trial.</p>
-                ) : <BuyPackButton
+                 <BuyPackButton
                   packId={pack.id}
                   isSubscription={pack.isSubscription}
                   label={
@@ -187,7 +184,7 @@ export default async function PerfilPage() {
                       ? `Assinar ${pack.name} – ${formatBRL(pack.priceCents / 100)}/ano`
                       : `Comprar ${pack.name} – ${formatBRL(pack.priceCents / 100)}`
                   }
-                 />}
+                 />
                  </div>
               </div>
             ))}

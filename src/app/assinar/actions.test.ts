@@ -4,6 +4,7 @@ const m = vi.hoisted(() => ({
   redirect: vi.fn(),
   auth: vi.fn(),
   hasActiveAccess: vi.fn(),
+  hasActivePaidAccess: vi.fn(),
   createSubscriptionCheckout: vi.fn(),
   cancelCheckout: vi.fn(),
   cancelAtPeriodEnd: vi.fn(),
@@ -27,7 +28,10 @@ const m = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ redirect: m.redirect }));
 vi.mock('@/auth', () => ({ auth: m.auth }));
-vi.mock('@/lib/subscriptions/access', () => ({ hasActiveAccess: m.hasActiveAccess }));
+vi.mock('@/lib/subscriptions/access', () => ({
+  hasActiveAccess: m.hasActiveAccess,
+  hasActivePaidAccess: m.hasActivePaidAccess,
+}));
 vi.mock('@/lib/payments/asaas/checkout', () => ({
   createSubscriptionCheckout: m.createSubscriptionCheckout,
   cancelCheckout: m.cancelCheckout,
@@ -150,7 +154,8 @@ describe('startSubscription', () => {
   });
   it('serializa trial x checkout: lock do usuário e re-checagem dentro da transação', async () => {
     // Pré-cheque passou (corrida): o acesso ativo só aparece dentro do lock.
-    m.hasActiveAccess.mockResolvedValue(false);
+  m.hasActiveAccess.mockResolvedValue(false);
+  m.hasActivePaidAccess.mockResolvedValue(false);
     m.txFindMany.mockResolvedValue([
       { status: 'active', currentPeriodEnd: new Date(Date.now() + 60_000), graceUntil: null },
     ]);
@@ -162,10 +167,19 @@ describe('startSubscription', () => {
     expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
   });
 
-  it('não inicia checkout pago enquanto acesso Ilimitado local está ativo', async () => {
-    m.hasActiveAccess.mockResolvedValue(true);
+  it('não inicia checkout pago enquanto acesso pago local está ativo', async () => {
+    m.hasActivePaidAccess.mockResolvedValue(true);
     await expect(startSubscription()).rejects.toThrow('REDIRECT:/perfil');
     expect(m.createSubscriptionCheckout).not.toHaveBeenCalled();
+  });
+
+  it('permite contratar durante o trial: trial ativo não bloqueia o checkout', async () => {
+    m.hasActivePaidAccess.mockResolvedValue(false);
+    m.txFindMany.mockResolvedValue([
+      { provider: 'trial', status: 'active', currentPeriodEnd: new Date(Date.now() + 100000), graceUntil: null },
+    ]);
+    await expect(startSubscription('MONTHLY')).rejects.toThrow('REDIRECT:https://sandbox.asaas.com/checkoutSession/show/chk_1');
+    expect(m.createSubscriptionCheckout).toHaveBeenCalledWith(expect.objectContaining({ cycle: 'MONTHLY' }));
   });
 
   it('reusa a linha local em retry (não insere outra) e redireciona ao link', async () => {
