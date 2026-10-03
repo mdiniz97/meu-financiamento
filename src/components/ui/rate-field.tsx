@@ -40,7 +40,7 @@ export function RateField({
   let equivalent: string | null = null;
   let domainError: string | null = null;
   try {
-    if (value !== undefined) {
+    if (value !== undefined && value > 0) {
       const normalized = normalizeRate(value, kind);
       if (normalized.effectiveAnnual < minEffectiveAnnual) {
         domainError = minEffectiveAnnual === 0 ? 'Informe uma taxa válida.' : 'Informe uma taxa maior que zero.';

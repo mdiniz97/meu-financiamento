@@ -9,7 +9,7 @@ if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE) {
 const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 test.skip(url?.hostname !== 'localhost' || url.pathname !== '/financiamento_trial_test', 'isolated database required');
 
-test('new calculators open without example values', async ({ page }) => {
+test('new calculators open with zero values, not examples', async ({ page }) => {
   const email = `empty-forms-${crypto.randomUUID()}@example.test`;
   const [user] = await db.insert(schema.users).values({ name: 'Teste', email, passwordHash: await bcrypt.hash('senhaTeste123', 10) }).returning();
   await db.insert(schema.packs).values({ id: 'unlimited', name: 'Ilimitado', priceCents: 11990, isSubscription: true }).onConflictDoNothing();
@@ -22,13 +22,16 @@ test('new calculators open without example values', async ({ page }) => {
     await expect(page).toHaveURL(/nova-simulacao/);
     for (const path of ['/nova-simulacao', '/amortizador-inteligente', '/qual-imovel-cabe-no-meu-bolso', '/portabilidade', '/meta-de-quitacao', '/investir-ou-amortizar', '/alugar-ou-comprar', '/consorcio-vale-a-pena', '/comprar-na-planta', '/custos-da-compra', '/comparar-propostas']) {
       await page.goto(path);
-      const inputs = page.locator('input:not([aria-hidden="true"]):not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="range"])');
+      const inputs = page.locator('input[inputmode]:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="range"])');
       expect(await inputs.count(), path).toBeGreaterThan(0);
       for (const input of await inputs.all()) {
-        if (await input.isVisible()) await expect(input, `${path}: ${await input.getAttribute('id')}`).toHaveValue('');
+        if (await input.isVisible()) await expect(input, `${path}: ${await input.getAttribute('id')}`).toHaveValue(/^(R\$\s?0,00|0)$/);
       }
     }
     await page.goto('/nova-simulacao');
+    await expect(page.locator('#principal')).toHaveValue(/R\$\s?0,00/);
+    await expect(page.locator('#annualRate')).toHaveValue('0');
+    await expect(page.locator('#months')).toHaveValue('0');
     await page.getByRole('button', { name: 'Simular', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Informe o valor financiado' })).toBeVisible();
     await page.locator('#principal').fill('35000000');

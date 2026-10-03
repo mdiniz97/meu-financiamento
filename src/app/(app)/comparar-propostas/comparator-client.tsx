@@ -250,7 +250,7 @@ export function ComparatorClient({
       <Card className="rounded-2xl shadow-sm">
         <CardContent className="flex flex-col gap-4 pt-6">
           <FieldHelp htmlFor="budget" label="Quanto consegue pagar por mês (R$)" help="Seu teto mensal para comparar se a prestação inicial de cada proposta cabe no orçamento.">
-            <MoneyInput id="budget" aria-describedby="budget-help" emptyWhenZero={budget === ''} value={parseBRLToNumber(budget)} onValid={(v) => { setResult(null); setSaveMsg(''); setBudget(numberToBRLInput(v)); }} />
+            <MoneyInput id="budget" aria-describedby="budget-help" value={parseBRLToNumber(budget)} onValid={(v) => { setResult(null); setSaveMsg(''); setBudget(numberToBRLInput(v)); }} />
           </FieldHelp>
           {globalError && <p className="text-sm text-destructive">{globalError}</p>}
           <div className="grid items-start gap-4 lg:grid-cols-3">
