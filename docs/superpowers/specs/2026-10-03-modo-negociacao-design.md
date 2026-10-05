@@ -7,8 +7,8 @@ negociação com o banco/corretor. Em vez de só simular, o app vira o roteiro d
 conversa: diz se a proposta fecha dentro do orçamento e onde apertar (taxa,
 entrada, prazo), com um script de negociação.
 
-Ferramenta exclusiva do Ilimitado (mesmo padrão das demais ferramentas de
-decisão, com `UpgradeCard` para quem não assina).
+Ferramenta pública e gratuita (sem login), como as demais calculadoras da
+landing; salvar ofertas exige conta.
 
 Dois modos:
 
@@ -71,18 +71,19 @@ interface NegotiationResult {
 Reusa `simulate`, `calculatePeakPayment` e, no modo Descobrir,
 `calculateFinancingCapacity`. Não reimplementa matemática financeira.
 
-Regra: o critério é **pico de parcela ≤ teto** (não apenas a 1ª parcela), igual
-ao restante do app (SAC/PRICE, TR, seguro incluídos).
+Regra: o critério é a **1ª parcela ≤ teto** (o que a pessoa paga hoje). O pico é
+devolvido como aviso — com TR a parcela sobe ao longo do tempo — mas não reprova
+a proposta. SAC/PRICE, TR e seguro incluídos.
 
 ## UI — `/negociacao`
 
-- Página server: `auth()` → login; gating Ilimitado (`getCreditBalance`) →
-  `UpgradeCard` se não assina; render do client.
-- Client com abas **Negociar / Descobrir**, inputs ao vivo (muda taxa/entrada →
-  parcela e veredito recalculam na hora).
+- Página server pública: `auth()` só para saber se há sessão; render do client.
+  Deslogado usa o layout público (Header/Footer); logado, o da sidebar.
+- Client único (sem abas), inputs ao vivo (muda taxa/entrada → parcela e veredito
+  recalculam na hora).
 - Resultado: **semáforo** (fecha / no limite / não fecha), parcela inicial e pico,
   folga mensal, e os limites (`taxa máxima`, `entrada mínima`, `prazo mínimo
-  viável`).
+  viável`). Quando o pico (fim do contrato, por TR) supera o teto, mostra um aviso.
 - **Script** gerado em texto a partir dos limites: ex. "peça taxa ≤ 9,80% a.a. ou
   entrada ≥ R$ 80.000; prazo máx. 360 meses".
 - Botão **Salvar oferta** e lista das ofertas salvas com **comparação lado a
@@ -96,9 +97,8 @@ na tabela `simulations` existente. Lista = `simulations` do usuário com
 
 ## Navegação, gating e analytics
 
-- Item na sidebar (`/negociacao`, ícone `Handshake`/`Scale`).
-- Exclusivo Ilimitado (UpgradeCard para não assinantes), como as outras
-  ferramentas.
+- Rota pública `/negociacao` (layout público, Header/Footer) e link na sidebar.
+- Salvar ofertas exige login: deslogado o botão vira "Entre para salvar".
 - `captureCtaClick`/`captureAccountEvent` no salvamento e no upgrade.
 
 ## Erros e casos-limite

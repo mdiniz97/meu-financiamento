@@ -13,45 +13,51 @@ const base = {
   maxPayment: 3000,
 };
 
-const peakOf = (rate: number, months: number) =>
-  evaluateNegotiation({ ...base, annualRate: rate, months }).peakPayment;
+const firstOf = (over: Partial<typeof base>) =>
+  evaluateNegotiation({ ...base, ...over }).initialPayment;
 
-describe('evaluateNegotiation', () => {
-  it('marca fits e folga quando o pico cabe no teto', () => {
+describe('evaluateNegotiation (critério: 1ª parcela <= teto)', () => {
+  it('fits quando a 1ª parcela cabe no teto', () => {
     const r = evaluateNegotiation(base);
     expect(r.fits).toBe(true);
-    expect(r.peakPayment).toBeLessThanOrEqual(base.maxPayment + 0.01);
-    expect(r.slackMonthly).toBeCloseTo(base.maxPayment - r.peakPayment, 2);
+    expect(r.initialPayment).toBeLessThanOrEqual(base.maxPayment + 0.01);
+    expect(r.slackMonthly).toBeCloseTo(base.maxPayment - r.initialPayment, 2);
   });
-  it('fits=false e slack 0 quando nem a 0% cabe', () => {
+  it('cabe mesmo com pico (TR) bem acima do teto', () => {
+    const r = evaluateNegotiation({ ...base, trMonthly: 0.0017, maxPayment: 3200 });
+    expect(r.fits).toBe(true);
+    expect(r.peakPayment).toBeGreaterThan(base.maxPayment);
+  });
+  it('não cabe quando nem a 0% a 1ª parcela entra', () => {
     const r = evaluateNegotiation({ ...base, maxPayment: 500 });
     expect(r.fits).toBe(false);
     expect(r.slackMonthly).toBe(0);
     expect(r.maxAnnualRate).toBeNull();
   });
-  it('maxAnnualRate é a maior taxa em que o pico ~ teto', () => {
+  it('maxAnnualRate é a maior taxa com 1ª parcela ~ teto', () => {
     const r = evaluateNegotiation(base);
     expect(r.maxAnnualRate).not.toBeNull();
-    expect(peakOf(r.maxAnnualRate!, base.months)).toBeLessThanOrEqual(base.maxPayment + 0.5);
-    expect(peakOf(r.maxAnnualRate! + 0.001, base.months)).toBeGreaterThan(base.maxPayment);
+    expect(firstOf({ annualRate: r.maxAnnualRate! })).toBeLessThanOrEqual(base.maxPayment + 0.5);
+    expect(firstOf({ annualRate: r.maxAnnualRate! + 0.001 })).toBeGreaterThan(base.maxPayment);
   });
-  it('minMonths é o menor prazo em que o pico cabe', () => {
+  it('minMonths é o menor prazo com 1ª parcela <= teto', () => {
     const r = evaluateNegotiation(base);
-    expect(peakOf(base.annualRate, r.minMonths)).toBeLessThanOrEqual(base.maxPayment + 0.01);
+    expect(firstOf({ months: r.minMonths })).toBeLessThanOrEqual(base.maxPayment + 0.01);
     if (r.minMonths > 1) {
-      expect(peakOf(base.annualRate, r.minMonths - 1)).toBeGreaterThan(base.maxPayment);
+      expect(firstOf({ months: r.minMonths - 1 })).toBeGreaterThan(base.maxPayment);
     }
   });
-  it('maxPrincipal tem pico <= teto e minDownPayment = valor - maxPrincipal', () => {
+  it('maxPrincipal tem 1ª parcela <= teto e minDownPayment = valor - maxPrincipal', () => {
     const r = evaluateNegotiation(base);
     expect(r.maxPrincipal).toBeGreaterThan(0);
+    expect(evaluateNegotiation({ ...base, principal: r.maxPrincipal }).initialPayment).toBeLessThanOrEqual(base.maxPayment + 0.5);
     expect(r.minDownPayment).toBeCloseTo(base.propertyValue - r.maxPrincipal, 2);
     expect(r.maxPropertyValue).toBeCloseTo(r.maxPrincipal + (base.propertyValue - base.principal), 2);
   });
   it('SAC e PRICE retornam limites coerentes (sem NaN/infinito)', () => {
     for (const system of ['PRICE', 'SAC'] as const) {
       const r = evaluateNegotiation({ ...base, system });
-      expect(Number.isFinite(r.peakPayment)).toBe(true);
+      expect(Number.isFinite(r.initialPayment)).toBe(true);
       expect(Number.isFinite(r.maxPrincipal)).toBe(true);
       expect(r.minDownPayment).toBeGreaterThanOrEqual(0);
     }

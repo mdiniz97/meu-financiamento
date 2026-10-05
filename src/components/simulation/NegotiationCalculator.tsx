@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Handshake } from 'lucide-react';
+import Link from 'next/link';
 import { BANKS } from '@/lib/simulation-context';
 import { formatBRL, numberToBRLInput, parseBRLToNumber, parseDecimal } from '@/lib/utils';
+import { loginHref } from '@/lib/login-redirect';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FieldHelp } from '@/components/ui/field-help';
@@ -13,7 +14,7 @@ import { MoneyInput, NumericInput, parseIntStrict, RateField } from './form-inpu
 import { evaluateNegotiation, type NegotiationResult } from '@/lib/finance/negotiation';
 import type { AmortSystem } from '@/lib/finance/types';
 import { saveToolSimulation } from '@/app/(app)/simulacao/actions';
-import { listNegotiations, type SavedNegotiation } from '@/app/(app)/negociacao/actions';
+import { listNegotiations, type SavedNegotiation } from '@/app/negociacao/actions';
 
 interface Form {
   system: AmortSystem;
@@ -42,7 +43,7 @@ const DEFAULTS: Form = {
 const fmtRate = (rate: number) =>
   `${(rate * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% a.a.`;
 
-export function NegotiationCalculator() {
+export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean }) {
   const [f, setF] = useState<Form>(DEFAULTS);
   const [rateValid, setRateValid] = useState(true);
   const [saveMsg, setSaveMsg] = useState('');
@@ -112,15 +113,7 @@ export function NegotiationCalculator() {
   return (
     <div className="flex w-full flex-col gap-6">
       <Card className="rounded-2xl shadow-sm">
-        <CardHeader>
-          <CardTitle role="heading" aria-level={1} className="flex items-center gap-2 font-display text-xl">
-            <Handshake className="size-5 text-[#820AD1]" /> Mesa de negociação
-          </CardTitle>
-          <CardDescription>
-            Informe a proposta e o teto de parcela: veja se fecha e onde apertar antes de assinar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
           <FieldHelp htmlFor="ngPrincipal" label="Valor financiado (R$)" help="Quanto o banco empresta (preço do imóvel menos a entrada).">
             <MoneyInput id="ngPrincipal" value={parseBRLToNumber(f.principal)} onValid={(v) => set('principal', numberToBRLInput(v))} />
           </FieldHelp>
@@ -180,8 +173,13 @@ export function NegotiationCalculator() {
                 : 'Não fecha com esse teto'}
             </CardTitle>
             <CardDescription>
-              Parcela inicial {formatBRL(result.initialPayment)} · pico {formatBRL(result.peakPayment)} no mês {result.peakPaymentMonth} · folga {formatBRL(result.slackMonthly)}/mês
+              1ª parcela {formatBRL(result.initialPayment)} · folga {formatBRL(result.slackMonthly)}/mês
             </CardDescription>
+            {result.peakPayment > teto + 0.01 && (
+              <p className="text-xs text-muted-foreground">
+                Atenção: com a TR, a parcela sobe ao longo do tempo e chega a {formatBRL(result.peakPayment)} no mês {result.peakPaymentMonth}.
+              </p>
+            )}
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
             <div>
@@ -204,34 +202,32 @@ export function NegotiationCalculator() {
               <span className="text-xs text-muted-foreground">Imóvel que cabe</span>
               <p className="font-semibold">{formatBRL(result.maxPropertyValue)}</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {result && (
-        <Card className="rounded-2xl shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Script para a conversa</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm">
-            <p>
-              {result.fits
-                ? `Fecha no teto de ${formatBRL(teto)}. `
-                : `Com o teto de ${formatBRL(teto)} não fecha. `}
-              {result.maxAnnualRate !== null
-                ? `Peça taxa ≤ ${fmtRate(result.maxAnnualRate)}`
-                : 'Nenhuma taxa faz caber'}
-              {' '}ou entrada ≥ {formatBRL(result.minDownPayment)}; prazo mínimo viável {result.minMonths} meses.
-            </p>
-            <div className="flex items-center gap-3">
-              <Button type="button" onClick={save}>Salvar oferta</Button>
-              {saveMsg && <span className="text-xs text-muted-foreground">{saveMsg}</span>}
+            <div className="sm:col-span-3">
+              <p className="text-sm">
+                {result.fits
+                  ? `Fecha no teto de ${formatBRL(teto)}. `
+                  : `Com o teto de ${formatBRL(teto)} não fecha. `}
+                {result.maxAnnualRate !== null
+                  ? `Peça taxa ≤ ${fmtRate(result.maxAnnualRate)}`
+                  : 'Nenhuma taxa faz caber'}
+                {' '}ou entrada ≥ {formatBRL(result.minDownPayment)}; prazo mínimo viável {result.minMonths} meses.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {signedIn ? (
+                  <Button type="button" onClick={save}>Salvar oferta</Button>
+                ) : (
+                  <Button variant="outline" nativeButton={false} render={<Link href={loginHref('/negociacao')} />}>
+                    Entre para salvar
+                  </Button>
+                )}
+                {saveMsg && <span className="text-xs text-muted-foreground">{saveMsg}</span>}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {saved.length > 0 && (
+      {signedIn && saved.length > 0 && (
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Ofertas salvas</CardTitle>
