@@ -4,7 +4,6 @@ import { evaluateNegotiation } from './negotiation';
 const base = {
   system: 'PRICE' as const,
   principal: 300000,
-  propertyValue: 400000,
   annualRate: 0.10,
   months: 360,
   trMonthly: 0,
@@ -47,19 +46,16 @@ describe('evaluateNegotiation (critério: 1ª parcela <= teto)', () => {
       expect(firstOf({ months: r.minMonths - 1 })).toBeGreaterThan(base.maxPayment);
     }
   });
-  it('maxPrincipal tem 1ª parcela <= teto e minDownPayment = valor - maxPrincipal', () => {
+  it('maxPrincipal tem 1ª parcela <= teto', () => {
     const r = evaluateNegotiation(base);
     expect(r.maxPrincipal).toBeGreaterThan(0);
     expect(evaluateNegotiation({ ...base, principal: r.maxPrincipal }).initialPayment).toBeLessThanOrEqual(base.maxPayment + 0.5);
-    expect(r.minDownPayment).toBeCloseTo(base.propertyValue - r.maxPrincipal, 2);
-    expect(r.maxPropertyValue).toBeCloseTo(r.maxPrincipal + (base.propertyValue - base.principal), 2);
   });
   it('SAC e PRICE retornam limites coerentes (sem NaN/infinito)', () => {
     for (const system of ['PRICE', 'SAC'] as const) {
       const r = evaluateNegotiation({ ...base, system });
       expect(Number.isFinite(r.initialPayment)).toBe(true);
       expect(Number.isFinite(r.maxPrincipal)).toBe(true);
-      expect(r.minDownPayment).toBeGreaterThanOrEqual(0);
     }
   });
   it('lança erro para entrada inválida', () => {

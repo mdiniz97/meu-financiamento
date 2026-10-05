@@ -4,7 +4,6 @@ import type { AmortSystem } from './types';
 export interface NegotiationInput {
   system: AmortSystem;
   principal: number;
-  propertyValue: number;
   annualRate: number; // taxa efetiva anual (0.10 = 10%)
   months: number;
   trMonthly: number;
@@ -22,15 +21,12 @@ export interface NegotiationResult {
   maxAnnualRate: number | null;
   minMonths: number;
   maxPrincipal: number;
-  minDownPayment: number;
-  maxPropertyValue: number;
 }
 
 const MAX_RATE = 1; // 100% a.a.
 const MAX_MONTHS = 600;
 const MAX_PRINCIPAL = 1_000_000_000_000;
 const RATE_ITERATIONS = 60;
-const MONTH_ITERATIONS = 40;
 const PRINCIPAL_ITERATIONS = 60;
 const CENT = 0.01;
 
@@ -54,7 +50,6 @@ function validate(input: NegotiationInput): void {
   const ok =
     (input.system === 'PRICE' || input.system === 'SAC') &&
     finite(input.principal) && input.principal >= 0 &&
-    finite(input.propertyValue) && input.propertyValue >= 0 &&
     finite(input.annualRate) && input.annualRate >= 0 && input.annualRate <= MAX_RATE &&
     Number.isInteger(input.months) && input.months >= 1 && input.months <= MAX_MONTHS &&
     finite(input.trMonthly) && input.trMonthly >= 0 && input.trMonthly <= 0.1 &&
@@ -127,10 +122,6 @@ export function evaluateNegotiation(input: NegotiationInput): NegotiationResult 
     maxPrincipal = Math.floor(lo * 100) / 100;
   }
 
-  const currentDownPayment = Math.max(0, input.propertyValue - input.principal);
-  const minDownPayment = Math.max(0, input.propertyValue - maxPrincipal);
-  const maxPropertyValue = maxPrincipal + currentDownPayment;
-
   return {
     fits,
     initialPayment: current.initialPayment,
@@ -140,7 +131,5 @@ export function evaluateNegotiation(input: NegotiationInput): NegotiationResult 
     maxAnnualRate,
     minMonths,
     maxPrincipal,
-    minDownPayment,
-    maxPropertyValue,
   };
 }

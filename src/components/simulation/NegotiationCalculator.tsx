@@ -19,7 +19,6 @@ import { listNegotiations, type SavedNegotiation } from '@/app/negociacao/action
 interface Form {
   system: AmortSystem;
   principal: string;
-  propertyValue: string;
   annualRate: string;
   months: string;
   trMonthly: string;
@@ -31,7 +30,6 @@ interface Form {
 const DEFAULTS: Form = {
   system: 'PRICE',
   principal: '',
-  propertyValue: '',
   annualRate: '',
   months: '',
   trMonthly: '',
@@ -58,12 +56,10 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
 
   const { result, error } = useMemo<{ result: NegotiationResult | null; error: string }>(() => {
     const principal = parseBRLToNumber(f.principal);
-    const propertyValue = parseBRLToNumber(f.propertyValue);
     const months = Number(f.months);
     const maxPayment = parseBRLToNumber(f.maxPayment);
     const ready =
       principal > 0 &&
-      propertyValue > 0 &&
       months >= 1 &&
       maxPayment > 0 &&
       f.annualRate.trim() !== '' &&
@@ -75,7 +71,6 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
         result: evaluateNegotiation({
           system: f.system,
           principal,
-          propertyValue,
           annualRate: parseDecimal(f.annualRate) / 100,
           months,
           trMonthly: parseDecimal(f.trMonthly) / 100,
@@ -114,11 +109,8 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
     <div className="flex w-full flex-col gap-6">
       <Card className="rounded-2xl shadow-sm">
         <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
-          <FieldHelp htmlFor="ngPrincipal" label="Valor financiado (R$)" help="Quanto o banco empresta (preço do imóvel menos a entrada).">
+          <FieldHelp htmlFor="ngPrincipal" label="Valor financiado (R$)" help="Quanto o banco vai emprestar (o valor do imóvel menos a entrada).">
             <MoneyInput id="ngPrincipal" value={parseBRLToNumber(f.principal)} onValid={(v) => set('principal', numberToBRLInput(v))} />
-          </FieldHelp>
-          <FieldHelp htmlFor="ngProperty" label="Valor do imóvel (R$)" help="Preço total do imóvel; usado para a entrada mínima.">
-            <MoneyInput id="ngProperty" value={parseBRLToNumber(f.propertyValue)} onValid={(v) => set('propertyValue', numberToBRLInput(v))} />
           </FieldHelp>
           <RateField
             id="ngRate"
@@ -182,33 +174,32 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
             <div>
               <p className="font-semibold">
                 {result.fits
-                  ? 'Para manter dentro do seu orçamento, peça ao banco:'
-                  : 'Para caber no seu orçamento, o banco precisaria oferecer:'}
+                  ? 'Para continuar cabendo no seu orçamento, não aceite:'
+                  : 'Para caber no seu orçamento, basta o banco oferecer um destes:'}
               </p>
               <ul className="mt-2 flex flex-col gap-2">
                 <li className="flex gap-2">
                   <span aria-hidden>•</span>
                   <span>
                     {result.maxAnnualRate !== null
-                      ? <>Juros de até <strong>{fmtRate(result.maxAnnualRate)}</strong></>
-                      : 'Não há taxa de juros que resolva: é preciso financiar menos ou dar uma entrada maior.'}
+                      ? <>Juros acima de <strong>{fmtRate(result.maxAnnualRate)}</strong></>
+                      : 'Não há taxa de juros que resolva: é preciso financiar menos.'}
                   </span>
                 </li>
-                {result.minDownPayment > 0 && (
-                  <li className="flex gap-2">
-                    <span aria-hidden>•</span>
-                    <span>Uma entrada de pelo menos <strong>{formatBRL(result.minDownPayment)}</strong></span>
-                  </li>
-                )}
                 <li className="flex gap-2">
                   <span aria-hidden>•</span>
-                  <span>Pagar em pelo menos <strong>{result.minMonths} {result.minMonths === 1 ? 'mês' : 'meses'}</strong> (em menos meses, a parcela passa do seu limite)</span>
+                  <span>Pagar em menos de <strong>{result.minMonths} {result.minMonths === 1 ? 'mês' : 'meses'}</strong> (com menos meses, a parcela passa do seu limite)</span>
                 </li>
                 <li className="flex gap-2">
                   <span aria-hidden>•</span>
-                  <span>Financiar no máximo <strong>{formatBRL(result.maxPrincipal)}</strong> — ou seja, um imóvel de até <strong>{formatBRL(result.maxPropertyValue)}</strong> com a entrada de hoje</span>
+                  <span>Financiar mais de <strong>{formatBRL(result.maxPrincipal)}</strong></span>
                 </li>
               </ul>
+              {!result.fits && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Qualquer um destes itens, sozinho, já faz a conta caber no seu limite.
+                </p>
+              )}
             </div>
             {result.peakPayment > teto + 0.01 && (
               <p className="text-xs text-muted-foreground">

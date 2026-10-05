@@ -12,7 +12,6 @@ test.skip(url?.hostname !== 'localhost' || url.pathname !== '/financiamento_tria
 async function fillNegotiation(page: import('@playwright/test').Page, teto: string) {
   await page.goto('/negociacao');
   await page.locator('#ngPrincipal').fill('30000000');
-  await page.locator('#ngProperty').fill('40000000');
   await page.locator('#ngRate').fill('10');
   await page.locator('#ngMonths').fill('360');
   await page.locator('#ngTeto').fill(teto);
