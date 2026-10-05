@@ -47,19 +47,26 @@ interface NegotiationResult {
   peakPayment: number;
   peakPaymentMonth: number;
   slackMonthly: number;          // teto - picoParcela (>= 0 quando cabe)
-  maxAnnualRate: number | null;  // maior taxa em que pico <= teto
-  maxMonths: number;             // maior prazo em que pico <= teto
-  minDownPayment: number;        // menor entrada em que pico <= teto
+  maxAnnualRate: number | null;  // maior taxa em que pico <= teto (null se nem 0% cabe)
+  minMonths: number;             // menor prazo em que pico <= teto
+  maxPrincipal: number;          // maior principal cujo pico <= teto
+  minDownPayment: number;        // valor - maxPrincipal (>= 0)
+  maxPropertyValue: number;      // maxPrincipal + entrada atual
 }
 ```
 
 - `fits`, `initialPayment`, `peakPayment`, `peakPaymentMonth`, `slackMonthly`:
   derivados de `calculatePeakPayment`/`simulate`.
 - `maxAnnualRate`: **busca binária** na taxa efetiva anual (parcela é monótona
-  crescente na taxa) até `peakPayment ≈ teto`, dentro de uma faixa sã (0–~100%).
-- `maxMonths`: **busca binária** nos meses (1–600).
-- `minDownPayment`: custo inicial + maior principal cujo pico ≤ teto, depois
-  `valor - principal`.
+  crescente na taxa) até `peakPayment ≈ teto`, dentro de uma faixa sã (0–100%);
+  `null` quando nem a 0% cabe.
+- `minMonths`: **busca binária** nos meses (1–600) pelo menor prazo em que o pico
+  cabe no teto (prazo maior = parcela menor; negociar prazo menor economiza
+  juros). Não existe limite de prazo "para cima" — maior prazo sempre cabe mais.
+- `maxPrincipal`: maior principal cujo pico ≤ teto, via
+  `calculateFinancingCapacity`.
+- `minDownPayment` = `max(0, propertyValue - maxPrincipal)`;
+  `maxPropertyValue` = `maxPrincipal + max(0, propertyValue - principal)`.
 
 Reusa `simulate`, `calculatePeakPayment` e, no modo Descobrir,
 `calculateFinancingCapacity`. Não reimplementa matemática financeira.
@@ -74,7 +81,8 @@ ao restante do app (SAC/PRICE, TR, seguro incluídos).
 - Client com abas **Negociar / Descobrir**, inputs ao vivo (muda taxa/entrada →
   parcela e veredito recalculam na hora).
 - Resultado: **semáforo** (fecha / no limite / não fecha), parcela inicial e pico,
-  folga mensal, e os limites (`taxa máxima`, `entrada mínima`, `prazo máximo`).
+  folga mensal, e os limites (`taxa máxima`, `entrada mínima`, `prazo mínimo
+  viável`).
 - **Script** gerado em texto a partir dos limites: ex. "peça taxa ≤ 9,80% a.a. ou
   entrada ≥ R$ 80.000; prazo máx. 360 meses".
 - Botão **Salvar oferta** e lista das ofertas salvas com **comparação lado a
