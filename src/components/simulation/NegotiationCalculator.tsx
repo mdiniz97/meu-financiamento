@@ -51,6 +51,7 @@ export function NegotiationCalculator() {
 
   const refresh = useCallback(async () => setSaved(await listNegotiations()), []);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState ocorre após await
     void refresh();
   }, [refresh]);
 

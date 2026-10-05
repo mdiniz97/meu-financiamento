@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ArrowLeftRight, Calculator, Coins, CreditCard, Hammer, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, UsersRound, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Calculator, Coins, CreditCard, Hammer, Handshake, History, Home, KeyRound, Landmark, Menu, Percent, Scale, Sparkles, Target, TrendingUp, UsersRound, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -31,6 +31,7 @@ export const NAV: NavItem[] = [
   { href: '/alugar-ou-comprar', label: 'Alugar ou Comprar', icon: KeyRound },
   { href: '/consorcio-vale-a-pena', label: 'Consórcio vale a pena?', icon: Landmark },
   { href: '/portabilidade', label: 'Portabilidade', icon: ArrowLeftRight },
+  { href: '/negociacao', label: 'Mesa de negociação', icon: Handshake },
   { href: '/comparar-propostas', label: 'Comparar propostas', icon: Scale },
   { href: '/qual-imovel-cabe-no-meu-bolso', label: 'Imóvel no meu bolso', icon: Home },
   { href: '/minhas-simulacoes', label: 'Minhas simulações', icon: History },
