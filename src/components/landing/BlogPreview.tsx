@@ -6,7 +6,7 @@ export function BlogPreview() {
   return (
     <section aria-labelledby="blog-titulo" className="flex w-full justify-center bg-background py-14">
       <div className="flex w-full max-w-6xl flex-col gap-8 px-4 sm:px-6">
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <p className="text-sm font-semibold uppercase tracking-wide text-[#820AD1]">Blog</p>
             <h2 id="blog-titulo" className="font-display text-2xl font-bold sm:text-3xl">
@@ -15,7 +15,7 @@ export function BlogPreview() {
           </div>
           <Link
             href="/blog"
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[#820AD1] hover:underline"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-[#820AD1] hover:underline"
           >
             Ver todos os artigos <ArrowRight className="size-4" />
           </Link>
