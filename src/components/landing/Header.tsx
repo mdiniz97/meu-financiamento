@@ -19,7 +19,7 @@ export function Header({ signedIn = false, unlimited = false }: { signedIn?: boo
         </Link>
         <nav className="flex items-center gap-0.5">
           <Link href="/custos-da-compra" className={cn(buttonVariants({ variant: "ghost" }), link)}>
-            Custos
+            Custos da compra
           </Link>
           <Link href="/juros" className={cn(buttonVariants({ variant: "ghost" }), link)}>
             Juros
