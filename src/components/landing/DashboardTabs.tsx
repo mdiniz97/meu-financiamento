@@ -22,26 +22,35 @@ interface DashboardTabsProps {
 
 function ComparisonTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[440px]">
-        <div className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>{title}</span>
-          <span className="text-right">PRICE</span>
-          <span className="text-right">SAC</span>
-          <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
-        </div>
-        {rows.map((row) => (
-          <div
-            key={row.label}
-            className="grid grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border py-2.5 text-sm last:border-0"
-          >
-            <span className="text-muted-foreground">{row.label}</span>
-            <span className="text-right font-mono tabular-nums">{row.price}</span>
-            <span className="text-right font-mono tabular-nums">{row.sac}</span>
-            <span className="text-right font-mono font-bold font-mono tabular-nums text-primary">{row.smart}</span>
-          </div>
-        ))}
+    <div>
+      <div className="hidden grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+        <span>{title}</span>
+        <span className="text-right">PRICE</span>
+        <span className="text-right">SAC</span>
+        <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
       </div>
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          className="border-b border-border py-3 last:border-0 sm:grid sm:grid-cols-[1.2fr_0.85fr_0.85fr_1.2fr] sm:gap-2 sm:py-2.5"
+        >
+          <span className="text-sm text-muted-foreground">{row.label}</span>
+          <div className="mt-1 grid grid-cols-3 gap-2 text-sm sm:mt-0 sm:contents">
+            <div className="flex flex-col sm:block">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">PRICE</span>
+              <span className="font-mono tabular-nums sm:text-right">{row.price}</span>
+            </div>
+            <div className="flex flex-col sm:block">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">SAC</span>
+              <span className="font-mono tabular-nums sm:text-right">{row.sac}</span>
+            </div>
+            <div className="flex flex-col sm:block">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">Inteligente</span>
+              <span className="font-mono font-bold tabular-nums text-primary sm:text-right">{row.smart}</span>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -61,7 +70,7 @@ export function DashboardTabs({
     <div className="mt-12 grid min-w-0 grid-cols-1 border border-border sm:grid-cols-[160px_1fr]">
       <div
         role="tablist"
-        className="flex min-w-0 divide-x divide-border overflow-x-auto border-b border-border sm:flex-col sm:divide-x-0 sm:divide-y sm:overflow-visible sm:border-b-0 sm:border-r"
+        className="flex min-w-0 flex-wrap divide-x divide-border border-b border-border sm:flex-col sm:flex-nowrap sm:divide-x-0 sm:divide-y sm:border-b-0 sm:border-r"
       >
         {sidebarItems.map((item, i) => (
           <button

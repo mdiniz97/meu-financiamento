@@ -132,38 +132,47 @@ export function SystemsExplain() {
               Exemplo numérico: financiamento de R$ 1.000.000 em 360 meses (10% a.a., TR 0,17% a.m.)
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[440px] px-6 py-2">
-              <div className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>Comparativo</span>
-                <span className="text-right">PRICE</span>
-                <span className="text-right">SAC</span>
-                <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
-              </div>
-              {exampleRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3.5 text-sm last:border-0"
-                >
-                  <span className="pr-2 text-muted-foreground">{row.label}</span>
-                  <AnimatedNumber
-                    value={row.priceValue}
-                    format={row.format}
-                    className="text-right font-mono font-medium font-mono tabular-nums"
-                  />
-                  <AnimatedNumber
-                    value={row.sacValue}
-                    format={row.format}
-                    className="text-right font-mono font-semibold font-mono tabular-nums"
-                  />
-                  <AnimatedNumber
-                    value={row.smartValue}
-                    format={row.format}
-                    className="text-right font-mono font-bold font-mono tabular-nums text-primary"
-                  />
-                </div>
-              ))}
+          <div className="px-4 py-2 sm:px-6">
+            <div className="hidden grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] gap-2 border-b border-border px-2 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+              <span>Comparativo</span>
+              <span className="text-right">PRICE</span>
+              <span className="text-right">SAC</span>
+              <span className="text-right normal-case text-primary">Com amortizador inteligente</span>
             </div>
+            {exampleRows.map((row) => (
+              <div
+                key={row.label}
+                className="border-b border-border px-2 py-3.5 last:border-0 sm:grid sm:grid-cols-[1.3fr_0.85fr_0.85fr_1.2fr] sm:gap-2"
+              >
+                <span className="block pr-2 text-sm text-muted-foreground">{row.label}</span>
+                <div className="mt-1 grid grid-cols-3 gap-2 text-sm sm:mt-0 sm:contents">
+                  <div className="flex flex-col sm:block">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">PRICE</span>
+                    <AnimatedNumber
+                      value={row.priceValue}
+                      format={row.format}
+                      className="font-mono font-medium tabular-nums sm:text-right"
+                    />
+                  </div>
+                  <div className="flex flex-col sm:block">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">SAC</span>
+                    <AnimatedNumber
+                      value={row.sacValue}
+                      format={row.format}
+                      className="font-mono font-semibold tabular-nums sm:text-right"
+                    />
+                  </div>
+                  <div className="flex flex-col sm:block">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">Inteligente</span>
+                    <AnimatedNumber
+                      value={row.smartValue}
+                      format={row.format}
+                      className="font-mono font-bold tabular-nums text-primary sm:text-right"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
