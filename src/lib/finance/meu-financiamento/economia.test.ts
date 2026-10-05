@@ -25,7 +25,7 @@ it('sem extras a economia é zero', () => {
 it('caso fechado sem encargos: amortização que quita adiantado não gera economia', () => {
   // Juros, TR e seguro zerados: o total pago é só o principal (1200), então
   // encurtar o prazo com um aporte de 600 apenas troca principal por principal
-  // — não há encargo evitado e a economia é exatamente zero.
+  // - não há encargo evitado e a economia é exatamente zero.
   const params: ContractParams = {
     bank: 'X', system: 'PRICE', annualRate: 0, trMonthly: 0, insuranceMonthly: 0, parcelasTotais: 12,
   };

@@ -123,7 +123,7 @@ export function invoicePaymentTaxes(): InvoiceSettingsTaxes & InvoiceOptionalCod
 
 /**
  * Monta o body de `POST /subscriptions/{id}/invoiceSettings`.
- * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` ou `..._CODE` quando habilitado —
+ * Exige `ASAAS_INVOICE_MUNICIPAL_SERVICE_ID` ou `..._CODE` quando habilitado -
  * falha no uso, nunca no import do módulo.
  */
 /**

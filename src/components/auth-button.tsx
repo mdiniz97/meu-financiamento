@@ -18,7 +18,7 @@ interface AuthButtonProps extends VariantProps<typeof buttonVariants> {
 }
 
 /**
- * Gatilho do modal de autenticação. Sem `variant`, renderiza um botão cru —
+ * Gatilho do modal de autenticação. Sem `variant`, renderiza um botão cru -
  * para lugares que usam estilo de link (ex.: o rodapé).
  */
 export function AuthButton({

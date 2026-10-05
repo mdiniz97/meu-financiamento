@@ -2,7 +2,7 @@ const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 's
 const DATA_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Soma meses a uma data ISO 'YYYY-MM-DD' preservando o dia (clamp no mês-alvo).
- *  Com `diaVencimento` (1..31), usa esse dia no mês-alvo — clamp para o último
+ *  Com `diaVencimento` (1..31), usa esse dia no mês-alvo - clamp para o último
  *  dia quando ele não existir (ex.: 31 em fevereiro). Sem ele, preserva o dia
  *  da própria data. */
 export function addMonthsISO(iso: string, months: number, diaVencimento?: number): string {

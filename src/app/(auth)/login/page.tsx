@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * O login virou um modal sobre a home. Esta rota continua existindo para não
- * quebrar link direto, bookmark e redirect de servidor — mas só encaminha.
+ * quebrar link direto, bookmark e redirect de servidor - mas só encaminha.
  */
 export default async function LoginPage({
   searchParams,

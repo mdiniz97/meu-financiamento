@@ -285,7 +285,7 @@ export function Dashboard({
             <DestaqueGlobal
               icon={PiggyBank}
               label="Já economizado"
-              valor={economiaPositiva ? formatBRL(economia) : '—'}
+              valor={economiaPositiva ? formatBRL(economia) : '-'}
               caption={economiaPositiva ? 'juros, correção e seguro evitados' : 'registre amortizações'}
               tone="emerald"
             />
@@ -361,7 +361,7 @@ export function Dashboard({
                 <span className="font-medium text-foreground">
                   {quitaEm != null && quitaEmData
                     ? `Parcela ${quitaEm} (${formatMesAno(quitaEmData)})`
-                    : (quitado || saldoEfetivo === 0 ? '—' : 'não no prazo')}
+                    : (quitado || saldoEfetivo === 0 ? '-' : 'não no prazo')}
                 </span>
               </div>
             </div>
@@ -371,7 +371,7 @@ export function Dashboard({
             <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
               <p className="text-xs font-medium text-muted-foreground">Próxima parcela</p>
               <p className="font-mono text-lg font-semibold tabular-nums">
-                {primeiraProjetada ? formatBRL(primeiraProjetada.parcela) : '—'}
+                {primeiraProjetada ? formatBRL(primeiraProjetada.parcela) : '-'}
               </p>
               {primeiraProjetada && (
                 <p className="text-xs text-muted-foreground">
@@ -383,13 +383,13 @@ export function Dashboard({
             <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
               <p className="text-xs font-medium text-muted-foreground">Amortizado nesta situação</p>
               <p className="font-mono text-lg font-semibold tabular-nums">
-                {amortizadoVigente > 0 ? formatBRL(amortizadoVigente) : '—'}
+                {amortizadoVigente > 0 ? formatBRL(amortizadoVigente) : '-'}
               </p>
             </div>
             <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
               <p className="text-xs font-medium text-muted-foreground">Economizado nesta situação</p>
               <p className="font-mono text-lg font-semibold tabular-nums">
-                {economiaVigentePositiva ? formatBRL(economiaVigente) : '—'}
+                {economiaVigentePositiva ? formatBRL(economiaVigente) : '-'}
               </p>
             </div>
           </div>
@@ -550,7 +550,7 @@ export function Dashboard({
               Parcela {primeiraPendente} de {params.parcelasTotais}
             </p>
             <p className="text-xs text-muted-foreground">
-              Vencimento estimado: {vencimentoPrimeira ? formatDataBr(vencimentoPrimeira) : '—'}
+              Vencimento estimado: {vencimentoPrimeira ? formatDataBr(vencimentoPrimeira) : '-'}
               {vencida ? ' (vencida)' : ''}
             </p>
           </div>

@@ -106,7 +106,7 @@ export default async function MeuFinanciamentoPage() {
         </div>
         {state ? (
           // Expiração do plano (spec): usuário sem Ilimitado com contrato vê
-          // a leitura congelada — dados renderizados, ações substituídas por
+          // a leitura congelada - dados renderizados, ações substituídas por
           // ExclusiveCard dentro do Dashboard. Leitura nunca redireciona nem
           // lança: as actions já exigem Ilimitado no servidor.
           <Dashboard state={state} readOnly={!state.isUnlimited} selicAnnual={selicAnnual} />

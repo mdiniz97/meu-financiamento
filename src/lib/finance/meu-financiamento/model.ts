@@ -174,7 +174,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
 
   // Baseline já quitado (estado criado por recalibração com saldo 0): não há
   // movimentos (as actions bloqueiam) nem futuro a projetar, e a engine recusa
-  // principal 0 — projeção vazia sem lançar.
+  // principal 0 - projeção vazia sem lançar.
   if (baseline.saldoDevedor === 0) {
     return { primeiraPendente: primeira, saldoEfetivo: 0, saldoAntesExtras: 0, parcelas: [], pagas: [], quitaEm: null, divergencia: 0 };
   }
@@ -189,7 +189,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   const pagasDetalhadas: ParcelaPagaDetalhada[] = [];
   // Composição das pagas pelo encadeamento SEM extras: o saldo por competência
   // não representa o saldo real quando há amortização extra aplicável, por isso
-  // a tabela exibe "—" no Saldo dessas pagas (ver parcelas-do-financiamento.tsx).
+  // a tabela exibe "-" no Saldo dessas pagas (ver parcelas-do-financiamento.tsx).
   for (const n of numeros) {
     const paga = pagasPorNumero.get(n)!;
     const projetada = cronoOriginal.installments[indexOriginal(n)].parcela;
@@ -222,7 +222,7 @@ export function projecao(params: ContractParams, baseline: Baseline, pagas: Parc
   // fim-de-contrato: parcelas pagas cobriram todo o contrato sem zerar o saldo
   // (ex.: pagas pela tabela com TR > 0 deixam resíduo de correção). Não há
   // competências futuras (mesesFuturos = 0 faria a engine lançar erro cru):
-  // retorna projeção sem parcelas — quitaEm null sinaliza saldo não liquidado.
+  // retorna projeção sem parcelas - quitaEm null sinaliza saldo não liquidado.
   // A action deve tratar esse caso (contrato encerrado com saldo > 0) como
   // estado de recalibração, não como pagamento normal.
   if (defaultMeses < 1) {

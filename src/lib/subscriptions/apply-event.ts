@@ -74,7 +74,7 @@ function parseDate(value?: string | null): Date | null {
 }
 
 /**
- * R1 — correlação em ordem: providerId → asaasCheckoutId → id local (uuid).
+ * R1 - correlação em ordem: providerId → asaasCheckoutId → id local (uuid).
  * `providerId` fica NULL até o SUBSCRIPTION_CREATED, por isso os primeiros
  * eventos (checkout) casam por `checkoutSession` e os PAYMENT_* seguintes
  * por `payment.subscription` (== providerId gravado).
@@ -127,7 +127,7 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 /**
- * RA — compras DETACHED correlacionam por `checkoutSession`/`checkout.id`
+ * RA - compras DETACHED correlacionam por `checkoutSession`/`checkout.id`
  * (asaasCheckoutId) ou pelo `externalReference` (id local, quando UUID).
  */
 async function findCreditPurchase(event: AsaasEvent): Promise<CreditPurchaseRow | null> {
@@ -166,7 +166,7 @@ function deepClone<T>(value: T): T {
 const SENSITIVE_PAYMENT_KEY = /cvv|cvc|creditcardtoken/i;
 
 /**
- * §11 — nunca persistir dados completos de cartão (PAN/CVV/token), nem cifrados.
+ * §11 - nunca persistir dados completos de cartão (PAN/CVV/token), nem cifrados.
  * Mantém apenas o número mascarado (últimos 4) e a bandeira. Retorna cópia
  * profunda para não mutar o evento recebido. Task 6 reusa para sanitizar o
  * `webhook_events.payload`.
@@ -205,7 +205,7 @@ export function sanitizeEventForStorage<T>(event: T): T {
 }
 
 /**
- * R2 — `user_id` é NOT NULL: sem assinatura resolvida não há usuário válido,
+ * R2 - `user_id` é NOT NULL: sem assinatura resolvida não há usuário válido,
  * então não inserimos a linha de payment (apenas registramos o aviso).
  * O índice único de `asaas_payment_id` é um UNIQUE INDEX, por isso o upsert
  * usa `target` de coluna (`onConflictDoUpdate`), nunca `ON CONFLICT ON CONSTRAINT`.
@@ -268,7 +268,7 @@ async function upsertPayment(
 }
 
 /**
- * RB — créditos liberados com description estável (`pay_*`); o índice único
+ * RB - créditos liberados com description estável (`pay_*`); o índice único
  * parcial (user_id, kind='purchase', description) barra reentrega duplicada.
  * Sem compra correlacionada, eventos de pagamento ainda passam pelo
  * `upsertPayment` para registrar o aviso e nunca lançar (R2).
@@ -387,7 +387,7 @@ async function scheduleCreditInvoiceIfEnabled(
       paymentId,
       value,
       effectiveDate: new Date().toISOString().slice(0, 10),
-      serviceDescription: 'Licenciamento de uso de software amortiza.me — compra avulsa de créditos.',
+      serviceDescription: 'Licenciamento de uso de software amortiza.me - compra avulsa de créditos.',
       observations: `Compra ${purchase.id}. Valor: R$ ${value.toFixed(2)}.`,
     });
   } catch (e) {
@@ -422,7 +422,7 @@ async function patchSubscription(subId: string, patch: SubscriptionPatch): Promi
 }
 
 /**
- * §7.2 — renovação ESTENDE, nunca encolhe período já pago.
+ * §7.2 - renovação ESTENDE, nunca encolhe período já pago.
  */
 function extendedPeriodEnd(
   existing: Date | null,
@@ -446,7 +446,7 @@ const INVOICE_EVENTS = new Set([
 ]);
 
 /**
- * RD — eventos de NFS-e são gated: com a flag off nada é consultado nem
+ * RD - eventos de NFS-e são gated: com a flag off nada é consultado nem
  * persistido. Correlaciona a assinatura por `invoice.subscription` (quando
  * existe) e faz upsert por `asaasInvoiceId`.
  */
@@ -481,7 +481,7 @@ async function applyInvoiceEvent(event: AsaasEvent): Promise<void> {
     rawLastEvent,
     updatedAt: new Date(),
   };
-  // F1 — replay/out-of-order de um evento de nota pode omitir `invoice.payment`;
+  // F1 - replay/out-of-order de um evento de nota pode omitir `invoice.payment`;
   // não sobrescrever o vínculo já gravado com NULL. Só entra no SET quando o
   // evento traz o pagamento (o INSERT continua com `?? null`).
   if (invoice.payment) {

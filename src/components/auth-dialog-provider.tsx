@@ -28,7 +28,7 @@ interface AuthDialogContextValue {
   openLogin: (next?: string) => void;
   openSignup: (next?: string) => void;
   close: () => void;
-  /** Fecha sem mexer na URL — para quando já vamos navegar para outro lugar. */
+  /** Fecha sem mexer na URL - para quando já vamos navegar para outro lugar. */
   dismiss: () => void;
 }
 
@@ -43,7 +43,7 @@ interface AuthState {
  * Sincroniza `?login=1` / `?signup=1` da URL com o estado do modal. Fica
  * **dentro de um `Suspense`** de propósito: `useSearchParams` num Client
  * Component de rota pré-renderizada obriga a subárvore até o boundary a virar
- * client-side. Preso aqui, só este componente perde o SSR — o resto da árvore
+ * client-side. Preso aqui, só este componente perde o SSR - o resto da árvore
  * segue estático.
  */
 function AuthUrlSync({ onUrl }: { onUrl: (state: AuthState) => void }) {

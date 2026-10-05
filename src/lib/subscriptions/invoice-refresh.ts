@@ -16,7 +16,7 @@ export interface InvoiceRefreshResult {
 
 /**
  * Job mensal: o ISS varia com o faturamento, e o `invoiceSettings` de uma
- * assinatura é aplicado uma única vez — a Asaas reusa aquela alíquota nas
+ * assinatura é aplicado uma única vez - a Asaas reusa aquela alíquota nas
  * cobranças seguintes. Reenviamos a alíquota vigente para todas as assinaturas
  * ativas. Uma falha isolada não interrompe o lote (nem derruba o cron).
  */

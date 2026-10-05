@@ -61,7 +61,7 @@ function listWebhooks(payload: unknown): AsaasWebhookDescriptor[] {
 }
 
 /**
- * F2 — registro idempotente do webhook. Re-rodar para adicionar os `INVOICE_*`
+ * F2 - registro idempotente do webhook. Re-rodar para adicionar os `INVOICE_*`
  * não pode criar um webhook duplicado: procura por `url` iguais e, se existir,
  * atualiza via `PUT /v3/webhooks/{id}`; senão cria via `POST /v3/webhooks`.
  */
@@ -73,7 +73,7 @@ export async function registerAsaasWebhook(
 
   // DTO exato: .opencode/skills/asaas-payments-expert/references/06-webhooks.md §2.1
   // (`WebhookConfigSaveRequestDTO`). No OpenAPI todos os campos constam em
-  // `required`, por isso o corpo envia o conjunto completo — não inventar campos.
+  // `required`, por isso o corpo envia o conjunto completo - não inventar campos.
   // `sendType: SEQUENTIALLY` preserva a ordem (SaaS de assinaturas, §2.2).
   // `email` recebe alertas de penalização/fila pausada (§2.1, §3.3).
   const body = {

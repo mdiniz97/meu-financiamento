@@ -22,7 +22,7 @@ export interface ScheduleInvoiceInput {
 const DEFAULT_OBSERVATIONS = 'NFS-e emitida automaticamente pelo sistema.';
 
 /**
- * Status que **não** representam documento válido — os únicos que permitem
+ * Status que **não** representam documento válido - os únicos que permitem
  * reemissão. Qualquer outro (inclusive status novo que o Asaas venha a criar)
  * bloqueia, porque reemitir sobre documento vivo gera **segundo documento
  * fiscal** para a mesma cobrança.
@@ -82,7 +82,7 @@ export async function scheduleInvoiceOnce(
     method: 'POST',
     // `serviceDescription`, `observations`, `value`, `deductions`,
     // `effectiveDate`, `municipalServiceName` e `taxes` são todos obrigatórios
-    // no `InvoiceSaveRequestDTO` — omitir qualquer um devolve 400.
+    // no `InvoiceSaveRequestDTO` - omitir qualquer um devolve 400.
     body: {
       payment: input.paymentId,
       serviceDescription: input.serviceDescription ?? 'Créditos pré-pagos',

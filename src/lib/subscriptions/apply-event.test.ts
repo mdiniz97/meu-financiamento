@@ -175,7 +175,7 @@ beforeEach(() => {
   });
 });
 
-describe('applyAsaasEvent — §7.2', () => {
+describe('applyAsaasEvent - §7.2', () => {
   it('recovers legacy contracted price from subscription without changing an existing contract', async () => {
     byProvider = { id: 'sub-1', userId: 'user-1', contractedPriceCents: null };
     await applyAsaasEvent({ id: 'monthly-created', event: 'SUBSCRIPTION_CREATED', subscription: { id: 'sub_1', externalReference: 'sub-1', cycle: 'MONTHLY', value: 18.9 } });
@@ -308,7 +308,7 @@ describe('applyAsaasEvent — §7.2', () => {
   });
 });
 
-describe('R1 — correlação', () => {
+describe('R1 - correlação', () => {
   it('SUBSCRIPTION_CREATED casa por checkoutSession e seta providerId', async () => {
     byCheckout = {
       id: 'sub-1',
@@ -438,7 +438,7 @@ describe('R1 — correlação', () => {
   });
 });
 
-describe('R2 — upsertPayment', () => {
+describe('R2 - upsertPayment', () => {
   it('não insere payment quando a assinatura não é resolvida', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     await applyAsaasEvent(paymentEvent('PAYMENT_CREATED'));
@@ -519,7 +519,7 @@ describe('R2 — upsertPayment', () => {
     ).onConflictDoUpdate.mock.calls[0][0] as { set: Record<string, unknown> };
 
     // sql mockado devolve [strings, ...params]; o set precisa ser a expressão
-    // coalesce(coluna, excluded.*) — nunca um Date puro que sobrescreveria.
+    // coalesce(coluna, excluded.*) - nunca um Date puro que sobrescreveria.
     const confirmed = JSON.stringify(arg.set.confirmedAt);
     expect(arg.set.confirmedAt).not.toBeInstanceOf(Date);
     expect(confirmed).toContain('coalesce');
@@ -617,7 +617,7 @@ describe('sanitizeEventForStorage', () => {
   });
 });
 
-describe('créditos avulsos — compra DETACHED', () => {
+describe('créditos avulsos - compra DETACHED', () => {
   const creditPayment = (event: string, over: Record<string, unknown> = {}) => ({
     id: `evt_${event}`,
     event,
@@ -1039,7 +1039,7 @@ describe('processWebhookEvent', () => {
   });
 });
 
-describe('NFS-e — gated por ASAAS_INVOICE_ENABLED', () => {
+describe('NFS-e - gated por ASAAS_INVOICE_ENABLED', () => {
   const invoiceEvent = (event: string, over: Record<string, unknown> = {}) => ({
     id: `evt_${event}`,
     event,

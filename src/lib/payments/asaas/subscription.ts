@@ -19,7 +19,7 @@ export async function cancelAtPeriodEnd(asaasSubscriptionId: string): Promise<vo
   });
 }
 
-/** GET /fiscalInfo/ — 200 → ok; 404 → conta sem config fiscal; outro erro propaga. */
+/** GET /fiscalInfo/ - 200 → ok; 404 → conta sem config fiscal; outro erro propaga. */
 export async function getFiscalInfo(): Promise<{ ok: boolean }> {
   try {
     await asaasFetch(getAsaasConfig(), '/fiscalInfo/');

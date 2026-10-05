@@ -160,7 +160,7 @@ export function TrialOfferProvider({
                   onPlay={() => setPlaying(true)}
                   onPause={() => setPlaying(false)}
                 >
-                  <track kind="captions" src="/videos/trial-manifesto-v2.pt-BR.vtt" srcLang="pt-BR" label="Português — sons" />
+                  <track kind="captions" src="/videos/trial-manifesto-v2.pt-BR.vtt" srcLang="pt-BR" label="Português - sons" />
                 </video>
                 <Button
                   type="button"

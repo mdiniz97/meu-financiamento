@@ -34,19 +34,19 @@ function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** Célula numérica da composição: "—" quando o encadeamento não reconstruiu a
+/** Célula numérica da composição: "-" quando o encadeamento não reconstruiu a
  *  paga (período anterior), senão o valor projetado/real em BRL. */
 function celulaValor(valor: number | undefined): string {
-  return valor == null ? '—' : formatBRL(valor);
+  return valor == null ? '-' : formatBRL(valor);
 }
 
 /** O saldo por competência das pagas é o do encadeamento SEM extras; quando
  *  existe amortização extra do estado vigente até a data da paga ele deixa de
- *  representar o saldo real e vira "—", para não conflitar com o saldo efetivo
+ *  representar o saldo real e vira "-", para não conflitar com o saldo efetivo
  *  do estado. Nas parcelas em aberto o saldo é sempre exibido. */
 function saldoParcela(linha: CronogramaParcela, extraAplicavel: (data: string) => boolean): string {
-  if (!linha.composicao) return '—';
-  if (linha.situacao !== 'aberta' && extraAplicavel(linha.paga?.dataPagamento ?? '')) return '—';
+  if (!linha.composicao) return '-';
+  if (linha.situacao !== 'aberta' && extraAplicavel(linha.paga?.dataPagamento ?? '')) return '-';
   return formatBRL(linha.composicao.saldo);
 }
 

@@ -5,7 +5,7 @@ import { escapeHtml } from './html';
  * que o app não tem: tabelas em vez de flex/grid, estilo inline em vez de
  * classes, nada de `<style>`.
  *
- * A marca tem `--radius: 0`, então **nada** de border-radius aqui — é o traço
+ * A marca tem `--radius: 0`, então **nada** de border-radius aqui - é o traço
  * visual mais fácil de perder ao converter a UI para e-mail.
  */
 const APP_URL = 'https://amortiza.me';

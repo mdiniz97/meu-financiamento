@@ -60,7 +60,7 @@ export async function reconcileSubscriptions(
   let checked = 0;
   let updated = 0;
 
-  // I3 — webhooks cujo `after()` falhou ficam com processedAt nulo. Reprocessa
+  // I3 - webhooks cujo `after()` falhou ficam com processedAt nulo. Reprocessa
   // os que ainda têm tentativas antes de reconciliar o resto.
   const pendingEvents = await db.query.webhookEvents.findMany({
     where: and(
@@ -101,7 +101,7 @@ export async function reconcileSubscriptions(
         (TERMINAL_ASAAS_STATUSES as readonly string[]).includes(remote.status) &&
         sub.status !== 'canceled'
       ) {
-        // C1 — cancel-at-period-end: o Asaas fica INACTIVE na hora, mas o
+        // C1 - cancel-at-period-end: o Asaas fica INACTIVE na hora, mas o
         // acesso local segue até o fim do período pago. Só cancela de fato
         // quando o período acabou.
         const periodOver =
@@ -141,7 +141,7 @@ export async function reconcileSubscriptions(
     ),
   });
 
-  // T9 — resolve a config uma vez; sem ela o loop é pulado sem abortar o job.
+  // T9 - resolve a config uma vez; sem ela o loop é pulado sem abortar o job.
   let cfg: ReturnType<typeof getAsaasConfig> | null = null;
   try {
     cfg = getAsaasConfig();

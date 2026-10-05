@@ -22,7 +22,7 @@ const CONTRATO_MUDOU = 'O contrato mudou desde que você abriu; reabra e confira
 /** Dry-run da projeção sobre o baseline proposto com o estado novo vazio
  *  (movimentos de estados superados nunca são reaplicados). A engine rejeita
  *  combinações que o range de validação aceita (ex.: taxa anual 0 com TR alta)
- *  — gravar antes de validar deixaria o usuário preso num contrato que o
+ *  - gravar antes de validar deixaria o usuário preso num contrato que o
  *  wizard recusa recriar. */
 function projecaoValida(params: ContractParams, baseline: Baseline): boolean {
   try {
@@ -293,7 +293,7 @@ export async function payInstallment(input: {
         });
       }
     } catch (e) {
-      // 23505: parcela já registrada por outro fluxo — re-leitura idempotente
+      // 23505: parcela já registrada por outro fluxo - re-leitura idempotente
       // (recompute abaixo reflete a linha que já existe). O groupId novo a cada
       // tentativa não conflita: a unique é da parcela.
       if (!isUniqueViolation(e)) throw e;
@@ -435,7 +435,7 @@ export async function updateContract(input: UpdateContractInput): Promise<Mutati
       .limit(1);
     if (!state) return { ok: false, error: 'Contrato sem estado' };
     // Guarda de concorrência do dialog: a versão do baseline lida na abertura
-    // divergiu (outra aba recalibrou/editou) — recusar evita gravar por cima de
+    // divergiu (outra aba recalibrou/editou) - recusar evita gravar por cima de
     // um estado que o usuário não viu.
     if (state.version !== stateVersion) return { ok: false, error: CONTRATO_MUDOU };
     // Contrato quitado não é editável pela UI; reativar saldo tem fluxo

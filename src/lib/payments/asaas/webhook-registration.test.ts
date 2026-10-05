@@ -18,7 +18,7 @@ const input = { appUrl: 'https://amortiza.me', adminEmail: 'a@b.c' };
 
 beforeEach(() => mocks.asaasFetch.mockReset());
 
-describe('registerAsaasWebhook — F2 idempotente', () => {
+describe('registerAsaasWebhook - F2 idempotente', () => {
   it('cria via POST quando não existe webhook com a URL', async () => {
     mocks.asaasFetch
       .mockResolvedValueOnce({ totalCount: 0, hasMore: false, data: [] })

@@ -14,7 +14,7 @@ import { useAuthDialog } from './auth-dialog-provider';
 
 /**
  * Modal de autenticação, sobre a página atual. Login e cadastro são o **mesmo**
- * modal em modos diferentes — alternar entre eles não fecha nem navega.
+ * modal em modos diferentes - alternar entre eles não fecha nem navega.
  */
 export function AuthDialog() {
   const { mode, next, close } = useAuthDialog();

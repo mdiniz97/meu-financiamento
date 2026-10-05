@@ -7,7 +7,7 @@ import { PATHNAME_HEADER, pathnameHeaderValue } from '@/lib/request-path';
  * para onde a pessoa ia.
  *
  * O valor é controlado por nós (sobrescrevemos o cabeçalho), e ainda assim o
- * consumo passa por `sanitizeNext` — defesa em profundidade, já que um
+ * consumo passa por `sanitizeNext` - defesa em profundidade, já que um
  * cabeçalho é entrada de fora.
  */
 export function middleware(request: NextRequest) {

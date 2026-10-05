@@ -210,7 +210,7 @@ async function loadBundle(userId: string): Promise<ContractBundle | null> {
   if (!state) throw new Error('Contrato sem estado');
   // Movements de TODOS os baselines: os do estado vigente entram no cálculo
   // (pagas/extras) e os de estados superados alimentam apenas o histórico
-  // visível (tabela/total pago) — nunca são reaplicados no modelo, porque a
+  // visível (tabela/total pago) - nunca são reaplicados no modelo, porque a
   // recalibração/atualização já os incorporou no saldo do estado novo.
   const todos = await db
     .select()

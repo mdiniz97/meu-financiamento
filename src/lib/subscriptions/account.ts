@@ -15,7 +15,7 @@ export type SubscriptionAction = 'cancel' | 'reactivate';
 export type SubscriptionActionResult = 'ok' | 'no_subscription' | 'rate_limited' | 'error';
 
 /**
- * RS3 — IDOR: a assinatura é sempre resolvida pela sessão (`userId`), nunca por
+ * RS3 - IDOR: a assinatura é sempre resolvida pela sessão (`userId`), nunca por
  * um id vindo do cliente. Nenhuma das ações de gerenciamento aceita alvo.
  */
 export function getOwnSubscription(userId: string, provider: 'asaas' | 'fake' = PROVIDER) {
@@ -29,7 +29,7 @@ export function getOwnSubscription(userId: string, provider: 'asaas' | 'fake' = 
 }
 
 /**
- * RS2 — janela fixa: até 5 tentativas reais do usuário nos últimos 60s.
+ * RS2 - janela fixa: até 5 tentativas reais do usuário nos últimos 60s.
  * `rate_limited` não conta: senão cada bloqueio inseriria uma linha que mantém
  * o usuário bloqueado para sempre (self-lockout) e cresce a tabela sem limite.
  */

@@ -52,7 +52,7 @@ export function BuyPackButton({
     }
   }
 
-  // Assinatura: usa a server action como <form action> — o Next trata o
+  // Assinatura: usa a server action como <form action> - o Next trata o
   // redirect ao checkout hospedado sem passar por try/catch (que exibiria um
   // falso "erro de rede" mesmo com a navegação funcionando).
   if (isSubscription) {

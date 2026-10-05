@@ -13,7 +13,7 @@ import {
 } from '@/lib/subscriptions/account';
 
 /**
- * RS3 — as ações não recebem parâmetros de alvo: a assinatura vem sempre da
+ * RS3 - as ações não recebem parâmetros de alvo: a assinatura vem sempre da
  * sessão. Nada de id/valor/status/plano vindo do cliente.
  */
 async function requireUserId(): Promise<string> {

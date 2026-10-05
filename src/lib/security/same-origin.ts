@@ -6,7 +6,7 @@ function expectedOrigin(): { protocol: string; host: string } {
 }
 
 /**
- * RS1 — barra CSRF em Server Actions de gerenciamento.
+ * RS1 - barra CSRF em Server Actions de gerenciamento.
  *
  * Usa o cabeçalho `Origin` (enviado pelo navegador em POST de Server Action) e
  * o `host` como defesa extra. Sem `Origin`, o navegador não valida a origem:

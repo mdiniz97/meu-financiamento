@@ -112,7 +112,7 @@ describe('activationBonusEmail', () => {
   });
 });
 
-describe('dunningReminderEmail — ordem do link', () => {
+describe('dunningReminderEmail - ordem do link', () => {
   it('mostra o link em texto DEPOIS do botão "Pagar agora"', () => {
     const { html } = dunningReminderEmail(base);
     const botao = html.indexOf('Pagar agora');

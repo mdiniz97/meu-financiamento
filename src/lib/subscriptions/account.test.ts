@@ -148,7 +148,7 @@ describe('rateLimitOk', () => {
     expect(Date.now() - since.getTime()).toBeLessThanOrEqual(61_000);
   });
 
-  it('I1: não se auto-bloqueia — rate_limited não conta na janela', async () => {
+  it('I1: não se auto-bloqueia - rate_limited não conta na janela', async () => {
     const rows = windowRows('rate_limited', 5);
     m.eventsFindMany.mockImplementation(({ where }: { where: unknown }) =>
       Promise.resolve(rows.filter((row) => matchesWhere(where as unknown[], row)))

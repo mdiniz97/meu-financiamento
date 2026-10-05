@@ -103,7 +103,7 @@ describe('POST /api/asaas/webhook', () => {
   });
 });
 
-describe('POST /api/asaas/webhook — allowlist de IP (RS2b)', () => {
+describe('POST /api/asaas/webhook - allowlist de IP (RS2b)', () => {
   const valid = 'x'.repeat(32);
 
   it('sem ASAAS_WEBHOOK_IP_ALLOWLIST segue o fluxo (opt-in: vazio não bloqueia)', async () => {

@@ -2,7 +2,7 @@
  * Fonte única da URL do modal de autenticação. Login e cadastro viraram um
  * modal sobre a página, aberto por `?login=1` ou `?signup=1`.
  *
- * `next` passa por `sanitizeNext` para impedir **open redirect** — só caminho
+ * `next` passa por `sanitizeNext` para impedir **open redirect** - só caminho
  * relativo interno. Sem isso, `?next=https://evil.com` transformaria a nossa
  * tela de login num trampolim de phishing.
  */

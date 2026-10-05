@@ -19,7 +19,7 @@ type CheckoutClaim =
   | { status: 'ready'; localId: string; cancelSubscriptionId?: string; cancelCheckoutId?: string };
 
 /**
- * RS4 — reserva a linha de checkout sob o MESMO lock de usuário usado por
+ * RS4 - reserva a linha de checkout sob o MESMO lock de usuário usado por
  * `activateTrial`. Sem isso, ativar o trial e abrir o checkout pago em
  * requisições concorrentes passariam ambos pelo pré-cheque e o usuário ficaria
  * com trial e cobrança pendentes. O lock serializa os dois caminhos.
@@ -163,7 +163,7 @@ export async function startSubscription(selectedCycle: BillingCycle = 'YEARLY'):
     redirect('/perfil');
   }
 
-  // I4 — recompra com assinatura Asaas ainda ativa pode continuar cobrando.
+  // I4 - recompra com assinatura Asaas ainda ativa pode continuar cobrando.
   // Inativa a antiga ANTES de abrir o novo checkout (fora da transação: é rede).
   if (claimed.cancelSubscriptionId) {
     try {

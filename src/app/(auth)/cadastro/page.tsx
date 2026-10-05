@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * O cadastro virou modal (mesmo esquema do login). Esta rota continua
- * existindo para não quebrar link direto e bookmark — mas só encaminha.
+ * existindo para não quebrar link direto e bookmark - mas só encaminha.
  */
 export default async function CadastroPage({
   searchParams,
