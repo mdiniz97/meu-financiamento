@@ -51,7 +51,7 @@ export function Header({ signedIn = false, unlimited = false }: { signedIn?: boo
                 mode="signup"
                 variant="default"
                 label="Criar conta grátis"
-                className="px-3 text-sm"
+                className="hidden px-3 text-sm sm:inline-flex"
               />
             </>
           )}
