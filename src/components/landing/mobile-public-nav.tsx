@@ -29,7 +29,7 @@ export function MobilePublicNav({ signedIn, unlimited = false }: { signedIn: boo
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
-    const desktop = window.matchMedia('(min-width: 640px)');
+    const desktop = window.matchMedia('(min-width: 768px)');
     const onDesktop = () => {
       if (desktop.matches) setOpen(false);
     };
@@ -48,7 +48,7 @@ export function MobilePublicNav({ signedIn, unlimited = false }: { signedIn: boo
         type="button"
         variant="ghost"
         size="sm"
-        className="sm:hidden"
+        className="md:hidden"
         aria-label="Abrir menu"
         aria-expanded={open}
         onClick={() => setOpen(true)}
@@ -56,7 +56,7 @@ export function MobilePublicNav({ signedIn, unlimited = false }: { signedIn: boo
         <Menu className="size-5" />
       </Button>
       {open && createPortal(
-        <div className="fixed inset-0 z-[70] flex sm:hidden" role="dialog" aria-label="Menu de navegação" aria-modal="true">
+        <div className="fixed inset-0 z-[70] flex md:hidden" role="dialog" aria-label="Menu de navegação" aria-modal="true">
           <button type="button" aria-label="Fechar ao clicar fora" className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative flex h-full w-full max-w-sm flex-col bg-background shadow-xl">
             <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">

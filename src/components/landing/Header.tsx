@@ -9,56 +9,30 @@ import { signedInNavItem } from "@/lib/landing/signed-in-nav";
 
 export function Header({ signedIn = false, unlimited = false }: { signedIn?: boolean; unlimited?: boolean }) {
   const navItem = signedInNavItem(unlimited);
+  const link = "hidden px-2 text-sm md:inline-flex";
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <Logo size={32} className="sm:hidden" />
-          <Logo size={36} variant="full" className="hidden sm:block" />
+          <Logo size={32} className="md:hidden" />
+          <Logo size={36} variant="full" className="hidden md:block" />
         </Link>
-        <nav className="flex items-center gap-2">
-          <Link
-            href="/custos-da-compra"
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "hidden px-4 text-sm sm:inline-flex"
-            )}
-          >
-            Quanto preciso para comprar?
+        <nav className="flex items-center gap-1">
+          <Link href="/custos-da-compra" className={cn(buttonVariants({ variant: "ghost" }), link)}>
+            Custos da compra
           </Link>
-          <Link
-            href="/juros"
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "hidden px-4 text-sm sm:inline-flex"
-            )}
-          >
-            Juros de mercado
+          <Link href="/juros" className={cn(buttonVariants({ variant: "ghost" }), link)}>
+            Juros
           </Link>
-          <Link
-            href="/blog"
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              "hidden px-4 text-sm sm:inline-flex"
-            )}
-          >
+          <Link href="/blog" className={cn(buttonVariants({ variant: "ghost" }), link)}>
             Blog
           </Link>
           {signedIn ? (
             <>
-              <Link
-                href={navItem.href}
-                className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  "hidden px-4 text-sm sm:inline-flex"
-                )}
-              >
+              <Link href={navItem.href} className={cn(buttonVariants({ variant: "ghost" }), link)}>
                 {navItem.label}
               </Link>
-              <Link
-                href="/nova-simulacao"
-                className={cn(buttonVariants({ variant: "default" }), "px-5 text-sm")}
-              >
+              <Link href="/nova-simulacao" className={cn(buttonVariants({ variant: "default" }), "px-5 text-sm")}>
                 Ir para o simulador
               </Link>
             </>
@@ -68,13 +42,13 @@ export function Header({ signedIn = false, unlimited = false }: { signedIn?: boo
                 mode="login"
                 variant="ghost"
                 label="Fazer login"
-                className="hidden px-4 text-sm sm:inline-flex"
+                className={link}
               />
               <AuthButton
                 mode="signup"
                 variant="default"
                 label="Criar conta grátis"
-                className="px-5 text-sm"
+                className="px-3 text-sm"
               />
             </>
           )}
