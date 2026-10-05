@@ -22,7 +22,7 @@ export default async function NegociacaoPage() {
 
   const content = (
     <>
-      <div className="flex flex-col gap-2 text-center">
+      <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
           Mesa de negociação
         </h1>
@@ -30,6 +30,7 @@ export default async function NegociacaoPage() {
           Informe a proposta e o teto de parcela: veja se fecha e onde apertar (taxa máxima,
           entrada mínima e prazo mínimo) antes de assinar.
         </p>
+        <span className="mt-1 h-1 w-12 rounded-full bg-primary" aria-hidden />
       </div>
       <div className="w-full max-w-4xl">
         <NegotiationCalculator signedIn={signedIn} />

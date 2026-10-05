@@ -24,7 +24,7 @@ export function MarketContent({
 
   const inner = (
     <>
-      <div className="flex flex-col gap-2 text-center">
+      <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
           Juros de mercado
         </h1>
@@ -33,6 +33,7 @@ export function MarketContent({
           imobiliários por instituição.
         </p>
         <p className="mx-auto max-w-2xl text-xs text-muted-foreground">{BACEN_SOURCE}</p>
+        <span className="mt-1 h-1 w-12 rounded-full bg-primary" aria-hidden />
       </div>
 
       {!hasAnyData ? (

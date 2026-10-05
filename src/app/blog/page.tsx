@@ -26,12 +26,13 @@ export default async function BlogPage() {
       <Header signedIn={signedIn} unlimited={unlimited} />
       <main className="flex flex-1 flex-col items-center gap-10 bg-muted p-6">
         <div className="flex w-full max-w-6xl flex-col items-center gap-10">
-          <div className="flex flex-col gap-2 text-center">
+          <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Blog</h1>
             <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
               Aprenda como funciona o financiamento imobiliário e use as ferramentas com os seus
               números.
             </p>
+            <span className="mt-1 h-1 w-12 rounded-full bg-primary" aria-hidden />
           </div>
           <div className="grid w-full gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {ARTIGOS.map((artigo) => (
