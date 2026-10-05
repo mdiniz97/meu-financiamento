@@ -22,14 +22,21 @@ async function fillNegotiation(page: import('@playwright/test').Page, teto: stri
 
 test('mesa de negociação é pública e mostra veredito sem login', async ({ page }) => {
   await fillNegotiation(page, '300000');
-  await expect(page.getByText(/Fecha no seu orçamento|No limite/)).toBeVisible();
-  await expect(page.getByText('Taxa máxima', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Cabe no seu orçamento|Cabe, mas fica apertado/)).toBeVisible();
   await expect(page.getByText('Entre para salvar')).toBeVisible();
 });
 
 test('mesa de negociação: teto que não cabe', async ({ page }) => {
   await fillNegotiation(page, '100000');
-  await expect(page.getByText('Não fecha com esse teto')).toBeVisible();
+  await expect(page.getByText('Não cabe com esse valor por mês')).toBeVisible();
+});
+
+test('campo de meses não mantém zero à esquerda', async ({ page }) => {
+  await page.goto('/negociacao');
+  const months = page.locator('#ngMonths');
+  await months.click();
+  await months.press('3');
+  await expect(months).toHaveValue('3');
 });
 
 test('mesa de negociação: logado salva a oferta', async ({ page }) => {

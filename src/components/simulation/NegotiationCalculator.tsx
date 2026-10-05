@@ -151,7 +151,7 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
               </SelectContent>
             </Select>
           </FieldHelp>
-          <FieldHelp htmlFor="ngTeto" label="Teto de parcela (R$)" help="O máximo que cabe no seu orçamento por mês.">
+          <FieldHelp htmlFor="ngTeto" label="Quanto posso pagar por mês (R$)" help="O máximo que cabe no seu bolso por mês (parcela + seguro).">
             <MoneyInput id="ngTeto" value={parseBRLToNumber(f.maxPayment)} onValid={(v) => set('maxPayment', numberToBRLInput(v))} />
           </FieldHelp>
           <FieldHelp htmlFor="ngSystem" label="Sistema" help="PRICE mantém a parcela estável; SAC começa maior e cai.">
@@ -167,61 +167,63 @@ export function NegotiationCalculator({ signedIn = false }: { signedIn?: boolean
       {result && (
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">
+            <CardTitle className="text-lg">
               {result.fits
-                ? (result.slackMonthly < 50 ? 'No limite — fecha apertado' : 'Fecha no seu orçamento')
-                : 'Não fecha com esse teto'}
+                ? (result.slackMonthly < 50 ? 'Cabe, mas fica apertado' : 'Cabe no seu orçamento')
+                : 'Não cabe com esse valor por mês'}
             </CardTitle>
             <CardDescription>
-              1ª parcela {formatBRL(result.initialPayment)} · folga {formatBRL(result.slackMonthly)}/mês
+              {result.fits
+                ? `A primeira parcela é ${formatBRL(result.initialPayment)} e você quer pagar até ${formatBRL(teto)} por mês.`
+                : `A primeira parcela seria ${formatBRL(result.initialPayment)}, acima do que você quer pagar (${formatBRL(teto)} por mês).`}
             </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 text-sm">
+            <div>
+              <p className="font-semibold">
+                {result.fits
+                  ? 'Para manter dentro do seu orçamento, peça ao banco:'
+                  : 'Para caber no seu orçamento, o banco precisaria oferecer:'}
+              </p>
+              <ul className="mt-2 flex flex-col gap-2">
+                <li className="flex gap-2">
+                  <span aria-hidden>•</span>
+                  <span>
+                    {result.maxAnnualRate !== null
+                      ? <>Juros de até <strong>{fmtRate(result.maxAnnualRate)}</strong></>
+                      : 'Não há taxa de juros que resolva: é preciso financiar menos ou dar uma entrada maior.'}
+                  </span>
+                </li>
+                {result.minDownPayment > 0 && (
+                  <li className="flex gap-2">
+                    <span aria-hidden>•</span>
+                    <span>Uma entrada de pelo menos <strong>{formatBRL(result.minDownPayment)}</strong></span>
+                  </li>
+                )}
+                <li className="flex gap-2">
+                  <span aria-hidden>•</span>
+                  <span>Pagar em pelo menos <strong>{result.minMonths} {result.minMonths === 1 ? 'mês' : 'meses'}</strong> (em menos meses, a parcela passa do seu limite)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span aria-hidden>•</span>
+                  <span>Financiar no máximo <strong>{formatBRL(result.maxPrincipal)}</strong> — ou seja, um imóvel de até <strong>{formatBRL(result.maxPropertyValue)}</strong> com a entrada de hoje</span>
+                </li>
+              </ul>
+            </div>
             {result.peakPayment > teto + 0.01 && (
               <p className="text-xs text-muted-foreground">
-                Atenção: com a TR, a parcela sobe ao longo do tempo e chega a {formatBRL(result.peakPayment)} no mês {result.peakPaymentMonth}.
+                Atenção: essa parcela aumenta com o tempo (a TR reajusta o valor) e pode chegar a {formatBRL(result.peakPayment)} no fim do contrato.
               </p>
             )}
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
-            <div>
-              <span className="text-xs text-muted-foreground">Taxa máxima</span>
-              <p className="font-semibold">{result.maxAnnualRate === null ? 'Nem a 0% cabe' : fmtRate(result.maxAnnualRate)}</p>
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Entrada mínima</span>
-              <p className="font-semibold">{formatBRL(result.minDownPayment)}</p>
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Prazo mínimo viável</span>
-              <p className="font-semibold">{result.minMonths} meses</p>
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Financia no máximo</span>
-              <p className="font-semibold">{formatBRL(result.maxPrincipal)}</p>
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Imóvel que cabe</span>
-              <p className="font-semibold">{formatBRL(result.maxPropertyValue)}</p>
-            </div>
-            <div className="sm:col-span-3">
-              <p className="text-sm">
-                {result.fits
-                  ? `Fecha no teto de ${formatBRL(teto)}. `
-                  : `Com o teto de ${formatBRL(teto)} não fecha. `}
-                {result.maxAnnualRate !== null
-                  ? `Peça taxa ≤ ${fmtRate(result.maxAnnualRate)}`
-                  : 'Nenhuma taxa faz caber'}
-                {' '}ou entrada ≥ {formatBRL(result.minDownPayment)}; prazo mínimo viável {result.minMonths} meses.
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                {signedIn ? (
-                  <Button type="button" onClick={save}>Salvar oferta</Button>
-                ) : (
-                  <Button variant="outline" nativeButton={false} render={<Link href={loginHref('/negociacao')} />}>
-                    Entre para salvar
-                  </Button>
-                )}
-                {saveMsg && <span className="text-xs text-muted-foreground">{saveMsg}</span>}
-              </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {signedIn ? (
+                <Button type="button" onClick={save}>Salvar oferta</Button>
+              ) : (
+                <Button variant="outline" nativeButton={false} render={<Link href={loginHref('/negociacao')} />}>
+                  Entre para salvar
+                </Button>
+              )}
+              {saveMsg && <span className="text-xs text-muted-foreground">{saveMsg}</span>}
             </div>
           </CardContent>
         </Card>

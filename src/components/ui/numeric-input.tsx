@@ -43,14 +43,16 @@ export function NumericInput({
         setFocused(false);
       }}
       onChange={(e) => {
-        setText(e.target.value);
-        if (e.target.value.trim() === '') {
+        // remove zeros à esquerda ("03" -> "3") sem mexer em "0" ou decimais "0,5"
+        const raw = e.target.value.replace(/^0+(?=\d)/, '');
+        setText(raw);
+        if (raw.trim() === '') {
           // apagou tudo: emite 0 para o campo não voltar ao valor antigo no blur
           onValidityChange?.(true);
           onValid(0);
           return;
         }
-        const v = parse(e.target.value);
+        const v = parse(raw);
         const valid = Number.isFinite(v);
         onValidityChange?.(valid);
         if (valid) onValid(v);
