@@ -17,12 +17,15 @@ export function Header({ signedIn = false, unlimited = false }: { signedIn?: boo
           <Logo size={32} className="md:hidden" />
           <Logo size={36} variant="full" className="hidden md:block" />
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5">
           <Link href="/custos-da-compra" className={cn(buttonVariants({ variant: "ghost" }), link)}>
-            Custos da compra
+            Custos
           </Link>
           <Link href="/juros" className={cn(buttonVariants({ variant: "ghost" }), link)}>
             Juros
+          </Link>
+          <Link href="/negociacao" className={cn(buttonVariants({ variant: "ghost" }), link)}>
+            Negociação
           </Link>
           <Link href="/blog" className={cn(buttonVariants({ variant: "ghost" }), link)}>
             Blog
@@ -42,7 +45,7 @@ export function Header({ signedIn = false, unlimited = false }: { signedIn?: boo
                 mode="login"
                 variant="ghost"
                 label="Fazer login"
-                className={link}
+                className="hidden px-2 text-sm lg:inline-flex"
               />
               <AuthButton
                 mode="signup"
