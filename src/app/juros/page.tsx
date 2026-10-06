@@ -8,6 +8,7 @@ import { UpgradeCard } from '@/components/upgrade-card';
 import { getMarketOverview } from '@/lib/market/bacen';
 import { MarketContent } from '@/components/market/market-content';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
+import { BreadcrumbJsonLd } from '@/components/seo/breadcrumb-json-ld';
 import { publicMetadata } from '@/lib/site';
 
 export const metadata = publicMetadata({
@@ -28,6 +29,12 @@ export default async function JurosPage() {
       <div className="flex min-h-screen flex-col bg-background min-[1024px]:flex-row">
         <AppSidebar credits={balance.credits} isUnlimited={balance.isUnlimited} />
         <main className="flex min-w-0 flex-1 flex-col">
+          <BreadcrumbJsonLd
+            items={[
+              { name: 'Início', path: '/' },
+              { name: 'Juros de mercado', path: '/juros' },
+            ]}
+          />
           <div className="flex w-full flex-col items-center gap-2 bg-muted p-4 pb-0 sm:p-6 sm:pb-0">
             <div className="w-full max-w-6xl">
               <UpgradeCard isUnlimited={balance.isUnlimited} />
@@ -49,6 +56,12 @@ export default async function JurosPage() {
     <div className="flex flex-1 flex-col">
       <Header signedIn={false} />
       <main className="flex-1">
+        <BreadcrumbJsonLd
+          items={[
+            { name: 'Início', path: '/' },
+            { name: 'Juros de mercado', path: '/juros' },
+          ]}
+        />
         <MarketContent data={data} />
         <div className="flex w-full justify-center bg-muted px-6 pb-10 pt-2">
           <BlogSuggestions

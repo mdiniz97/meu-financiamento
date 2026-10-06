@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: SITE_URL },
     { url: `${SITE_URL}/juros` },
     { url: `${SITE_URL}/custos-da-compra` },
+    { url: `${SITE_URL}/negociacao` },
     { url: `${SITE_URL}/blog` },
     { url: `${SITE_URL}/termos` },
     { url: `${SITE_URL}/privacidade` },

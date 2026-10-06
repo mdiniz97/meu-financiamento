@@ -5,6 +5,7 @@ import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
 import { CompraCustosCalculator } from '@/components/simulation/CompraCustosCalculator';
+import { BreadcrumbJsonLd } from '@/components/seo/breadcrumb-json-ld';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
 import { publicMetadata } from '@/lib/site';
 
@@ -22,6 +23,12 @@ export default async function CustosDaCompraPage() {
 
   const content = (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Início', path: '/' },
+          { name: 'Custos da compra', path: '/custos-da-compra' },
+        ]}
+      />
       <div className="flex flex-col gap-2 text-center">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
           Quanto preciso para comprar?

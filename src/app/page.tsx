@@ -15,6 +15,7 @@ import { CTA } from "@/components/landing/CTA";
 import { FAQ } from "@/components/landing/FAQ";
 import { Footer } from "@/components/landing/Footer";
 import { publicMetadata, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { FAQS } from "@/lib/faq";
 import { canOpenFinancing } from "@/lib/landing/account-access";
 
 export async function generateMetadata({
@@ -58,6 +59,28 @@ export default async function Home() {
         description: SITE_DESCRIPTION,
         inLanguage: 'pt-BR',
         publisher: { '@id': `${SITE_URL}/#organization` },
+      },
+      {
+        '@type': 'WebApplication',
+        '@id': `${SITE_URL}/#app`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        applicationCategory: 'FinanceApplication',
+        operatingSystem: 'Web',
+        inLanguage: 'pt-BR',
+        offers: [
+          { '@type': 'Offer', name: 'Ilimitado mensal', price: '18.90', priceCurrency: 'BRL' },
+          { '@type': 'Offer', name: 'Ilimitado anual', price: '119.90', priceCurrency: 'BRL' },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${SITE_URL}/#faq`,
+        mainEntity: FAQS.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: { '@type': 'Answer', text: item.a },
+        })),
       },
     ],
   };

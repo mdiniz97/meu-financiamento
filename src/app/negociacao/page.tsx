@@ -5,6 +5,7 @@ import { Footer } from '@/components/landing/Footer';
 import { CTA } from '@/components/landing/CTA';
 import { AppSidebar } from '@/components/app-sidebar';
 import { NegotiationCalculator } from '@/components/simulation/NegotiationCalculator';
+import { BreadcrumbJsonLd } from '@/components/seo/breadcrumb-json-ld';
 import { BlogSuggestions } from '@/components/landing/BlogSuggestions';
 import { publicMetadata } from '@/lib/site';
 
@@ -22,6 +23,12 @@ export default async function NegociacaoPage() {
 
   const content = (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Início', path: '/' },
+          { name: 'Mesa de negociação', path: '/negociacao' },
+        ]}
+      />
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
           Mesa de negociação
