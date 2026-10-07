@@ -6,10 +6,18 @@ import investirAmortizar from './blog/investir-amortizar';
 import portabilidade from './blog/portabilidade';
 import juros from './blog/juros';
 import type { Article } from './blog/types';
+import amortizarParcelaOuPrazo from './blog/amortizar-parcela-ou-prazo';
+import quantoPossoFinanciar from './blog/quanto-posso-financiar';
+import trSaldoDevedor from './blog/tr-saldo-devedor';
+import minhaCasaMinhaVida from './blog/minha-casa-minha-vida';
 
 export type { Article, ArticleBlock } from './blog/types';
 
 export const ARTIGOS: Article[] = [
+  amortizarParcelaOuPrazo,
+  quantoPossoFinanciar,
+  trSaldoDevedor,
+  minhaCasaMinhaVida,
   custosCompra, sacPrice, quitarAntes, compararBancos, investirAmortizar, portabilidade, juros,
 ];
 

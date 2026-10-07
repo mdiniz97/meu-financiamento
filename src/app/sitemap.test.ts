@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import sitemap from './sitemap';
+import { ARTIGOS } from '@/lib/artigos';
 
 describe('sitemap', () => {
   const urls = sitemap().map((entry) => entry.url);
@@ -18,7 +19,9 @@ describe('sitemap', () => {
     }
   });
 
-  it('inclui os artigos do blog', () => {
-    expect(urls.some((u) => u.includes('/blog/'))).toBe(true);
+  it('inclui todos os artigos do blog', () => {
+    for (const artigo of ARTIGOS) {
+      expect(urls).toContain(`https://amortiza.me/blog/${artigo.slug}`);
+    }
   });
 });
