@@ -29,11 +29,11 @@ const artigo: Article = {
     { type: 'h2', text: 'Da parcela para o valor financiado' },
     {
       type: 'p',
-      text: 'Definida a parcela máxima, o valor financiável sai da mesma fórmula que calcula a prestação. A tabela abaixo usa parcela de 30% da renda, prazo de 360 meses e juros de 10,5% efetivos ao ano, e mostra quanto essa parcela sustenta em cada sistema.',
+      text: 'Definida a parcela máxima, reserve primeiro a parte destinada a seguros e tarifas. A tabela abaixo é um exemplo matemático com 30% da renda para principal e juros, 360 meses e taxa hipotética de 10,5% efetivos ao ano. Não inclui TR, seguros nem tarifas e não representa aprovação ou taxa atual de mercado. A taxa mensal equivalente é 0,835515568%.',
     },
     {
       type: 'table',
-      caption: 'Valor financiável com parcela de 30% da renda (360 meses, 10,5% ao ano)',
+      caption: 'Exemplo sem encargos: 360 meses e juros de 10,5% efetivos ao ano',
       headers: ['Renda bruta mensal', 'Parcela máxima (30%)', 'Financiável no PRICE', 'Financiável no SAC'],
       rows: [
         ['R$ 5.000,00', 'R$ 1.500,00', 'R$ 170.550,03', 'R$ 134.735,38'],
@@ -52,11 +52,35 @@ const artigo: Article = {
     { type: 'h2', text: 'Entrada e custos da compra' },
     {
       type: 'p',
-      text: 'Na maioria dos financiamentos, o banco financia até 80% do valor do imóvel, então a entrada corresponde a pelo menos 20%. Some a isso os custos de fechamento, como ITBI, escritura e registro, e eventuais despesas de avaliação. Esses valores saem do bolso e não entram no saldo financiado.',
+      text: 'Não existe entrada universal de 20%. A cota depende da linha, do sistema, da região e de o imóvel ser novo ou usado. Como referência atual, o Ministério das Cidades informa, para a Faixa 4 (Classe Média) do MCMV, máximo de 60% em usados no Sul e Sudeste; nos demais casos descritos nessa linha, até 80% em PRICE e 90% em SAC. São limites máximos: a política do banco e a análise de renda podem financiar menos.',
     },
     {
       type: 'p',
-      text: 'Ou seja: com uma renda que sustenta R$ 270.000,00 de financiamento, o imóvel acessível pode ser maior, desde que você tenha a entrada e os custos em mãos. É essa conta completa, e não só a prestação, que define o imóvel que cabe no orçamento.',
+      text: 'Além da entrada, reserve ITBI, registro e avaliação, conforme operação e município. Não some automaticamente escritura pública em separado: contratos de financiamento podem ter força de escritura pública. Benefícios, descontos e despesas financiáveis precisam ser confirmados com o banco e o cartório.',
+    },
+    {
+      type: 'p',
+      text: 'O financiamento aprovado é limitado pelo menor valor entre capacidade de pagamento e cota da operação, respeitando também tetos da linha e avaliação do imóvel. Se sua renda sustenta R$ 270 mil, mas a cota permite apenas R$ 240 mil, você precisa cobrir a diferença com recursos elegíveis. Uma avaliação abaixo do preço negociado também pode aumentar a entrada.',
+    },
+    { type: 'h2', text: 'Quanto seguros e taxa mudam o resultado?' },
+    {
+      type: 'p',
+      text: 'Com renda de R$ 8.000,00 e limite de R$ 2.400,00 para o boleto, suponha R$ 250,00 de seguros e tarifas mensais. Sobram R$ 2.150,00 para principal e juros. No mesmo exemplo PRICE da tabela, o valor calculado cai de R$ 272.880,05 para R$ 244.455,05. Os R$ 250,00 são uma hipótese, não cotação de seguro: MIP, DFI e tarifas dependem da proposta e podem variar.',
+    },
+    { type: 'h2', text: 'Não use uma taxa única para todos os perfis' },
+    {
+      type: 'table',
+      caption: 'Sensibilidade matemática: R$ 2.400,00 para principal e juros, PRICE em 360 meses',
+      headers: ['Taxa efetiva anual hipotética', 'Principal calculado'],
+      rows: [
+        ['8,0%', 'R$ 335.947,20'],
+        ['10,5%', 'R$ 272.880,05'],
+        ['13,0%', 'R$ 228.453,59'],
+      ],
+    },
+    {
+      type: 'p',
+      text: 'Essas taxas são cenários, não ofertas atuais. Consulte referências do Banco Central em Juros de mercado e use a proposta do seu perfil para decidir. No MCMV, renda e enquadramento também mudam taxas e subsídios: em outubro de 2026, a linha financiada oficial atende renda até R$ 13 mil, com tetos de imóvel diferentes por faixa. Taxa nominal, taxa efetiva e CET não são intercambiáveis.',
     },
     { type: 'h2', text: 'O que aumenta ou reduz o valor' },
     {
@@ -78,6 +102,8 @@ const artigo: Article = {
         { label: 'Descobrir qual imóvel cabe no meu bolso', href: '/qual-imovel-cabe-no-meu-bolso' },
         { label: 'Entender as diferenças entre SAC e PRICE', href: '/blog/sac-ou-price' },
         { label: 'Estimar os custos da compra', href: '/blog/quanto-preciso-para-comprar' },
+        { label: 'Conferir faixas e condições atuais do MCMV', href: '/blog/minha-casa-minha-vida' },
+        { label: 'Consultar referências de juros do Banco Central', href: '/juros' },
       ],
     },
     { type: 'h2', text: 'Perguntas frequentes' },
@@ -99,8 +125,8 @@ const artigo: Article = {
   ],
   sources: [
     {
-      label: 'Banco Central: perguntas frequentes sobre crédito imobiliário',
-      href: 'https://www.bcb.gov.br/meubc/faqs/',
+      label: 'Ministério das Cidades: Faixa 4 (Classe Média) e cotas por sistema, região e tipo de imóvel (consulta em 07/10/2026)',
+      href: 'https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/habitacao/programa-minha-casa-minha-vida/minha-casa-minha-vida-classe-media/minha-casa-minha-vida-classe-media-1',
     },
     {
       label: 'Caixa: condições e regras do crédito imobiliário',

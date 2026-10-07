@@ -2,9 +2,9 @@ import type { Article } from './types';
 
 const artigo: Article = {
   slug: 'minha-casa-minha-vida',
-  title: 'Minha Casa Minha Vida: como funciona, faixas e quem tem direito',
+  title: 'Minha Casa Minha Vida em 2026: faixas, taxas, subsídio e imóveis usados',
   description:
-    'Entenda como o Minha Casa Minha Vida organiza as famílias por faixa de renda, o papel do subsídio e das taxas reduzidas, os requisitos e o uso do FGTS.',
+    'Confira faixas do Minha Casa Minha Vida em 2026, renda até R$ 13 mil, imóveis até R$ 600 mil na Faixa 4 (Classe Média), subsídios e regras para imóveis usados.',
   updatedAt: '2026-10-07',
   cta: { label: 'Descobrir qual imóvel cabe no meu bolso', href: '/qual-imovel-cabe-no-meu-bolso' },
   blocks: [
@@ -14,31 +14,47 @@ const artigo: Article = {
     },
     {
       type: 'p',
-      text: 'As regras, os limites de renda e as taxas são definidos periodicamente e mudam com o programa. Por isso, trate este texto como um mapa de como funciona, e confirme os valores vigentes nos canais oficiais antes de contar com um cenário específico.',
+      text: 'Informações consultadas em 7 de outubro de 2026 nas páginas oficiais do Ministério das Cidades. Na linha financiada, o programa atende renda familiar mensal bruta de até R$ 13.000,00. Os limites dependem da modalidade e da localização; enquadramento não dispensa análise de crédito nem garante o subsídio máximo.',
     },
     { type: 'h2', text: 'Como funcionam as faixas' },
     {
       type: 'p',
-      text: 'O programa divide as famílias em faixas conforme a renda mensal, nas modalidades urbana e rural. Em linhas gerais, existem as faixas 1, 2 e 3, e versões recentes do programa também alcançam uma faixa de renda mais alta. Cada faixa tem taxa de juros, limite de valor do imóvel e condições próprias.',
+      text: 'A tabela abaixo trata da linha financiada urbana, com renda mensal bruta da família. Não aplique esses limites à modalidade rural, que usa renda anual e regras próprias. A Faixa 4 (Classe Média) amplia o atendimento acima do teto da Faixa 3.',
     },
     {
       type: 'table',
-      caption: 'Lógica geral das faixas urbanas',
-      headers: ['Faixa', 'Renda', 'Apoio típico'],
+      caption: 'Linha financiada urbana: parâmetros oficiais consultados em outubro de 2026',
+      headers: ['Faixa', 'Renda familiar mensal bruta', 'Limite do imóvel'],
       rows: [
-        ['Faixa 1', 'Menor renda', 'Taxa menor e subsídio que reduz o valor financiado'],
-        ['Faixa 2', 'Renda intermediária', 'Taxa reduzida; subsídio menor ou parcial'],
-        ['Faixa 3', 'Renda maior dentro do programa', 'Taxa ainda abaixo do mercado, geralmente sem subsídio'],
+        ['Faixa 1', 'Até R$ 3.200,00', 'De R$ 210 mil a R$ 275 mil, conforme localização'],
+        ['Faixa 2', 'De R$ 3.200,01 a R$ 5.000,00', 'De R$ 210 mil a R$ 275 mil, conforme localização'],
+        ['Faixa 3', 'De R$ 5.000,01 a R$ 9.600,00', 'Até R$ 400 mil'],
+        ['Faixa 4 (Classe Média)', 'Atendimento até R$ 13.000,00', 'Até R$ 600 mil'],
       ],
     },
     {
       type: 'p',
-      text: 'A tabela resume a lógica, não os valores. Os limites de renda e as taxas de cada faixa são atualizados pelo governo e pelos agentes financeiros, então consulte a tabela vigente antes de calcular o seu enquadramento.',
+      text: 'Nas Faixas 1 e 2, o teto do imóvel muda por município. Na Faixa 3 e na Faixa 4 (Classe Média), os tetos indicados são nacionais. Estar dentro da renda e do preço é apenas uma parte da análise: o banco também verifica capacidade de pagamento, documentação e condições do imóvel.',
     },
     { type: 'h2', text: 'Subsídio e taxas reduzidas' },
     {
       type: 'p',
-      text: 'Nas faixas de menor renda, o subsídio é um desconto no valor do imóvel que não precisa ser devolvido, reduzindo quanto a família financia. O valor depende da renda, da localização e da composição familiar. Nas faixas maiores, o benefício costuma vir principalmente na forma de taxa de juros menor.',
+      text: 'Famílias com renda de até R$ 5.000,00 podem receber descontos na linha financiada de até R$ 65.000,00 na Região Norte e até R$ 55.000,00 nas demais regiões. São tetos, não valores automáticos. O cálculo considera renda e local de moradia; menor renda tende a receber maior desconto. Aportes públicos do MCMV Cidades podem complementar a operação.',
+    },
+    {
+      type: 'table',
+      caption: 'Taxas nominais anuais da linha financiada, sem confundir com CET',
+      headers: ['Enquadramento', 'Referência oficial'],
+      rows: [
+        ['Faixa 1', 'De 4,00% a 5,25%, conforme renda, região e condição de cotista'],
+        ['Faixa 2', 'De 4,75% a 7,00%, conforme renda, região e condição de cotista'],
+        ['Faixa 3', '7,66% para cotistas; 8,16% para não cotistas'],
+        ['Faixa 4 (Classe Média)', '10,00%'],
+      ],
+    },
+    {
+      type: 'p',
+      text: 'O prazo máximo informado é de 420 meses, ou 35 anos. As taxas acima são nominais: seguros, tarifas e demais condições precisam ser conferidos na proposta e no CET. Não compare 10% nominais da Faixa 4 (Classe Média) diretamente com um exemplo de 10,5% efetivos ao ano sem converter a base.',
     },
     {
       type: 'p',
@@ -50,7 +66,7 @@ const artigo: Article = {
       items: [
         'Famílias com renda mensal dentro dos limites do programa (há faixas diferentes para área urbana e rural).',
         'Quem comprova renda e atende às condições de crédito do agente financeiro.',
-        'Quem não possui imóvel residencial próprio na localidade em que pretende comprar.',
+        'Quem não possui outro imóvel ou financiamento habitacional ativo, conforme os requisitos da linha financiada informados pelo Ministério.',
         'Quem não recebeu subsídio habitacional anterior em condições semelhantes, conforme as regras vigentes.',
         'Maiores de 18 anos ou emancipados, com documentação em ordem.',
       ],
@@ -58,14 +74,33 @@ const artigo: Article = {
     { type: 'h2', text: 'O papel do FGTS' },
     {
       type: 'p',
-      text: 'O FGTS pode ser usado tanto para compor a entrada quanto para reduzir o saldo devedor, além de pagar parte das prestações em situações previstas. O uso depende de o trabalhador ter conta vinculada, do enquadramento no programa e do imóvel financiado. Cada modalidade tem exigências próprias, então confirme as condições com o agente financeiro.',
+      text: 'Não é necessário ter saldo de FGTS para acessar a linha financiada do MCMV. Ter acesso ao programa e poder usar o saldo são questões diferentes. Quando elegível, o trabalhador pode usar o FGTS na entrada, amortização, liquidação ou pagamento de parte das prestações, respeitando as regras de cada modalidade. O Pró-Cotista é uma linha distinta e exige condição de cotista.',
+    },
+    { type: 'h2', text: 'Imóvel usado e entrada: atenção à cota financiada' },
+    {
+      type: 'p',
+      text: 'A linha financiada admite imóveis novos, em construção e usados, além de construção em terreno próprio ou compra de terreno com construção. Não exige que toda compra seja em empreendimento de uma construtora cadastrada. O imóvel escolhido precisa passar pela avaliação e pelo enquadramento do banco.',
+    },
+    {
+      type: 'table',
+      caption: 'Faixa 4 (Classe Média): cotas máximas divulgadas pelo Ministério das Cidades',
+      headers: ['Situação', 'Cota máxima', 'Parte não financiada'],
+      rows: [
+        ['Usado no Sul ou Sudeste', '60%', 'Pelo menos 40%'],
+        ['Novo, ou usado nas demais regiões, em PRICE', '80%', 'Pelo menos 20%'],
+        ['Novo, ou usado nas demais regiões, em SAC', '90%', 'Pelo menos 10%'],
+      ],
+    },
+    {
+      type: 'p',
+      text: 'Essas cotas são da Faixa 4 (Classe Média), não uma regra única para todas as faixas. Para um usado de R$ 500 mil no Sudeste, a cota de 60% permite no máximo R$ 300 mil financiados: os R$ 200 mil restantes, mais despesas de compra, precisam ser cobertos por recursos elegíveis. A aprovação por renda pode reduzir ainda mais o financiamento.',
     },
     { type: 'h2', text: 'Como participar' },
     {
       type: 'ol',
       items: [
         'Verifique em qual faixa a renda da sua família se encaixa, consultando a tabela vigente do programa.',
-        'Procure empreendimentos cadastrados no programa, por meio de construtoras credenciadas ou do agente financeiro.',
+        'Na linha financiada, escolha um imóvel elegível e procure Caixa ou Banco do Brasil para análise de crédito. Não há inscrição nem processo seletivo nessa linha.',
         'Reúna documentação de renda, certidões e comprovação de que atende aos requisitos.',
         'Peça a simulação oficial com taxa, subsídio (quando houver), entrada e valor da prestação.',
         'Antes de assinar, confira o valor total, o custo efetivo e o comprometimento da renda.',
@@ -74,7 +109,7 @@ const artigo: Article = {
     { type: 'h2', text: 'Cuidados' },
     {
       type: 'p',
-      text: 'Unidades do programa costumam ter procura alta e podem envolver fila ou sorteio. Os parâmetros de renda, taxa e valor de imóvel mudam com o tempo, e o enquadramento depende da versão vigente quando você contrata. Simule com números atualizados e desconfie de promessas que fixem taxas ou subsídios fora das tabelas oficiais.',
+      text: 'Não confunda modalidades: a linha subsidiada da Faixa 1 pode envolver cadastro na prefeitura ou entidade organizadora e critérios de seleção. A linha financiada é contratada diretamente com o banco e não tem sorteio. O Ministério proíbe taxas de cadastramento e de priorização de beneficiários. Verifique os parâmetros na proposta, pois podem mudar depois da consulta deste artigo.',
     },
     {
       type: 'links',
@@ -93,7 +128,7 @@ const artigo: Article = {
     { type: 'h3', text: 'Posso usar o Minha Casa Minha Vida com imóvel usado?' },
     {
       type: 'p',
-      text: 'O programa é voltado, em regra, a imóveis novos e a empreendimentos cadastrados, com variações conforme a versão vigente. Confirme as condições atuais com o agente financeiro.',
+      text: 'Sim. A linha financiada admite usados, desde que o imóvel e a operação sejam elegíveis. Na Faixa 4 (Classe Média), usados no Sul e Sudeste têm cota máxima de 60%; a entrada é, portanto, maior. As condições de outras faixas devem ser verificadas na simulação oficial.',
     },
     { type: 'h3', text: 'A taxa é a mesma para todo mundo?' },
     {
@@ -103,16 +138,16 @@ const artigo: Article = {
   ],
   sources: [
     {
-      label: 'Ministério das Cidades: Minha Casa Minha Vida',
-      href: 'https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/habitacao/minha-casa-minha-vida',
+      label: 'Ministério das Cidades: linha financiada, faixas, taxas e subsídios (consulta em 07/10/2026)',
+      href: 'https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/habitacao/programa-minha-casa-minha-vida/mcmv-fgts',
     },
     {
-      label: 'Caixa: Minha Casa Minha Vida',
-      href: 'https://www.caixa.gov.br/voce/habitacao/minha-casa-minha-vida/Paginas/default.aspx',
+      label: 'Ministério das Cidades: Faixa 4 (Classe Média), imóveis usados e cotas de financiamento (consulta em 07/10/2026)',
+      href: 'https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/habitacao/programa-minha-casa-minha-vida/minha-casa-minha-vida-classe-media/minha-casa-minha-vida-classe-media-1',
     },
     {
-      label: 'FGTS: uso do saldo em moradia',
-      href: 'https://www.fgts.gov.br/',
+      label: 'Ministério das Cidades: modalidades e proibição de taxas de cadastro',
+      href: 'https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/habitacao/programa-minha-casa-minha-vida',
     },
   ],
 };

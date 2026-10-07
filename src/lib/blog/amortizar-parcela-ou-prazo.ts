@@ -23,17 +23,17 @@ const artigo: Article = {
       headers: ['Opção', 'O que acontece', 'Objetivo principal'],
       rows: [
         ['Reduzir a parcela', 'A prestação cai e o prazo segue o mesmo', 'Aliviar o compromisso mensal'],
-        ['Reduzir o prazo', 'A prestação se mantém e o contrato termina antes', 'Pagar menos juros no total'],
+        ['Reduzir o prazo', 'Encurta o contrato; o banco recalcula o cronograma', 'Antecipar a quitação e reduzir juros futuros'],
       ],
     },
     {
       type: 'p',
-      text: 'Quando você reduz o prazo, cada mês seguinte carrega a mesma parcela sobre um saldo menor, então a dívida anda mais rápido. Quando você reduz a parcela, o alívio é imediato no orçamento, mas o saldo cai em ritmo mais lento e os juros futuros somam mais. Manter a parcela alta tende a economizar mais juros; reduzir a parcela tende a dar mais fôlego no caixa.',
+      text: 'No modelo PRICE sem indexador, reduzir prazo pode manter o pagamento de principal e juros enquanto diminui o número de meses. No SAC, ou com TR, seguros e tarifas, o boleto não precisa permanecer igual. Compare os novos cronogramas emitidos pelo banco para o mesmo aporte e a mesma data; não apenas o valor da próxima parcela.',
     },
     { type: 'h2', text: 'Exemplo PRICE com um aporte único' },
     {
       type: 'p',
-      text: 'Este exemplo usa o sistema PRICE, com saldo devedor de R$ 400.000,00, 360 meses restantes e juros de 10,5% efetivos ao ano. Supõe um único aporte de R$ 30.000,00 no mês 12, destinado ao principal, e compara cada opção com o cenário sem aporte.',
+      text: 'Exemplo didático recalculado nesta revisão: saldo inicial de R$ 400.000,00, 360 meses e taxa escolhida de 10,5% efetivos ao ano. Não é taxa ofertada atualmente por um banco. Após pagar a 12ª prestação, o saldo é R$ 397.788,61. Um aporte de R$ 30.000,00 reduz esse saldo para R$ 367.788,61. A comparação considera apenas juros futuros, a partir desse momento.',
     },
     {
       type: 'ul',
@@ -49,7 +49,7 @@ const artigo: Article = {
       headers: ['Cenário', 'Prestação depois do aporte', 'Meses restantes', 'Juros futuros'],
       rows: [
         ['Sem aporte', 'R$ 3.518,03', '348', 'R$ 826.485,56'],
-        ['Reduzir o prazo', 'R$ 3.518,03', 'cerca de 249', 'R$ 506.331,53'],
+        ['Reduzir o prazo', 'R$ 3.518,03; última de R$ 1.648,89', '249', 'R$ 506.331,53'],
         ['Reduzir a parcela', 'R$ 3.252,71', '348', 'R$ 764.154,55'],
       ],
     },
@@ -64,7 +64,7 @@ const artigo: Article = {
     { type: 'h2', text: 'Quando cada opção faz mais sentido' },
     {
       type: 'p',
-      text: 'Reduzir o prazo combina com quem tem folga mensal estável e quer minimizar o total pago. Reduzir a parcela combina com quem precisa de alívio imediato no orçamento ou quer liberar caixa para outros objetivos. Se a ideia é usar a folga para novos aportes, reduza o prazo e mantenha o plano de amortizações regulares, em vez de baixar a parcela e gastar a diferença.',
+      text: 'Reduzir prazo costuma atender quem tem folga estável e quer encerrar a dívida antes. Reduzir prestação pode diminuir o compromisso obrigatório e o risco de aperto no orçamento. Se você reduzir a prestação e reaplicar toda a folga em novos aportes, compare esse fluxo explicitamente: no mesmo modelo e com os mesmos desembolsos e datas, o saldo segue a mesma trajetória. A diferença prática está no compromisso obrigatório e na disciplina para reaportar.',
     },
     {
       type: 'p',
@@ -84,7 +84,7 @@ const artigo: Article = {
     { type: 'h2', text: 'Como simular a sua meta' },
     {
       type: 'p',
-      text: 'Na ferramenta de meta de quitação do amortiza.me, informe saldo, taxa e prazo reais e compare os dois caminhos, ajustando o aporte ao que cabe no orçamento. Trate o resultado como estimativa conforme as premissas exibidas e confirme o plano com o seu banco.',
+      text: 'Use a meta de quitação do amortiza.me para estimar o esforço mensal de antecipar o fim do contrato, com acesso conforme o plano. Para escolher entre prazo e prestação, peça também ao banco duas simulações do mesmo aporte na mesma data. Confira novo saldo, boletos, prazo, indexador e juros futuros; a calculadora não substitui o cronograma contratual.',
     },
     {
       type: 'links',

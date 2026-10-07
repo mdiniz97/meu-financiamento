@@ -15,7 +15,7 @@ const artigo: Article = {
     { type: 'h2', text: 'O que é a TR' },
     {
       type: 'p',
-      text: 'A TR, Taxa Referencial, é um indexador calculado a partir das taxas de juros praticadas no mercado e divulgado pelo Banco Central. Em muitos períodos ela fica próxima de zero, mas pode ficar positiva. Quando o contrato prevê correção pela TR, esse índice é aplicado periodicamente ao saldo devedor.',
+      text: 'A TR, Taxa Referencial, é calculada e divulgada pelo Banco Central segundo metodologia própria. Não é a Selic nem um índice de inflação como o IPCA. Quando o financiamento prevê TR, a correção segue o índice, a data de referência e a periodicidade previstos no contrato; não existe uma TR mensal fixa para todos os próximos anos.',
     },
     {
       type: 'p',
@@ -24,31 +24,34 @@ const artigo: Article = {
     { type: 'h2', text: 'Como a TR entra no cálculo' },
     {
       type: 'p',
-      text: 'A cada período, o saldo devedor é corrigido pela TR e depois recebe os juros. Da prestação, você paga primeiro juros e encargos e, o que sobra, amortiza o principal. Quando a correção mais os juros são maiores que a amortização daquele mês, o saldo pode terminar maior do que começou.',
+      text: 'Para conferir o extrato, separe quatro valores: saldo anterior, correção monetária, juros e amortização. Em um modelo que corrige o saldo antes de calcular juros, o saldo final é o saldo anterior mais a correção, menos a amortização. Juros pagos no boleto não devem ser somados novamente nessa comparação: o saldo cresce quando a correção supera o principal amortizado.',
     },
     {
       type: 'p',
-      text: 'Em contratos com TR zero, isso não ocorre: o saldo só cai. O problema aparece quando a TR é positiva e a amortização mensal ainda é pequena, o que é típico do início de um contrato PRICE, em que quase toda a prestação é juro.',
+      text: 'Com TR zero, pagamentos em dia e amortização positiva, o saldo diminui. Atrasos, encargos incorporados e outras regras podem mudar esse resultado. TR positiva, por sua vez, não garante crescimento da dívida: é preciso conferir quanto o contrato amortizou e se a prestação ou a base de cálculo também foram atualizadas.',
     },
     { type: 'h2', text: 'Um exemplo hipotético' },
     {
       type: 'p',
-      text: 'Considere um saldo de R$ 400.000,00, prestação PRICE de R$ 3.518,03, juros de 10,5% ao ano e TR de 0,15% ao mês, apenas para ilustrar. No exemplo, a correção mensal sobre o saldo é de R$ 600,00 e os juros somam cerca de R$ 3.342,00, enquanto a amortização inicial fica perto de R$ 176,00.',
+      text: 'Exemplo calculado, não cotação atual: saldo de R$ 400.000,00, juros de 10,5% efetivos ao ano (0,835515568% ao mês) e correção hipotética de 0,15% no período. Para isolar o efeito, mantemos o pagamento de principal e juros em R$ 3.518,03, sem reajustá-lo e sem seguros ou tarifas. A correção entra antes dos juros. Essa hipótese não representa automaticamente o recálculo de um contrato bancário.',
     },
     {
       type: 'table',
-      caption: 'Ilustração com TR de 0,15% ao mês no primeiro mês',
+      caption: 'Um período com correção hipotética de 0,15% e pagamento mantido fixo',
       headers: ['Componente', 'Valor aproximado'],
       rows: [
-        ['Prestação', 'R$ 3.518,03'],
-        ['Juros do mês', 'R$ 3.342,06'],
-        ['Correção pela TR', 'R$ 600,00'],
-        ['Amortização embutida', 'R$ 176,00'],
+        ['Saldo anterior', 'R$ 400.000,00'],
+        ['Correção monetária', 'R$ 600,00'],
+        ['Saldo corrigido', 'R$ 400.600,00'],
+        ['Juros sobre o saldo corrigido', 'R$ 3.347,08'],
+        ['Pagamento de principal e juros', 'R$ 3.518,03'],
+        ['Principal amortizado', 'R$ 170,95'],
+        ['Saldo depois do pagamento', 'R$ 400.429,05'],
       ],
     },
     {
       type: 'p',
-      text: 'Nesse cenário, a soma de juros e correção supera a amortização do mês e o saldo tende a crescer no início. Com o tempo, a amortização aumenta e passa a superar a correção, e o saldo volta a cair. Isso não é erro do banco quando o contrato prevê o indexador: é consequência matemática do sistema escolhido.',
+      text: 'Neste modelo, a correção de R$ 600,00 supera a amortização de R$ 170,95, aumentando o saldo em R$ 429,05. Se o banco atualizar também a prestação ou a amortização, o resultado será diferente. O nome PRICE e a presença de TR, sozinhos, não provam que o saldo crescerá nem que o extrato está correto.',
     },
     {
       type: 'note',
@@ -57,7 +60,7 @@ const artigo: Article = {
     { type: 'h2', text: 'SAC e PRICE reagem diferente' },
     {
       type: 'p',
-      text: 'No PRICE, a amortização começa pequena e cresce a cada mês, então é onde o saldo mais tende a subir quando a TR é positiva. No SAC, a amortização é praticamente constante desde o início e a parcela começa maior, o que torna o crescimento do saldo bem menos provável nas mesmas condições.',
+      text: 'Sem indexador, a PRICE mantém o pagamento de principal e juros constante e começa amortizando menos; o SAC amortiza uma quantidade constante e começa com parcela maior. Em contratos indexados, essas bases podem ser corrigidas. Por isso, não prometa parcela fixa em reais nem amortização invariável: confira como o banco aplica o indexador em cada sistema.',
     },
     {
       type: 'p',
@@ -95,13 +98,13 @@ const artigo: Article = {
     { type: 'h3', text: 'Preciso me preocupar se o saldo subiu?' },
     {
       type: 'p',
-      text: 'Vale entender o motivo. Se o contrato prevê correção e a amortização inicial é pequena, é esperado. Amortizações extras e, em alguns casos, a troca para um sistema com amortização constante ajudam a virar o jogo.',
+      text: 'Peça a memória de cálculo e reconcilie saldo anterior, correção e amortização. Confira também atrasos e encargos incorporados. Aporte extra pode reduzir o saldo, mas trocar de sistema depende de proposta e aprovação do banco: não é uma alteração automática do contrato.',
     },
   ],
   sources: [
     {
-      label: 'Banco Central: séries de TR, Selic e índices',
-      href: 'https://www.bcb.gov.br/',
+      label: 'Banco Central: Sistema Gerenciador de Séries Temporais (consulta da TR)',
+      href: 'https://www3.bcb.gov.br/sgspub/',
     },
     {
       label: 'Banco Central: perguntas frequentes sobre crédito imobiliário',
