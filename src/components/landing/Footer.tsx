@@ -39,10 +39,12 @@ export function Footer() {
         profissional.
       </p>
       <div className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        <p>
-          {SITE_NAME} é um produto da SAFE CODE DESENVOLVIMENTO DE SOFTWARES LTDA.
+        <p className="mx-auto max-w-4xl leading-relaxed">
+          {SITE_NAME} é um produto desenvolvido e operado pela SAFE CODE
+          DESENVOLVIMENTO DE SOFTWARES LTDA, registrada no Brasil sob o CNPJ
+          54.569.947/0001-47. Chácara 227, Lote 21, Setor Habitacional Vicente
+          Pires, Brasília - DF, CEP 72007-075, Brasil.
         </p>
-        <p className="mt-1">CNPJ: 54.569.947/0001-47 · Brasília - DF · Brasil</p>
       </div>
     </footer>
   );
