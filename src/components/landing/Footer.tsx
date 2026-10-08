@@ -33,13 +33,13 @@ export function Footer() {
           <AuthButton mode="signup" label="Criar conta" className="hover:text-foreground" />
         </div>
       </div>
-      <p className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        © {new Date().getFullYear()} {SITE_NAME}: ferramenta de
-        simulação e educação financeira. Não substitui aconselhamento financeiro
-        profissional.
-      </p>
       <div className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        <p className="mx-auto max-w-4xl leading-relaxed">
+        <p>
+          © {new Date().getFullYear()} {SITE_NAME}: ferramenta de
+          simulação e educação financeira. Não substitui aconselhamento financeiro
+          profissional.
+        </p>
+        <p className="mx-auto mt-2 max-w-4xl leading-relaxed">
           {SITE_NAME} é um produto desenvolvido e operado pela SAFE CODE
           DESENVOLVIMENTO DE SOFTWARES LTDA, registrada no Brasil sob o CNPJ
           54.569.947/0001-47. Chácara 227, Lote 21, Setor Habitacional Vicente
