@@ -30,6 +30,15 @@ export const activationBonusOffers = pgTable('activation_bonus_offers', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const trialReminderDeliveries = pgTable('trial_reminder_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  state: text('state').notNull(),
+  attemptedAt: timestamp('attempted_at', { withTimezone: true }).notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  providerMessageId: text('provider_message_id'),
+});
+
 export const packs = pgTable('packs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

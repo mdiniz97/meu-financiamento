@@ -48,7 +48,10 @@ export default function PrivacidadePage() {
             Para oferta de teste grátis do Ilimitado, registramos data do cadastro,
             elegibilidade, exibição da oferta, início e fim do acesso. O teste não cria
             cadastro de pagamento nem exige cartão. Esses registros permitem respeitar
-            o prazo de 48 horas e impedir nova ativação do mesmo teste.
+            o prazo de 48 horas e impedir nova ativação do mesmo teste. Para quem
+            ainda não ativou, podemos enviar um convite após dois dias do cadastro e
+            reabrir a oferta por 48 horas. Registramos a tentativa, o estado do envio
+            e a reabertura para evitar duplicatas, respeitando as preferências de e-mail.
           </li>
           <li>
             Dados de simulações e financiamento que você informa (como saldos, taxas, prazos e

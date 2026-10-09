@@ -176,6 +176,13 @@
       "when": 1791034963272,
       "tag": "0024_monthly_unlimited",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791504000000,
+      "tag": "0025_trial_reminder",
+      "breakpoints": true
     }
   ]
 }

@@ -59,7 +59,9 @@ export default function TermosPage() {
         <h2>Teste gratuito do Ilimitado</h2>
         <p>
           Contas novas podem iniciar um teste gratuito de 7 dias do plano Ilimitado
-          nas primeiras 48 horas após o cadastro, uma única vez por conta. O período
+          nas primeiras 48 horas após o cadastro, uma única vez por conta. Se o teste
+          ainda não tiver sido usado, um convite por e-mail pode reabrir a oferta por
+          mais 48 horas. Isso não inicia o teste nem permite um segundo teste. O período
           começa na ativação, sem cartão e sem cobrança automática. Ao terminar,
           o acesso volta ao plano de créditos, preservando seu saldo. Uma assinatura
           paga exige contratação separada e confirmação do pagamento.

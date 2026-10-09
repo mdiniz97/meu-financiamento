@@ -78,7 +78,7 @@ export default async function PerfilPage() {
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">7 dias grátis do Ilimitado</CardTitle>
-            <CardDescription>Ative nas primeiras 48 horas após criar sua conta. Sem cartão e sem cobrança automática.</CardDescription>
+            <CardDescription>Ative durante a janela de 48 horas da oferta, a partir do cadastro ou da reabertura. Sem cartão e sem cobrança automática.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p>Ao ativar, você terá 7 dias completos de acesso Ilimitado; seus créditos ficam guardados.</p>
@@ -101,7 +101,7 @@ export default async function PerfilPage() {
       )}
 
       {trial.offerWindowExpired && !isUnlimited && (
-        <p className="text-sm text-muted-foreground">Oferta do trial encerrada: ativação disponível apenas nas primeiras 48 horas após o cadastro.</p>
+        <p className="text-sm text-muted-foreground">Oferta do trial encerrada: o prazo de ativação desta oferta terminou.</p>
       )}
 
       {trial.blockedByPendingCheckout && !isUnlimited && (

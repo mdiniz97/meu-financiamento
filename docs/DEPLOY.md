@@ -259,6 +259,7 @@ caso contrário o Railway pula a execução seguinte.
 | Dunning (inadimplência/carência) | `POST /api/cron/dunning` | `0 7 * * *` |
 | Reajuste do ISS das assinaturas (NFS-e) | `POST /api/cron/invoice-settings` | `0 8 1 * *` (mensal) |
 | Bônus único de ativação (+2 créditos) — **criar só após go-live autorizado** | `POST /api/cron/activation-bonus` | `0 * * * *` (horário) |
+| Convite único para ativar trial em D+2 — configurar `TRIAL_REMINDER_START_AT` no web | `POST /api/cron/trial-reminder` | `0 * * * *` (horário) |
 
 Receita verificada em produção: **imagem `alpine:3.20`** + start command
 abaixo, `APP_URL` e `CRON_SECRET` referenciando o serviço web

@@ -194,7 +194,7 @@ export function TrialOfferProvider({
                 O trial começa quando você ativar, sem gastar seus créditos.
               </p>
               <p className="text-sm font-semibold text-primary">
-                Oferta disponível somente nas primeiras 48 horas após criar sua conta.
+                Oferta disponível por 48 horas a partir do cadastro ou da reabertura.
               </p>
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
               <div className="flex flex-col gap-2">
