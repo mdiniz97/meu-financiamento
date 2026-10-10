@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -21,7 +22,9 @@ async function cadastrar(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
+  await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   return email;
 }
 
@@ -29,7 +32,7 @@ test('cadastro → simular (auto-save 1 crédito) → comprar créditos', async 
   await cadastrar(page);
   await expect(page).toHaveURL(/nova-simulacao/);
 
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: /simular/i }).click();
   await expect(page.getByText(/total pago/i).first()).toBeVisible();
   await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
@@ -47,6 +50,7 @@ test('cadastro → simular (auto-save 1 crédito) → comprar créditos', async 
 test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {
   await cadastrar(page);
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   await page.getByRole('button', { name: /simular/i }).click();
   await expect(page.getByText(/exclusivo/i).first()).toBeVisible();
 });
@@ -54,6 +58,7 @@ test('gate ilimitado: PDF bloqueado sem assinatura', async ({ page }) => {
 test('botão Simular mostra consumo de 1 moeda para quem não é Ilimitado', async ({ page }) => {
   await cadastrar(page);
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const simulate = page.getByRole('button', { name: /simular/i });
   await expect(simulate).toContainText('-1');
   await expect(simulate.locator('svg')).toHaveCount(1);
@@ -66,8 +71,9 @@ test('simulação de usuário free não é salva após a janela de 6 horas', asy
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
@@ -87,8 +93,9 @@ test('simulação de assinante Ilimitado fica listada (sem janela de 6 horas)', 
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
@@ -107,8 +114,9 @@ test('simulação de assinante Ilimitado fica listada (sem janela de 6 horas)', 
 test('banners de upgrade aparecem para free (simulacao, juros, minhas-simulacoes) e somem para Ilimitado', async ({ page }) => {
   await cadastrar(page);
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: /simular/i }).click();
   await page.waitForURL(/\/simulacao$/);
   await expect(page.getByText('Simulação salva automaticamente')).toBeVisible();
@@ -133,8 +141,9 @@ test('assinante Ilimitado não vê banners de upgrade', async ({ page }) => {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
@@ -156,8 +165,9 @@ test('assinante Ilimitado não vê opções de compra no perfil', async ({ page 
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
@@ -178,8 +188,9 @@ test('assinar pela landing: não logado cai no login e depois no checkout do Ili
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   await page.getByRole('button', { name: 'Sair' }).click();
   await page.waitForURL(/login/);
 

@@ -1,3 +1,4 @@
+import { seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -76,11 +77,12 @@ async function criarConta(page: Page, nome: string): Promise<{ id: string; email
   const signup = page.waitForResponse(
     (response) => response.url().endsWith('/api/signup') && response.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   const response = await signup;
   expect(response.ok()).toBe(true);
   const { id } = (await response.json()) as { id: string };
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   return { id, email };
 }
 
@@ -298,7 +300,7 @@ test('tabela "Parcelas do Financiamento" lista todas as parcelas e paga a primei
   await expect(linha141).toContainText(formatBRL(pg.amortizacao));
   // Com amortização extra do estado vigente até a data da paga, o Saldo do
   // encadeamento sem extras deixa de representar o saldo real: vira "—".
-  await expect(linha141.locator('[data-cell="saldo"]')).toHaveText('—');
+  await expect(linha141.locator('[data-cell="saldo"]')).toHaveText('-');
   // O aporte fica na linha da última paga anterior à data (a 141, paga hoje) e
   // o Total soma Parcela + Aporte.
   const valorExtra = 500;
@@ -1017,8 +1019,8 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
 
   // Sem amortizações no período vigente, as estatísticas da situação atual
   // aparecem como "—" com a legenda discreta.
-  await expect(amortizadoSituacaoCard(page)).toContainText('—');
-  await expect(economiaSituacaoCard(page)).toContainText('—');
+  await expect(amortizadoSituacaoCard(page)).toContainText('-');
+  await expect(economiaSituacaoCard(page)).toContainText('-');
   await expect(page.getByText('sem amortizações nesta situação', { exact: true })).toBeVisible();
 
   // Paga a parcela com amortização extra para haver economia antes da edição.
@@ -1079,8 +1081,8 @@ test('Visão global preserva total pago, amortizado e economia após editar o co
     .toBeGreaterThan(0);
   // Já a situação atual usa só os extras do período vigente: a amortização
   // virou passado congelado, então as estatísticas voltam a "—".
-  await expect(amortizadoSituacaoCard(page)).toContainText('—');
-  await expect(economiaSituacaoCard(page)).toContainText('—');
+  await expect(amortizadoSituacaoCard(page)).toContainText('-');
+  await expect(economiaSituacaoCard(page)).toContainText('-');
   await expect(page.getByText('sem amortizações nesta situação', { exact: true })).toBeVisible();
 });
 

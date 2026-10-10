@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { expect, test, type Page } from '@playwright/test';
 
 async function cadastrarIlimitado(page: Page) {
@@ -9,12 +10,13 @@ async function cadastrarIlimitado(page: Page) {
   const signupResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith('/api/signup') && response.request().method() === 'POST'
   );
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   const signupResponse = await signupResponsePromise;
   expect(signupResponse.ok()).toBeTruthy();
   const { id: uid } = (await signupResponse.json()) as { id?: string };
   expect(uid).toBeTruthy();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
   const response = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -24,7 +26,7 @@ async function cadastrarIlimitado(page: Page) {
 
 test('meta de quitação calcula aporte e salva em minhas simulações', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/meta-de-quitacao');
+  await gotoCalculatorExample(page, '/meta-de-quitacao');
 
   await expect(page.getByRole('heading', { name: 'Meta de quitação' })).toBeVisible();
   const calcular = page.getByRole('button', { name: /calcular aporte/i });
@@ -41,7 +43,7 @@ test('meta de quitação calcula aporte e salva em minhas simulações', async (
 
 test('alugar ou comprar compara patrimônios e mostra o mês de empate', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/alugar-ou-comprar');
+  await gotoCalculatorExample(page, '/alugar-ou-comprar');
 
   await expect(page.getByRole('heading', { name: 'Alugar ou comprar?' })).toBeVisible();
   const comparar = page.getByRole('button', { name: /comparar/i });
@@ -57,7 +59,7 @@ test('alugar ou comprar compara patrimônios e mostra o mês de empate', async (
 
 test('consórcio vs financiamento compara custos', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/consorcio-vale-a-pena');
+  await gotoCalculatorExample(page, '/consorcio-vale-a-pena');
 
   await expect(page.getByRole('heading', { name: 'Consórcio vale a pena?' })).toBeVisible();
   await expect(page.getByRole('tab', { name: /financiar/i })).toBeVisible();
@@ -81,9 +83,10 @@ test('consórcio vs financiamento compara custos', async ({ page }) => {
 
 test('consórcio vs investir mostra quando o investimento compra à vista', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/consorcio-vale-a-pena');
+  await gotoCalculatorExample(page, '/consorcio-vale-a-pena');
 
   await page.getByRole('tab', { name: /investir/i }).click();
+  await seedCalculatorExample(page);
   const taxa = page.getByRole('textbox', { name: 'Taxa de investimento (Selic % a.a.)', exact: true });
   await taxa.fill('10.500000000000002');
   await page.getByRole('button', { name: /comparar/i }).click();

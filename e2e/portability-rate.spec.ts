@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -12,8 +13,9 @@ async function cadastrarEAssinar(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(`psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`).toString().trim();
   const response = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(response.ok()).toBeTruthy();
@@ -25,13 +27,14 @@ async function cadastrarSemPlano(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 }
 
 test('plano sem acesso vê card de upgrade sem formulário', async ({ page }) => {
   await cadastrarSemPlano(page);
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
   await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
   await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /comparar contrato atual e proposta/i })).toHaveCount(0);
@@ -42,7 +45,7 @@ test('taxas inválidas bloqueiam cálculo e busca inteligente sem pageerror', as
   const errors: Error[] = [];
   page.on('pageerror', (error) => errors.push(error));
   await cadastrarEAssinar(page);
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: /comparar contrato atual e proposta/i }).evaluate(
     (button: HTMLButtonElement) => button.click()
@@ -68,7 +71,7 @@ test('taxas inválidas bloqueiam cálculo e busca inteligente sem pageerror', as
 test('valores monetários com centavos persistem no cálculo sem multiplicar por 100', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page);
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const values = [
     ['Saldo devedor atual (R$)', '80000001', /^R\$\s800\.000,01$/],

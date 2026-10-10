@@ -1,3 +1,4 @@
+import { seedCalculatorExample } from './helpers/calculator-example';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function expectLoadedLogo(image: Locator, variant: 'logo' | 'symbol') {
@@ -19,8 +20,9 @@ async function cadastrar(page: Page) {
   await page.getByLabel('Nome').fill('Teste Logo');
   await page.getByLabel('Email').fill(`logo-${crypto.randomUUID()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 }
 
 test('navegação e rodapé usam logo fornecida sem repetir nome em texto', async ({ page }) => {

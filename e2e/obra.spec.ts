@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -17,8 +18,9 @@ async function cadastrar(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   return email;
 }
 
@@ -36,7 +38,7 @@ test('página de juros de obra mostra disclaimers e calcula sem custo', async ({
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   await expect(page.getByRole('heading', { name: 'Comprar na planta' })).toBeVisible();
   await expect(page.getByText(/Esta é uma simulação/i)).toBeVisible();
@@ -60,7 +62,7 @@ test('portabilidade calculada aparece em minhas simulações', async ({ page }) 
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
   await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await expect(page.getByText(/vale a pena|não vale a pena/i).first()).toBeVisible();
 
@@ -71,7 +73,7 @@ test('portabilidade calculada aparece em minhas simulações', async ({ page }) 
 test('sem plano vê card de upgrade sem acesso à ferramenta', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrar(page);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   await expect(page.getByRole('heading', { name: 'Comprar na planta' })).toBeVisible();
   await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
@@ -84,7 +86,7 @@ test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   const calcular = page.getByRole('button', { name: /calcular juros de obra/i });
   await expect(calcular).not.toContainText('-1');
@@ -96,12 +98,13 @@ test('toggle Financiei a entrada abre campos e inclui a entrada no resultado', a
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   await page.getByRole('switch', { name: /financiei a entrada/i }).click();
   await expect(page.getByRole('textbox', { name: 'Entrada à vista (R$)' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Valor da entrada parcelado (R$)' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Quantidade de parcelas' })).toHaveValue('24');
+  await expect(page.getByRole('textbox', { name: 'Quantidade de parcelas' })).toHaveValue('0');
+  await page.getByRole('textbox', { name: 'Quantidade de parcelas' }).fill('24');
   await expect(page.getByText('Tem juros?', { exact: true })).toBeVisible();
 
   await page.getByRole('textbox', { name: 'Entrada à vista (R$)' }).fill('5000000');
@@ -119,7 +122,7 @@ test('modo sei o valor da parcela aceita parte à vista e calcula', async ({ pag
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   await page.getByRole('switch', { name: /financiei a entrada/i }).click();
   await page.getByRole('radio', { name: /sei o valor da parcela/i }).click();
@@ -128,6 +131,7 @@ test('modo sei o valor da parcela aceita parte à vista e calcula', async ({ pag
 
   await page.getByRole('textbox', { name: 'Entrada à vista (R$)' }).fill('5000000');
   await page.getByRole('textbox', { name: 'Valor da parcela da entrada (R$)' }).fill('450000');
+  await page.getByRole('textbox', { name: 'Quantidade de parcelas' }).fill('24');
   await page.getByRole('button', { name: /calcular juros de obra/i }).click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();
 });

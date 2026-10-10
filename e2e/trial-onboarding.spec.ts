@@ -32,7 +32,7 @@ test('oferta após cadastro mostra vídeo em loop; recusa mantém ativação no 
     const modal = page.getByRole('dialog', { name: /7 dias do Ilimitado/ });
     await expect(modal).toBeVisible();
     await expect(modal.getByText('Sem cartão. Sem cobrança automática.')).toBeVisible();
-    await expect(modal.getByText(/primeiras 48 horas/)).toBeVisible();
+    await expect(modal.getByText(/48 horas a partir do cadastro ou da reabertura/)).toBeVisible();
     const video = modal.locator('video');
     await expect(video).toBeVisible();
     expect(await video.evaluate(element => {
@@ -51,7 +51,7 @@ test('oferta após cadastro mostra vídeo em loop; recusa mantém ativação no 
     await expect(page.getByText(/Trial ativo até/)).toBeVisible();
     await expect(page.getByText(/Trial · 7 dias/).first()).toBeVisible();
     await expect(page.locator('del').filter({ hasText: '199,90' })).toBeVisible();
-    await expect(page.getByText('Oferta por tempo limitado')).toBeVisible();
+    await expect(page.getByText(/Economize R\$\s?80,00/)).toBeVisible();
     await expect(page.getByText(/Sem cartão e sem cobrança automática/)).toBeVisible();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Ativar 7 dias grátis' })).toHaveCount(0);

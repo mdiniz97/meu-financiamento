@@ -1,14 +1,16 @@
+import { seedCalculatorExample } from './helpers/calculator-example';
 import { expect, test, type Page } from '@playwright/test';
 
 async function cadastrar(page: Page) {
   const email = `money-input${Date.now()}@teste.com`;
   await page.goto('/cadastro');
-  await page.waitForLoadState('networkidle');
+  await expect(page.getByLabel('Nome')).toBeVisible();
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 }
 
 test('MoneyInput não reaproveita zeros da máscara', async ({ baseURL, context, page }) => {

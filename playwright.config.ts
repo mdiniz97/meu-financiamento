@@ -14,6 +14,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
+    env: { APP_URL: baseURL, AUTH_URL: baseURL, EMAIL_ENABLED: 'false' },
     command: `npm run dev -- -p ${port}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,

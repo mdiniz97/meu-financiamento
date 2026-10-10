@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -17,8 +18,9 @@ async function cadastrarIlimitado(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
@@ -246,7 +248,7 @@ for (const screen of ROUTES) {
 }
 
 test('auditoria rejeita descrição e trigger semânticos órfãos', async ({ page }) => {
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.evaluate(() => {
     const help = document.createElement('span');
     help.id = 'orphan-help';
@@ -263,7 +265,7 @@ test('auditoria rejeita descrição e trigger semânticos órfãos', async ({ pa
 });
 
 test('auditoria rejeita container arbitrário que se registra como grupo', async ({ page }) => {
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.evaluate(() => {
     const fake = document.createElement('div');
     fake.id = 'fake-group';
@@ -278,7 +280,7 @@ test('auditoria rejeita container arbitrário que se registra como grupo', async
 });
 
 test('controle legítimo com id terminado em -help não vira descrição', async ({ page }) => {
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.evaluate(() => {
     const control = document.createElement('input');
     control.id = 'normal-help';
@@ -292,7 +294,7 @@ test('controle legítimo com id terminado em -help não vira descrição', async
 });
 
 test('auditoria rejeita controle comum com ID duplicado do popup antes de sua abertura', async ({ page }) => {
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.evaluate(() => {
     const control = document.createElement('input');
     control.id = 'principal-help-popup';
@@ -311,7 +313,7 @@ test('auditoria rejeita controle comum com ID duplicado do popup antes de sua ab
 
 test('ajuda cobre tarifa dinâmica, amortização e switches retos', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   const feesGroup = page.getByRole('group', { name: 'Tarifas', exact: true }).first();
   await expect(feesGroup).toBeVisible();
   await expect(feesGroup).toHaveAccessibleName('Tarifas');
@@ -326,7 +328,7 @@ test('ajuda cobre tarifa dinâmica, amortização e switches retos', async ({ pa
   await expect(page.getByLabel('Nome da tarifa').nth(1)).toHaveAttribute('aria-describedby', 'p3-fees-help');
   await auditVisibleEditableControls(page);
 
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.evaluate(() => sessionStorage.setItem('sim-input', JSON.stringify({
     system: 'PRICE',
     principal: '1000000',
@@ -380,7 +382,7 @@ test('ajuda cobre tarifa dinâmica, amortização e switches retos', async ({ pa
   await expect(switchControl).toHaveCSS('border-radius', '0px');
   await expect(switchControl.locator('[data-slot="switch-thumb"]')).toHaveCSS('border-radius', '0px');
 
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
   await expect(page.getByRole('button', { name: 'Ajuda sobre Parcela desejada (R$, opcional)' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Parcela desejada (R$, opcional)' })).toHaveAttribute('aria-describedby', /(^| )portTarget-help( |$)/);
@@ -388,7 +390,7 @@ test('ajuda cobre tarifa dinâmica, amortização e switches retos', async ({ pa
 });
 
 test('modo por parcela mantém contrato de ajuda nos controles compartilhados e opcionais', async ({ page }) => {
-  await page.goto('/qual-imovel-cabe-no-meu-bolso');
+  await gotoCalculatorExample(page, '/qual-imovel-cabe-no-meu-bolso');
   await page.getByRole('tab', { name: /por parcela/i }).click();
   await expect(page.getByRole('textbox', { name: /renda mensal/i })).toBeHidden();
   await expect(page.getByRole('textbox', { name: 'Parcela máxima (R$)', exact: true })).toHaveAttribute('aria-describedby', /(^| )affCap-help( |$)/);

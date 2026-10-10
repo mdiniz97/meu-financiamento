@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -17,8 +18,9 @@ async function cadastrar(page: Page) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   return email;
 }
 
@@ -36,7 +38,7 @@ test('página investir ou amortizar calcula sem custo e mostra veredito', async 
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/investir-ou-amortizar');
+  await gotoCalculatorExample(page, '/investir-ou-amortizar');
 
   await expect(page.getByRole('heading', { name: 'Investir ou amortizar?' })).toBeVisible();
 
@@ -54,7 +56,7 @@ test('Ilimitado calcula sem custo e sem chip', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/investir-ou-amortizar');
+  await gotoCalculatorExample(page, '/investir-ou-amortizar');
 
   const comparar = page.getByRole('button', { name: /comparar/i });
   await expect(comparar).not.toContainText('-1');
@@ -66,7 +68,7 @@ test('seção planta ou investir calcula junto sem custo extra', async ({ page }
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page);
   await assinar(page, email);
-  await page.goto('/comprar-na-planta');
+  await gotoCalculatorExample(page, '/comprar-na-planta');
 
   await page.getByRole('button', { name: /calcular juros de obra/i }).click();
   await expect(page.getByRole('heading', { name: 'Resultado da simulação' })).toBeVisible();

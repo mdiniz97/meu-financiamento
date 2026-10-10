@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { test, expect, type Page } from '@playwright/test';
@@ -17,8 +18,9 @@ async function cadastrar(page: Page, prefix: string) {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   return email;
 }
 
@@ -35,6 +37,8 @@ async function assinar(page: Page, email: string) {
 }
 
 async function preencherProposta(page: Page, index: number, bank: string, entradaCents: string) {
+  await page.getByRole('textbox', { name: 'Prazo (meses)', exact: true }).nth(index).fill('360');
+  await page.getByRole('textbox', { name: 'TR mensal (%)', exact: true }).nth(index).fill('0.17');
   await page.getByRole('textbox', { name: 'Banco' }).nth(index).fill(bank);
   await page.getByRole('textbox', { name: 'Imóvel (R$)' }).nth(index).fill('85000000');
   await page.getByRole('textbox', { name: 'Entrada (R$)' }).nth(index).fill(entradaCents);
@@ -49,7 +53,7 @@ async function preencherProposta(page: Page, index: number, bank: string, entrad
 test('não assinante vê card de upgrade sem acesso à ferramenta', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrar(page, 'b');
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await expect(page.getByText('Recurso exclusivo do plano Ilimitado')).toBeVisible();
   await expect(page.getByRole('button', { name: /ver opções de acesso/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Banco' }).first()).not.toBeVisible();
@@ -59,7 +63,7 @@ test('ilimitado compara 2 propostas, adiciona 3ª, vê ranking + alerta CET, sal
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'c');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
 
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
@@ -98,7 +102,7 @@ test('preserva taxas nominal e mensal ao salvar, reabrir e transferir canônico'
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'rate-roundtrip');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -141,7 +145,7 @@ test('preserva principal manual ao comparar, salvar, reabrir, gerar PDF e transf
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'principal-roundtrip');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -171,7 +175,7 @@ test('texto de taxa inválido bloqueia comparação', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'rate-invalid');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -185,7 +189,7 @@ test('tentativa inválida não mantém resultado nem permite salvar input novo',
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'compare-stale');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -228,7 +232,7 @@ test('sintaxe inválida de prazo, CET e TR remove resultado e recupera', async (
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'numeric-validity');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -257,7 +261,7 @@ test('blur e novo foco restauram taxa canônica e validade completa', async ({ p
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'rate-focus-recovery');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -278,7 +282,7 @@ test('novo foco não limpa validade quando taxa canônica excede máximo', async
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'rate-domain-focus');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -296,7 +300,7 @@ test('MoneyInput recupera validade agregada após rejeição e novo foco', async
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'money-validity-recovery');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   const principal = page.getByRole('textbox', { name: 'Valor financiado (R$)' }).first();
   await principal.fill('1234567890123');
   await principal.blur();
@@ -315,7 +319,7 @@ test('remover proposta inválida limpa aggregate inclusive após reutilizar ID',
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'remove-invalid');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -335,7 +339,7 @@ test('remover primeira proposta e adicionar reutiliza primeiro ID livre com esta
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'proposal-id');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');
@@ -364,7 +368,7 @@ test('após carregar comparação salva reutiliza primeiro ID livre ao remover p
   test.skip(!hasPsql, 'requer psql local');
   const email = await cadastrar(page, 'saved-proposal-id');
   await assinar(page, email);
-  await page.goto('/comparar-propostas');
+  await gotoCalculatorExample(page, '/comparar-propostas');
   await page.getByRole('textbox', { name: /Quanto consegue pagar por mês/ }).fill('1200000');
   await preencherProposta(page, 0, 'Caixa', '25000000');
   await preencherProposta(page, 1, 'Itaú', '23000000');

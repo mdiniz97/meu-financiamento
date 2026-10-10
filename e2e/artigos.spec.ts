@@ -52,8 +52,8 @@ test('home tem seção do blog com artigos', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /aprenda antes de assinar o contrato/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /ver todos os artigos/i })).toBeVisible();
-  await page.getByRole('link', { name: /SAC vs PRICE/i }).first().click();
-  await page.waitForURL(/\/blog\/sac-ou-price$/);
+  await page.getByRole('link', { name: /Amortizar o financiamento: reduzir a parcela ou o prazo/i }).first().click();
+  await page.waitForURL(/\/blog\/amortizar-reduzir-parcela-ou-prazo$/);
 });
 
 test('slug inexistente retorna 404', async ({ page }) => {

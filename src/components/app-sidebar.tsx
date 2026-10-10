@@ -172,14 +172,16 @@ export function AppSidebar({
   return (
     <>
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background min-[1024px]:flex">
-        <div className="flex h-16 items-center gap-2.5 border-b border-border px-4">
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={36} variant="full" />
           </Link>
         </div>
-        <div className="flex flex-1 flex-col justify-between p-3">
-          <NavLinks compact />
-          <div className="flex flex-col gap-3 border-t border-border pt-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <NavLinks compact />
+          </div>
+          <div className="flex shrink-0 flex-col gap-3 border-t border-border pt-3">
             <PlanChip credits={credits} isUnlimited={isUnlimited} trialEndsAt={trialEndsAt} />
             <ActionsRow />
           </div>

@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { expect, test, type Page } from '@playwright/test';
 import { recommendSmart } from '../src/lib/finance/smart';
 import { simulate } from '../src/lib/finance/engine';
@@ -9,18 +10,19 @@ async function assinar(page: Page) {
   await page.getByLabel('Email').fill(`audit-${crypto.randomUUID()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
   const signup = page.waitForResponse((response) => response.url().endsWith('/api/signup') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   const response = await signup;
   expect(response.ok()).toBe(true);
   const { id } = await response.json() as { id: string };
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const upgrade = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${id}&packId=unlimited`);
   expect(upgrade.ok()).toBe(true);
 }
 
 test('abrir recomendação Smart mantém o modo e o custo do cenário mostrado', async ({ page }) => {
   await assinar(page);
-  await page.goto('/amortizador-inteligente');
+  await gotoCalculatorExample(page, '/amortizador-inteligente');
   await page.getByRole('button', { name: /calcular melhor modelo/i }).click();
   const best = page.getByText('Melhor prazo para o seu orçamento', { exact: true }).locator('..');
   await expect(best).toBeVisible();
@@ -37,7 +39,7 @@ test('abrir recomendação Smart mantém o modo e o custo do cenário mostrado',
 
 test('meta SAC mostra aporte fixo adicional e primeira prestação acima do boleto atual', async ({ page }) => {
   await assinar(page);
-  await page.goto('/meta-de-quitacao');
+  await gotoCalculatorExample(page, '/meta-de-quitacao');
   await page.getByRole('textbox', { name: 'Saldo devedor (R$)' }).fill('40000000');
   await page.getByRole('textbox', { name: 'Prazo restante (meses)' }).fill('360');
   await page.getByRole('textbox', { name: 'Taxa do financiamento', exact: true }).fill('12');
@@ -50,7 +52,7 @@ test('meta SAC mostra aporte fixo adicional e primeira prestação acima do bole
 
 test('alugar ou comprar rejeita horizonte e aluguel fora das premissas cobertas', async ({ page }) => {
   await assinar(page);
-  await page.goto('/alugar-ou-comprar');
+  await gotoCalculatorExample(page, '/alugar-ou-comprar');
   await page.getByRole('textbox', { name: 'Horizonte (anos)' }).fill('40');
   await page.getByRole('button', { name: 'Comparar', exact: true }).click();
   const alertaHorizonte = page.getByRole('alert').filter({ hasText: /prazo do financiamento/i });
@@ -73,7 +75,7 @@ test('Smart transfere PRICE payment com custo distinto de term no mesmo prazo', 
   const term = simulate(best.result.input, { ...best.result.strategies, reduceMode: 'term' });
   expect(Math.abs(term.metrics.totalPago - best.result.metrics.totalPago)).toBeGreaterThan(0.01);
   await assinar(page);
-  await page.goto('/amortizador-inteligente');
+  await gotoCalculatorExample(page, '/amortizador-inteligente');
   await page.locator('#smartMaxPayment2').fill('1100000');
   await page.getByRole('button', { name: /calcular melhor modelo/i }).click();
   const shown = page.getByText('Melhor prazo para o seu orçamento', { exact: true }).locator('..');

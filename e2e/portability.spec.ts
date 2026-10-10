@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
@@ -14,12 +15,13 @@ const hasPsql = (() => {
 async function cadastrarEAssinar(page: Page, prefix: string) {
   const email = `${prefix}${Date.now()}@teste.com`;
   await page.goto('/cadastro');
-  await page.waitForLoadState('networkidle');
+  await expect(page.getByLabel('Nome')).toBeVisible();
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
   const uid = execSync(
     `psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`
   ).toString().trim();
@@ -62,7 +64,7 @@ test('desktop mostra dados acima e painéis lado a lado', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-desktop');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const data = page.getByRole('region', { name: /dados do financiamento/i });
   const current = page.getByRole('region', { name: 'Contrato atual', exact: true });
@@ -87,7 +89,7 @@ test('controles e painéis de portabilidade têm geometria consistente no deskto
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-geometry');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const current = page.getByRole('region', { name: 'Contrato atual', exact: true });
   const offered = page.getByRole('region', { name: 'Proposta oferecida', exact: true });
@@ -144,7 +146,7 @@ test('painéis de portabilidade mantêm borda completa no mobile', async ({ page
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-border-mobile');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await expectCompleteBorder(page.getByRole('region', { name: 'Contrato atual', exact: true }));
   await expectCompleteBorder(page.getByRole('region', { name: 'Proposta oferecida', exact: true }));
@@ -167,7 +169,7 @@ test('mobile empilha dados, contrato atual e proposta sem overflow horizontal', 
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-mobile');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const data = page.getByRole('region', { name: /dados do financiamento/i });
   const current = page.getByRole('region', { name: 'Contrato atual', exact: true });
@@ -216,7 +218,7 @@ test('mobile empilha dados, contrato atual e proposta sem overflow horizontal', 
 test('cálculo continua funcional após reorganização', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-calc');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await expect(page.getByText(/vale a pena|não vale a pena/i).first()).toBeVisible();
@@ -225,7 +227,7 @@ test('cálculo continua funcional após reorganização', async ({ page }) => {
 test('comparação lado a lado da portabilidade tem borda completa nos cenários', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-sandbox-border');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await page.getByRole('button', { name: 'Ver comparação lado a lado' }).click();
@@ -250,7 +252,7 @@ test('comparação lado a lado da portabilidade tem borda completa nos cenários
 test('erro de validação aparece na seção do campo inválido', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-validation');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const currentSection = page.getByRole('region', { name: /contrato atual/i });
   const dataSection = page.getByRole('region', { name: /dados do financiamento/i });
@@ -278,7 +280,7 @@ test('erro de validação aparece na seção do campo inválido', async ({ page 
 test('busca inteligente mostra sem taxa viável quando nem 0% compensa', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-degenerate');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('textbox', { name: 'Custos da portabilidade (R$)' }).fill('999999999');
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -295,7 +297,7 @@ test('busca inteligente mostra sem taxa viável quando nem 0% compensa', async (
 test('busca inteligente omite parcela-alvo sem alvo e mostra impossível fora do alcance', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-target');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const smart = page.getByRole('region', { name: /busca inteligente/i });
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -312,7 +314,7 @@ test('busca inteligente omite parcela-alvo sem alvo e mostra impossível fora do
 test('parcela-alvo zero é tratada como opcional ausente', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-smart-valid');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const smart = page.getByRole('region', { name: /busca inteligente/i });
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -330,7 +332,7 @@ test('parcela-alvo zero é tratada como opcional ausente', async ({ page }) => {
 test('verdict usa economia líquida: custos acima da bruta → não vale a pena com detalhamento', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-verdict-cost');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
@@ -366,7 +368,7 @@ test('verdict usa economia líquida: custos acima da bruta → não vale a pena 
 test('editar proposta após calcular marca resultado desatualizado e bloqueia ações até recalcular', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-dirty');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await expect(page.getByText(/vale a pena portar!/i)).toBeVisible();
@@ -409,7 +411,7 @@ test('editar proposta após calcular marca resultado desatualizado e bloqueia a�
 test('edições não-taxa e da busca inteligente invalidam comparação e busca anterior', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-stale-smart');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
@@ -439,7 +441,7 @@ test('edições não-taxa e da busca inteligente invalidam comparação e busca 
 test('sintaxe inválida em prazo e TR recupera validade ao reverter no blur', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-invalid-shared');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const data = page.getByRole('region', { name: 'Dados do financiamento' });
@@ -491,7 +493,7 @@ test('sintaxe inválida em prazo e TR recupera validade ao reverter no blur', as
 test('campo numérico vazio emite zero: prazo falha e TR recalcula', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-empty-shared');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const data = page.getByRole('region', { name: 'Dados do financiamento' });
@@ -525,7 +527,7 @@ test('campo numérico vazio emite zero: prazo falha e TR recalcula', async ({ pa
 test('taxa inválida atual ou oferecida descarta a busca inteligente', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-invalid-rate-smart');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
@@ -561,7 +563,7 @@ test('taxa inválida atual ou oferecida descarta a busca inteligente', async ({ 
 test('banco, sistema e tipo de taxa invalidam e limpam busca independentemente', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-snapshot');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const smart = page.getByRole('region', { name: 'Busca inteligente' });
@@ -640,7 +642,7 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
   const parseMoney = (value: string) =>
     Number(value.replace(/[^\d,-]/g, '').replace(',', '.'));
   await cadastrarEAssinar(page, 'port-transfer');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
   const genericSentinel = JSON.stringify({
     system: 'PRICE',
     principal: '432100,00',
@@ -720,7 +722,7 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
   });
   expect(transferred.input).not.toHaveProperty('costs');
 
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
 
   const freshWizard = page.locator('form').filter({
     has: page.getByRole('button', { name: 'Simular', exact: true }),
@@ -750,7 +752,7 @@ test('transfere proposta completa e bloqueia transferência suja', async ({ page
 test('TR inválida preserva resultado e metadados do cálculo anterior', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-engine-error');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   const compare = page.getByRole('button', { name: 'Comparar contrato atual e proposta' });
   const warning = page.getByRole('alert').filter({ hasText: 'Dados alterados, calcule novamente' });
@@ -778,7 +780,7 @@ test('TR inválida preserva resultado e metadados do cálculo anterior', async (
 test('economia líquida zero mostra empate neutro', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-neutral');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('textbox', { name: 'Nova taxa', exact: true }).fill('11.5');
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
@@ -801,7 +803,7 @@ test('economia líquida zero mostra empate neutro', async ({ page }) => {
 test('busca permite limpar parcela alvo e aplicar taxa segura inclusive em 0%', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-safe-rate');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
   const target = page.getByRole('textbox', { name: 'Parcela desejada (R$, opcional)' });
@@ -828,7 +830,7 @@ test('busca permite limpar parcela alvo e aplicar taxa segura inclusive em 0%', 
 test('parcela alvo no teto mostra exatamente a taxa combinada aplicada e segura', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-target-ceiling-copy');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('switch', { name: 'Busca inteligente' }).click();
   await page.getByRole('textbox', { name: 'Parcela desejada (R$, opcional)' }).fill('400000');
@@ -851,7 +853,7 @@ test('parcela alvo no teto mostra exatamente a taxa combinada aplicada e segura'
 test('TR acima de 10% falha na seção compartilhada antes do motor', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-tr-limit');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('textbox', { name: 'TR mensal (%)' }).fill('10.01');
   await page.getByRole('button', { name: 'Comparar contrato atual e proposta' }).click();
@@ -863,7 +865,7 @@ test('TR acima de 10% falha na seção compartilhada antes do motor', async ({ p
 test('veredito descreve direção real da primeira parcela e resumo fica completo', async ({ page }) => {
   test.skip(!hasPsql, 'requer psql local');
   await cadastrarEAssinar(page, 'port-summary-direction');
-  await page.goto('/portabilidade');
+  await gotoCalculatorExample(page, '/portabilidade');
 
   await page.getByRole('textbox', { name: 'Saldo devedor atual (R$)' }).fill('30000000');
   await page.getByRole('textbox', { name: 'Parcelas restantes' }).fill('120');

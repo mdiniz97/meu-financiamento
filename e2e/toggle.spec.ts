@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { DB_URL } from './helpers/db';
 import { execSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
@@ -18,14 +19,15 @@ test('switch comparar PRICE ↔ SAC liga a comparação lado a lado', async ({ p
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
   const uid = execSync(`psql "${DB_URL}" -t -A -c "select id from users where email='${email}'"`).toString().trim();
   const res = await page.request.get(`/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`);
   expect(res.ok()).toBeTruthy();
 
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: /simular/i }).click();
   await page.waitForURL(/simulacao/);
 

@@ -1,3 +1,4 @@
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
 import { expect, test, type Page } from '@playwright/test';
 
 async function cadastrarIlimitado(page: Page) {
@@ -9,12 +10,13 @@ async function cadastrarIlimitado(page: Page) {
   const signupResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith('/api/signup') && response.request().method() === 'POST'
   );
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   const signupResponse = await signupResponsePromise;
   expect(signupResponse.ok()).toBeTruthy();
   const { id: uid } = await signupResponse.json() as { id?: string };
   expect(uid).toBeTruthy();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
   const response = await page.request.get(
     `/api/webhooks/payments?fake=approve&userId=${uid}&packId=unlimited`
@@ -52,7 +54,7 @@ test('webhook fake exige sessão e impede aprovação para outra conta', async (
 
 test('aplica 14,17% recomendado e dívida cai desde o mês 1', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -74,7 +76,7 @@ test('aplica 14,17% recomendado e dívida cai desde o mês 1', async ({ page }) 
 
 test('substitui aporte percentual existente sem criar duplicado', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -91,7 +93,7 @@ test('substitui aporte percentual existente sem criar duplicado', async ({ page 
 
 test('aporte recomendado acima de 100% fica indisponível sem erro', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.locator('#trMonthly').fill('1');
   await page.locator('#months').fill('600');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
@@ -114,7 +116,7 @@ test('legado com até o mês 400 em contrato de 360 carrega clampado em 360 sem 
 
 test('digitar até o mês acima do prazo clampa em 360 sem quebrar a simulação', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -143,7 +145,7 @@ test('legado com mês inicial 400 em contrato de 360: linha removida, sem aporte
 
 test('digitar mês de início acima do prazo remove a linha (não aporta no último mês)', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -155,7 +157,7 @@ test('digitar mês de início acima do prazo remove a linha (não aporta no últ
 
 test('linha com valor zero mostra estado inativo com dica e segue removível', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -169,7 +171,7 @@ test('linha com valor zero mostra estado inativo com dica e segue removível', a
 test('aporte pontual comunica pagamento único, oculta janela e alinha controles', async ({ page }) => {
   await cadastrarIlimitado(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
 
@@ -192,7 +194,7 @@ test('aporte pontual comunica pagamento único, oculta janela e alinha controles
 
 test('trocar aporte com janela para pontual descarta o limite oculto', async ({ page }) => {
   await cadastrarIlimitado(page);
-  await page.goto('/nova-simulacao');
+  await gotoCalculatorExample(page, '/nova-simulacao');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.waitForURL(/simulacao/);
   await page.getByRole('button', { name: 'Adicionar amortização' }).click();

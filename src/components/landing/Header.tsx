@@ -9,7 +9,7 @@ import { signedInNavItem } from "@/lib/landing/signed-in-nav";
 
 export function Header({ signedIn = false, unlimited = false }: { signedIn?: boolean; unlimited?: boolean }) {
   const navItem = signedInNavItem(unlimited);
-  const link = "hidden px-2 text-sm md:inline-flex";
+  const link = "hidden px-2 text-sm lg:inline-flex";
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">

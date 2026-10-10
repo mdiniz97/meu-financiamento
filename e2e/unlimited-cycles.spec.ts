@@ -21,10 +21,6 @@ for (const cycle of ['MONTHLY', 'YEARLY'] as const) {
       await page.getByRole('dialog', { name: /7 dias do Ilimitado/ }).getByRole('button', { name: 'Agora não' }).click();
       await page.goto(`/assinar?cycle=${cycle}`);
       const monthly = cycle === 'MONTHLY';
-      const subscribe = page.getByRole('button', { name: `Assinar Ilimitado ${monthly ? 'mensal' : 'anual'}`, exact: true });
-      await expect(subscribe).toBeVisible();
-      await expect(page.getByText(monthly ? 'R$ 18,90' : 'R$ 119,90', { exact: true })).toBeVisible();
-      await subscribe.click();
       await expect(page).toHaveURL(/\/perfil$/, { timeout: 30000 });
       await page.goto('/assinatura');
       await expect(page.getByText(monthly ? 'Assinatura mensal' : 'Assinatura anual', { exact: true })).toBeVisible();

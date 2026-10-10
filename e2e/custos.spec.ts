@@ -1,10 +1,11 @@
-import { expect, test, type Page } from '@playwright/test';
+import { gotoCalculatorExample, seedCalculatorExample } from './helpers/calculator-example';
+import { expect, test } from '@playwright/test';
 
 test('página pública calcula custos sem cadastro e sem erros', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto('/custos-da-compra');
+  await gotoCalculatorExample(page, '/custos-da-compra');
   await expect(page.getByRole('heading', { name: 'Quanto preciso para comprar?' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Valor do imóvel (R$)' })).toBeVisible();
 
@@ -19,7 +20,7 @@ test('página pública calcula custos sem cadastro e sem erros', async ({ page }
 });
 
 test('mudar UF muda o ITBI estimado', async ({ page }) => {
-  await page.goto('/custos-da-compra');
+  await gotoCalculatorExample(page, '/custos-da-compra');
   await page.getByRole('button', { name: /calcular custos/i }).click();
   await expect(page.getByText(/Média de 3% \(São Paulo\)/i)).toBeVisible();
 
@@ -31,7 +32,7 @@ test('mudar UF muda o ITBI estimado', async ({ page }) => {
 
 test('navbar da landing tem o link da calculadora', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('navigation').getByRole('link', { name: /quanto preciso para comprar/i })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Custos da compra', exact: true })).toBeVisible();
 });
 
 test('autenticado acessa pela sidebar dentro do app', async ({ page }) => {
@@ -39,13 +40,15 @@ test('autenticado acessa pela sidebar dentro do app', async ({ page }) => {
   await page.getByLabel('Nome').fill('Teste');
   await page.getByLabel('Email').fill(`custos-${Date.now()}@teste.com`);
   await page.getByLabel('Senha').fill('senha123');
-  await page.getByRole('button', { name: /criar conta e ganhar 5 créditos/i }).click();
+  await page.getByRole('button', { name: /criar conta e ganhar 10 créditos/i }).click();
   await page.waitForURL(/nova-simulacao/);
+  await seedCalculatorExample(page);
 
   await page.getByRole('link', { name: /quanto preciso para comprar/i }).click();
   await page.waitForURL(/\/custos-da-compra$/);
   await expect(page.getByRole('heading', { name: 'Quanto preciso para comprar?' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Simulações', exact: true })).toBeVisible();
+  await seedCalculatorExample(page);
   await page.getByRole('button', { name: /calcular custos/i }).click();
   await expect(page.getByRole('heading', { name: 'Você precisa ter à vista' })).toBeVisible();
 });
